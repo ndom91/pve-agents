@@ -34,7 +34,7 @@ importers:
         specifier: 2.4.5
         version: 2.4.5
       '@tanstack/router-cli':
-        specifier: ^1.132.0
+        specifier: ^1.167.36
         version: 1.167.36
       '@types/better-sqlite3':
         specifier: ^9.6.0

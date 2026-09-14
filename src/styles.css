@@ -1,16 +1,207 @@
-
+:root {
+	background: #111411;
+	color: #e6e9df;
+	font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+}
 
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
+	margin: 0;
 }
 
-main {
-  width: min(42rem, calc(100% - 2rem));
-  margin: 4rem auto;
+button,
+input {
+	font: inherit;
 }
 
+.shell {
+	margin: 0 auto;
+	max-width: 1120px;
+	min-height: 100vh;
+	padding: 40px 24px 80px;
+}
+
+.masthead,
+.section-heading,
+.workspace-row {
+	display: flex;
+	justify-content: space-between;
+}
+
+.masthead {
+	align-items: start;
+	border-bottom: 1px solid #384036;
+	padding-bottom: 32px;
+}
+
+.eyebrow {
+	color: #a9b8a2;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	margin: 0 0 8px;
+}
+
+h1,
+h2,
+p {
+	margin-top: 0;
+}
+
+h1 {
+	font-size: clamp(36px, 6vw, 64px);
+	font-weight: 500;
+	letter-spacing: -0.05em;
+	line-height: 0.9;
+	margin-bottom: 0;
+}
+
+h2 {
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	margin-bottom: 0;
+}
+
+.mode,
+.status {
+	border: 1px solid #7b8b71;
+	color: #c4d1bd;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	margin: 0;
+	padding: 6px 8px;
+	text-transform: uppercase;
+}
+
+.request-panel,
+.workspace-panel {
+	border-bottom: 1px solid #384036;
+	padding: 32px 0;
+}
+
+form {
+	display: grid;
+	gap: 16px;
+	grid-template-columns: 1.6fr 0.6fr;
+	margin-top: 24px;
+}
+
+label {
+	color: #a9b8a2;
+	display: grid;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	gap: 8px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+input {
+	background: #171b17;
+	border: 1px solid #4a5548;
+	border-radius: 0;
+	color: #e6e9df;
+	min-width: 0;
+	padding: 11px 12px;
+}
+
+input:focus {
+	border-color: #b5cda9;
+	outline: 2px solid #b5cda944;
+	outline-offset: 2px;
+}
+
+.wide {
+	grid-column: span 2;
+}
+
+button {
+	background: #b5cda9;
+	border: 0;
+	color: #172016;
+	cursor: pointer;
+	font-weight: 700;
+	justify-self: start;
+	padding: 11px 16px;
+}
+
+button:hover:not(:disabled) {
+	background: #d0e4c5;
+}
+
+button:disabled {
+	cursor: wait;
+	opacity: 0.6;
+}
+
+.error {
+	color: #ffb4a8;
+	margin: 16px 0 0;
+}
+
+.section-heading {
+	align-items: end;
+}
+
+.section-heading > p,
+.empty,
+.workspace-purpose,
+dt {
+	color: #a9b8a2;
+}
+
+.workspace-list {
+	margin-top: 24px;
+}
+
+.workspace-row {
+	align-items: center;
+	border-top: 1px solid #2c332c;
+	gap: 24px;
+	padding: 18px 0;
+}
+
+.workspace-name {
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	margin-bottom: 6px;
+}
+
+.workspace-purpose {
+	margin-bottom: 0;
+}
+
+dl {
+	display: flex;
+	gap: 24px;
+	margin: 0;
+}
+
+dt {
+	font-size: 11px;
+	margin-bottom: 4px;
+}
+
+dd {
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	margin: 0;
+}
+
+.status-requested {
+	border-color: #7b8b71;
+}
+
+@media (max-width: 640px) {
+	.shell {
+		padding: 28px 16px 48px;
+	}
+
+	.workspace-row {
+		align-items: start;
+		flex-direction: column;
+	}
+}
