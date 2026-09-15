@@ -1,7 +1,12 @@
 import type Database from "better-sqlite3";
 import { z } from "zod";
 
-import { createWorkspace, listWorkspaces } from "../db/workspace-repository";
+import {
+	createWorkspace,
+	listWorkspaces,
+	requestWorkspaceOperation,
+	workspaceById,
+} from "../db/workspace-repository";
 
 export const workspaceRequestSchema = z.object({
 	purpose: z.string().trim().min(1).max(500).optional(),
@@ -17,6 +22,11 @@ export function listRequestedWorkspaces(db: Database.Database) {
 	return listWorkspaces(db);
 }
 
+// requestedWorkspace returns one persisted workspace when it exists.
+export function requestedWorkspace(db: Database.Database, id: string) {
+	return workspaceById(db, id);
+}
+
 // requestWorkspace persists validated workspace creation intent.
 export function requestWorkspace(
 	db: Database.Database,
@@ -24,13 +34,21 @@ export function requestWorkspace(
 	idempotencyKey: string,
 	request: WorkspaceRequest,
 ) {
-	return {
-		result: createWorkspace(db, {
-			herdrSession,
-			idempotencyKey,
-			purpose: request.purpose,
-			repository: request.repository,
-			ref: request.ref,
-		}),
-	};
+	return createWorkspace(db, {
+		herdrSession,
+		idempotencyKey,
+		purpose: request.purpose,
+		repository: request.repository,
+		ref: request.ref,
+	});
+}
+
+// destroyWorkspace records a request to destroy a workspace.
+export function destroyWorkspace(db: Database.Database, id: string) {
+	return requestWorkspaceOperation(db, id, "destroy");
+}
+
+// retryWorkspace records a request to retry a failed workspace provisioning operation.
+export function retryWorkspace(db: Database.Database, id: string) {
+	return requestWorkspaceOperation(db, id, "provision");
 }

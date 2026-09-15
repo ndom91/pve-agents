@@ -10,33 +10,89 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiWorkspacesRouteImport } from './routes/api/workspaces'
+import { Route as ApiWorkspacesWorkspaceIdRouteImport } from './routes/api/workspaces/$workspaceId'
+import { Route as ApiWorkspacesWorkspaceIdRetryRouteImport } from './routes/api/workspaces/$workspaceId/retry'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkspacesRoute = ApiWorkspacesRouteImport.update({
+  id: '/api/workspaces',
+  path: '/api/workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkspacesWorkspaceIdRoute =
+  ApiWorkspacesWorkspaceIdRouteImport.update({
+    id: '/$workspaceId',
+    path: '/$workspaceId',
+    getParentRoute: () => ApiWorkspacesRoute,
+  } as any)
+const ApiWorkspacesWorkspaceIdRetryRoute =
+  ApiWorkspacesWorkspaceIdRetryRouteImport.update({
+    id: '/retry',
+    path: '/retry',
+    getParentRoute: () => ApiWorkspacesWorkspaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/health'
+    | '/api/workspaces'
+    | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/retry'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/health'
+    | '/api/workspaces'
+    | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/retry'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/health'
+    | '/api/workspaces'
+    | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/retry'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiWorkspacesRoute: typeof ApiWorkspacesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +104,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/workspaces': {
+      id: '/api/workspaces'
+      path: '/api/workspaces'
+      fullPath: '/api/workspaces'
+      preLoaderRoute: typeof ApiWorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/workspaces/$workspaceId': {
+      id: '/api/workspaces/$workspaceId'
+      path: '/$workspaceId'
+      fullPath: '/api/workspaces/$workspaceId'
+      preLoaderRoute: typeof ApiWorkspacesWorkspaceIdRouteImport
+      parentRoute: typeof ApiWorkspacesRoute
+    }
+    '/api/workspaces/$workspaceId/retry': {
+      id: '/api/workspaces/$workspaceId/retry'
+      path: '/retry'
+      fullPath: '/api/workspaces/$workspaceId/retry'
+      preLoaderRoute: typeof ApiWorkspacesWorkspaceIdRetryRouteImport
+      parentRoute: typeof ApiWorkspacesWorkspaceIdRoute
+    }
   }
 }
 
+interface ApiWorkspacesWorkspaceIdRouteChildren {
+  ApiWorkspacesWorkspaceIdRetryRoute: typeof ApiWorkspacesWorkspaceIdRetryRoute
+}
+
+const ApiWorkspacesWorkspaceIdRouteChildren: ApiWorkspacesWorkspaceIdRouteChildren =
+  {
+    ApiWorkspacesWorkspaceIdRetryRoute: ApiWorkspacesWorkspaceIdRetryRoute,
+  }
+
+const ApiWorkspacesWorkspaceIdRouteWithChildren =
+  ApiWorkspacesWorkspaceIdRoute._addFileChildren(
+    ApiWorkspacesWorkspaceIdRouteChildren,
+  )
+
+interface ApiWorkspacesRouteChildren {
+  ApiWorkspacesWorkspaceIdRoute: typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+}
+
+const ApiWorkspacesRouteChildren: ApiWorkspacesRouteChildren = {
+  ApiWorkspacesWorkspaceIdRoute: ApiWorkspacesWorkspaceIdRouteWithChildren,
+}
+
+const ApiWorkspacesRouteWithChildren = ApiWorkspacesRoute._addFileChildren(
+  ApiWorkspacesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiWorkspacesRoute: ApiWorkspacesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -23,13 +23,13 @@ export const createWorkspace = createServerFn({ method: "POST" })
 			data.idempotencyKey,
 			data,
 		);
-		if (result.result.kind === "idempotency_conflict") {
+		if (result.kind === "idempotency_conflict") {
 			throw new Error(
 				"workspace: idempotency key has already been used for another request",
 			);
 		}
 
-		return result.result;
+		return result;
 	});
 
 // listWorkspaces returns persisted workspace requests.
