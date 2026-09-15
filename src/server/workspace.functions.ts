@@ -5,7 +5,12 @@ import {
 	requestWorkspace,
 	workspaceRequestSchema,
 } from "../services/workspace-service";
-import { controllerDatabase, controllerHerdrSession } from "./controller";
+import { authConfigured } from "./auth";
+import {
+	controllerDatabase,
+	controllerHerdrSession,
+	controllerRuntimeConfig,
+} from "./controller";
 
 const createWorkspaceInput = z
 	.object({
@@ -17,6 +22,15 @@ const createWorkspaceInput = z
 export const createWorkspace = createServerFn({ method: "POST" })
 	.validator(createWorkspaceInput)
 	.handler(({ data }) => {
+		// Server functions are reachable over HTTP but carry no API key, and shipping one to the
+		// browser would simply publish it. So once auth is configured the UI is read-only and all
+		// mutations go through the key-authenticated HTTP API instead.
+		if (authConfigured(controllerRuntimeConfig())) {
+			throw new Error(
+				"workspace: creation from the web UI is disabled; use POST /api/workspaces with an API key",
+			);
+		}
+
 		const result = requestWorkspace(
 			controllerDatabase(),
 			controllerHerdrSession(),

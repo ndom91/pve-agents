@@ -48,6 +48,7 @@ describe("runWorkspaceOperations", () => {
 
 function config() {
 	return controllerConfig({
+		CONTROLLER_AUTH_SECRET: "c".repeat(48),
 		CONTROLLER_ID: "b66d3c5d-22c6-4199-889e-764f12d37fe5",
 		PROVISIONING_ENABLED: "true",
 		PROXMOX_BRIDGE: "vmbr0",

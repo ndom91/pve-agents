@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireApiKey } from "../../../server/authorize";
 import { controllerDatabase } from "../../../server/controller";
 import { json } from "../../../server/http";
 import {
@@ -11,7 +12,18 @@ type WorkspaceParams = { workspaceId: string };
 export const Route = createFileRoute("/api/workspaces/$workspaceId")({
 	server: {
 		handlers: {
-			DELETE: ({ params }: { params: WorkspaceParams }) => {
+			DELETE: async ({
+				params,
+				request,
+			}: {
+				params: WorkspaceParams;
+				request: Request;
+			}) => {
+				const denied = await requireApiKey(request);
+				if (denied !== undefined) {
+					return denied;
+				}
+
 				const result = destroyWorkspace(
 					controllerDatabase(),
 					params.workspaceId,

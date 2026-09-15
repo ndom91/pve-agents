@@ -1,44 +1,49 @@
 {
-  "name": "pve-herdr-agents",
-  "private": true,
-  "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
-  "scripts": {
-    "dev": "vite dev --port 3000",
-	"start": "node bin/controller-server.mjs",
-    "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview",
-    "format": "biome format",
-    "lint": "biome lint",
-    "check": "biome check",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@tanstack/react-router": "latest",
-    "@tanstack/react-start": "latest",
-    "better-sqlite3": "^13.0.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.4.5",
-    "@tanstack/router-cli": "^1.167.36",
-    "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.0",
-    "vitest": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=22"
-  }
+	"name": "pve-herdr-agents",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#/*": "./src/*"
+	},
+	"scripts": {
+		"dev": "vite dev --port 3000",
+		"start": "node bin/controller-server.mjs",
+		"generate-routes": "tsr generate",
+		"build": "vite build && vite build --config vite.cli.config.ts",
+		"preview": "vite preview",
+		"format": "biome format",
+		"lint": "biome lint",
+		"check": "biome check",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"build:cli": "vite build --config vite.cli.config.ts",
+		"worker:tick": "node dist/cli/worker.js",
+		"apikey:create": "node dist/cli/apikey.js"
+	},
+	"dependencies": {
+		"@better-auth/api-key": "^1.7.4",
+		"@tanstack/react-router": "latest",
+		"@tanstack/react-start": "latest",
+		"better-auth": "^1.7.4",
+		"better-sqlite3": "^13.0.3",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.5",
+		"@tanstack/router-cli": "^1.167.36",
+		"@types/better-sqlite3": "^9.6.0",
+		"@types/node": "^22.10.2",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@vitejs/plugin-react": "^6.0.1",
+		"typescript": "^6.0.2",
+		"vite": "^8.0.0",
+		"vitest": "^5.0.0"
+	},
+	"engines": {
+		"node": ">=22"
+	}
 }

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 const envSchema = z
 	.object({
+		CONTROLLER_AUTH_SECRET: z.string().min(32).optional(),
 		CONTROLLER_ID: z.string().uuid().optional(),
+		CONTROLLER_URL: z.url().default("http://127.0.0.1:3000"),
 		DATABASE_PATH: z.string().min(1).default("./data/controller.db"),
 		PROVISIONING_ENABLED: z.enum(["false", "true"]).default("false"),
 		PROXMOX_BRIDGE: z.string().min(1).optional(),
@@ -21,7 +23,10 @@ const envSchema = z
 			return;
 		}
 
+		// Provisioning turns the HTTP API into something that clones and purges real containers,
+		// so the auth secret is required here rather than left to operator discipline.
 		for (const key of [
+			"CONTROLLER_AUTH_SECRET",
 			"CONTROLLER_ID",
 			"PROXMOX_URL",
 			"PROXMOX_TOKEN_ID",

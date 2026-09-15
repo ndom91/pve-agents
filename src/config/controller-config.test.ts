@@ -18,4 +18,18 @@ describe("controllerConfig", () => {
 			"CONTROLLER_ID is required when PROVISIONING_ENABLED=true",
 		);
 	});
+
+	it("refuses to enable provisioning without an auth secret", () => {
+		// Enabling provisioning turns the HTTP API into something that clones and purges real
+		// containers. It must not be possible to do that with the mutating routes left open.
+		expect(() => controllerConfig({ PROVISIONING_ENABLED: "true" })).toThrow(
+			"CONTROLLER_AUTH_SECRET is required when PROVISIONING_ENABLED=true",
+		);
+	});
+
+	it("rejects an auth secret too short to be worth having", () => {
+		expect(() =>
+			controllerConfig({ CONTROLLER_AUTH_SECRET: "short" }),
+		).toThrow();
+	});
 });
