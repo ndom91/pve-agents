@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { workspaceRequest } from "./workspace-service";
+import { workspaceRequestSchema } from "./workspace-service";
 
-describe("workspaceRequest", () => {
+describe("workspaceRequestSchema", () => {
 	it("accepts a request without purpose", () => {
-		const result = workspaceRequest({
+		const result = workspaceRequestSchema.parse({
 			repository: "git@github.com:plainhq/plain.git",
 			ref: "main",
 		});
 
 		expect(result).toEqual({
-			ok: true,
-			request: {
-				repository: "git@github.com:plainhq/plain.git",
-				ref: "main",
-			},
+			repository: "git@github.com:plainhq/plain.git",
+			ref: "main",
 		});
 	});
 });
