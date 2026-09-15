@@ -1,11 +1,102 @@
 #!/usr/bin/env node
 
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
+import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-export function createServer(fetchHandler) {
+const CLIENT_DIR = resolve(
+	dirname(fileURLToPath(import.meta.url)),
+	"../dist/client",
+);
+
+const CONTENT_TYPES = {
+	".css": "text/css; charset=utf-8",
+	".html": "text/html; charset=utf-8",
+	".ico": "image/x-icon",
+	".js": "text/javascript; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".map": "application/json; charset=utf-8",
+	".png": "image/png",
+	".svg": "image/svg+xml",
+	".txt": "text/plain; charset=utf-8",
+	".webp": "image/webp",
+	".woff": "font/woff",
+	".woff2": "font/woff2",
+};
+
+export function createServer(fetchHandler, clientDir = CLIENT_DIR) {
 	return createHttpServer(async (request, response) => {
+		// TanStack Start's fetch handler renders routes but does not serve the built client
+		// bundle, so without this every asset 404s: no stylesheet, and no hydration, which leaves
+		// the page rendered but completely inert.
+		if (await serveStaticFile(request, response, clientDir)) {
+			return;
+		}
+
+		return handleFetch(fetchHandler, request, response);
+	});
+}
+
+async function serveStaticFile(request, response, clientDir) {
+	if (request.method !== "GET" && request.method !== "HEAD") {
+		return false;
+	}
+
+	const pathname = decodeURIComponent(
+		new URL(requestUrl(request)).pathname,
+	).replace(/\/+$/, "");
+	if (pathname === "") {
+		return false;
+	}
+
+	// normalize collapses any ".." before the prefix check, so a crafted path cannot escape the
+	// client directory and read arbitrary files.
+	const candidate = join(clientDir, normalize(pathname));
+	if (candidate !== clientDir && !candidate.startsWith(clientDir + sep)) {
+		return false;
+	}
+
+	let info;
+	try {
+		info = await stat(candidate);
+	} catch {
+		return false;
+	}
+	if (!info.isFile()) {
+		return false;
+	}
+
+	response.statusCode = 200;
+	response.setHeader(
+		"content-type",
+		CONTENT_TYPES[extname(candidate).toLowerCase()] ??
+			"application/octet-stream",
+	);
+	response.setHeader("content-length", info.size);
+	// Vite fingerprints these filenames, so a changed asset always has a new URL.
+	response.setHeader(
+		"cache-control",
+		candidate.includes(`${sep}assets${sep}`)
+			? "public, max-age=31536000, immutable"
+			: "public, max-age=0, must-revalidate",
+	);
+
+	if (request.method === "HEAD") {
+		response.end();
+
+		return true;
+	}
+
+	createReadStream(candidate).pipe(response);
+
+	return true;
+}
+
+function handleFetch(fetchHandler, request, response) {
+	return (async () => {
 		const abort = new AbortController();
 		// Abort on a premature response close, not on the request stream closing. The request
 		// emits "close" as soon as its body has been fully read, so aborting there cancels every
@@ -51,7 +142,7 @@ export function createServer(fetchHandler) {
 			response.statusCode = 500;
 			response.end("internal server error");
 		}
-	});
+	})();
 }
 
 function requestHeaders(request) {
