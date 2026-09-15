@@ -5,6 +5,7 @@ import type Database from "better-sqlite3";
 import {
 	DEFAULT_WORKSPACE_ACTIVITY,
 	DEFAULT_WORKSPACE_STATUS,
+	nextWorkspaceStatus,
 	type WorkspaceActivity,
 	type WorkspaceStatus,
 	type WorkspaceTarget,
@@ -40,6 +41,19 @@ export type CreateWorkspaceResult =
 	| { kind: "created"; workspace: Workspace }
 	| { kind: "existing"; workspace: Workspace }
 	| { kind: "idempotency_conflict" };
+
+export type WorkspaceOperation = {
+	createdAt: string;
+	id: string;
+	kind: "destroy" | "provision";
+	status: "queued";
+	workspaceId: string;
+};
+
+export type WorkspaceOperationResult =
+	| { kind: "created"; operation: WorkspaceOperation; workspace: Workspace }
+	| { kind: "invalid_transition"; message: string }
+	| { kind: "not_found" };
 
 type WorkspaceRow = {
 	activity: WorkspaceActivity;
@@ -134,11 +148,66 @@ export function createWorkspace(
 			"workspace request accepted",
 			now,
 		);
+		insertOperation(db, workspace.id, "provision", now);
 
 		return { kind: "created", workspace };
 	});
 
 	return persist();
+}
+
+// requestWorkspaceOperation records lifecycle work for the disabled-by-default executor.
+export function requestWorkspaceOperation(
+	db: Database.Database,
+	workspaceId: string,
+	kind: "destroy" | "provision",
+): WorkspaceOperationResult {
+	const request = db.transaction((): WorkspaceOperationResult => {
+		const workspace = workspaceById(db, workspaceId);
+		if (workspace === undefined) {
+			return { kind: "not_found" };
+		}
+
+		const nextStatus = kind === "destroy" ? "destroying" : "provisioning";
+		const transition = nextWorkspaceStatus(workspace.status, nextStatus);
+		if (!transition.ok) {
+			return { kind: "invalid_transition", message: transition.error.message };
+		}
+
+		const now = new Date().toISOString();
+		const desiredState: WorkspaceTarget =
+			kind === "destroy" ? "destroyed" : "present";
+		db.prepare(
+			`UPDATE workspaces
+			 SET desired_state = ?, status = ?, current_step = ?, updated_at = ?
+			 WHERE id = ?`,
+		).run(
+			desiredState,
+			transition.status,
+			`${kind} queued; executor disabled`,
+			now,
+			workspaceId,
+		);
+
+		const operation = insertOperation(db, workspaceId, kind, now);
+		db.prepare(
+			"INSERT INTO workspace_events (workspace_id, event_type, message, created_at) VALUES (?, ?, ?, ?)",
+		).run(workspaceId, `workspace.${kind}_queued`, `${kind} queued`, now);
+
+		return {
+			kind: "created",
+			operation,
+			workspace: {
+				...workspace,
+				currentStep: `${kind} queued; executor disabled`,
+				desiredState,
+				status: transition.status,
+				updatedAt: now,
+			},
+		};
+	});
+
+	return request();
 }
 
 // listWorkspaces returns workspaces ordered with the newest request first.
@@ -199,6 +268,33 @@ function workspaceFromRow(row: WorkspaceRow): Workspace {
 	}
 
 	return workspace;
+}
+
+function insertOperation(
+	db: Database.Database,
+	workspaceId: string,
+	kind: WorkspaceOperation["kind"],
+	createdAt: string,
+): WorkspaceOperation {
+	const operation: WorkspaceOperation = {
+		createdAt,
+		id: randomUUID(),
+		kind,
+		status: "queued",
+		workspaceId,
+	};
+
+	db.prepare(
+		"INSERT INTO workspace_operations (id, workspace_id, kind, status, created_at) VALUES (?, ?, ?, ?, ?)",
+	).run(
+		operation.id,
+		operation.workspaceId,
+		operation.kind,
+		operation.status,
+		operation.createdAt,
+	);
+
+	return operation;
 }
 
 function workspaceRequestHash(input: CreateWorkspaceInput): string {

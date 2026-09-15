@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase } from "./database";
-import { createWorkspace, listWorkspaces } from "./workspace-repository";
+import {
+	createWorkspace,
+	listWorkspaces,
+	requestWorkspaceOperation,
+} from "./workspace-repository";
 
 const databases: ReturnType<typeof openDatabase>[] = [];
 
@@ -57,6 +61,29 @@ describe("createWorkspace", () => {
 
 		expect(result).toEqual({ kind: "idempotency_conflict" });
 	});
+
+	it("records a queued destroy operation without infrastructure work", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+
+		const result = requestWorkspaceOperation(
+			db,
+			created.workspace.id,
+			"destroy",
+		);
+
+		expect(result).toMatchObject({
+			kind: "created",
+			operation: { kind: "destroy", status: "queued" },
+			workspace: {
+				desiredState: "destroyed",
+				status: "destroying",
+			},
+		});
+	});
 });
 
 describe("openDatabase", () => {
@@ -65,6 +92,7 @@ describe("openDatabase", () => {
 
 		expect(db.prepare("SELECT version FROM schema_migrations").all()).toEqual([
 			{ version: 1 },
+			{ version: 2 },
 		]);
 	});
 });
