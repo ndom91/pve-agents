@@ -2,8 +2,6 @@ import { z } from "zod";
 
 const envSchema = z.object({
 	DATABASE_PATH: z.string().min(1).default("./data/controller.db"),
-	HOST: z.string().min(1).default("127.0.0.1"),
-	PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
 	PROXMOX_BRIDGE: z.string().min(1).optional(),
 	PROXMOX_NODE: z.string().min(1).optional(),
 	PROXMOX_POOL: z.string().min(1).optional(),

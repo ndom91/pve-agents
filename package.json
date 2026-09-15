@@ -21,7 +21,6 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
     "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^4.6.5"
@@ -34,7 +33,6 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
-    "drizzle-kit": "^0.31.10",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^5.0.0"
