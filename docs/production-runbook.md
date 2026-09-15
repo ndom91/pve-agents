@@ -4,7 +4,7 @@
 
 1. Run `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` from a clean checkout.
 2. Create a dedicated service account and a writable persistent directory, for example `/var/lib/pve-herdr-agents`.
-3. Put controller configuration in a root-readable environment file. Do not put Proxmox token secrets in the repository.
+3. Put controller configuration in a root-readable environment file. Do not put Proxmox token secrets in the repository. Every `pnpm` entrypoint also loads a local `.env` through Node's `--env-file-if-exists`, which is for development only; `.env` is gitignored and a missing one is not an error. In production the systemd `EnvironmentFile` supplies the same variables. See `.env.example` for the full set.
 4. Bind the service only to localhost or a trusted LAN address. Put TLS at the reverse proxy before exposing the API beyond the controller host.
 5. Set `CONTROLLER_AUTH_SECRET` to at least 32 random characters and `CONTROLLER_URL` to the address the controller is reached on. Configuration validation refuses to start with `PROVISIONING_ENABLED=true` unless the secret is set.
 6. Create a GitHub OAuth app with callback `<CONTROLLER_URL>/api/auth/callback/github` and scope `user:email`. Set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `CONTROLLER_OPERATOR_GITHUB_ID` (the numeric account id, from `curl -s https://api.github.com/users/<login> | jq .id`). That id is the only account the controller will ever admit.
