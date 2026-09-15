@@ -29,11 +29,13 @@ function Home() {
 			return;
 		}
 
+		const purposeText = optionalText(purpose);
+
 		try {
 			await createWorkspace({
 				data: {
 					idempotencyKey: crypto.randomUUID(),
-					purpose: typeof purpose === "string" ? purpose : undefined,
+					purpose: purposeText,
 					repository,
 					ref,
 				},
@@ -132,4 +134,17 @@ function Home() {
 			</section>
 		</main>
 	);
+}
+
+function optionalText(value: FormDataEntryValue | null): string | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const text = value.trim();
+	if (text === "") {
+		return undefined;
+	}
+
+	return text;
 }
