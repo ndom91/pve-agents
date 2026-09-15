@@ -3,11 +3,11 @@ import { authConfigured, type ControllerAuth, controllerAuth } from "./auth";
 import { controllerRuntimeConfig } from "./controller";
 import { json } from "./http";
 
-// requireApiKey guards one mutating route, returning a 401 response when the caller may not act.
+// requireOperator guards one route, returning a 401 response when the caller may not act.
 //
 // Returns undefined when the request may proceed, so a handler reads as an early return rather
 // than a nested conditional that is easy to drop during a later edit.
-export async function requireApiKey(
+export async function requireOperator(
 	request: Request,
 ): Promise<Response | undefined> {
 	const config = controllerRuntimeConfig();
@@ -27,14 +27,17 @@ export async function requireApiKey(
 	return undefined;
 }
 
-// AuthorizationResult is the verdict on one incoming mutating request.
+// AuthorizationResult is the verdict on one incoming request.
 export type AuthorizationResult =
 	| { kind: "authorized" }
 	| { kind: "unauthorized" };
 
-// authorizeRequest verifies the API key presented by a mutating request.
+// authorizeRequest accepts either an operator session cookie or a machine API key.
 //
-// The key value is never logged and never echoed back: a 401 says nothing about which part of the
+// Browsers carry a session; the CLI and other automation carry a key. Neither replaces the other,
+// and a caller presenting both only needs one to be valid.
+//
+// Credentials are never logged and never echoed back: a 401 says nothing about which part of the
 // credential was wrong, so a caller cannot probe for valid prefixes.
 export async function authorizeRequest(
 	request: Request,
@@ -42,26 +45,32 @@ export async function authorizeRequest(
 	auth: ControllerAuth,
 ): Promise<AuthorizationResult> {
 	if (!authConfigured(config)) {
-		// Without a configured secret there is nothing to verify against. Mutations stay open only
+		// Without a configured secret there is nothing to verify against. Routes stay open only
 		// while provisioning is disabled; configuration validation refuses to enable provisioning
 		// without a secret, so this branch can never gate a real container operation.
 		return { kind: "authorized" };
 	}
 
 	const key = request.headers.get("x-api-key");
-	if (key === null || key.length === 0) {
-		return { kind: "unauthorized" };
+	if (key !== null && key.length > 0) {
+		let verified: Awaited<ReturnType<ControllerAuth["api"]["verifyApiKey"]>>;
+		try {
+			verified = await auth.api.verifyApiKey({ body: { key } });
+		} catch {
+			return { kind: "unauthorized" };
+		}
+
+		return verified.valid ? { kind: "authorized" } : { kind: "unauthorized" };
 	}
 
-	let verified: Awaited<ReturnType<ControllerAuth["api"]["verifyApiKey"]>>;
 	try {
-		verified = await auth.api.verifyApiKey({ body: { key } });
+		const session = await auth.api.getSession({ headers: request.headers });
+		if (session !== null) {
+			return { kind: "authorized" };
+		}
 	} catch {
 		return { kind: "unauthorized" };
 	}
-	if (!verified.valid) {
-		return { kind: "unauthorized" };
-	}
 
-	return { kind: "authorized" };
+	return { kind: "unauthorized" };
 }

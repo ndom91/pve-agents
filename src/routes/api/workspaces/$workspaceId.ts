@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireApiKey } from "../../../server/authorize";
+import { requireOperator } from "../../../server/authorize";
 import { controllerDatabase } from "../../../server/controller";
 import { json } from "../../../server/http";
 import {
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId")({
 				params: WorkspaceParams;
 				request: Request;
 			}) => {
-				const denied = await requireApiKey(request);
+				const denied = await requireOperator(request);
 				if (denied !== undefined) {
 					return denied;
 				}
@@ -37,7 +37,18 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId")({
 
 				return json(result, 202);
 			},
-			GET: ({ params }: { params: WorkspaceParams }) => {
+			GET: async ({
+				params,
+				request,
+			}: {
+				params: WorkspaceParams;
+				request: Request;
+			}) => {
+				const denied = await requireOperator(request);
+				if (denied !== undefined) {
+					return denied;
+				}
+
 				const workspace = requestedWorkspace(
 					controllerDatabase(),
 					params.workspaceId,

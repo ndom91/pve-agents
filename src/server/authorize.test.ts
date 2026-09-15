@@ -80,6 +80,14 @@ describe("authorizeRequest", () => {
 		});
 	});
 
+	it("rejects a forged session cookie", async () => {
+		const { auth } = await authenticated();
+
+		expect(
+			await authorize(auth, { cookie: "better-auth.session_token=forged" }),
+		).toEqual({ kind: "unauthorized" });
+	});
+
 	it("stays open while no auth secret is configured", async () => {
 		// Provisioning cannot be enabled without a secret, so this only ever applies to a
 		// controller that is not touching real infrastructure.

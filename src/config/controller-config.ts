@@ -4,8 +4,13 @@ const envSchema = z
 	.object({
 		CONTROLLER_AUTH_SECRET: z.string().min(32).optional(),
 		CONTROLLER_ID: z.string().uuid().optional(),
+		// The numeric GitHub account id allowed to sign in, not the login. Logins are reusable
+		// after an account is deleted; the numeric id is not.
+		CONTROLLER_OPERATOR_GITHUB_ID: z.string().min(1).optional(),
 		CONTROLLER_URL: z.url().default("http://127.0.0.1:3000"),
 		DATABASE_PATH: z.string().min(1).default("./data/controller.db"),
+		GITHUB_CLIENT_ID: z.string().min(1).optional(),
+		GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
 		PROVISIONING_ENABLED: z.enum(["false", "true"]).default("false"),
 		PROXMOX_BRIDGE: z.string().min(1).optional(),
 		PROXMOX_NODE: z.string().min(1).optional(),
@@ -14,6 +19,14 @@ const envSchema = z
 		PROXMOX_TOKEN_ID: z.string().min(1).optional(),
 		PROXMOX_TOKEN_SECRET: z.string().min(1).optional(),
 		PROXMOX_URL: z.url().optional(),
+		// The scheduler stays off by default so the first real clone and purge are stepped by hand.
+		WORKER_ENABLED: z.enum(["false", "true"]).default("false"),
+		WORKER_INTERVAL_SECONDS: z.coerce
+			.number()
+			.int()
+			.min(1)
+			.max(3600)
+			.default(5),
 		WORKSPACE_HERDR_SESSION: z.string().min(1).default("agents"),
 		WORKSPACE_SSH_KEY_PATH: z.string().min(1).optional(),
 		WORKSPACE_SSH_USER: z.string().min(1).default("agent"),
@@ -28,6 +41,9 @@ const envSchema = z
 		for (const key of [
 			"CONTROLLER_AUTH_SECRET",
 			"CONTROLLER_ID",
+			"CONTROLLER_OPERATOR_GITHUB_ID",
+			"GITHUB_CLIENT_ID",
+			"GITHUB_CLIENT_SECRET",
 			"PROXMOX_URL",
 			"PROXMOX_TOKEN_ID",
 			"PROXMOX_TOKEN_SECRET",
@@ -45,9 +61,10 @@ const envSchema = z
 			}
 		}
 	})
-	.transform(({ PROVISIONING_ENABLED, ...config }) => ({
+	.transform(({ PROVISIONING_ENABLED, WORKER_ENABLED, ...config }) => ({
 		...config,
 		provisioningEnabled: PROVISIONING_ENABLED === "true",
+		workerEnabled: WORKER_ENABLED === "true",
 	}));
 
 // ControllerConfig is the validated runtime configuration for the controller.

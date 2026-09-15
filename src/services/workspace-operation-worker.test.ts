@@ -580,6 +580,9 @@ function config() {
 	return controllerConfig({
 		CONTROLLER_AUTH_SECRET: "c".repeat(48),
 		CONTROLLER_ID,
+		CONTROLLER_OPERATOR_GITHUB_ID: "1",
+		GITHUB_CLIENT_ID: "github-client",
+		GITHUB_CLIENT_SECRET: "github-secret",
 		PROVISIONING_ENABLED: "true",
 		PROXMOX_BRIDGE: "vmbr0",
 		PROXMOX_NODE: "nas",

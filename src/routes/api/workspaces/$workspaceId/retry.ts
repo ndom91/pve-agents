@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireApiKey } from "../../../../server/authorize";
+import { requireOperator } from "../../../../server/authorize";
 import { controllerDatabase } from "../../../../server/controller";
 import { json } from "../../../../server/http";
 import { retryWorkspace } from "../../../../services/workspace-service";
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/retry")({
 				params: WorkspaceParams;
 				request: Request;
 			}) => {
-				const denied = await requireApiKey(request);
+				const denied = await requireOperator(request);
 				if (denied !== undefined) {
 					return denied;
 				}

@@ -1,9 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { sessionState } from "../server/session.functions";
 import { createWorkspace, listWorkspaces } from "../server/workspace.functions";
 
 export const Route = createFileRoute("/")({
+	// Runs on every navigation, including client-side <Link> transitions, so a session that
+	// expires mid-visit redirects rather than leaving a dead page behind.
+	beforeLoad: async () => {
+		const state = await sessionState();
+		if (state.required && !state.signedIn) {
+			throw redirect({ to: "/login" });
+		}
+	},
 	component: Home,
 	loader: () => listWorkspaces(),
 });

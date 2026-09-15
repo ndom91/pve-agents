@@ -1,6 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
 import { betterAuth } from "better-auth";
 import { getMigrations } from "better-auth/db/migration";
+import { tanstackStartCookies } from "better-auth/tanstack-start";
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
@@ -40,9 +41,45 @@ export function createControllerAuth(
 					timeWindow: RATE_LIMIT_WINDOW_MS,
 				},
 			}),
+			// Must stay last: it observes the final response after every other plugin has
+			// contributed to it, and writes cookies through TanStack Start.
+			tanstackStartCookies(),
 		],
 		secret: config.CONTROLLER_AUTH_SECRET as string,
+		socialProviders: {
+			github: {
+				clientId: config.GITHUB_CLIENT_ID as string,
+				clientSecret: config.GITHUB_CLIENT_SECRET as string,
+			},
+		},
+		user: { validateUserInfo: operatorGate(config) },
 	});
+}
+
+// operatorGate restricts the controller to exactly one GitHub account.
+//
+// This is the security boundary for the web UI. better-auth runs the hook for "create-user",
+// "link-account", and "sign-in" alike, so one gate closes every path by which an account could
+// appear. Because no second user can ever be created, the controller cannot quietly grow a second
+// operator.
+export function operatorGate(config: ControllerConfig) {
+	return ({
+		source,
+	}: {
+		source: { action: string; oauth?: { profile?: Record<string, unknown> } };
+	}): { error: string } | undefined => {
+		// Matched on the immutable numeric account id. A GitHub login can be released and claimed
+		// by someone else, so matching on it would be a real, if unlikely, takeover path.
+		const id = source.oauth?.profile?.id;
+		if (id === undefined || id === null) {
+			return { error: "github_profile_missing_id" };
+		}
+		if (String(id) !== config.CONTROLLER_OPERATOR_GITHUB_ID) {
+			return { error: "not_the_controller_operator" };
+		}
+
+		return undefined;
+	};
 }
 
 // migrateControllerAuth applies better-auth's own schema to the controller database.
@@ -75,20 +112,27 @@ export async function issueControllerApiKey(
 	const existing = await context.internalAdapter.findUserByEmail(
 		SERVICE_ACCOUNT_EMAIL,
 	);
-	const userId =
-		existing?.user.id ??
-		(
-			await context.internalAdapter.createUser(
-				{
-					email: SERVICE_ACCOUNT_EMAIL,
-					emailVerified: true,
-					name: "pve-herdr-agents controller",
-				},
-				// "admin" marks this as an operator-provisioned account. No credential provider is
-				// enabled, so the row exists purely to own API keys and can never sign in.
-				{ method: "admin" },
-			)
-		).id;
+
+	let userId = existing?.user.id;
+	if (userId === undefined) {
+		// Written through the adapter rather than internalAdapter.createUser deliberately. The
+		// latter runs the operator allow-list, which needs an HTTP endpoint context it cannot have
+		// here, and which exists to vet GitHub sign-ins. This row is controller-owned, has no
+		// linked account, and can never sign in.
+		const now = new Date();
+		const created = (await context.adapter.create({
+			data: {
+				createdAt: now,
+				email: SERVICE_ACCOUNT_EMAIL,
+				emailVerified: true,
+				name: "pve-herdr-agents controller",
+				updatedAt: now,
+			},
+			model: "user",
+		})) as { id: string };
+
+		userId = created.id;
+	}
 
 	const created = await auth.api.createApiKey({ body: { name, userId } });
 	if (typeof created.key !== "string") {

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { requireApiKey } from "../../server/authorize";
+import { requireOperator } from "../../server/authorize";
 import {
 	controllerDatabase,
 	controllerHerdrSession,
@@ -19,10 +19,18 @@ const createWorkspaceInput = workspaceRequestSchema.extend({
 export const Route = createFileRoute("/api/workspaces")({
 	server: {
 		handlers: {
-			GET: () =>
-				json({ workspaces: listRequestedWorkspaces(controllerDatabase()) }),
+			GET: async ({ request }: { request: Request }) => {
+				const denied = await requireOperator(request);
+				if (denied !== undefined) {
+					return denied;
+				}
+
+				return json({
+					workspaces: listRequestedWorkspaces(controllerDatabase()),
+				});
+			},
 			POST: async ({ request }: { request: Request }) => {
-				const denied = await requireApiKey(request);
+				const denied = await requireOperator(request);
 				if (denied !== undefined) {
 					return denied;
 				}
