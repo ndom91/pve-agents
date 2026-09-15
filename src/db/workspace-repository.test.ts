@@ -59,6 +59,16 @@ describe("createWorkspace", () => {
 	});
 });
 
+describe("openDatabase", () => {
+	it("records schema migrations once", () => {
+		const db = database();
+
+		expect(db.prepare("SELECT version FROM schema_migrations").all()).toEqual([
+			{ version: 1 },
+		]);
+	});
+});
+
 function database() {
 	const db = openDatabase(":memory:");
 
