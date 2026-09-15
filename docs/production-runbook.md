@@ -7,10 +7,13 @@
 3. Put controller configuration in a root-readable environment file. Do not put Proxmox token secrets in the repository.
 4. Bind the service only to localhost or a trusted LAN address. Put TLS at the reverse proxy before exposing the API beyond the controller host.
 5. Set `CONTROLLER_AUTH_SECRET` to at least 32 random characters and `CONTROLLER_URL` to the address the controller is reached on. Configuration validation refuses to start with `PROVISIONING_ENABLED=true` unless the secret is set.
-6. Mint an API key with `pnpm apikey:create <name>`. It is printed once and stored only as a hash; there is no way to read it back. Mutating routes require it in an `x-api-key` header.
-7. Leave `PROVISIONING_ENABLED=false` until the Proxmox template, pool, network, and token permissions have been verified against disposable infrastructure.
+6. Create a GitHub OAuth app with callback `<CONTROLLER_URL>/api/auth/callback/github` and scope `user:email`. Set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `CONTROLLER_OPERATOR_GITHUB_ID` (the numeric account id, from `curl -s https://api.github.com/users/<login> | jq .id`). That id is the only account the controller will ever admit.
+7. Mint an API key with `pnpm apikey:create <name>` for CLI and automation callers. It is printed once and stored only as a hash; there is no way to read it back.
+8. Leave `PROVISIONING_ENABLED=false` until the Proxmox template, pool, network, and token permissions have been verified against disposable infrastructure.
 
-Once `CONTROLLER_AUTH_SECRET` is set the web UI is read-only. Workspace creation from the browser is disabled, because a server function cannot carry an API key without publishing it to the browser. Create and destroy workspaces through the HTTP API.
+Every route accepts either an operator session cookie (browser, via GitHub sign-in) or an `x-api-key` header (CLI, automation). Reads are guarded too, including `GET /api/infrastructure/probe`.
+
+`CONTROLLER_URL` must exactly match the origin the browser uses. better-auth derives cookie and CSRF behaviour from it, so a mismatch produces sign-ins that appear to succeed and then have no session.
 
 Both schema migrations, the controller's own and better-auth's, run in-process at startup. There is no separate migration command.
 
@@ -41,7 +44,7 @@ Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/etc/pve-herdr-a
 ## Operation
 
 1. Check `GET /api/health`. It reports whether provisioning is enabled and whether auth is configured, and never returns key or secret material.
-2. Advance workspace operations with `pnpm worker:tick` for a single pass, or `pnpm worker:tick --watch <seconds>` to poll. There is deliberately no timer and no HTTP trigger: the first real clone and destroy should be stepped by hand with Proxmox inspected between passes.
+2. Advance workspace operations with `pnpm worker:tick` for a single pass, or `pnpm worker:tick --watch <seconds>` to poll. Set `WORKER_ENABLED=true` to run the same loop inside the server process on `WORKER_INTERVAL_SECONDS` (default 5). It is off by default so the first real clone and destroy are stepped by hand with Proxmox inspected between passes. Ticks never overlap: each pass is awaited before the next is scheduled.
 3. Back up the SQLite database while the service is stopped, or use SQLite's online backup support. Keep the `-wal` and `-shm` sidecar files consistent with the main database when using file-level backups. The database now also holds better-auth's tables, so a restore rolls back issued API keys too.
 4. Review queued operation records before upgrading a future executor release. Queued operations are intentionally preserved across restarts.
 5. A destroy request cancels any outstanding provision operation for that workspace, so teardown cannot race a clone.
