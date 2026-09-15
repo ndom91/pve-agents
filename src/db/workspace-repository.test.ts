@@ -2,12 +2,19 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase } from "./database";
 import {
+	advanceWorkspaceDestroy,
 	claimWorkspaceOperation,
+	completeWorkspaceDestroy,
 	completeWorkspaceOperation,
+	confirmWorkspaceClone,
 	createWorkspace,
+	failWorkspaceProvision,
+	haltWorkspaceDestroy,
 	listWorkspaces,
 	prepareWorkspaceProvision,
 	recordWorkspaceTask,
+	releaseWorkspaceCandidateVMID,
+	releaseWorkspaceOperation,
 	requestWorkspaceOperation,
 } from "./workspace-repository";
 
@@ -97,7 +104,7 @@ describe("createWorkspace", () => {
 		}
 
 		const now = new Date("2026-01-01T00:00:00Z");
-		const claimed = claimWorkspaceOperation(db, now);
+		const claimed = claimWorkspaceOperation(db, "provision", now);
 
 		expect(claimed).toMatchObject({
 			kind: "claimed",
@@ -111,9 +118,13 @@ describe("createWorkspace", () => {
 			throw new Error("expected operation claim");
 		}
 
-		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
+		expect(claimWorkspaceOperation(db, "provision", now)).toEqual({
+			kind: "empty",
+		});
 		completeWorkspaceOperation(db, claimed.operation.id);
-		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
+		expect(claimWorkspaceOperation(db, "provision", now)).toEqual({
+			kind: "empty",
+		});
 	});
 
 	it("persists the VMID and clone UPID before continuing provision work", () => {
@@ -122,7 +133,7 @@ describe("createWorkspace", () => {
 		if (created.kind !== "created") {
 			throw new Error("expected workspace creation");
 		}
-		const claimed = claimWorkspaceOperation(db);
+		const claimed = claimWorkspaceOperation(db, "provision");
 		if (claimed.kind !== "claimed") {
 			throw new Error("expected operation claim");
 		}
@@ -131,20 +142,225 @@ describe("createWorkspace", () => {
 			prepareWorkspaceProvision(db, claimed.operation.id, "nas", 109),
 		).toEqual({ kind: "prepared" });
 		expect(
-			recordWorkspaceTask(db, claimed.operation.id, "UPID:nas:00000001"),
+			recordWorkspaceTask(db, claimed.operation.id, {
+				expiresAt: "2026-01-01T00:15:00.000Z",
+				kind: "provision",
+				step: "clone task accepted",
+				upid: "UPID:nas:00000001",
+			}),
 		).toEqual({ kind: "prepared" });
 		expect(
 			db
 				.prepare(
-					"SELECT node, vmid, current_task_upid, current_step FROM workspaces WHERE id = ?",
+					`SELECT node, vmid, current_task_upid, current_task_expires_at, current_step
+					 FROM workspaces WHERE id = ?`,
 				)
 				.get(created.workspace.id),
 		).toEqual({
 			current_step: "clone task accepted",
+			current_task_expires_at: "2026-01-01T00:15:00.000Z",
 			current_task_upid: "UPID:nas:00000001",
 			node: "nas",
 			vmid: 109,
 		});
+	});
+
+	it("does not offer a destroy operation to the provision executor", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+		completeWorkspaceOperation(db, claimed.operation.id);
+
+		expect(
+			requestWorkspaceOperation(db, created.workspace.id, "destroy").kind,
+		).toBe("created");
+		expect(claimWorkspaceOperation(db, "provision")).toEqual({ kind: "empty" });
+		expect(claimWorkspaceOperation(db, "destroy")).toMatchObject({
+			kind: "claimed",
+			operation: { kind: "destroy" },
+		});
+	});
+});
+
+describe("releaseWorkspaceOperation", () => {
+	it("withholds a released operation until its next run time", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const now = new Date("2026-01-01T00:00:00Z");
+		const claimed = claimWorkspaceOperation(db, "provision", now);
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		releaseWorkspaceOperation(db, claimed.operation.id, 5_000, now);
+
+		expect(
+			claimWorkspaceOperation(
+				db,
+				"provision",
+				new Date("2026-01-01T00:00:04Z"),
+			),
+		).toEqual({ kind: "empty" });
+		expect(
+			claimWorkspaceOperation(
+				db,
+				"provision",
+				new Date("2026-01-01T00:00:06Z"),
+			),
+		).toMatchObject({ kind: "claimed", operation: { attemptCount: 2 } });
+	});
+});
+
+describe("destroy mutators", () => {
+	it("marks the workspace destroyed and completes the operation", () => {
+		const db = database();
+		const { workspaceID, operationID } = destroying(db);
+
+		expect(
+			completeWorkspaceDestroy(db, operationID, "container was already absent"),
+		).toEqual({ kind: "prepared" });
+		expect(
+			db
+				.prepare(
+					"SELECT status, desired_state, current_step FROM workspaces WHERE id = ?",
+				)
+				.get(workspaceID),
+		).toEqual({
+			current_step: "destroyed",
+			desired_state: "destroyed",
+			status: "destroyed",
+		});
+		expect(
+			db
+				.prepare("SELECT status FROM workspace_operations WHERE id = ?")
+				.get(operationID),
+		).toEqual({ status: "completed" });
+	});
+
+	it("halts without leaving the workspace in a state that lies about intent", () => {
+		const db = database();
+		const { workspaceID, operationID } = destroying(db);
+
+		expect(
+			haltWorkspaceDestroy(
+				db,
+				operationID,
+				"destroy_ownership_mismatch",
+				"container 109 does not carry this workspace's ownership marker",
+			),
+		).toEqual({ kind: "prepared" });
+		expect(
+			db
+				.prepare(
+					"SELECT status, desired_state, error_code, error_retryable FROM workspaces WHERE id = ?",
+				)
+				.get(workspaceID),
+		).toEqual({
+			desired_state: "destroyed",
+			error_code: "destroy_ownership_mismatch",
+			error_retryable: 0,
+			status: "destroying",
+		});
+		expect(claimWorkspaceOperation(db, "destroy")).toEqual({ kind: "empty" });
+	});
+
+	it("rejects destroy writes from a worker that lost its lease", () => {
+		const db = database();
+		const { operationID } = destroying(db);
+		completeWorkspaceOperation(db, operationID);
+
+		for (const write of [
+			() => completeWorkspaceDestroy(db, operationID, "message"),
+			() => haltWorkspaceDestroy(db, operationID, "code", "message"),
+			() => advanceWorkspaceDestroy(db, operationID, "step"),
+		]) {
+			expect(write()).toEqual({ kind: "stale_operation" });
+		}
+	});
+
+	it("refuses to mutate a destroy operation through the provision guard", () => {
+		const db = database();
+		const { operationID } = destroying(db);
+
+		expect(confirmWorkspaceClone(db, operationID)).toEqual({
+			kind: "stale_operation",
+		});
+		expect(failWorkspaceProvision(db, operationID, "code", "message")).toEqual({
+			kind: "stale_operation",
+		});
+	});
+});
+
+describe("failWorkspaceProvision", () => {
+	it("records the failure reason and closes the operation", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		expect(
+			failWorkspaceProvision(
+				db,
+				claimed.operation.id,
+				"clone_task_failed",
+				"proxmox task exited with storage error",
+			),
+		).toEqual({ kind: "prepared" });
+		expect(
+			db
+				.prepare(
+					"SELECT status, error_code, error_message, error_retryable FROM workspaces WHERE id = ?",
+				)
+				.get(created.workspace.id),
+		).toEqual({
+			error_code: "clone_task_failed",
+			error_message: "proxmox task exited with storage error",
+			error_retryable: 1,
+			status: "failed",
+		});
+		expect(claimWorkspaceOperation(db, "provision")).toEqual({ kind: "empty" });
+	});
+
+	it("rejects a write from a worker whose lease was already taken over", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+		completeWorkspaceOperation(db, claimed.operation.id);
+
+		for (const write of [
+			() => failWorkspaceProvision(db, claimed.operation.id, "code", "message"),
+			() => confirmWorkspaceClone(db, claimed.operation.id),
+			() => releaseWorkspaceCandidateVMID(db, claimed.operation.id, "reason"),
+			() =>
+				recordWorkspaceTask(db, claimed.operation.id, {
+					expiresAt: "later",
+					kind: "provision",
+					step: "clone task accepted",
+					upid: "UPID:nas:1",
+				}),
+		]) {
+			expect(write()).toEqual({ kind: "stale_operation" });
+		}
 	});
 });
 
@@ -156,9 +372,34 @@ describe("openDatabase", () => {
 			{ version: 1 },
 			{ version: 2 },
 			{ version: 3 },
+			{ version: 4 },
 		]);
 	});
 });
+
+// destroying leaves one workspace with a claimed destroy operation.
+function destroying(db: ReturnType<typeof openDatabase>) {
+	const created = createWorkspace(db, input("request-a"));
+	if (created.kind !== "created") {
+		throw new Error("expected workspace creation");
+	}
+	if (
+		requestWorkspaceOperation(db, created.workspace.id, "destroy").kind !==
+		"created"
+	) {
+		throw new Error("expected destroy request");
+	}
+
+	const claimed = claimWorkspaceOperation(db, "destroy");
+	if (claimed.kind !== "claimed") {
+		throw new Error("expected destroy claim");
+	}
+
+	return {
+		operationID: claimed.operation.id,
+		workspaceID: created.workspace.id,
+	};
+}
 
 function database() {
 	const db = openDatabase(":memory:");

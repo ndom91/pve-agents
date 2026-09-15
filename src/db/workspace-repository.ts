@@ -51,7 +51,8 @@ export type WorkspaceOperation = {
 	id: string;
 	kind: "destroy" | "provision";
 	leaseExpiresAt?: string;
-	status: "completed" | "queued" | "running";
+	nextRunAt?: string;
+	status: "cancelled" | "completed" | "failed" | "queued" | "running";
 	workspaceId: string;
 };
 
@@ -70,11 +71,18 @@ export type WorkspaceProvisionPreparation =
 	| { kind: "prepared" }
 	| { kind: "stale_operation" };
 
+// WorkspaceTeardown is the private workspace data needed to destroy one LXC.
+export type WorkspaceTeardown = WorkspaceProvision & {
+	currentStep: string;
+};
+
 // WorkspaceProvision is the private workspace data needed to submit one clone request.
 export type WorkspaceProvision = {
 	hostname: string;
 	id: string;
+	node?: string;
 	ownershipToken: string;
+	taskExpiresAt?: string;
 	taskUPID?: string;
 	vmid?: number;
 };
@@ -103,6 +111,7 @@ type WorkspaceOperationRow = {
 	id: string;
 	kind: WorkspaceOperation["kind"];
 	lease_expires_at: string | null;
+	next_run_at: string | null;
 	status: WorkspaceOperation["status"];
 	workspace_id: string;
 };
@@ -179,9 +188,8 @@ export function createWorkspace(
 		db.prepare(
 			"INSERT INTO idempotency_keys (key, request_hash, workspace_id) VALUES (?, ?, ?)",
 		).run(input.idempotencyKey, requestHash, workspace.id);
-		db.prepare(
-			"INSERT INTO workspace_events (workspace_id, event_type, message, created_at) VALUES (?, ?, ?, ?)",
-		).run(
+		appendWorkspaceEvent(
+			db,
 			workspace.id,
 			"workspace.requested",
 			"workspace request accepted",
@@ -195,9 +203,13 @@ export function createWorkspace(
 	return persist();
 }
 
-// claimWorkspaceOperation leases the next queued or abandoned operation for one worker.
+// claimWorkspaceOperation leases the next due operation of one kind for one worker.
+//
+// The kind filter keeps each executor to its own lifecycle. The provision executor must never
+// claim a destroy operation, because destruction has its own ownership-verification rules.
 export function claimWorkspaceOperation(
 	db: Database.Database,
+	kind: WorkspaceOperation["kind"],
 	now: Date = new Date(),
 ): WorkspaceOperationClaim {
 	const claim = db.transaction((): WorkspaceOperationClaim => {
@@ -205,13 +217,14 @@ export function claimWorkspaceOperation(
 		const row = db
 			.prepare(
 				`SELECT id, workspace_id, kind, status, attempt_count, created_at, claimed_at,
-					lease_expires_at, completed_at, error_message
+					lease_expires_at, completed_at, error_message, next_run_at
 				 FROM workspace_operations
-				 WHERE status = 'queued'
-					OR (status = 'running' AND lease_expires_at < ?)
+				 WHERE kind = ?
+					AND (next_run_at IS NULL OR next_run_at <= ?)
+					AND (status = 'queued' OR (status = 'running' AND lease_expires_at < ?))
 				 ORDER BY created_at ASC LIMIT 1`,
 			)
-			.get(nowText) as WorkspaceOperationRow | undefined;
+			.get(kind, nowText, nowText) as WorkspaceOperationRow | undefined;
 		if (row === undefined) {
 			return { kind: "empty" };
 		}
@@ -223,7 +236,7 @@ export function claimWorkspaceOperation(
 			.prepare(
 				`UPDATE workspace_operations
 				 SET status = 'running', attempt_count = attempt_count + 1, claimed_at = ?,
-					lease_expires_at = ?, error_message = NULL
+					lease_expires_at = ?, error_message = NULL, next_run_at = NULL
 				 WHERE id = ?`,
 			)
 			.run(nowText, leaseExpiresAt, row.id);
@@ -234,7 +247,7 @@ export function claimWorkspaceOperation(
 		return {
 			kind: "claimed",
 			operation: {
-				...workspaceOperationFromRow(row),
+				...workspaceOperationFromRow({ ...row, next_run_at: null }),
 				attemptCount: row.attempt_count + 1,
 				claimedAt: nowText,
 				leaseExpiresAt,
@@ -292,25 +305,34 @@ export function prepareWorkspaceProvision(
 }
 
 // recordWorkspaceTask stores the Proxmox UPID before the executor continues to another step.
+//
+// The deadline is persisted with the UPID so a task that never reaches a terminal Proxmox status
+// still fails on a bounded wall clock instead of being polled forever.
 export function recordWorkspaceTask(
 	db: Database.Database,
 	operationID: string,
-	upid: string,
+	input: {
+		expiresAt: string;
+		kind: WorkspaceOperation["kind"];
+		step: string;
+		upid: string;
+	},
 	now: Date = new Date(),
 ): WorkspaceProvisionPreparation {
 	const record = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningProvisionOperation(db, operationID);
+		const operation = runningOperation(db, operationID, input.kind);
 		if (operation === undefined) {
 			return { kind: "stale_operation" };
 		}
 
 		db.prepare(
 			`UPDATE workspaces
-			 SET current_task_upid = ?, current_step = ?, updated_at = ?
+			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?, updated_at = ?
 			 WHERE id = ?`,
 		).run(
-			upid,
-			"clone task accepted",
+			input.upid,
+			input.expiresAt,
+			input.step,
 			now.toISOString(),
 			operation.workspace_id,
 		);
@@ -321,23 +343,291 @@ export function recordWorkspaceTask(
 	return record.immediate();
 }
 
+// advanceWorkspaceDestroy clears a finished destroy task and records the next step.
+export function advanceWorkspaceDestroy(
+	db: Database.Database,
+	operationID: string,
+	step: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const advance = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningOperation(db, operationID, "destroy");
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		db.prepare(
+			`UPDATE workspaces
+			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
+				updated_at = ?
+			 WHERE id = ?`,
+		).run(step, now.toISOString(), operation.workspace_id);
+
+		return { kind: "prepared" };
+	});
+
+	return advance.immediate();
+}
+
+// completeWorkspaceDestroy records that the workspace LXC is confirmed absent.
+export function completeWorkspaceDestroy(
+	db: Database.Database,
+	operationID: string,
+	message: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const complete = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningOperation(db, operationID, "destroy");
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		const nowText = now.toISOString();
+		db.prepare(
+			`UPDATE workspaces
+			 SET status = 'destroyed', desired_state = 'destroyed', destroyed_at = ?,
+				current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
+				error_code = NULL, error_message = NULL, error_retryable = NULL,
+				error_occurred_at = NULL, updated_at = ?
+			 WHERE id = ?`,
+		).run(nowText, "destroyed", nowText, operation.workspace_id);
+		db.prepare(
+			`UPDATE workspace_operations
+			 SET status = 'completed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL
+			 WHERE id = ? AND status = 'running'`,
+		).run(nowText, operationID);
+		appendWorkspaceEvent(
+			db,
+			operation.workspace_id,
+			"workspace.destroyed",
+			message,
+			nowText,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return complete.immediate();
+}
+
+// haltWorkspaceDestroy stops a destruction that must not be retried automatically.
+//
+// The status stays "destroying" on purpose. The state machine forbids destroying -> failed, and
+// rightly so: the desired state is still "destroyed" and teardown is genuinely unfinished. The
+// error fields carry the reason, and re-requesting a destroy remains permitted.
+export function haltWorkspaceDestroy(
+	db: Database.Database,
+	operationID: string,
+	code: string,
+	message: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const halt = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningOperation(db, operationID, "destroy");
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		const nowText = now.toISOString();
+		db.prepare(
+			`UPDATE workspaces
+			 SET current_task_upid = NULL, current_task_expires_at = NULL, error_code = ?,
+				error_message = ?, error_retryable = 0, error_occurred_at = ?, updated_at = ?
+			 WHERE id = ?`,
+		).run(code, message, nowText, nowText, operation.workspace_id);
+		db.prepare(
+			`UPDATE workspace_operations
+			 SET status = 'failed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
+				error_message = ?
+			 WHERE id = ? AND status = 'running'`,
+		).run(nowText, message, operationID);
+		appendWorkspaceEvent(
+			db,
+			operation.workspace_id,
+			"workspace.destroy_halted",
+			message,
+			nowText,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return halt.immediate();
+}
+
+// confirmWorkspaceClone records a Proxmox-verified clone and clears its task checkpoint.
+//
+// The workspace stays in "provisioning": a confirmed clone is not a running container, and the
+// status only advances to "booting" once a start task has been submitted.
+export function confirmWorkspaceClone(
+	db: Database.Database,
+	operationID: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const confirm = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningProvisionOperation(db, operationID);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		const nowText = now.toISOString();
+		db.prepare(
+			`UPDATE workspaces
+			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
+				updated_at = ?
+			 WHERE id = ?`,
+		).run("clone confirmed", nowText, operation.workspace_id);
+		appendWorkspaceEvent(
+			db,
+			operation.workspace_id,
+			"workspace.clone_confirmed",
+			"Proxmox confirmed the workspace clone",
+			nowText,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return confirm.immediate();
+}
+
+// releaseWorkspaceCandidateVMID abandons a candidate VMID this controller cannot prove it owns.
+//
+// This only clears the controller's own record. The Proxmox container, if one exists, is left
+// completely untouched; an unverified LXC is never modified or deleted.
+export function releaseWorkspaceCandidateVMID(
+	db: Database.Database,
+	operationID: string,
+	reason: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const release = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningProvisionOperation(db, operationID);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		const nowText = now.toISOString();
+		db.prepare(
+			`UPDATE workspaces
+			 SET vmid = NULL, current_task_upid = NULL, current_task_expires_at = NULL,
+				current_step = ?, updated_at = ?
+			 WHERE id = ?`,
+		).run("candidate VMID released", nowText, operation.workspace_id);
+		appendWorkspaceEvent(
+			db,
+			operation.workspace_id,
+			"workspace.vmid_released",
+			reason,
+			nowText,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return release.immediate();
+}
+
+// failWorkspaceProvision records a terminal provisioning failure and closes its operation.
+//
+// The workspace is left retryable: the existing retry endpoint queues a fresh operation, which
+// the state machine already permits from "failed".
+export function failWorkspaceProvision(
+	db: Database.Database,
+	operationID: string,
+	code: string,
+	message: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const fail = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningProvisionOperation(db, operationID);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		const nowText = now.toISOString();
+		db.prepare(
+			`UPDATE workspaces
+			 SET status = 'failed', current_task_upid = NULL, current_task_expires_at = NULL,
+				error_code = ?, error_message = ?, error_retryable = 1, error_occurred_at = ?,
+				updated_at = ?
+			 WHERE id = ?`,
+		).run(code, message, nowText, nowText, operation.workspace_id);
+		db.prepare(
+			`UPDATE workspace_operations
+			 SET status = 'failed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
+				error_message = ?
+			 WHERE id = ? AND status = 'running'`,
+		).run(nowText, message, operationID);
+		appendWorkspaceEvent(
+			db,
+			operation.workspace_id,
+			"workspace.provision_failed",
+			message,
+			nowText,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return fail.immediate();
+}
+
+// releaseWorkspaceOperation returns a still-unfinished operation to the queue after one step.
+//
+// The worker advances a single durable step per pass. Releasing with a delay is what stops a
+// legitimately slow Proxmox task from being polled in a hot loop.
+export function releaseWorkspaceOperation(
+	db: Database.Database,
+	operationID: string,
+	delayMs: number,
+	now: Date = new Date(),
+): void {
+	const nextRunAt = new Date(now.getTime() + delayMs).toISOString();
+	db.prepare(
+		`UPDATE workspace_operations
+		 SET status = 'queued', lease_expires_at = NULL, next_run_at = ?
+		 WHERE id = ? AND status = 'running'`,
+	).run(nextRunAt, operationID);
+}
+
 // workspaceProvision returns the private state for one running provision operation.
 export function workspaceProvision(
 	db: Database.Database,
 	operationID: string,
 ): WorkspaceProvision | undefined {
+	return operationWorkspace(db, operationID, "provision");
+}
+
+// workspaceTeardown returns the private state for one running destroy operation.
+export function workspaceTeardown(
+	db: Database.Database,
+	operationID: string,
+): WorkspaceTeardown | undefined {
+	return operationWorkspace(db, operationID, "destroy");
+}
+
+function operationWorkspace(
+	db: Database.Database,
+	operationID: string,
+	kind: WorkspaceOperation["kind"],
+): WorkspaceTeardown | undefined {
 	const row = db
 		.prepare(
-			`SELECT w.id, w.hostname, w.ownership_token, w.vmid, w.current_task_upid
+			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
+				w.current_task_expires_at, w.current_step
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
-			 WHERE o.id = ? AND o.status = 'running' AND o.kind = 'provision'`,
+			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ?`,
 		)
-		.get(operationID) as
+		.get(operationID, kind) as
 		| {
+				current_step: string;
+				current_task_expires_at: string | null;
 				current_task_upid: string | null;
 				hostname: string;
 				id: string;
+				node: string | null;
 				ownership_token: string;
 				vmid: number | null;
 		  }
@@ -346,13 +636,20 @@ export function workspaceProvision(
 		return undefined;
 	}
 
-	const workspace: WorkspaceProvision = {
+	const workspace: WorkspaceTeardown = {
+		currentStep: row.current_step,
 		hostname: row.hostname,
 		id: row.id,
 		ownershipToken: row.ownership_token,
 	};
+	if (row.current_task_expires_at !== null) {
+		workspace.taskExpiresAt = row.current_task_expires_at;
+	}
 	if (row.current_task_upid !== null) {
 		workspace.taskUPID = row.current_task_upid;
+	}
+	if (row.node !== null) {
+		workspace.node = row.node;
 	}
 	if (row.vmid !== null) {
 		workspace.vmid = row.vmid;
@@ -394,10 +691,37 @@ export function requestWorkspaceOperation(
 			workspaceId,
 		);
 
+		if (kind === "destroy") {
+			// Cancel outstanding provisioning. Left queued, it would keep driving the workspace
+			// forward -- potentially cloning a fresh container -- while teardown removes one.
+			const cancelled = db
+				.prepare(
+					`UPDATE workspace_operations
+					 SET status = 'cancelled', completed_at = ?, lease_expires_at = NULL,
+						next_run_at = NULL, error_message = ?
+					 WHERE workspace_id = ? AND kind = 'provision'
+						AND status IN ('queued', 'running')`,
+				)
+				.run(now, "superseded by a destroy request", workspaceId);
+			if (cancelled.changes > 0) {
+				appendWorkspaceEvent(
+					db,
+					workspaceId,
+					"workspace.provision_cancelled",
+					"provisioning cancelled by a destroy request",
+					now,
+				);
+			}
+		}
+
 		const operation = insertOperation(db, workspaceId, kind, now);
-		db.prepare(
-			"INSERT INTO workspace_events (workspace_id, event_type, message, created_at) VALUES (?, ?, ?, ?)",
-		).run(workspaceId, `workspace.${kind}_queued`, `${kind} queued`, now);
+		appendWorkspaceEvent(
+			db,
+			workspaceId,
+			`workspace.${kind}_queued`,
+			`${kind} queued`,
+			now,
+		);
 
 		return {
 			kind: "created",
@@ -537,14 +861,45 @@ function workspaceOperationFromRow(
 	if (row.lease_expires_at !== null) {
 		operation.leaseExpiresAt = row.lease_expires_at;
 	}
+	if (row.next_run_at !== null) {
+		operation.nextRunAt = row.next_run_at;
+	}
 
 	return operation;
 }
 
-function runningProvisionOperation(db: Database.Database, operationID: string) {
+// appendWorkspaceEvent adds one entry to the redacted, append-only workspace timeline.
+//
+// Messages are human-readable operational history and must never carry token secrets, SSH
+// credentials, repository credentials, or ownership tokens.
+function appendWorkspaceEvent(
+	db: Database.Database,
+	workspaceId: string,
+	eventType: string,
+	message: string,
+	createdAt: string,
+): void {
+	db.prepare(
+		"INSERT INTO workspace_events (workspace_id, event_type, message, created_at) VALUES (?, ?, ?, ?)",
+	).run(workspaceId, eventType, message, createdAt);
+}
+
+// runningOperation resolves the workspace behind an operation this worker still holds a lease on.
+//
+// Every mutator goes through this so a worker whose lease was taken over cannot write, and so a
+// provision executor cannot accidentally act on a destroy operation or the reverse.
+function runningOperation(
+	db: Database.Database,
+	operationID: string,
+	kind: WorkspaceOperation["kind"],
+) {
 	return db
 		.prepare(
-			"SELECT workspace_id FROM workspace_operations WHERE id = ? AND status = 'running' AND kind = 'provision'",
+			"SELECT workspace_id FROM workspace_operations WHERE id = ? AND status = 'running' AND kind = ?",
 		)
-		.get(operationID) as { workspace_id: string } | undefined;
+		.get(operationID, kind) as { workspace_id: string } | undefined;
+}
+
+function runningProvisionOperation(db: Database.Database, operationID: string) {
+	return runningOperation(db, operationID, "provision");
 }

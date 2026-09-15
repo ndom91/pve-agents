@@ -1,22 +1,23 @@
+import {
+	type Fetcher,
+	type ProxmoxTaskRequest,
+	proxmoxHeaders,
+	proxmoxURL,
+	submitProxmoxTask,
+} from "./proxmox-http";
+import { ownershipMarker, type WorkspaceOwnership } from "./proxmox-ownership";
+
 // CloneWorkspaceInput is the controller-owned data required for one linked clone request.
-export type CloneWorkspaceInput = {
-	controllerID: string;
-	createdAt: string;
+export type CloneWorkspaceInput = WorkspaceOwnership & {
 	hostname: string;
 	node: string;
-	ownershipToken: string;
 	pool: string;
 	templateVMID: number;
 	vmid: number;
-	workspaceID: string;
 };
 
 // CloneWorkspaceResult is the result of submitting a clone request to Proxmox.
-export type CloneWorkspaceResult =
-	| { kind: "accepted"; upid: string }
-	| { kind: "failed"; message: string };
-
-type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
+export type CloneWorkspaceResult = ProxmoxTaskRequest;
 
 // nextProxmoxVMID returns an unreserved candidate VMID from Proxmox.
 export async function nextProxmoxVMID(
@@ -29,16 +30,10 @@ export async function nextProxmoxVMID(
 > {
 	let response: Response;
 	try {
-		response = await fetcher(
-			`${urlWithoutTrailingSlash(apiURL)}/cluster/nextid`,
-			{
-				headers: {
-					Accept: "application/json",
-					Authorization: `PVEAPIToken=${tokenID}=${tokenSecret}`,
-				},
-				method: "GET",
-			},
-		);
+		response = await fetcher(proxmoxURL(apiURL, "/cluster/nextid"), {
+			headers: proxmoxHeaders(tokenID, tokenSecret),
+			method: "GET",
+		});
 	} catch {
 		return { kind: "failed", message: "proxmox next VMID request failed" };
 	}
@@ -82,65 +77,22 @@ export async function cloneWorkspace(
 		newid: input.vmid.toString(),
 		pool: input.pool,
 	});
-	let response: Response;
-	try {
-		response = await fetcher(
-			`${urlWithoutTrailingSlash(apiURL)}/nodes/${encodeURIComponent(input.node)}/lxc/${input.templateVMID}/clone`,
-			{
-				body,
-				headers: {
-					Accept: "application/json",
-					Authorization: `PVEAPIToken=${tokenID}=${tokenSecret}`,
-					"Content-Type": "application/x-www-form-urlencoded",
-				},
-				method: "POST",
+	return submitProxmoxTask(
+		proxmoxURL(
+			apiURL,
+			`/nodes/${encodeURIComponent(input.node)}/lxc/${input.templateVMID}/clone`,
+		),
+		{
+			body,
+			headers: {
+				...proxmoxHeaders(tokenID, tokenSecret),
+				"Content-Type": "application/x-www-form-urlencoded",
 			},
-		);
-	} catch {
-		return { kind: "failed", message: "proxmox clone request failed" };
-	}
-
-	if (!response.ok) {
-		return {
-			kind: "failed",
-			message: `proxmox clone request returned HTTP ${response.status}`,
-		};
-	}
-
-	let result: { data: unknown };
-	try {
-		result = (await response.json()) as { data: unknown };
-	} catch {
-		return {
-			kind: "failed",
-			message: "proxmox clone request returned invalid JSON",
-		};
-	}
-	if (typeof result.data !== "string") {
-		return {
-			kind: "failed",
-			message: "proxmox clone request returned no UPID",
-		};
-	}
-
-	return { kind: "accepted", upid: result.data };
+			method: "POST",
+		},
+		"clone",
+		fetcher,
+	);
 }
 
-// ownershipMarker returns the metadata required to authorize future destructive actions.
-export function ownershipMarker(input: CloneWorkspaceInput): string {
-	return [
-		"managed-by=pve-herdr-agents",
-		`controller-id=${input.controllerID}`,
-		`workspace-id=${input.workspaceID}`,
-		`ownership-token=${input.ownershipToken}`,
-		`created-at=${input.createdAt}`,
-	].join("\n");
-}
-
-function urlWithoutTrailingSlash(url: string): string {
-	if (url.endsWith("/")) {
-		return url.slice(0, -1);
-	}
-
-	return url;
-}
+export { ownershipMarker };
