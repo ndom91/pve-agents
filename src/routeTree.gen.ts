@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiWorkspacesRouteImport } from './routes/api/workspaces'
+import { Route as ApiInfrastructureProbeRouteImport } from './routes/api/infrastructure/probe'
 import { Route as ApiWorkspacesWorkspaceIdRouteImport } from './routes/api/workspaces/$workspaceId'
 import { Route as ApiWorkspacesWorkspaceIdRetryRouteImport } from './routes/api/workspaces/$workspaceId/retry'
 
@@ -28,6 +29,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiWorkspacesRoute = ApiWorkspacesRouteImport.update({
   id: '/api/workspaces',
   path: '/api/workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInfrastructureProbeRoute = ApiInfrastructureProbeRouteImport.update({
+  id: '/api/infrastructure/probe',
+  path: '/api/infrastructure/probe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWorkspacesWorkspaceIdRoute =
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
+  '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/workspaces'
+    | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
   fileRoutesByTo: FileRoutesByTo
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/workspaces'
+    | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
   id:
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/health'
     | '/api/workspaces'
+    | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
   fileRoutesById: FileRoutesById
@@ -93,6 +105,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiWorkspacesRoute: typeof ApiWorkspacesRouteWithChildren
+  ApiInfrastructureProbeRoute: typeof ApiInfrastructureProbeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +129,13 @@ declare module '@tanstack/react-router' {
       path: '/api/workspaces'
       fullPath: '/api/workspaces'
       preLoaderRoute: typeof ApiWorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/infrastructure/probe': {
+      id: '/api/infrastructure/probe'
+      path: '/api/infrastructure/probe'
+      fullPath: '/api/infrastructure/probe'
+      preLoaderRoute: typeof ApiInfrastructureProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/workspaces/$workspaceId': {
@@ -165,6 +185,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiWorkspacesRoute: ApiWorkspacesRouteWithChildren,
+  ApiInfrastructureProbeRoute: ApiInfrastructureProbeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
