@@ -9,6 +9,8 @@ pnpm install
 pnpm dev
 ```
 
+Run a production build locally with `pnpm build && pnpm start`. The listener defaults to `127.0.0.1:3000`; set `CONTROLLER_HOST` and `CONTROLLER_PORT` for a trusted LAN deployment.
+
 Controller state defaults to `./data/controller.db`. Copy `.env.example` to `.env` to choose another path or prepare Proxmox settings. The database directory is intentionally ignored by Git.
 
 Run all local checks with:
