@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase } from "./database";
 import {
+	claimWorkspaceOperation,
+	completeWorkspaceOperation,
 	createWorkspace,
 	listWorkspaces,
 	requestWorkspaceOperation,
@@ -84,6 +86,33 @@ describe("createWorkspace", () => {
 			},
 		});
 	});
+
+	it("leases an operation once and completes it", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+
+		const now = new Date("2026-01-01T00:00:00Z");
+		const claimed = claimWorkspaceOperation(db, now);
+
+		expect(claimed).toMatchObject({
+			kind: "claimed",
+			operation: {
+				attemptCount: 1,
+				kind: "provision",
+				status: "running",
+			},
+		});
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
+		completeWorkspaceOperation(db, claimed.operation.id);
+		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
+	});
 });
 
 describe("openDatabase", () => {
@@ -93,6 +122,7 @@ describe("openDatabase", () => {
 		expect(db.prepare("SELECT version FROM schema_migrations").all()).toEqual([
 			{ version: 1 },
 			{ version: 2 },
+			{ version: 3 },
 		]);
 	});
 });

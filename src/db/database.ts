@@ -71,6 +71,19 @@ const migrations = [
 			ON workspace_operations(workspace_id, created_at DESC);
 		`,
 	},
+	{
+		version: 3,
+		sql: `
+			ALTER TABLE workspace_operations ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE workspace_operations ADD COLUMN claimed_at TEXT;
+			ALTER TABLE workspace_operations ADD COLUMN lease_expires_at TEXT;
+			ALTER TABLE workspace_operations ADD COLUMN completed_at TEXT;
+			ALTER TABLE workspace_operations ADD COLUMN error_message TEXT;
+
+			CREATE INDEX workspace_operations_claim
+			ON workspace_operations(status, lease_expires_at, created_at);
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

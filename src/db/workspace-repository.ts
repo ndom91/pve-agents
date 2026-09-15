@@ -43,12 +43,22 @@ export type CreateWorkspaceResult =
 	| { kind: "idempotency_conflict" };
 
 export type WorkspaceOperation = {
+	attemptCount: number;
+	claimedAt?: string;
+	completedAt?: string;
 	createdAt: string;
+	errorMessage?: string;
 	id: string;
 	kind: "destroy" | "provision";
-	status: "queued";
+	leaseExpiresAt?: string;
+	status: "completed" | "queued" | "running";
 	workspaceId: string;
 };
+
+// WorkspaceOperationClaim is the result of attempting to lease the next operation.
+export type WorkspaceOperationClaim =
+	| { kind: "claimed"; operation: WorkspaceOperation }
+	| { kind: "empty" };
 
 export type WorkspaceOperationResult =
 	| { kind: "created"; operation: WorkspaceOperation; workspace: Workspace }
@@ -69,6 +79,21 @@ type WorkspaceRow = {
 	status: WorkspaceStatus;
 	updated_at: string;
 };
+
+type WorkspaceOperationRow = {
+	attempt_count: number;
+	claimed_at: string | null;
+	completed_at: string | null;
+	created_at: string;
+	error_message: string | null;
+	id: string;
+	kind: WorkspaceOperation["kind"];
+	lease_expires_at: string | null;
+	status: WorkspaceOperation["status"];
+	workspace_id: string;
+};
+
+const OPERATION_LEASE_MS = 60_000;
 
 // createWorkspace persists workspace intent and protects it with the supplied idempotency key.
 export function createWorkspace(
@@ -154,6 +179,70 @@ export function createWorkspace(
 	});
 
 	return persist();
+}
+
+// claimWorkspaceOperation leases the next queued or abandoned operation for one worker.
+export function claimWorkspaceOperation(
+	db: Database.Database,
+	now: Date = new Date(),
+): WorkspaceOperationClaim {
+	const claim = db.transaction((): WorkspaceOperationClaim => {
+		const nowText = now.toISOString();
+		const row = db
+			.prepare(
+				`SELECT id, workspace_id, kind, status, attempt_count, created_at, claimed_at,
+					lease_expires_at, completed_at, error_message
+				 FROM workspace_operations
+				 WHERE status = 'queued'
+					OR (status = 'running' AND lease_expires_at < ?)
+				 ORDER BY created_at ASC LIMIT 1`,
+			)
+			.get(nowText) as WorkspaceOperationRow | undefined;
+		if (row === undefined) {
+			return { kind: "empty" };
+		}
+
+		const leaseExpiresAt = new Date(
+			now.getTime() + OPERATION_LEASE_MS,
+		).toISOString();
+		const updated = db
+			.prepare(
+				`UPDATE workspace_operations
+				 SET status = 'running', attempt_count = attempt_count + 1, claimed_at = ?,
+					lease_expires_at = ?, error_message = NULL
+				 WHERE id = ?`,
+			)
+			.run(nowText, leaseExpiresAt, row.id);
+		if (updated.changes !== 1) {
+			return { kind: "empty" };
+		}
+
+		return {
+			kind: "claimed",
+			operation: {
+				...workspaceOperationFromRow(row),
+				attemptCount: row.attempt_count + 1,
+				claimedAt: nowText,
+				leaseExpiresAt,
+				status: "running",
+			},
+		};
+	});
+
+	return claim.immediate();
+}
+
+// completeWorkspaceOperation marks a successfully executed operation as durable history.
+export function completeWorkspaceOperation(
+	db: Database.Database,
+	operationID: string,
+	now: Date = new Date(),
+): void {
+	db.prepare(
+		`UPDATE workspace_operations
+		 SET status = 'completed', completed_at = ?, lease_expires_at = NULL
+		 WHERE id = ? AND status = 'running'`,
+	).run(now.toISOString(), operationID);
 }
 
 // requestWorkspaceOperation records lifecycle work for the disabled-by-default executor.
@@ -277,6 +366,7 @@ function insertOperation(
 	createdAt: string,
 ): WorkspaceOperation {
 	const operation: WorkspaceOperation = {
+		attemptCount: 0,
 		createdAt,
 		id: randomUUID(),
 		kind,
@@ -305,4 +395,32 @@ function workspaceRequestHash(input: CreateWorkspaceInput): string {
 	});
 
 	return createHash("sha256").update(request).digest("hex");
+}
+
+function workspaceOperationFromRow(
+	row: WorkspaceOperationRow,
+): WorkspaceOperation {
+	const operation: WorkspaceOperation = {
+		attemptCount: row.attempt_count,
+		createdAt: row.created_at,
+		id: row.id,
+		kind: row.kind,
+		status: row.status,
+		workspaceId: row.workspace_id,
+	};
+
+	if (row.claimed_at !== null) {
+		operation.claimedAt = row.claimed_at;
+	}
+	if (row.completed_at !== null) {
+		operation.completedAt = row.completed_at;
+	}
+	if (row.error_message !== null) {
+		operation.errorMessage = row.error_message;
+	}
+	if (row.lease_expires_at !== null) {
+		operation.leaseExpiresAt = row.lease_expires_at;
+	}
+
+	return operation;
 }
