@@ -92,6 +92,24 @@ async function main() {
 	server.listen(port, host, () => {
 		console.log(`controller listening on http://${host}:${port}`);
 	});
+
+	// The scheduler is a separate bundle so the HTTP server keeps starting even when it is off,
+	// which is the default. Nothing here runs until WORKER_ENABLED=true.
+	if (process.env.WORKER_ENABLED === "true") {
+		const { startScheduler } = await import("../dist/cli/scheduler.js");
+		const abort = new AbortController();
+		for (const signal of ["SIGINT", "SIGTERM"]) {
+			process.once(signal, () => {
+				abort.abort();
+				server.close();
+			});
+		}
+
+		startScheduler(abort.signal).catch((error) => {
+			console.error("scheduler stopped", error);
+			process.exitCode = 1;
+		});
+	}
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

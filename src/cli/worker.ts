@@ -3,6 +3,7 @@ import {
 	controllerRuntimeConfig,
 } from "../server/controller";
 import { runWorkspaceOperations } from "../services/workspace-operation-worker";
+import { startWorkspaceScheduler } from "../services/workspace-scheduler";
 
 // The worker has no timer and no HTTP trigger on purpose. Until the lifecycle has been proven
 // against real infrastructure, an operator steps it by hand and inspects Proxmox between passes.
@@ -18,10 +19,20 @@ async function main(): Promise<void> {
 	}
 
 	console.log(`watching for workspace operations every ${watch}s`);
-	for (;;) {
-		await tick(db, config);
-		await new Promise((resolve) => setTimeout(resolve, watch * 1_000));
+	const controller = new AbortController();
+	for (const signal of ["SIGINT", "SIGTERM"] as const) {
+		process.once(signal, () => controller.abort());
 	}
+
+	await startWorkspaceScheduler(
+		db,
+		{ ...config, WORKER_INTERVAL_SECONDS: watch },
+		controller.signal,
+		{
+			onError: (error) => console.error("tick failed", error),
+			tick: () => tick(db, config),
+		},
+	);
 }
 
 async function tick(
