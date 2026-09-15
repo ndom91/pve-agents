@@ -18,6 +18,55 @@ export type CloneWorkspaceResult =
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
+// nextProxmoxVMID returns an unreserved candidate VMID from Proxmox.
+export async function nextProxmoxVMID(
+	apiURL: string,
+	tokenID: string,
+	tokenSecret: string,
+	fetcher: Fetcher = fetch,
+): Promise<
+	{ kind: "allocated"; vmid: number } | { kind: "failed"; message: string }
+> {
+	let response: Response;
+	try {
+		response = await fetcher(
+			`${urlWithoutTrailingSlash(apiURL)}/cluster/nextid`,
+			{
+				headers: {
+					Accept: "application/json",
+					Authorization: `PVEAPIToken=${tokenID}=${tokenSecret}`,
+				},
+				method: "GET",
+			},
+		);
+	} catch {
+		return { kind: "failed", message: "proxmox next VMID request failed" };
+	}
+	if (!response.ok) {
+		return {
+			kind: "failed",
+			message: `proxmox next VMID request returned HTTP ${response.status}`,
+		};
+	}
+
+	const result = await response.json().catch(() => undefined);
+	if (typeof result !== "object" || result === null || !("data" in result)) {
+		return {
+			kind: "failed",
+			message: "proxmox next VMID request returned invalid JSON",
+		};
+	}
+	const vmid = Number(result.data);
+	if (!Number.isSafeInteger(vmid) || vmid < 100) {
+		return {
+			kind: "failed",
+			message: "proxmox next VMID request returned invalid VMID",
+		};
+	}
+
+	return { kind: "allocated", vmid };
+}
+
 // cloneWorkspace submits one linked LXC clone request and returns its Proxmox task identifier.
 export async function cloneWorkspace(
 	apiURL: string,

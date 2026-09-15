@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { cloneWorkspace, ownershipMarker } from "./proxmox-clone";
+import {
+	cloneWorkspace,
+	nextProxmoxVMID,
+	ownershipMarker,
+} from "./proxmox-clone";
 
 describe("ownershipMarker", () => {
 	it("includes every ownership proof", () => {
@@ -36,6 +40,19 @@ describe("cloneWorkspace", () => {
 		expect(request?.body?.toString()).toContain("full=0");
 		expect(request?.body?.toString()).toContain("newid=109");
 		expect(request?.body?.toString()).toContain("pool=disposable-workspaces");
+	});
+});
+
+describe("nextProxmoxVMID", () => {
+	it("returns a candidate VMID from Proxmox", async () => {
+		const result = await nextProxmoxVMID(
+			"https://nas.puff.lan:8006/api2/json",
+			"workspace-controller@pve!controller",
+			"not-a-real-secret",
+			async () => Response.json({ data: "109" }),
+		);
+
+		expect(result).toEqual({ kind: "allocated", vmid: 109 });
 	});
 });
 

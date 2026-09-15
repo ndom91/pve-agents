@@ -70,6 +70,15 @@ export type WorkspaceProvisionPreparation =
 	| { kind: "prepared" }
 	| { kind: "stale_operation" };
 
+// WorkspaceProvision is the private workspace data needed to submit one clone request.
+export type WorkspaceProvision = {
+	hostname: string;
+	id: string;
+	ownershipToken: string;
+	taskUPID?: string;
+	vmid?: number;
+};
+
 type WorkspaceRow = {
 	activity: WorkspaceActivity;
 	created_at: string;
@@ -310,6 +319,46 @@ export function recordWorkspaceTask(
 	});
 
 	return record.immediate();
+}
+
+// workspaceProvision returns the private state for one running provision operation.
+export function workspaceProvision(
+	db: Database.Database,
+	operationID: string,
+): WorkspaceProvision | undefined {
+	const row = db
+		.prepare(
+			`SELECT w.id, w.hostname, w.ownership_token, w.vmid, w.current_task_upid
+			 FROM workspace_operations o
+			 JOIN workspaces w ON w.id = o.workspace_id
+			 WHERE o.id = ? AND o.status = 'running' AND o.kind = 'provision'`,
+		)
+		.get(operationID) as
+		| {
+				current_task_upid: string | null;
+				hostname: string;
+				id: string;
+				ownership_token: string;
+				vmid: number | null;
+		  }
+		| undefined;
+	if (row === undefined) {
+		return undefined;
+	}
+
+	const workspace: WorkspaceProvision = {
+		hostname: row.hostname,
+		id: row.id,
+		ownershipToken: row.ownership_token,
+	};
+	if (row.current_task_upid !== null) {
+		workspace.taskUPID = row.current_task_upid;
+	}
+	if (row.vmid !== null) {
+		workspace.vmid = row.vmid;
+	}
+
+	return workspace;
 }
 
 // requestWorkspaceOperation records lifecycle work for the disabled-by-default executor.
