@@ -10,7 +10,7 @@
 
 ## systemd
 
-Build the application with `pnpm build`, then use a unit equivalent to:
+The current TanStack Start build exports a Fetch handler at `dist/server/server.js`; it is not an executable Node HTTP listener. Add and verify a Node HTTP adapter before deploying under systemd. Once an adapter exposes a controller start command, use a unit equivalent to:
 
 ```ini
 [Unit]
@@ -22,7 +22,7 @@ Type=simple
 User=pve-herdr-agents
 WorkingDirectory=/opt/pve-herdr-agents
 EnvironmentFile=/etc/pve-herdr-agents/controller.env
-ExecStart=/usr/bin/node /opt/pve-herdr-agents/dist/server/server.js
+ExecStart=/opt/pve-herdr-agents/bin/controller-server
 Restart=on-failure
 RestartSec=5
 
@@ -30,7 +30,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/etc/pve-herdr-agents/controller.env` and ensure the service account owns that directory. Configure the listener address and port in the process manager or reverse proxy used by the TanStack Start deployment.
+Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/etc/pve-herdr-agents/controller.env` and ensure the service account owns that directory. Configure the listener address and port in the adapter or reverse proxy.
 
 ## Operation
 
