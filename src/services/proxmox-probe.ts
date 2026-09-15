@@ -110,6 +110,13 @@ async function bridgeCheck(
 			status: "error",
 		};
 	}
+	if (!usesDHCP(stringValue(template.net0))) {
+		return {
+			detail: "template net0 must use IPv4 DHCP",
+			name: "bridge",
+			status: "error",
+		};
+	}
 	if (bridge !== config.PROXMOX_BRIDGE) {
 		return {
 			detail: `configured bridge ${config.PROXMOX_BRIDGE} differs from template bridge ${bridge}`,
@@ -153,6 +160,20 @@ function bridgeName(net: string | undefined): string | undefined {
 	}
 
 	return undefined;
+}
+
+function usesDHCP(net: string | undefined): boolean {
+	if (net === undefined) {
+		return false;
+	}
+
+	for (const option of net.split(",")) {
+		if (option === "ip=dhcp") {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 function checksAreOK(checks: ProxmoxCheck[]): boolean {

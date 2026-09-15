@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const envSchema = z
 	.object({
+		CONTROLLER_ID: z.string().uuid().optional(),
 		DATABASE_PATH: z.string().min(1).default("./data/controller.db"),
 		PROVISIONING_ENABLED: z.enum(["false", "true"]).default("false"),
 		PROXMOX_BRIDGE: z.string().min(1).optional(),
@@ -21,6 +22,7 @@ const envSchema = z
 		}
 
 		for (const key of [
+			"CONTROLLER_ID",
 			"PROXMOX_URL",
 			"PROXMOX_TOKEN_ID",
 			"PROXMOX_TOKEN_SECRET",

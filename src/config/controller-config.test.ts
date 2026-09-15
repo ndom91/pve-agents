@@ -12,4 +12,10 @@ describe("controllerConfig", () => {
 			"PROXMOX_URL is required when PROVISIONING_ENABLED=true",
 		);
 	});
+
+	it("requires a stable controller ID when provisioning is enabled", () => {
+		expect(() => controllerConfig({ PROVISIONING_ENABLED: "true" })).toThrow(
+			"CONTROLLER_ID is required when PROVISIONING_ENABLED=true",
+		);
+	});
 });

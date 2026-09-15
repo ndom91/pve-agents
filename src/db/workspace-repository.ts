@@ -65,6 +65,11 @@ export type WorkspaceOperationResult =
 	| { kind: "invalid_transition"; message: string }
 	| { kind: "not_found" };
 
+// WorkspaceProvisionPreparation is the durable result of storing a clone recovery point.
+export type WorkspaceProvisionPreparation =
+	| { kind: "prepared" }
+	| { kind: "stale_operation" };
+
 type WorkspaceRow = {
 	activity: WorkspaceActivity;
 	created_at: string;
@@ -245,6 +250,68 @@ export function completeWorkspaceOperation(
 	).run(now.toISOString(), operationID);
 }
 
+// prepareWorkspaceProvision records a VMID before any Proxmox clone request is submitted.
+export function prepareWorkspaceProvision(
+	db: Database.Database,
+	operationID: string,
+	node: string,
+	vmid: number,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const prepare = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningProvisionOperation(db, operationID);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		db.prepare(
+			`UPDATE workspaces
+			 SET node = ?, vmid = ?, status = 'provisioning', current_step = ?, updated_at = ?
+			 WHERE id = ?`,
+		).run(
+			node,
+			vmid,
+			"candidate VMID persisted",
+			now.toISOString(),
+			operation.workspace_id,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return prepare.immediate();
+}
+
+// recordWorkspaceTask stores the Proxmox UPID before the executor continues to another step.
+export function recordWorkspaceTask(
+	db: Database.Database,
+	operationID: string,
+	upid: string,
+	now: Date = new Date(),
+): WorkspaceProvisionPreparation {
+	const record = db.transaction((): WorkspaceProvisionPreparation => {
+		const operation = runningProvisionOperation(db, operationID);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		db.prepare(
+			`UPDATE workspaces
+			 SET current_task_upid = ?, current_step = ?, updated_at = ?
+			 WHERE id = ?`,
+		).run(
+			upid,
+			"clone task accepted",
+			now.toISOString(),
+			operation.workspace_id,
+		);
+
+		return { kind: "prepared" };
+	});
+
+	return record.immediate();
+}
+
 // requestWorkspaceOperation records lifecycle work for the disabled-by-default executor.
 export function requestWorkspaceOperation(
 	db: Database.Database,
@@ -423,4 +490,12 @@ function workspaceOperationFromRow(
 	}
 
 	return operation;
+}
+
+function runningProvisionOperation(db: Database.Database, operationID: string) {
+	return db
+		.prepare(
+			"SELECT workspace_id FROM workspace_operations WHERE id = ? AND status = 'running' AND kind = 'provision'",
+		)
+		.get(operationID) as { workspace_id: string } | undefined;
 }

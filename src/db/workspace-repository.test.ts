@@ -6,6 +6,8 @@ import {
 	completeWorkspaceOperation,
 	createWorkspace,
 	listWorkspaces,
+	prepareWorkspaceProvision,
+	recordWorkspaceTask,
 	requestWorkspaceOperation,
 } from "./workspace-repository";
 
@@ -112,6 +114,37 @@ describe("createWorkspace", () => {
 		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
 		completeWorkspaceOperation(db, claimed.operation.id);
 		expect(claimWorkspaceOperation(db, now)).toEqual({ kind: "empty" });
+	});
+
+	it("persists the VMID and clone UPID before continuing provision work", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db);
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		expect(
+			prepareWorkspaceProvision(db, claimed.operation.id, "nas", 109),
+		).toEqual({ kind: "prepared" });
+		expect(
+			recordWorkspaceTask(db, claimed.operation.id, "UPID:nas:00000001"),
+		).toEqual({ kind: "prepared" });
+		expect(
+			db
+				.prepare(
+					"SELECT node, vmid, current_task_upid, current_step FROM workspaces WHERE id = ?",
+				)
+				.get(created.workspace.id),
+		).toEqual({
+			current_step: "clone task accepted",
+			current_task_upid: "UPID:nas:00000001",
+			node: "nas",
+			vmid: 109,
+		});
 	});
 });
 
