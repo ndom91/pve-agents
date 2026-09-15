@@ -62,47 +62,47 @@ export function createWorkspace(
 	input: CreateWorkspaceInput,
 ): CreateWorkspaceResult {
 	const requestHash = workspaceRequestHash(input);
-	const existing = db
-		.prepare(
-			"SELECT request_hash, workspace_id FROM idempotency_keys WHERE key = ?",
-		)
-		.get(input.idempotencyKey) as
-		| { request_hash: string; workspace_id: string }
-		| undefined;
+	const persist = db.transaction((): CreateWorkspaceResult => {
+		const existing = db
+			.prepare(
+				"SELECT request_hash, workspace_id FROM idempotency_keys WHERE key = ?",
+			)
+			.get(input.idempotencyKey) as
+			| { request_hash: string; workspace_id: string }
+			| undefined;
 
-	if (existing !== undefined) {
-		if (existing.request_hash !== requestHash) {
-			return { kind: "idempotency_conflict" };
+		if (existing !== undefined) {
+			if (existing.request_hash !== requestHash) {
+				return { kind: "idempotency_conflict" };
+			}
+
+			const workspace = workspaceById(db, existing.workspace_id);
+			if (workspace === undefined) {
+				throw new Error(
+					"workspace-repository: idempotency key references a missing workspace",
+				);
+			}
+
+			return { kind: "existing", workspace };
 		}
 
-		const workspace = workspaceById(db, existing.workspace_id);
-		if (workspace === undefined) {
-			throw new Error(
-				"workspace-repository: idempotency key references a missing workspace",
-			);
-		}
+		const now = new Date().toISOString();
+		const id = randomUUID();
+		const workspace: Workspace = {
+			activity: DEFAULT_WORKSPACE_ACTIVITY,
+			createdAt: now,
+			currentStep: "workspace persisted",
+			desiredState: "present",
+			herdrSession: input.herdrSession,
+			hostname: `agent-${id.slice(0, 4)}`,
+			id,
+			purpose: input.purpose,
+			repository: input.repository,
+			ref: input.ref,
+			status: DEFAULT_WORKSPACE_STATUS,
+			updatedAt: now,
+		};
 
-		return { kind: "existing", workspace };
-	}
-
-	const now = new Date().toISOString();
-	const id = randomUUID();
-	const workspace: Workspace = {
-		activity: DEFAULT_WORKSPACE_ACTIVITY,
-		createdAt: now,
-		currentStep: "workspace persisted",
-		desiredState: "present",
-		herdrSession: input.herdrSession,
-		hostname: `agent-${id.slice(0, 4)}`,
-		id,
-		purpose: input.purpose,
-		repository: input.repository,
-		ref: input.ref,
-		status: DEFAULT_WORKSPACE_STATUS,
-		updatedAt: now,
-	};
-
-	const insert = db.transaction(() => {
 		db.prepare(
 			`INSERT INTO workspaces (
 				id, ownership_token, desired_state, status, activity, repository, ref, purpose,
@@ -134,11 +134,11 @@ export function createWorkspace(
 			"workspace request accepted",
 			now,
 		);
+
+		return { kind: "created", workspace };
 	});
 
-	insert();
-
-	return { kind: "created", workspace };
+	return persist();
 }
 
 // listWorkspaces returns workspaces ordered with the newest request first.
