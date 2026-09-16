@@ -18,6 +18,13 @@ openssh-server
 normal shell and build tooling
 ```
 
+Build it with `deploy/build-workspace-template.sh`, which clones an existing template, provisions
+the clone, and converts that into a new one. Editing a template in place does not work: linked
+clones come from its `@__base__` ZFS snapshot, so changes to the live dataset reach nothing.
+
+Install the agent tooling as the workspace user, not root. Tooling under `/root` is not on the
+workspace user's PATH, which makes it invisible to everything the controller does over SSH.
+
 Do not include a project repository or secret credentials.
 
 Use one non-root `agent` user and the predictable checkout path:
