@@ -19,6 +19,18 @@ export type WorkspaceStatus =
 	| "registering"
 	| "requested";
 
+// DestroyPhase is how far teardown has progressed.
+//
+// Separate from current_step, which is prose for an operator. Encoding the state machine in
+// sentences meant a branch compared progress against a human-readable string, and adding a phase
+// could not be checked. "shutdown-tried" covers a shutdown that succeeded without stopping the
+// guest as well as one that failed: both mean the next action is a forced stop.
+export type DestroyPhase =
+	| "delete-submitted"
+	| "shutdown-submitted"
+	| "shutdown-tried"
+	| "stop-submitted";
+
 // WorkspaceTarget describes the desired durable lifecycle state.
 export type WorkspaceTarget = "destroyed" | "present";
 

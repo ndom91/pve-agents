@@ -366,7 +366,7 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		]);
 
 		await tick(db, proxmox(db, workspaceID, { task: "OK" }));
-		expect(currentStep(db, workspaceID)).toBe("shutdown confirmed");
+		expect(destroyPhase(db, workspaceID)).toBe("shutdown-tried");
 
 		const remove = await tick(
 			db,
@@ -407,15 +407,19 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		await tick(db, proxmox(db, workspaceID, {}));
 
 		await tick(db, proxmox(db, workspaceID, { task: "timeout waiting" }));
-		expect(currentStep(db, workspaceID)).toBe(
-			"clean shutdown failed; force stop required",
-		);
+		expect(destroyPhase(db, workspaceID)).toBe("shutdown-tried");
 
 		const calls: string[] = [];
 		const stop = await tick(db, proxmox(db, workspaceID, { calls }));
 
 		expect(stop).toEqual({ processed: 1, status: "stop_submitted" });
-		expect(calls).toEqual(["GET /config", "POST /status/stop"]);
+		// State is re-read before escalating, so a guest that did stop after a failed shutdown
+		// task goes straight to delete instead of being stopped pointlessly.
+		expect(calls).toEqual([
+			"GET /config",
+			"GET /status/current",
+			"POST /status/stop",
+		]);
 	});
 
 	it("force stops a guest still running after its shutdown reported success", async () => {
@@ -424,7 +428,7 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 
 		await tick(db, proxmox(db, workspaceID, {}));
 		await tick(db, proxmox(db, workspaceID, { task: "OK" }));
-		expect(currentStep(db, workspaceID)).toBe("shutdown confirmed");
+		expect(destroyPhase(db, workspaceID)).toBe("shutdown-tried");
 
 		// The task succeeded but the guest is still up. Asking it to shut down again would cycle
 		// shutdown -> confirm -> shutdown until the operation deadline.
@@ -704,12 +708,15 @@ function tick(db: Database.Database, fetcher: Fetcher) {
 	);
 }
 
-function currentStep(db: Database.Database, workspaceID: string): string {
+function destroyPhase(
+	db: Database.Database,
+	workspaceID: string,
+): string | null {
 	return (
 		db
-			.prepare("SELECT current_step FROM workspaces WHERE id = ?")
-			.get(workspaceID) as { current_step: string }
-	).current_step;
+			.prepare("SELECT destroy_phase FROM workspaces WHERE id = ?")
+			.get(workspaceID) as { destroy_phase: string | null }
+	).destroy_phase;
 }
 
 // destroyable leaves a workspace with a confirmed clone and a queued destroy request.

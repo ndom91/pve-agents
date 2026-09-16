@@ -401,7 +401,7 @@ describe("destroy mutators", () => {
 		for (const write of [
 			() => completeWorkspaceDestroy(db, lease, "message"),
 			() => haltWorkspaceDestroy(db, lease, "code", "message"),
-			() => advanceWorkspaceDestroy(db, lease, "step"),
+			() => advanceWorkspaceDestroy(db, lease, "shutdown-tried", "step"),
 		]) {
 			expect(write()).toEqual({ kind: "stale_operation" });
 		}
@@ -494,6 +494,7 @@ describe("openDatabase", () => {
 			{ version: 3 },
 			{ version: 4 },
 			{ version: 5 },
+			{ version: 6 },
 		]);
 	});
 });

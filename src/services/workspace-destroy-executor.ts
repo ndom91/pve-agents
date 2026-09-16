@@ -11,6 +11,7 @@ import {
 	type WorkspaceTeardown,
 	workspaceTeardown,
 } from "../db/workspace-repository";
+import type { DestroyPhase } from "../domain/workspace";
 import {
 	containerConfig,
 	containerDescription,
@@ -29,12 +30,13 @@ import {
 	workspaceNode,
 } from "./workspace-task";
 
-// Steps are persisted on the workspace and are the only record of how far teardown has progressed.
-const SHUTDOWN_SUBMITTED = "shutdown task accepted";
-const STOP_SUBMITTED = "stop task accepted";
-const DELETE_SUBMITTED = "delete task accepted";
-const SHUTDOWN_CONFIRMED = "shutdown confirmed";
-const STOP_REQUIRED = "clean shutdown failed; force stop required";
+// Prose for the operator, derived from the phase. Nothing branches on these.
+const STEPS: Record<DestroyPhase, string> = {
+	"delete-submitted": "delete task accepted",
+	"shutdown-submitted": "shutdown task accepted",
+	"shutdown-tried": "shutdown attempted; forcing a stop if still running",
+	"stop-submitted": "stop task accepted",
+};
 
 // executeWorkspaceDestroy advances one destroy operation by exactly one durable step.
 //
@@ -95,12 +97,10 @@ async function pollTeardownTask(
 		return { processed: 1, status: "awaiting_task" };
 	}
 
-	if (workspace.currentStep === SHUTDOWN_SUBMITTED) {
-		// A guest that ignores ACPI is ordinary, not an error. Either outcome moves teardown
-		// forward; only the next action differs.
-		const step = task.kind === "succeeded" ? SHUTDOWN_CONFIRMED : STOP_REQUIRED;
-		advanceWorkspaceDestroy(db, lease, step, now);
-		releaseWorkspaceOperation(db, lease, 0, now);
+	if (workspace.phase === "shutdown-submitted") {
+		// A guest that ignores ACPI is ordinary, not an error, and a shutdown that reports success
+		// without stopping the guest is the same situation. Both mean: try a forced stop next.
+		advance(db, lease, "shutdown-tried", now);
 
 		return { processed: 1, status: "awaiting_reconciliation" };
 	}
@@ -109,7 +109,7 @@ async function pollTeardownTask(
 		return haltTeardown(
 			db,
 			lease,
-			workspace.currentStep === DELETE_SUBMITTED
+			workspace.phase === "delete-submitted"
 				? "destroy_delete_failed"
 				: "destroy_stop_failed",
 			task.kind === "failed"
@@ -119,7 +119,7 @@ async function pollTeardownTask(
 		);
 	}
 
-	if (workspace.currentStep === DELETE_SUBMITTED) {
+	if (workspace.phase === "delete-submitted") {
 		completeWorkspaceDestroy(
 			db,
 			lease,
@@ -130,10 +130,20 @@ async function pollTeardownTask(
 		return { processed: 1, status: "container_deleted" };
 	}
 
-	advanceWorkspaceDestroy(db, lease, "container stopped", now);
-	releaseWorkspaceOperation(db, lease, 0, now);
+	advance(db, lease, "shutdown-tried", now);
 
 	return { processed: 1, status: "awaiting_reconciliation" };
+}
+
+// advance records a finished teardown task and lets the next pass act on the new phase.
+function advance(
+	db: Database.Database,
+	lease: OperationLease,
+	phase: DestroyPhase,
+	now: Date,
+): void {
+	advanceWorkspaceDestroy(db, lease, phase, STEPS[phase], now);
+	releaseWorkspaceOperation(db, lease, 0, now);
 }
 
 // teardownContainer verifies ownership, then takes the next teardown action.
@@ -183,24 +193,6 @@ async function teardownContainer(
 		);
 	}
 
-	// A guest still running after its shutdown task reported success will never respond to a
-	// second ACPI request either. Escalating here is what stops shutdown -> confirm -> shutdown
-	// cycling until the operation deadline.
-	const shutdownAlreadyTried =
-		workspace.currentStep === STOP_REQUIRED ||
-		workspace.currentStep === SHUTDOWN_CONFIRMED;
-
-	if (workspace.currentStep === STOP_REQUIRED) {
-		return submitTeardownTask(
-			db,
-			lease,
-			await stopContainer(api, vmid, fetcher),
-			STOP_SUBMITTED,
-			"stop_submitted",
-			now,
-		);
-	}
-
 	const state = await containerState(api, vmid, fetcher);
 	if (state.kind === "failed") {
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
@@ -214,12 +206,14 @@ async function teardownContainer(
 	}
 
 	if (state.kind === "running") {
-		if (shutdownAlreadyTried) {
+		// Once shutdown has been tried, a still-running guest will not answer a second ACPI
+		// request either: escalate rather than cycling.
+		if (workspace.phase === "shutdown-tried") {
 			return submitTeardownTask(
 				db,
 				lease,
 				await stopContainer(api, vmid, fetcher),
-				STOP_SUBMITTED,
+				"stop-submitted",
 				"stop_submitted",
 				now,
 			);
@@ -229,7 +223,7 @@ async function teardownContainer(
 			db,
 			lease,
 			await shutdownContainer(api, vmid, fetcher),
-			SHUTDOWN_SUBMITTED,
+			"shutdown-submitted",
 			"shutdown_submitted",
 			now,
 		);
@@ -239,7 +233,7 @@ async function teardownContainer(
 		db,
 		lease,
 		await deleteContainer(api, vmid, fetcher),
-		DELETE_SUBMITTED,
+		"delete-submitted",
 		"delete_submitted",
 		now,
 	);
@@ -249,7 +243,7 @@ function submitTeardownTask(
 	db: Database.Database,
 	lease: OperationLease,
 	request: ProxmoxTaskRequest,
-	step: string,
+	phase: DestroyPhase,
 	status: WorkspaceOperationRun["status"],
 	now: Date,
 ): WorkspaceOperationRun {
@@ -264,7 +258,13 @@ function submitTeardownTask(
 	const recorded = recordWorkspaceTask(
 		db,
 		lease,
-		{ expiresAt: taskExpiry(now), kind: "destroy", step, upid: request.upid },
+		{
+			expiresAt: taskExpiry(now),
+			kind: "destroy",
+			phase,
+			step: STEPS[phase],
+			upid: request.upid,
+		},
 		now,
 	);
 	if (recorded.kind !== "prepared") {

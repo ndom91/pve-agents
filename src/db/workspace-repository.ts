@@ -5,6 +5,7 @@ import type Database from "better-sqlite3";
 import {
 	DEFAULT_WORKSPACE_ACTIVITY,
 	DEFAULT_WORKSPACE_STATUS,
+	type DestroyPhase,
 	nextWorkspaceStatus,
 	type WorkspaceActivity,
 	type WorkspaceStatus,
@@ -83,7 +84,7 @@ export type WorkspaceMutation =
 
 // WorkspaceTeardown is the private workspace data needed to destroy one LXC.
 export type WorkspaceTeardown = WorkspaceProvision & {
-	currentStep: string;
+	phase?: DestroyPhase;
 };
 
 // WorkspaceProvision is the private workspace data needed to submit one clone request.
@@ -317,6 +318,7 @@ export function recordWorkspaceTask(
 	input: {
 		expiresAt: string;
 		kind: WorkspaceOperation["kind"];
+		phase?: DestroyPhase;
 		step: string;
 		upid: string;
 	},
@@ -325,12 +327,14 @@ export function recordWorkspaceTask(
 	return withRunningOperation(db, lease, input.kind, (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
-			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?, updated_at = ?
+			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?,
+				destroy_phase = COALESCE(?, destroy_phase), updated_at = ?
 			 WHERE id = ?`,
 		).run(
 			input.upid,
 			input.expiresAt,
 			input.step,
+			input.phase ?? null,
 			now.toISOString(),
 			workspaceId,
 		);
@@ -341,6 +345,7 @@ export function recordWorkspaceTask(
 export function advanceWorkspaceDestroy(
 	db: Database.Database,
 	lease: OperationLease,
+	phase: DestroyPhase,
 	step: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
@@ -348,9 +353,9 @@ export function advanceWorkspaceDestroy(
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
-				updated_at = ?
+				destroy_phase = ?, updated_at = ?
 			 WHERE id = ?`,
-		).run(step, now.toISOString(), workspaceId);
+		).run(step, phase, now.toISOString(), workspaceId);
 	});
 }
 
@@ -368,7 +373,7 @@ export function completeWorkspaceDestroy(
 			`UPDATE workspaces
 			 SET status = 'destroyed', desired_state = 'destroyed', destroyed_at = ?,
 				current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
-				error_code = NULL, error_message = NULL, error_retryable = NULL,
+				destroy_phase = NULL, error_code = NULL, error_message = NULL, error_retryable = NULL,
 				error_occurred_at = NULL, updated_at = ?
 			 WHERE id = ?`,
 		).run(nowText, "destroyed", nowText, workspaceId);
@@ -546,18 +551,18 @@ function operationWorkspace(
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.current_step
+				w.current_task_expires_at, w.destroy_phase
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
 		)
 		.get(lease.id, kind, lease.token) as
 		| {
-				current_step: string;
 				current_task_expires_at: string | null;
 				current_task_upid: string | null;
 				hostname: string;
 				id: string;
+				destroy_phase: DestroyPhase | null;
 				node: string | null;
 				ownership_token: string;
 				vmid: number | null;
@@ -568,11 +573,13 @@ function operationWorkspace(
 	}
 
 	const workspace: WorkspaceTeardown = {
-		currentStep: row.current_step,
 		hostname: row.hostname,
 		id: row.id,
 		ownershipToken: row.ownership_token,
 	};
+	if (row.destroy_phase !== null) {
+		workspace.phase = row.destroy_phase;
+	}
 	if (row.current_task_expires_at !== null) {
 		workspace.taskExpiresAt = row.current_task_expires_at;
 	}
