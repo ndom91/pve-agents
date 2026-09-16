@@ -2,6 +2,7 @@ import {
 	type Fetcher,
 	type ProxmoxTaskRequest,
 	proxmoxHeaders,
+	proxmoxTimeout,
 	proxmoxURL,
 	submitProxmoxTask,
 } from "./proxmox-http";
@@ -196,6 +197,7 @@ async function readContainer(
 		response = await fetcher(proxmoxURL(apiURL, path), {
 			headers: proxmoxHeaders(tokenID, tokenSecret),
 			method: "GET",
+			signal: proxmoxTimeout(),
 		});
 	} catch {
 		return { kind: "failed", message: `proxmox ${label} failed` };

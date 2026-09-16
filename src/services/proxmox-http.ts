@@ -1,6 +1,22 @@
 // Fetcher is the injectable HTTP transport used by every Proxmox adapter.
 export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
+// PROXMOX_REQUEST_TIMEOUT_MS bounds every call to Proxmox.
+//
+// Without it a half-open connection hangs fetch forever, which parks the scheduler loop on an
+// await it can never leave: no further operation is claimed and SIGTERM cannot stop it. Every
+// Proxmox request either returns a task identifier or reads small JSON, so none legitimately runs
+// this long.
+export const PROXMOX_REQUEST_TIMEOUT_MS = 30_000;
+
+// proxmoxTimeout returns the abort signal guarding one Proxmox request.
+//
+// A timeout surfaces as a rejected fetch, which every adapter already treats as transient, so a
+// slow Proxmox retries rather than failing a workspace.
+export function proxmoxTimeout(): AbortSignal {
+	return AbortSignal.timeout(PROXMOX_REQUEST_TIMEOUT_MS);
+}
+
 // proxmoxHeaders returns the read headers for one token-authenticated Proxmox request.
 export function proxmoxHeaders(
 	tokenID: string,
@@ -38,7 +54,7 @@ export async function submitProxmoxTask(
 ): Promise<ProxmoxTaskRequest> {
 	let response: Response;
 	try {
-		response = await fetcher(url, init);
+		response = await fetcher(url, { ...init, signal: proxmoxTimeout() });
 	} catch {
 		return { kind: "failed", message: `proxmox ${label} request failed` };
 	}

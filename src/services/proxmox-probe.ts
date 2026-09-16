@@ -1,4 +1,5 @@
 import type { ControllerConfig } from "../config/controller-config";
+import { proxmoxTimeout } from "./proxmox-http";
 
 // ProxmoxCheck is one read-only infrastructure validation result.
 export type ProxmoxCheck = {
@@ -256,6 +257,7 @@ async function request(
 				Authorization: `PVEAPIToken=${api.tokenID}=${api.tokenSecret}`,
 			},
 			method: "GET",
+			signal: proxmoxTimeout(),
 		});
 	} catch {
 		return { error: `Proxmox request ${path} failed`, ok: false };

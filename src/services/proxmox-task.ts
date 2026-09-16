@@ -1,4 +1,9 @@
-import { type Fetcher, proxmoxHeaders, proxmoxURL } from "./proxmox-http";
+import {
+	type Fetcher,
+	proxmoxHeaders,
+	proxmoxTimeout,
+	proxmoxURL,
+} from "./proxmox-http";
 
 // ProxmoxTaskStatus is the controller's verdict on one Proxmox UPID.
 //
@@ -47,6 +52,7 @@ export async function proxmoxTaskStatus(
 		response = await fetcher(proxmoxURL(apiURL, path), {
 			headers: proxmoxHeaders(tokenID, tokenSecret),
 			method: "GET",
+			signal: proxmoxTimeout(),
 		});
 	} catch {
 		return { kind: "unknown", message: "proxmox task status request failed" };

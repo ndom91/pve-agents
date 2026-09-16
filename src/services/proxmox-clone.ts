@@ -2,6 +2,7 @@ import {
 	type Fetcher,
 	type ProxmoxTaskRequest,
 	proxmoxHeaders,
+	proxmoxTimeout,
 	proxmoxURL,
 	submitProxmoxTask,
 } from "./proxmox-http";
@@ -33,6 +34,7 @@ export async function nextProxmoxVMID(
 		response = await fetcher(proxmoxURL(apiURL, "/cluster/nextid"), {
 			headers: proxmoxHeaders(tokenID, tokenSecret),
 			method: "GET",
+			signal: proxmoxTimeout(),
 		});
 	} catch {
 		return { kind: "failed", message: "proxmox next VMID request failed" };
