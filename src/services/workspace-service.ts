@@ -6,7 +6,7 @@ import {
 	listWorkspaces,
 	requestWorkspaceOperation,
 	workspaceById,
-	workspaceEvents,
+	workspaceEventTimelines,
 } from "../db/workspace-repository";
 
 export const workspaceRequestSchema = z.object({
@@ -26,9 +26,11 @@ const EVENT_LIMIT = 50;
 // The timeline is the only place a transient failure is visible: a workspace retrying a Proxmox
 // call that keeps failing otherwise sits at its old status with nothing to show for it.
 export function listRequestedWorkspaces(db: Database.Database) {
+	const timelines = workspaceEventTimelines(db, EVENT_LIMIT);
+
 	return listWorkspaces(db).map((workspace) => ({
 		...workspace,
-		events: workspaceEvents(db, workspace.id, EVENT_LIMIT),
+		events: timelines.get(workspace.id) ?? [],
 	}));
 }
 

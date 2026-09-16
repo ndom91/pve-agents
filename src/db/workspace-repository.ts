@@ -530,34 +530,47 @@ export function countActiveOperations(db: Database.Database): number {
 	).count;
 }
 
-// workspaceEvents returns a workspace's timeline, newest last.
-export function workspaceEvents(
+// workspaceEventTimelines returns the latest events for every workspace, newest last.
+//
+// One query rather than one per workspace: the fleet view refreshes every few seconds, so the
+// per-workspace form issued a query per row on every poll. SQLite does the per-workspace limiting
+// with a window function instead.
+//
+// Unscoped, matching listWorkspaces. Give it the ids to fetch if that ever paginates.
+export function workspaceEventTimelines(
 	db: Database.Database,
-	workspaceId: string,
-	limit: number,
-): WorkspaceEvent[] {
-	return db
+	limitPerWorkspace: number,
+): Map<string, WorkspaceEvent[]> {
+	const rows = db
 		.prepare(
-			`SELECT id, created_at, event_type, message FROM workspace_events
-			 WHERE workspace_id = ? ORDER BY id DESC LIMIT ?`,
+			`SELECT id, workspace_id, created_at, event_type, message FROM (
+				SELECT id, workspace_id, created_at, event_type, message,
+					row_number() OVER (PARTITION BY workspace_id ORDER BY id DESC) AS position
+				FROM workspace_events
+			) WHERE position <= ?
+			ORDER BY workspace_id ASC, id ASC`,
 		)
-		.all(workspaceId, limit)
-		.reverse()
-		.map((row) => {
-			const entry = row as {
-				created_at: string;
-				event_type: string;
-				id: number;
-				message: string;
-			};
+		.all(limitPerWorkspace) as Array<{
+		created_at: string;
+		event_type: string;
+		id: number;
+		message: string;
+		workspace_id: string;
+	}>;
 
-			return {
-				createdAt: entry.created_at,
-				eventType: entry.event_type,
-				id: entry.id,
-				message: entry.message,
-			};
+	const timelines = new Map<string, WorkspaceEvent[]>();
+	for (const row of rows) {
+		const events = timelines.get(row.workspace_id) ?? [];
+		events.push({
+			createdAt: row.created_at,
+			eventType: row.event_type,
+			id: row.id,
+			message: row.message,
 		});
+		timelines.set(row.workspace_id, events);
+	}
+
+	return timelines;
 }
 
 // noteWorkspaceIssue records a transient failure, without repeating itself.

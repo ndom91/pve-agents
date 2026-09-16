@@ -18,7 +18,7 @@ import {
 	releaseWorkspaceCandidateVMID,
 	releaseWorkspaceOperation,
 	requestWorkspaceOperation,
-	workspaceEvents,
+	workspaceEventTimelines,
 } from "./workspace-repository";
 
 const databases: ReturnType<typeof openDatabase>[] = [];
@@ -526,6 +526,11 @@ function destroying(db: ReturnType<typeof openDatabase>) {
 	};
 }
 
+// timeline reads one workspace's events out of the grouped query the fleet view uses.
+function timeline(db: ReturnType<typeof openDatabase>, workspaceId: string) {
+	return workspaceEventTimelines(db, 50).get(workspaceId) ?? [];
+}
+
 function database() {
 	const db = openDatabase(":memory:");
 
@@ -562,7 +567,7 @@ describe("workspace timeline", () => {
 			noteWorkspaceIssue(db, claimed.lease, "proxmox clone request failed");
 		}
 
-		const retrying = workspaceEvents(db, created.workspace.id, 50).filter(
+		const retrying = timeline(db, created.workspace.id).filter(
 			(event) => event.eventType === "workspace.retrying",
 		);
 		expect(retrying).toHaveLength(1);
@@ -585,7 +590,7 @@ describe("workspace timeline", () => {
 		noteWorkspaceIssue(db, claimed.lease, "proxmox config request failed");
 
 		expect(
-			workspaceEvents(db, created.workspace.id, 50)
+			timeline(db, created.workspace.id)
 				.filter((event) => event.eventType === "workspace.retrying")
 				.map((event) => event.message),
 		).toEqual([
@@ -602,9 +607,7 @@ describe("workspace timeline", () => {
 		}
 		requestWorkspaceOperation(db, created.workspace.id, "destroy");
 
-		expect(
-			workspaceEvents(db, created.workspace.id, 50).map((e) => e.eventType),
-		).toEqual([
+		expect(timeline(db, created.workspace.id).map((e) => e.eventType)).toEqual([
 			"workspace.requested",
 			"workspace.provision_cancelled",
 			"workspace.destroy_queued",
@@ -675,9 +678,53 @@ describe("noteWorkspaceIssue", () => {
 		noteWorkspaceIssue(db, second.lease, "current worker complaining");
 
 		expect(
-			workspaceEvents(db, created.workspace.id, 50)
+			timeline(db, created.workspace.id)
 				.filter((event) => event.eventType === "workspace.retrying")
 				.map((event) => event.message),
 		).toEqual(["current worker complaining"]);
+	});
+});
+
+describe("workspaceEventTimelines", () => {
+	it("limits per workspace, not across the fleet", () => {
+		const db = database();
+		const ids: string[] = [];
+		for (const key of ["a", "b", "c"]) {
+			const created = createWorkspace(db, input(key));
+			if (created.kind !== "created") {
+				throw new Error("expected workspace creation");
+			}
+			ids.push(created.workspace.id);
+			requestWorkspaceOperation(db, created.workspace.id, "destroy");
+		}
+
+		// Each workspace has three events. A limit applied across the whole result would starve
+		// the later workspaces of theirs.
+		const timelines = workspaceEventTimelines(db, 2);
+		for (const id of ids) {
+			expect(timelines.get(id)).toHaveLength(2);
+		}
+	});
+
+	it("keeps the newest entries, ordered oldest first", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		requestWorkspaceOperation(db, created.workspace.id, "destroy");
+
+		// Three events exist: requested, provision_cancelled, destroy_queued.
+		expect(
+			workspaceEventTimelines(db, 2)
+				.get(created.workspace.id)
+				?.map((event) => event.eventType),
+		).toEqual(["workspace.provision_cancelled", "workspace.destroy_queued"]);
+	});
+
+	it("omits a workspace with no events rather than returning undefined rows", () => {
+		const db = database();
+
+		expect(workspaceEventTimelines(db, 50).size).toBe(0);
 	});
 });
