@@ -56,9 +56,18 @@ export type WorkspaceOperation = {
 	workspaceId: string;
 };
 
+// OperationLease identifies both the operation and the specific lease this worker holds on it.
+//
+// The id alone is not enough: a lease expires, another worker claims the same operation, and the
+// original worker is still running. Only the token distinguishes them.
+export type OperationLease = {
+	id: string;
+	token: string;
+};
+
 // WorkspaceOperationClaim is the result of attempting to lease the next operation.
 export type WorkspaceOperationClaim =
-	| { kind: "claimed"; operation: WorkspaceOperation }
+	| { kind: "claimed"; lease: OperationLease; operation: WorkspaceOperation }
 	| { kind: "empty" };
 
 export type WorkspaceOperationResult =
@@ -232,20 +241,22 @@ export function claimWorkspaceOperation(
 		const leaseExpiresAt = new Date(
 			now.getTime() + OPERATION_LEASE_MS,
 		).toISOString();
+		const leaseToken = randomUUID();
 		const updated = db
 			.prepare(
 				`UPDATE workspace_operations
 				 SET status = 'running', attempt_count = attempt_count + 1, claimed_at = ?,
-					lease_expires_at = ?, error_message = NULL, next_run_at = NULL
+					lease_expires_at = ?, lease_token = ?, error_message = NULL, next_run_at = NULL
 				 WHERE id = ?`,
 			)
-			.run(nowText, leaseExpiresAt, row.id);
+			.run(nowText, leaseExpiresAt, leaseToken, row.id);
 		if (updated.changes !== 1) {
 			return { kind: "empty" };
 		}
 
 		return {
 			kind: "claimed",
+			lease: { id: row.id, token: leaseToken },
 			operation: {
 				...workspaceOperationFromRow({ ...row, next_run_at: null }),
 				attemptCount: row.attempt_count + 1,
@@ -262,25 +273,25 @@ export function claimWorkspaceOperation(
 // completeWorkspaceOperation marks a successfully executed operation as durable history.
 export function completeWorkspaceOperation(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	now: Date = new Date(),
 ): void {
 	db.prepare(
 		`UPDATE workspace_operations
-		 SET status = 'completed', completed_at = ?, lease_expires_at = NULL
-		 WHERE id = ? AND status = 'running'`,
-	).run(now.toISOString(), operationID);
+		 SET status = 'completed', completed_at = ?, lease_expires_at = NULL, lease_token = NULL
+		 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+	).run(now.toISOString(), lease.id, lease.token);
 }
 
 // prepareWorkspaceProvision records a VMID before any Proxmox clone request is submitted.
 export function prepareWorkspaceProvision(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	node: string,
 	vmid: number,
 	now: Date = new Date(),
 ): WorkspaceMutation {
-	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET node = ?, vmid = ?, status = 'provisioning', current_step = ?, updated_at = ?
@@ -301,7 +312,7 @@ export function prepareWorkspaceProvision(
 // still fails on a bounded wall clock instead of being polled forever.
 export function recordWorkspaceTask(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	input: {
 		expiresAt: string;
 		kind: WorkspaceOperation["kind"];
@@ -310,7 +321,7 @@ export function recordWorkspaceTask(
 	},
 	now: Date = new Date(),
 ): WorkspaceMutation {
-	return withRunningOperation(db, operationID, input.kind, (workspaceId) => {
+	return withRunningOperation(db, lease, input.kind, (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?, updated_at = ?
@@ -328,11 +339,11 @@ export function recordWorkspaceTask(
 // advanceWorkspaceDestroy clears a finished destroy task and records the next step.
 export function advanceWorkspaceDestroy(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	step: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
-	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
+	return withRunningOperation(db, lease, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
@@ -345,13 +356,13 @@ export function advanceWorkspaceDestroy(
 // completeWorkspaceDestroy records that the workspace LXC is confirmed absent.
 export function completeWorkspaceDestroy(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	message: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
 	const nowText = now.toISOString();
 
-	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
+	return withRunningOperation(db, lease, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET status = 'destroyed', desired_state = 'destroyed', destroyed_at = ?,
@@ -360,7 +371,7 @@ export function completeWorkspaceDestroy(
 				error_occurred_at = NULL, updated_at = ?
 			 WHERE id = ?`,
 		).run(nowText, "destroyed", nowText, workspaceId);
-		finishOperation(db, operationID, "completed", undefined, nowText);
+		finishOperation(db, lease, "completed", undefined, nowText);
 		appendWorkspaceEvent(
 			db,
 			workspaceId,
@@ -378,21 +389,21 @@ export function completeWorkspaceDestroy(
 // error fields carry the reason, and re-requesting a destroy remains permitted.
 export function haltWorkspaceDestroy(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	code: string,
 	message: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
 	const nowText = now.toISOString();
 
-	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
+	return withRunningOperation(db, lease, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, error_code = ?,
 				error_message = ?, error_retryable = 0, error_occurred_at = ?, updated_at = ?
 			 WHERE id = ?`,
 		).run(code, message, nowText, nowText, workspaceId);
-		finishOperation(db, operationID, "failed", message, nowText);
+		finishOperation(db, lease, "failed", message, nowText);
 		appendWorkspaceEvent(
 			db,
 			workspaceId,
@@ -409,12 +420,12 @@ export function haltWorkspaceDestroy(
 // status only advances to "booting" once a start task has been submitted.
 export function confirmWorkspaceClone(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	now: Date = new Date(),
 ): WorkspaceMutation {
 	const nowText = now.toISOString();
 
-	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
@@ -437,13 +448,13 @@ export function confirmWorkspaceClone(
 // completely untouched; an unverified LXC is never modified or deleted.
 export function releaseWorkspaceCandidateVMID(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	reason: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
 	const nowText = now.toISOString();
 
-	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET vmid = NULL, current_task_upid = NULL, current_task_expires_at = NULL,
@@ -466,14 +477,14 @@ export function releaseWorkspaceCandidateVMID(
 // the state machine already permits from "failed".
 export function failWorkspaceProvision(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	code: string,
 	message: string,
 	now: Date = new Date(),
 ): WorkspaceMutation {
 	const nowText = now.toISOString();
 
-	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET status = 'failed', current_task_upid = NULL, current_task_expires_at = NULL,
@@ -481,7 +492,7 @@ export function failWorkspaceProvision(
 				updated_at = ?
 			 WHERE id = ?`,
 		).run(code, message, nowText, nowText, workspaceId);
-		finishOperation(db, operationID, "failed", message, nowText);
+		finishOperation(db, lease, "failed", message, nowText);
 		appendWorkspaceEvent(
 			db,
 			workspaceId,
@@ -498,37 +509,37 @@ export function failWorkspaceProvision(
 // legitimately slow Proxmox task from being polled in a hot loop.
 export function releaseWorkspaceOperation(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	delayMs: number,
 	now: Date = new Date(),
 ): void {
 	const nextRunAt = new Date(now.getTime() + delayMs).toISOString();
 	db.prepare(
 		`UPDATE workspace_operations
-		 SET status = 'queued', lease_expires_at = NULL, next_run_at = ?
-		 WHERE id = ? AND status = 'running'`,
-	).run(nextRunAt, operationID);
+		 SET status = 'queued', lease_expires_at = NULL, lease_token = NULL, next_run_at = ?
+		 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+	).run(nextRunAt, lease.id, lease.token);
 }
 
 // workspaceProvision returns the private state for one running provision operation.
 export function workspaceProvision(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 ): WorkspaceProvision | undefined {
-	return operationWorkspace(db, operationID, "provision");
+	return operationWorkspace(db, lease, "provision");
 }
 
 // workspaceTeardown returns the private state for one running destroy operation.
 export function workspaceTeardown(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 ): WorkspaceTeardown | undefined {
-	return operationWorkspace(db, operationID, "destroy");
+	return operationWorkspace(db, lease, "destroy");
 }
 
 function operationWorkspace(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	kind: WorkspaceOperation["kind"],
 ): WorkspaceTeardown | undefined {
 	const row = db
@@ -537,9 +548,9 @@ function operationWorkspace(
 				w.current_task_expires_at, w.current_step
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
-			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ?`,
+			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
 		)
-		.get(operationID, kind) as
+		.get(lease.id, kind, lease.token) as
 		| {
 				current_step: string;
 				current_task_expires_at: string | null;
@@ -819,12 +830,12 @@ function appendWorkspaceEvent(
 // Every mutator goes through this so the guard cannot be forgotten on the next one added.
 function withRunningOperation(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	kind: WorkspaceOperation["kind"],
 	mutate: (workspaceId: string) => void,
 ): WorkspaceMutation {
 	const run = db.transaction((): WorkspaceMutation => {
-		const operation = runningOperation(db, operationID, kind);
+		const operation = runningOperation(db, lease, kind);
 		if (operation === undefined) {
 			return { kind: "stale_operation" };
 		}
@@ -840,17 +851,17 @@ function withRunningOperation(
 // finishOperation closes an operation, successfully or otherwise.
 function finishOperation(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	status: "completed" | "failed",
 	errorMessage: string | undefined,
 	nowText: string,
 ): void {
 	db.prepare(
 		`UPDATE workspace_operations
-		 SET status = ?, completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
-			error_message = ?
-		 WHERE id = ? AND status = 'running'`,
-	).run(status, nowText, errorMessage ?? null, operationID);
+		 SET status = ?, completed_at = ?, lease_expires_at = NULL, lease_token = NULL,
+			next_run_at = NULL, error_message = ?
+		 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+	).run(status, nowText, errorMessage ?? null, lease.id, lease.token);
 }
 
 // runningOperation resolves the workspace behind an operation this worker still holds a lease on.
@@ -859,12 +870,13 @@ function finishOperation(
 // provision executor cannot accidentally act on a destroy operation or the reverse.
 function runningOperation(
 	db: Database.Database,
-	operationID: string,
+	lease: OperationLease,
 	kind: WorkspaceOperation["kind"],
 ) {
 	return db
 		.prepare(
-			"SELECT workspace_id FROM workspace_operations WHERE id = ? AND status = 'running' AND kind = ?",
+			`SELECT workspace_id FROM workspace_operations
+			 WHERE id = ? AND status = 'running' AND kind = ? AND lease_token = ?`,
 		)
-		.get(operationID, kind) as { workspace_id: string } | undefined;
+		.get(lease.id, kind, lease.token) as { workspace_id: string } | undefined;
 }

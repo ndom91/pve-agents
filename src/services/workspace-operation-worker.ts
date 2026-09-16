@@ -25,24 +25,12 @@ export async function runWorkspaceOperations(
 
 	const destroy = claimWorkspaceOperation(db, "destroy", now);
 	if (destroy.kind === "claimed") {
-		return executeWorkspaceDestroy(
-			db,
-			config,
-			destroy.operation.id,
-			fetcher,
-			now,
-		);
+		return executeWorkspaceDestroy(db, config, destroy.lease, fetcher, now);
 	}
 
 	const provision = claimWorkspaceOperation(db, "provision", now);
 	if (provision.kind === "claimed") {
-		return executeWorkspaceProvision(
-			db,
-			config,
-			provision.operation.id,
-			fetcher,
-			now,
-		);
+		return executeWorkspaceProvision(db, config, provision.lease, fetcher, now);
 	}
 
 	return { processed: 0, status: "empty" };

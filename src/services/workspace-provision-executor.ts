@@ -4,6 +4,7 @@ import type { ControllerConfig } from "../config/controller-config";
 import {
 	confirmWorkspaceClone,
 	failWorkspaceProvision,
+	type OperationLease,
 	prepareWorkspaceProvision,
 	recordWorkspaceTask,
 	releaseWorkspaceCandidateVMID,
@@ -30,32 +31,32 @@ import {
 export async function executeWorkspaceProvision(
 	db: Database.Database,
 	config: ControllerConfig,
-	operationID: string,
+	lease: OperationLease,
 	fetcher: Fetcher,
 	now: Date,
 ): Promise<WorkspaceOperationRun> {
-	const workspace = workspaceProvision(db, operationID);
+	const workspace = workspaceProvision(db, lease);
 	if (workspace === undefined) {
-		releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "stale_operation" };
 	}
 
 	if (workspace.taskUPID !== undefined) {
-		return pollClone(db, config, operationID, workspace, fetcher, now);
+		return pollClone(db, config, lease, workspace, fetcher, now);
 	}
 	if (workspace.vmid !== undefined) {
-		return reconcileCandidate(db, config, operationID, workspace, fetcher, now);
+		return reconcileCandidate(db, config, lease, workspace, fetcher, now);
 	}
 
-	return submitClone(db, config, operationID, workspace, fetcher, now);
+	return submitClone(db, config, lease, workspace, fetcher, now);
 }
 
 // pollClone resolves a submitted clone task against Proxmox.
 async function pollClone(
 	db: Database.Database,
 	config: ControllerConfig,
-	operationID: string,
+	lease: OperationLease,
 	workspace: WorkspaceProvision,
 	fetcher: Fetcher,
 	now: Date,
@@ -69,26 +70,20 @@ async function pollClone(
 	);
 
 	if (task.kind === "succeeded") {
-		confirmWorkspaceClone(db, operationID, now);
-		releaseWorkspaceOperation(db, operationID, 0, now);
+		confirmWorkspaceClone(db, lease, now);
+		releaseWorkspaceOperation(db, lease, 0, now);
 
 		return { processed: 1, status: "clone_confirmed" };
 	}
 	if (task.kind === "failed") {
-		failWorkspaceProvision(
-			db,
-			operationID,
-			"clone_task_failed",
-			task.message,
-			now,
-		);
+		failWorkspaceProvision(db, lease, "clone_task_failed", task.message, now);
 
 		return { processed: 1, status: "task_failed" };
 	}
 	if (task.kind === "timed_out") {
 		failWorkspaceProvision(
 			db,
-			operationID,
+			lease,
 			"clone_task_timeout",
 			"proxmox clone task did not finish before its deadline",
 			now,
@@ -97,7 +92,7 @@ async function pollClone(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 	return { processed: 1, status: "awaiting_task" };
 }
@@ -110,7 +105,7 @@ async function pollClone(
 async function reconcileCandidate(
 	db: Database.Database,
 	config: ControllerConfig,
-	operationID: string,
+	lease: OperationLease,
 	workspace: WorkspaceProvision,
 	fetcher: Fetcher,
 	now: Date,
@@ -126,7 +121,7 @@ async function reconcileCandidate(
 	);
 
 	if (container.kind === "failed") {
-		releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "awaiting_reconciliation" };
 	}
@@ -136,11 +131,11 @@ async function reconcileCandidate(
 		// another Proxmox client may have taken in the meantime.
 		releaseWorkspaceCandidateVMID(
 			db,
-			operationID,
+			lease,
 			"candidate VMID has no container; a new candidate will be requested",
 			now,
 		);
-		releaseWorkspaceOperation(db, operationID, 0, now);
+		releaseWorkspaceOperation(db, lease, 0, now);
 
 		return { processed: 1, status: "vmid_released" };
 	}
@@ -157,17 +152,17 @@ async function reconcileCandidate(
 		// away from the VMID and leave the container entirely alone.
 		releaseWorkspaceCandidateVMID(
 			db,
-			operationID,
+			lease,
 			"candidate VMID belongs to an unverified container and was left untouched",
 			now,
 		);
-		releaseWorkspaceOperation(db, operationID, 0, now);
+		releaseWorkspaceOperation(db, lease, 0, now);
 
 		return { processed: 1, status: "vmid_released" };
 	}
 
-	confirmWorkspaceClone(db, operationID, now);
-	releaseWorkspaceOperation(db, operationID, 0, now);
+	confirmWorkspaceClone(db, lease, now);
+	releaseWorkspaceOperation(db, lease, 0, now);
 
 	return { processed: 1, status: "vmid_adopted" };
 }
@@ -176,7 +171,7 @@ async function reconcileCandidate(
 async function submitClone(
 	db: Database.Database,
 	config: ControllerConfig,
-	operationID: string,
+	lease: OperationLease,
 	workspace: WorkspaceProvision,
 	fetcher: Fetcher,
 	now: Date,
@@ -189,14 +184,14 @@ async function submitClone(
 		fetcher,
 	);
 	if (vmid.kind === "failed") {
-		releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "request_failed" };
 	}
 
 	const prepared = prepareWorkspaceProvision(
 		db,
-		operationID,
+		lease,
 		api.node,
 		vmid.vmid,
 		now,
@@ -225,14 +220,14 @@ async function submitClone(
 	if (clone.kind === "failed") {
 		// The outcome is unknown: the clone may still have been accepted. The persisted VMID sends
 		// the next pass through reconciliation rather than blindly retrying the clone.
-		releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "request_failed" };
 	}
 
 	const recorded = recordWorkspaceTask(
 		db,
-		operationID,
+		lease,
 		{
 			expiresAt: taskExpiry(now),
 			kind: "provision",
@@ -245,7 +240,7 @@ async function submitClone(
 		return { processed: 1, status: "stale_operation" };
 	}
 
-	releaseWorkspaceOperation(db, operationID, POLL_INTERVAL_MS, now);
+	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 	return { processed: 1, status: "clone_submitted" };
 }

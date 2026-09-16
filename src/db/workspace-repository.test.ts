@@ -121,7 +121,7 @@ describe("createWorkspace", () => {
 		expect(claimWorkspaceOperation(db, "provision", now)).toEqual({
 			kind: "empty",
 		});
-		completeWorkspaceOperation(db, claimed.operation.id);
+		completeWorkspaceOperation(db, claimed.lease);
 		expect(claimWorkspaceOperation(db, "provision", now)).toEqual({
 			kind: "empty",
 		});
@@ -138,11 +138,11 @@ describe("createWorkspace", () => {
 			throw new Error("expected operation claim");
 		}
 
+		expect(prepareWorkspaceProvision(db, claimed.lease, "nas", 109)).toEqual({
+			kind: "prepared",
+		});
 		expect(
-			prepareWorkspaceProvision(db, claimed.operation.id, "nas", 109),
-		).toEqual({ kind: "prepared" });
-		expect(
-			recordWorkspaceTask(db, claimed.operation.id, {
+			recordWorkspaceTask(db, claimed.lease, {
 				expiresAt: "2026-01-01T00:15:00.000Z",
 				kind: "provision",
 				step: "clone task accepted",
@@ -175,7 +175,7 @@ describe("createWorkspace", () => {
 		if (claimed.kind !== "claimed") {
 			throw new Error("expected operation claim");
 		}
-		completeWorkspaceOperation(db, claimed.operation.id);
+		completeWorkspaceOperation(db, claimed.lease);
 
 		expect(
 			requestWorkspaceOperation(db, created.workspace.id, "destroy").kind,
@@ -201,7 +201,7 @@ describe("releaseWorkspaceOperation", () => {
 			throw new Error("expected operation claim");
 		}
 
-		releaseWorkspaceOperation(db, claimed.operation.id, 5_000, now);
+		releaseWorkspaceOperation(db, claimed.lease, 5_000, now);
 
 		expect(
 			claimWorkspaceOperation(
@@ -220,13 +220,90 @@ describe("releaseWorkspaceOperation", () => {
 	});
 });
 
+describe("operation leases", () => {
+	it("refuses writes from a worker whose lease was taken over", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+
+		const first = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:00:00Z"),
+		);
+		if (first.kind !== "claimed") {
+			throw new Error("expected first claim");
+		}
+
+		// The first worker is still running; its lease simply expired. A second worker picks the
+		// operation up, and from here only that second worker may write.
+		const second = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:05:00Z"),
+		);
+		if (second.kind !== "claimed") {
+			throw new Error("expected takeover claim");
+		}
+		expect(second.lease.id).toBe(first.lease.id);
+		expect(second.lease.token).not.toBe(first.lease.token);
+
+		for (const write of [
+			() => prepareWorkspaceProvision(db, first.lease, "nas", 109),
+			() => confirmWorkspaceClone(db, first.lease),
+			() => failWorkspaceProvision(db, first.lease, "code", "message"),
+			() => releaseWorkspaceCandidateVMID(db, first.lease, "reason"),
+		]) {
+			expect(write()).toEqual({ kind: "stale_operation" });
+		}
+
+		expect(prepareWorkspaceProvision(db, second.lease, "nas", 109)).toEqual({
+			kind: "prepared",
+		});
+	});
+
+	it("stops a superseded worker from releasing or completing the operation", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const first = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:00:00Z"),
+		);
+		const second = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:05:00Z"),
+		);
+		if (first.kind !== "claimed" || second.kind !== "claimed") {
+			throw new Error("expected both claims");
+		}
+
+		// The stale worker must not be able to hand the operation back or close it out from under
+		// the worker that now holds it.
+		releaseWorkspaceOperation(db, first.lease, 0);
+		completeWorkspaceOperation(db, first.lease);
+
+		expect(
+			db
+				.prepare("SELECT status FROM workspace_operations WHERE id = ?")
+				.get(second.lease.id),
+		).toEqual({ status: "running" });
+	});
+});
+
 describe("destroy mutators", () => {
 	it("marks the workspace destroyed and completes the operation", () => {
 		const db = database();
-		const { workspaceID, operationID } = destroying(db);
+		const { workspaceID, lease } = destroying(db);
 
 		expect(
-			completeWorkspaceDestroy(db, operationID, "container was already absent"),
+			completeWorkspaceDestroy(db, lease, "container was already absent"),
 		).toEqual({ kind: "prepared" });
 		expect(
 			db
@@ -242,18 +319,18 @@ describe("destroy mutators", () => {
 		expect(
 			db
 				.prepare("SELECT status FROM workspace_operations WHERE id = ?")
-				.get(operationID),
+				.get(lease.id),
 		).toEqual({ status: "completed" });
 	});
 
 	it("halts without leaving the workspace in a state that lies about intent", () => {
 		const db = database();
-		const { workspaceID, operationID } = destroying(db);
+		const { workspaceID, lease } = destroying(db);
 
 		expect(
 			haltWorkspaceDestroy(
 				db,
-				operationID,
+				lease,
 				"destroy_ownership_mismatch",
 				"container 109 does not carry this workspace's ownership marker",
 			),
@@ -275,13 +352,13 @@ describe("destroy mutators", () => {
 
 	it("rejects destroy writes from a worker that lost its lease", () => {
 		const db = database();
-		const { operationID } = destroying(db);
-		completeWorkspaceOperation(db, operationID);
+		const { lease } = destroying(db);
+		completeWorkspaceOperation(db, lease);
 
 		for (const write of [
-			() => completeWorkspaceDestroy(db, operationID, "message"),
-			() => haltWorkspaceDestroy(db, operationID, "code", "message"),
-			() => advanceWorkspaceDestroy(db, operationID, "step"),
+			() => completeWorkspaceDestroy(db, lease, "message"),
+			() => haltWorkspaceDestroy(db, lease, "code", "message"),
+			() => advanceWorkspaceDestroy(db, lease, "step"),
 		]) {
 			expect(write()).toEqual({ kind: "stale_operation" });
 		}
@@ -289,12 +366,12 @@ describe("destroy mutators", () => {
 
 	it("refuses to mutate a destroy operation through the provision guard", () => {
 		const db = database();
-		const { operationID } = destroying(db);
+		const { lease } = destroying(db);
 
-		expect(confirmWorkspaceClone(db, operationID)).toEqual({
+		expect(confirmWorkspaceClone(db, lease)).toEqual({
 			kind: "stale_operation",
 		});
-		expect(failWorkspaceProvision(db, operationID, "code", "message")).toEqual({
+		expect(failWorkspaceProvision(db, lease, "code", "message")).toEqual({
 			kind: "stale_operation",
 		});
 	});
@@ -315,7 +392,7 @@ describe("failWorkspaceProvision", () => {
 		expect(
 			failWorkspaceProvision(
 				db,
-				claimed.operation.id,
+				claimed.lease,
 				"clone_task_failed",
 				"proxmox task exited with storage error",
 			),
@@ -345,14 +422,14 @@ describe("failWorkspaceProvision", () => {
 		if (claimed.kind !== "claimed") {
 			throw new Error("expected operation claim");
 		}
-		completeWorkspaceOperation(db, claimed.operation.id);
+		completeWorkspaceOperation(db, claimed.lease);
 
 		for (const write of [
-			() => failWorkspaceProvision(db, claimed.operation.id, "code", "message"),
-			() => confirmWorkspaceClone(db, claimed.operation.id),
-			() => releaseWorkspaceCandidateVMID(db, claimed.operation.id, "reason"),
+			() => failWorkspaceProvision(db, claimed.lease, "code", "message"),
+			() => confirmWorkspaceClone(db, claimed.lease),
+			() => releaseWorkspaceCandidateVMID(db, claimed.lease, "reason"),
 			() =>
-				recordWorkspaceTask(db, claimed.operation.id, {
+				recordWorkspaceTask(db, claimed.lease, {
 					expiresAt: "later",
 					kind: "provision",
 					step: "clone task accepted",
@@ -373,6 +450,7 @@ describe("openDatabase", () => {
 			{ version: 2 },
 			{ version: 3 },
 			{ version: 4 },
+			{ version: 5 },
 		]);
 	});
 });
@@ -396,7 +474,7 @@ function destroying(db: ReturnType<typeof openDatabase>) {
 	}
 
 	return {
-		operationID: claimed.operation.id,
+		lease: claimed.lease,
 		workspaceID: created.workspace.id,
 	};
 }
