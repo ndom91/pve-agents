@@ -16,6 +16,7 @@ import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
 import { containerConfig, containerDescription } from "./proxmox-container";
 import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
+import { runningCloneTask } from "./proxmox-task";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -127,12 +128,46 @@ async function reconcileCandidate(
 	}
 
 	if (container.kind === "missing") {
-		// The clone never landed. Allocate a fresh candidate rather than reusing this VMID, which
-		// another Proxmox client may have taken in the meantime.
+		// "Does not exist" covers both a clone that never started and one still creating the
+		// guest, so Proxmox's task list decides between them. Guessing wrong in this direction
+		// orphans a real container wearing this workspace's ownership marker.
+		const running = await runningCloneTask(
+			api.apiURL,
+			api.tokenID,
+			api.tokenSecret,
+			workspace.node ?? api.node,
+			workspace.vmid as number,
+			fetcher,
+		);
+		if (running.kind === "failed") {
+			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+			return { processed: 1, status: "awaiting_reconciliation" };
+		}
+		if (running.kind === "found") {
+			// The lost UPID is recoverable after all. Resume polling it instead of cloning again.
+			recordWorkspaceTask(
+				db,
+				lease,
+				{
+					expiresAt: taskExpiry(now),
+					kind: "provision",
+					step: "clone task accepted",
+					upid: running.upid,
+				},
+				now,
+			);
+			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+			return { processed: 1, status: "task_recovered" };
+		}
+
+		// Nothing was created and nothing is being created. Allocate a fresh candidate rather than
+		// reusing this VMID, which another Proxmox client may have taken in the meantime.
 		releaseWorkspaceCandidateVMID(
 			db,
 			lease,
-			"candidate VMID has no container; a new candidate will be requested",
+			"candidate VMID has no container and no running clone; a new candidate will be requested",
 			now,
 		);
 		releaseWorkspaceOperation(db, lease, 0, now);

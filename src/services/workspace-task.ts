@@ -29,6 +29,7 @@ export type WorkspaceOperationRun = {
 		| "request_failed"
 		| "shutdown_submitted"
 		| "stale_operation"
+		| "task_recovered"
 		| "stop_submitted"
 		| "task_failed"
 		| "vmid_adopted"

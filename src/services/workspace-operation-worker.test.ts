@@ -256,6 +256,60 @@ describe("runWorkspaceOperations", () => {
 		expect(methods).toEqual(["GET"]);
 	});
 
+	it("resumes a clone that was still running when its response was lost", async () => {
+		const db = database();
+		const workspaceID = await lostCloneResponse(db);
+
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async (url) => {
+				if (url.includes("/tasks?")) {
+					return Response.json({
+						data: [{ id: "109", type: "vzclone", upid: UPID }],
+					});
+				}
+
+				return new Response("", { status: 404 });
+			},
+			POLLED_AT,
+		);
+
+		// The container is not visible yet, but the clone is in flight. Abandoning the VMID here
+		// would leave it as an orphan carrying this workspace's ownership marker.
+		expect(result).toEqual({ processed: 1, status: "task_recovered" });
+		expect(
+			db
+				.prepare("SELECT vmid, current_task_upid FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ current_task_upid: UPID, vmid: 109 });
+	});
+
+	it("ignores an unrelated running task on the same VMID", async () => {
+		const db = database();
+		const workspaceID = await lostCloneResponse(db);
+
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async (url) => {
+				if (url.includes("/tasks?")) {
+					return Response.json({
+						data: [{ id: "109", type: "vzstart", upid: UPID }],
+					});
+				}
+
+				return new Response("", { status: 404 });
+			},
+			POLLED_AT,
+		);
+
+		expect(result).toEqual({ processed: 1, status: "vmid_released" });
+		expect(
+			db.prepare("SELECT vmid FROM workspaces WHERE id = ?").get(workspaceID),
+		).toEqual({ vmid: null });
+	});
+
 	it("abandons a candidate VMID when no container was ever created", async () => {
 		const db = database();
 		const workspaceID = await lostCloneResponse(db);
@@ -263,7 +317,13 @@ describe("runWorkspaceOperations", () => {
 		const result = await runWorkspaceOperations(
 			db,
 			config(),
-			async () => new Response("", { status: 404 }),
+			async (url) => {
+				if (url.includes("/tasks?")) {
+					return Response.json({ data: [] });
+				}
+
+				return new Response("", { status: 404 });
+			},
 			POLLED_AT,
 		);
 

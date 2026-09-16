@@ -105,3 +105,71 @@ function taskData(
 
 	return { status: record.status };
 }
+
+// RunningTaskLookup is the result of searching Proxmox for an unfinished task on one guest.
+export type RunningTaskLookup =
+	| { kind: "failed"; message: string }
+	| { kind: "found"; upid: string }
+	| { kind: "none" };
+
+// runningCloneTask finds an unfinished clone targeting one VMID.
+//
+// This recovers the lost-clone-response case. Proxmox reports a guest that is still being created
+// as "does not exist", which is indistinguishable from a clone that never started. Treating that
+// as "never started" and allocating a new candidate would leave the in-flight clone as an orphan
+// wearing this workspace's ownership marker that nothing would ever destroy.
+export async function runningCloneTask(
+	apiURL: string,
+	tokenID: string,
+	tokenSecret: string,
+	node: string,
+	vmid: number,
+	fetcher: Fetcher = fetch,
+): Promise<RunningTaskLookup> {
+	const path = `/nodes/${encodeURIComponent(node)}/tasks?running=1&limit=500`;
+	let response: Response;
+	try {
+		response = await fetcher(proxmoxURL(apiURL, path), {
+			headers: proxmoxHeaders(tokenID, tokenSecret),
+			method: "GET",
+			signal: proxmoxTimeout(),
+		});
+	} catch {
+		return { kind: "failed", message: "proxmox task list request failed" };
+	}
+	if (!response.ok) {
+		return {
+			kind: "failed",
+			message: `proxmox task list request returned HTTP ${response.status}`,
+		};
+	}
+
+	const result = (await response.json().catch(() => undefined)) as
+		| { data?: unknown }
+		| undefined;
+	if (!Array.isArray(result?.data)) {
+		return {
+			kind: "failed",
+			message: "proxmox task list request returned invalid JSON",
+		};
+	}
+
+	for (const entry of result.data) {
+		if (typeof entry !== "object" || entry === null) {
+			continue;
+		}
+
+		const task = entry as { id?: unknown; type?: unknown; upid?: unknown };
+		// Matched on type as well as guest id: an unrelated task on a recycled VMID must not be
+		// mistaken for this workspace's clone.
+		if (
+			task.type === "vzclone" &&
+			String(task.id) === String(vmid) &&
+			typeof task.upid === "string"
+		) {
+			return { kind: "found", upid: task.upid };
+		}
+	}
+
+	return { kind: "none" };
+}
