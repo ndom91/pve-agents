@@ -7,6 +7,7 @@ import {
 	completeWorkspaceDestroy,
 	completeWorkspaceOperation,
 	confirmWorkspaceClone,
+	countActiveOperations,
 	createWorkspace,
 	failWorkspaceProvision,
 	haltWorkspaceDestroy,
@@ -608,5 +609,43 @@ describe("workspace timeline", () => {
 			"workspace.provision_cancelled",
 			"workspace.destroy_queued",
 		]);
+	});
+});
+
+describe("countActiveOperations", () => {
+	it("counts only work the worker still has to act on", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+
+		// The fleet view stops refreshing when this reaches zero, so a terminal operation must not
+		// keep it polling forever.
+		expect(countActiveOperations(db)).toBe(1);
+
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+		expect(countActiveOperations(db)).toBe(1);
+
+		completeWorkspaceOperation(db, claimed.lease);
+		expect(countActiveOperations(db)).toBe(0);
+	});
+
+	it("ignores cancelled and failed operations", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+		failWorkspaceProvision(db, claimed.lease, "code", "message");
+
+		expect(countActiveOperations(db)).toBe(0);
 	});
 });

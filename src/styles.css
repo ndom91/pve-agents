@@ -265,11 +265,28 @@ dd {
 }
 
 .workspace-actions {
+	--control-height: 42px;
+
 	align-items: center;
 	display: flex;
 	gap: 12px;
 	justify-content: flex-end;
 	margin-left: auto;
+}
+
+/* The badge and the button sit side by side, so one height governs both rather than each being
+   sized by its own padding and font. */
+.workspace-actions .status,
+.workspace-actions button {
+	align-items: center;
+	box-sizing: border-box;
+	display: inline-flex;
+	min-height: var(--control-height);
+	padding-block: 0;
+}
+
+.workspace-actions .status {
+	padding-inline: 12px;
 }
 
 @media (max-width: 640px) {

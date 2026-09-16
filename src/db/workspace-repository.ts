@@ -516,6 +516,17 @@ export function failWorkspaceProvision(
 	});
 }
 
+// countActiveOperations returns how many operations the worker still has to act on.
+export function countActiveOperations(db: Database.Database): number {
+	return (
+		db
+			.prepare(
+				"SELECT count(*) AS count FROM workspace_operations WHERE status IN ('queued', 'running')",
+			)
+			.get() as { count: number }
+	).count;
+}
+
 // workspaceEvents returns a workspace's timeline, newest last.
 export function workspaceEvents(
 	db: Database.Database,

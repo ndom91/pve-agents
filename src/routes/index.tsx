@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { requestId } from "../lib/request-id";
 import { sessionState } from "../server/session.functions";
@@ -26,9 +26,29 @@ export const Route = createFileRoute("/")({
 	}),
 });
 
+// Half the worker interval, so a step is on screen within about one tick of happening.
+const REFRESH_MS = 2500;
+
 function Home() {
 	const { status, workspaces } = Route.useLoaderData();
 	const router = useRouter();
+
+	// The worker advances one step every few seconds, so the page follows it by refetching rather
+	// than holding a connection open. It runs only while work is outstanding and only while the
+	// tab is visible, so a settled fleet polls nothing.
+	useEffect(() => {
+		if (status.activeOperations === 0) {
+			return;
+		}
+
+		const timer = setInterval(() => {
+			if (document.visibilityState === "visible") {
+				router.invalidate();
+			}
+		}, REFRESH_MS);
+
+		return () => clearInterval(timer);
+	}, [router, status.activeOperations]);
 	const [error, setError] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [destroying, setDestroying] = useState("");
