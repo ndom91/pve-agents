@@ -649,3 +649,35 @@ describe("countActiveOperations", () => {
 		expect(countActiveOperations(db)).toBe(0);
 	});
 });
+
+describe("noteWorkspaceIssue", () => {
+	it("refuses an issue from a worker whose lease was taken over", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const first = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:00:00Z"),
+		);
+		const second = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:05:00Z"),
+		);
+		if (first.kind !== "claimed" || second.kind !== "claimed") {
+			throw new Error("expected both claims");
+		}
+
+		noteWorkspaceIssue(db, first.lease, "stale worker complaining");
+		noteWorkspaceIssue(db, second.lease, "current worker complaining");
+
+		expect(
+			workspaceEvents(db, created.workspace.id)
+				.filter((event) => event.eventType === "workspace.retrying")
+				.map((event) => event.message),
+		).toEqual(["current worker complaining"]);
+	});
+});

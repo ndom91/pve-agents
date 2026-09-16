@@ -30,6 +30,9 @@ export function listRequestedWorkspaces(db: Database.Database) {
 	}));
 }
 
+// FleetWorkspace is one workspace as the fleet view receives it.
+export type FleetWorkspace = ReturnType<typeof listRequestedWorkspaces>[number];
+
 // EVENT_LIMIT caps the timeline per workspace so the fleet view cannot grow without bound.
 const EVENT_LIMIT = 50;
 

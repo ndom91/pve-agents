@@ -9,6 +9,7 @@ import {
 	destroyWorkspaceRequest,
 	listWorkspaces,
 } from "../server/workspace.functions";
+import type { FleetWorkspace } from "../services/workspace-service";
 
 export const Route = createFileRoute("/")({
 	// Runs on every navigation, including client-side <Link> transitions, so a session that
@@ -167,73 +168,98 @@ function Home() {
 				) : (
 					<div className="workspace-list">
 						{workspaces.map((workspace) => (
-							<article key={workspace.id} className="workspace-row">
-								<div>
-									<p className="workspace-name">{workspace.repository}</p>
-									<p className="workspace-purpose">
-										{workspace.purpose || "No purpose supplied"}
-									</p>
-								</div>
-								<dl>
-									<div>
-										<dt>Ref</dt>
-										<dd>{workspace.ref}</dd>
-									</div>
-									<div>
-										<dt>Host</dt>
-										<dd>{workspace.hostname}</dd>
-									</div>
-								</dl>
-								<div className="workspace-actions">
-									<p className={`status status-${workspace.status}`}>
-										{workspace.status}
-									</p>
-									{workspace.desiredState === "destroyed" ? null : (
-										<button
-											disabled={destroying === workspace.id}
-											onClick={() => destroy(workspace.id)}
-											type="button"
-										>
-											{destroying === workspace.id ? "Queueing" : "Destroy"}
-										</button>
-									)}
-								</div>
-								{workspace.events.length === 0 ? null : (
-									<details className="workspace-logs">
-										<summary>
-											Logs
-											<span>{workspace.events.length}</span>
-										</summary>
-										<ol>
-											{workspace.events.map((event) => (
-												<li
-													className={
-														event.eventType.includes("failed") ||
-														event.eventType.includes("halted") ||
-														event.eventType === "workspace.retrying"
-															? "log-problem"
-															: undefined
-													}
-													key={`${event.createdAt}-${event.eventType}`}
-												>
-													<time dateTime={event.createdAt}>
-														{event.createdAt.slice(11, 19)}
-													</time>
-													<span className="log-type">
-														{event.eventType.replace("workspace.", "")}
-													</span>
-													<span>{event.message}</span>
-												</li>
-											))}
-										</ol>
-									</details>
-								)}
-							</article>
+							<WorkspaceRow
+								destroying={destroying === workspace.id}
+								key={workspace.id}
+								onDestroy={destroy}
+								workspace={workspace}
+							/>
 						))}
 					</div>
 				)}
 			</section>
 		</main>
+	);
+}
+
+// WorkspaceRow renders one workspace and its timeline.
+function WorkspaceRow({
+	destroying,
+	onDestroy,
+	workspace,
+}: {
+	destroying: boolean;
+	onDestroy: (id: string) => void;
+	workspace: FleetWorkspace;
+}) {
+	return (
+		<article className="workspace-row">
+			<div>
+				<p className="workspace-name">{workspace.repository}</p>
+				<p className="workspace-purpose">
+					{workspace.purpose || "No purpose supplied"}
+				</p>
+			</div>
+			<dl>
+				<div>
+					<dt>Ref</dt>
+					<dd>{workspace.ref}</dd>
+				</div>
+				<div>
+					<dt>Host</dt>
+					<dd>{workspace.hostname}</dd>
+				</div>
+			</dl>
+			<div className="workspace-actions">
+				<p className={`status status-${workspace.status}`}>
+					{workspace.status}
+				</p>
+				{workspace.desiredState === "destroyed" ? null : (
+					<button
+						disabled={destroying}
+						onClick={() => onDestroy(workspace.id)}
+						type="button"
+					>
+						{destroying ? "Queueing" : "Destroy"}
+					</button>
+				)}
+			</div>
+			{workspace.events.length === 0 ? null : (
+				<details className="workspace-logs">
+					<summary>
+						Logs
+						<span>{workspace.events.length}</span>
+					</summary>
+					<ol>
+						{workspace.events.map((event) => (
+							<li
+								className={
+									isProblem(event.eventType) ? "log-problem" : undefined
+								}
+								key={`${event.createdAt}-${event.eventType}`}
+							>
+								<time dateTime={event.createdAt}>
+									{event.createdAt.slice(11, 19)}
+								</time>
+								<span className="log-type">
+									{event.eventType.replace("workspace.", "")}
+								</span>
+								<span>{event.message}</span>
+							</li>
+						))}
+					</ol>
+				</details>
+			)}
+		</article>
+	);
+}
+
+// isProblem marks the timeline entries an operator needs to notice.
+function isProblem(eventType: string): boolean {
+	return (
+		eventType.includes("failed") ||
+		eventType.includes("halted") ||
+		eventType === "workspace.retrying"
 	);
 }
 

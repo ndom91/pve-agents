@@ -566,9 +566,14 @@ export function noteWorkspaceIssue(
 	message: string,
 	now: Date = new Date(),
 ): void {
+	// Checks the lease like every other write. An issue applies to either kind of operation, so
+	// this is the one guard that does not also filter on kind.
 	const operation = db
-		.prepare("SELECT workspace_id FROM workspace_operations WHERE id = ?")
-		.get(lease.id) as { workspace_id: string } | undefined;
+		.prepare(
+			`SELECT workspace_id FROM workspace_operations
+			 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+		)
+		.get(lease.id, lease.token) as { workspace_id: string } | undefined;
 	if (operation === undefined) {
 		return;
 	}
