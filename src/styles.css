@@ -176,9 +176,17 @@ dt {
 }
 
 dl {
+	align-items: start;
 	display: flex;
 	gap: 24px;
 	margin: 0;
+}
+
+/* Each term/description pair is its own column, so the labels share one top edge regardless of
+   how the values render. */
+dl > div {
+	display: flex;
+	flex-direction: column;
 }
 
 dt {
@@ -193,6 +201,17 @@ dd {
 
 .status-requested {
 	border-color: #7b8b71;
+}
+
+/* Status and action travel together at the right edge. As separate children of a
+   space-between row they drifted apart, so a row without a button put its badge where the
+   button would have been. */
+.workspace-actions {
+	align-items: center;
+	display: flex;
+	gap: 12px;
+	justify-content: flex-end;
+	margin-left: auto;
 }
 
 @media (max-width: 640px) {

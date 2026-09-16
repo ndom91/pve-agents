@@ -164,18 +164,20 @@ function Home() {
 										<dd>{workspace.hostname}</dd>
 									</div>
 								</dl>
-								<p className={`status status-${workspace.status}`}>
-									{workspace.status}
-								</p>
-								{workspace.desiredState === "destroyed" ? null : (
-									<button
-										disabled={destroying === workspace.id}
-										onClick={() => destroy(workspace.id)}
-										type="button"
-									>
-										{destroying === workspace.id ? "Queueing" : "Destroy"}
-									</button>
-								)}
+								<div className="workspace-actions">
+									<p className={`status status-${workspace.status}`}>
+										{workspace.status}
+									</p>
+									{workspace.desiredState === "destroyed" ? null : (
+										<button
+											disabled={destroying === workspace.id}
+											onClick={() => destroy(workspace.id)}
+											type="button"
+										>
+											{destroying === workspace.id ? "Queueing" : "Destroy"}
+										</button>
+									)}
+								</div>
 							</article>
 						))}
 					</div>
