@@ -71,6 +71,7 @@ export type WorkspaceOperationClaim =
 	| { kind: "empty" };
 
 export type WorkspaceOperationResult =
+	| { kind: "already_queued"; message: string }
 	| { kind: "created"; operation: WorkspaceOperation; workspace: Workspace }
 	| { kind: "invalid_transition"; message: string }
 	| { kind: "not_found" };
@@ -598,6 +599,23 @@ export function requestWorkspaceOperation(
 		const workspace = workspaceById(db, workspaceId);
 		if (workspace === undefined) {
 			return { kind: "not_found" };
+		}
+
+		// One live operation of a kind per workspace. The state machine permits from === to, so a
+		// second retry while already provisioning would otherwise queue a rival operation: one
+		// persists a VMID and clones while the other sees a VMID with no UPID yet, reconciles, and
+		// nulls it -- orphaning the container it just created.
+		const live = db
+			.prepare(
+				`SELECT id FROM workspace_operations
+				 WHERE workspace_id = ? AND kind = ? AND status IN ('queued', 'running')`,
+			)
+			.get(workspaceId, kind) as { id: string } | undefined;
+		if (live !== undefined) {
+			return {
+				kind: "already_queued",
+				message: `${kind} is already queued for this workspace`,
+			};
 		}
 
 		const nextStatus = kind === "destroy" ? "destroying" : "provisioning";

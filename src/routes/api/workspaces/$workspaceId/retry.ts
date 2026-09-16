@@ -25,7 +25,10 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/retry")({
 				if (result.kind === "not_found") {
 					return json({ error: "workspace not found" }, 404);
 				}
-				if (result.kind === "invalid_transition") {
+				if (
+					result.kind === "invalid_transition" ||
+					result.kind === "already_queued"
+				) {
 					return json({ error: result.message }, 409);
 				}
 

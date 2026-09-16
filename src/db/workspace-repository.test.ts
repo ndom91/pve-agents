@@ -220,6 +220,49 @@ describe("releaseWorkspaceOperation", () => {
 	});
 });
 
+describe("requestWorkspaceOperation", () => {
+	it("refuses a second live operation of the same kind", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+
+		// createWorkspace already queued a provision. A retry while that one is live would
+		// otherwise race it: one persists a VMID and clones, the other reconciles and nulls it.
+		expect(
+			requestWorkspaceOperation(db, created.workspace.id, "provision"),
+		).toEqual({
+			kind: "already_queued",
+			message: "provision is already queued for this workspace",
+		});
+		expect(
+			db
+				.prepare(
+					"SELECT count(*) c FROM workspace_operations WHERE kind = 'provision'",
+				)
+				.get(),
+		).toEqual({ c: 1 });
+	});
+
+	it("allows a retry once the previous operation has finished", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+		failWorkspaceProvision(db, claimed.lease, "clone_task_failed", "boom");
+
+		expect(
+			requestWorkspaceOperation(db, created.workspace.id, "provision").kind,
+		).toBe("created");
+	});
+});
+
 describe("operation leases", () => {
 	it("refuses writes from a worker whose lease was taken over", () => {
 		const db = database();
