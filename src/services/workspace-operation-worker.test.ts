@@ -418,6 +418,30 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		expect(calls).toEqual(["GET /config", "POST /status/stop"]);
 	});
 
+	it("force stops a guest still running after its shutdown reported success", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+
+		await tick(db, proxmox(db, workspaceID, {}));
+		await tick(db, proxmox(db, workspaceID, { task: "OK" }));
+		expect(currentStep(db, workspaceID)).toBe("shutdown confirmed");
+
+		// The task succeeded but the guest is still up. Asking it to shut down again would cycle
+		// shutdown -> confirm -> shutdown until the operation deadline.
+		const calls: string[] = [];
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { calls, state: "running" }),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "stop_submitted" });
+		expect(calls).toEqual([
+			"GET /config",
+			"GET /status/current",
+			"POST /status/stop",
+		]);
+	});
+
 	it("treats an absent container as a successful destruction", async () => {
 		const db = database();
 		const workspaceID = await destroyable(db);
