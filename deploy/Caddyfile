@@ -1,0 +1,21 @@
+# Caddy in front of the controller on LXC 108.
+#
+# Replace the two cert paths below. Everything else should work as-is.
+
+herdr-controller.puff.lan {
+	tls /etc/caddy/certs/herdr-controller.crt /etc/caddy/certs/herdr-controller.key
+
+	reverse_proxy 127.0.0.1:3000
+
+	encode gzip
+
+	# The controller holds a Proxmox token that can purge containers. Keep the access log.
+	log {
+		output file /var/log/caddy/herdr-controller.log
+	}
+}
+
+# Anything arriving on plain HTTP goes to TLS rather than being served twice.
+http://herdr-controller.puff.lan {
+	redir https://{host}{uri} permanent
+}
