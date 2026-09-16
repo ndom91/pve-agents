@@ -66,8 +66,8 @@ export type WorkspaceOperationResult =
 	| { kind: "invalid_transition"; message: string }
 	| { kind: "not_found" };
 
-// WorkspaceProvisionPreparation is the durable result of storing a clone recovery point.
-export type WorkspaceProvisionPreparation =
+// WorkspaceMutation is the durable result of one guarded write against a leased operation.
+export type WorkspaceMutation =
 	| { kind: "prepared" }
 	| { kind: "stale_operation" };
 
@@ -279,13 +279,8 @@ export function prepareWorkspaceProvision(
 	node: string,
 	vmid: number,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const prepare = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningProvisionOperation(db, operationID);
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
-
+): WorkspaceMutation {
+	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET node = ?, vmid = ?, status = 'provisioning', current_step = ?, updated_at = ?
@@ -295,13 +290,9 @@ export function prepareWorkspaceProvision(
 			vmid,
 			"candidate VMID persisted",
 			now.toISOString(),
-			operation.workspace_id,
+			workspaceId,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return prepare.immediate();
 }
 
 // recordWorkspaceTask stores the Proxmox UPID before the executor continues to another step.
@@ -318,13 +309,8 @@ export function recordWorkspaceTask(
 		upid: string;
 	},
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const record = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningOperation(db, operationID, input.kind);
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
-
+): WorkspaceMutation {
+	return withRunningOperation(db, operationID, input.kind, (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?, updated_at = ?
@@ -334,13 +320,9 @@ export function recordWorkspaceTask(
 			input.expiresAt,
 			input.step,
 			now.toISOString(),
-			operation.workspace_id,
+			workspaceId,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return record.immediate();
 }
 
 // advanceWorkspaceDestroy clears a finished destroy task and records the next step.
@@ -349,24 +331,15 @@ export function advanceWorkspaceDestroy(
 	operationID: string,
 	step: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const advance = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningOperation(db, operationID, "destroy");
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
-
+): WorkspaceMutation {
+	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				updated_at = ?
 			 WHERE id = ?`,
-		).run(step, now.toISOString(), operation.workspace_id);
-
-		return { kind: "prepared" };
+		).run(step, now.toISOString(), workspaceId);
 	});
-
-	return advance.immediate();
 }
 
 // completeWorkspaceDestroy records that the workspace LXC is confirmed absent.
@@ -375,14 +348,10 @@ export function completeWorkspaceDestroy(
 	operationID: string,
 	message: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const complete = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningOperation(db, operationID, "destroy");
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
+): WorkspaceMutation {
+	const nowText = now.toISOString();
 
-		const nowText = now.toISOString();
+	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET status = 'destroyed', desired_state = 'destroyed', destroyed_at = ?,
@@ -390,24 +359,16 @@ export function completeWorkspaceDestroy(
 				error_code = NULL, error_message = NULL, error_retryable = NULL,
 				error_occurred_at = NULL, updated_at = ?
 			 WHERE id = ?`,
-		).run(nowText, "destroyed", nowText, operation.workspace_id);
-		db.prepare(
-			`UPDATE workspace_operations
-			 SET status = 'completed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL
-			 WHERE id = ? AND status = 'running'`,
-		).run(nowText, operationID);
+		).run(nowText, "destroyed", nowText, workspaceId);
+		finishOperation(db, operationID, "completed", undefined, nowText);
 		appendWorkspaceEvent(
 			db,
-			operation.workspace_id,
+			workspaceId,
 			"workspace.destroyed",
 			message,
 			nowText,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return complete.immediate();
 }
 
 // haltWorkspaceDestroy stops a destruction that must not be retried automatically.
@@ -421,38 +382,25 @@ export function haltWorkspaceDestroy(
 	code: string,
 	message: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const halt = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningOperation(db, operationID, "destroy");
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
+): WorkspaceMutation {
+	const nowText = now.toISOString();
 
-		const nowText = now.toISOString();
+	return withRunningOperation(db, operationID, "destroy", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, error_code = ?,
 				error_message = ?, error_retryable = 0, error_occurred_at = ?, updated_at = ?
 			 WHERE id = ?`,
-		).run(code, message, nowText, nowText, operation.workspace_id);
-		db.prepare(
-			`UPDATE workspace_operations
-			 SET status = 'failed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
-				error_message = ?
-			 WHERE id = ? AND status = 'running'`,
-		).run(nowText, message, operationID);
+		).run(code, message, nowText, nowText, workspaceId);
+		finishOperation(db, operationID, "failed", message, nowText);
 		appendWorkspaceEvent(
 			db,
-			operation.workspace_id,
+			workspaceId,
 			"workspace.destroy_halted",
 			message,
 			nowText,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return halt.immediate();
 }
 
 // confirmWorkspaceClone records a Proxmox-verified clone and clears its task checkpoint.
@@ -463,32 +411,24 @@ export function confirmWorkspaceClone(
 	db: Database.Database,
 	operationID: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const confirm = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningProvisionOperation(db, operationID);
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
+): WorkspaceMutation {
+	const nowText = now.toISOString();
 
-		const nowText = now.toISOString();
+	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				updated_at = ?
 			 WHERE id = ?`,
-		).run("clone confirmed", nowText, operation.workspace_id);
+		).run("clone confirmed", nowText, workspaceId);
 		appendWorkspaceEvent(
 			db,
-			operation.workspace_id,
+			workspaceId,
 			"workspace.clone_confirmed",
 			"Proxmox confirmed the workspace clone",
 			nowText,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return confirm.immediate();
 }
 
 // releaseWorkspaceCandidateVMID abandons a candidate VMID this controller cannot prove it owns.
@@ -500,32 +440,24 @@ export function releaseWorkspaceCandidateVMID(
 	operationID: string,
 	reason: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const release = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningProvisionOperation(db, operationID);
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
+): WorkspaceMutation {
+	const nowText = now.toISOString();
 
-		const nowText = now.toISOString();
+	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET vmid = NULL, current_task_upid = NULL, current_task_expires_at = NULL,
 				current_step = ?, updated_at = ?
 			 WHERE id = ?`,
-		).run("candidate VMID released", nowText, operation.workspace_id);
+		).run("candidate VMID released", nowText, workspaceId);
 		appendWorkspaceEvent(
 			db,
-			operation.workspace_id,
+			workspaceId,
 			"workspace.vmid_released",
 			reason,
 			nowText,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return release.immediate();
 }
 
 // failWorkspaceProvision records a terminal provisioning failure and closes its operation.
@@ -538,39 +470,26 @@ export function failWorkspaceProvision(
 	code: string,
 	message: string,
 	now: Date = new Date(),
-): WorkspaceProvisionPreparation {
-	const fail = db.transaction((): WorkspaceProvisionPreparation => {
-		const operation = runningProvisionOperation(db, operationID);
-		if (operation === undefined) {
-			return { kind: "stale_operation" };
-		}
+): WorkspaceMutation {
+	const nowText = now.toISOString();
 
-		const nowText = now.toISOString();
+	return withRunningOperation(db, operationID, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET status = 'failed', current_task_upid = NULL, current_task_expires_at = NULL,
 				error_code = ?, error_message = ?, error_retryable = 1, error_occurred_at = ?,
 				updated_at = ?
 			 WHERE id = ?`,
-		).run(code, message, nowText, nowText, operation.workspace_id);
-		db.prepare(
-			`UPDATE workspace_operations
-			 SET status = 'failed', completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
-				error_message = ?
-			 WHERE id = ? AND status = 'running'`,
-		).run(nowText, message, operationID);
+		).run(code, message, nowText, nowText, workspaceId);
+		finishOperation(db, operationID, "failed", message, nowText);
 		appendWorkspaceEvent(
 			db,
-			operation.workspace_id,
+			workspaceId,
 			"workspace.provision_failed",
 			message,
 			nowText,
 		);
-
-		return { kind: "prepared" };
 	});
-
-	return fail.immediate();
 }
 
 // releaseWorkspaceOperation returns a still-unfinished operation to the queue after one step.
@@ -894,6 +813,46 @@ function appendWorkspaceEvent(
 	).run(workspaceId, eventType, message, createdAt);
 }
 
+// withRunningOperation performs one write, in a transaction, only while this worker holds the
+// operation.
+//
+// Every mutator goes through this so the guard cannot be forgotten on the next one added.
+function withRunningOperation(
+	db: Database.Database,
+	operationID: string,
+	kind: WorkspaceOperation["kind"],
+	mutate: (workspaceId: string) => void,
+): WorkspaceMutation {
+	const run = db.transaction((): WorkspaceMutation => {
+		const operation = runningOperation(db, operationID, kind);
+		if (operation === undefined) {
+			return { kind: "stale_operation" };
+		}
+
+		mutate(operation.workspace_id);
+
+		return { kind: "prepared" };
+	});
+
+	return run.immediate();
+}
+
+// finishOperation closes an operation, successfully or otherwise.
+function finishOperation(
+	db: Database.Database,
+	operationID: string,
+	status: "completed" | "failed",
+	errorMessage: string | undefined,
+	nowText: string,
+): void {
+	db.prepare(
+		`UPDATE workspace_operations
+		 SET status = ?, completed_at = ?, lease_expires_at = NULL, next_run_at = NULL,
+			error_message = ?
+		 WHERE id = ? AND status = 'running'`,
+	).run(status, nowText, errorMessage ?? null, operationID);
+}
+
 // runningOperation resolves the workspace behind an operation this worker still holds a lease on.
 //
 // Every mutator goes through this so a worker whose lease was taken over cannot write, and so a
@@ -908,8 +867,4 @@ function runningOperation(
 			"SELECT workspace_id FROM workspace_operations WHERE id = ? AND status = 'running' AND kind = ?",
 		)
 		.get(operationID, kind) as { workspace_id: string } | undefined;
-}
-
-function runningProvisionOperation(db: Database.Database, operationID: string) {
-	return runningOperation(db, operationID, "provision");
 }
