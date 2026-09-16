@@ -15,7 +15,11 @@ Every route accepts either an operator session cookie (browser, via GitHub sign-
 
 `CONTROLLER_URL` must exactly match the origin the browser uses. better-auth derives cookie and CSRF behaviour from it, so a mismatch produces sign-ins that appear to succeed and then have no session.
 
-Both schema migrations, the controller's own and better-auth's, run in-process at startup. There is no separate migration command.
+Two migration systems share the database: the controller's own versioned runner and better-auth's, which owns the `user`, `session`, `account`, `verification`, and `apikey` tables.
+
+Run `pnpm db:migrate` after deploying new code and before starting the service. Both systems are idempotent — running it repeatedly applies only what is missing — so it is safe in any deploy script.
+
+The controller's migrations also run when the database is first opened, but that happens lazily on the first request that touches it. A deploy that skips `db:migrate` therefore reports itself healthy while still on the old schema, and a failing migration surfaces as a broken request rather than a failed deploy.
 
 ## systemd
 

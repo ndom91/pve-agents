@@ -12,6 +12,7 @@ const config = defineConfig({
 			entry: {
 				apikey: "src/cli/apikey.ts",
 				config: "src/cli/config.ts",
+				migrate: "src/cli/migrate.ts",
 				scheduler: "src/cli/scheduler.ts",
 				worker: "src/cli/worker.ts",
 			},
