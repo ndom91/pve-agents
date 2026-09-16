@@ -1,5 +1,6 @@
 import {
 	type Fetcher,
+	type ProxmoxCredentials,
 	type ProxmoxTaskRequest,
 	proxmoxHeaders,
 	proxmoxTimeout,
@@ -31,18 +32,13 @@ export type ProxmoxContainerConfig =
 
 // containerConfig reads one LXC configuration without modifying it.
 export async function containerConfig(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxContainerConfig> {
 	const read = await readContainer(
-		apiURL,
-		tokenID,
-		tokenSecret,
-		`/nodes/${encodeURIComponent(node)}/lxc/${vmid}/config`,
+		api,
+		`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/config`,
 		`config request for ${vmid}`,
 		fetcher,
 	);
@@ -55,18 +51,13 @@ export async function containerConfig(
 
 // containerState reads whether one LXC is currently running.
 export async function containerState(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxContainerState> {
 	const read = await readContainer(
-		apiURL,
-		tokenID,
-		tokenSecret,
-		`/nodes/${encodeURIComponent(node)}/lxc/${vmid}/status/current`,
+		api,
+		`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/status/current`,
 		`status request for ${vmid}`,
 		fetcher,
 	);
@@ -91,10 +82,7 @@ export async function containerState(
 
 // shutdownContainer asks one LXC to stop cleanly within a bounded timeout.
 export function shutdownContainer(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxTaskRequest> {
@@ -102,8 +90,8 @@ export function shutdownContainer(
 	// Proxmox takes silently when the timeout expires.
 	return submitProxmoxTask(
 		proxmoxURL(
-			apiURL,
-			`/nodes/${encodeURIComponent(node)}/lxc/${vmid}/status/shutdown`,
+			api.apiURL,
+			`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/status/shutdown`,
 		),
 		{
 			body: new URLSearchParams({
@@ -111,7 +99,7 @@ export function shutdownContainer(
 				timeout: SHUTDOWN_TIMEOUT_SECONDS.toString(),
 			}),
 			headers: {
-				...proxmoxHeaders(tokenID, tokenSecret),
+				...proxmoxHeaders(api.tokenID, api.tokenSecret),
 				"Content-Type": "application/x-www-form-urlencoded",
 			},
 			method: "POST",
@@ -123,20 +111,17 @@ export function shutdownContainer(
 
 // stopContainer forcibly stops one LXC after a clean shutdown failed.
 export function stopContainer(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxTaskRequest> {
 	return submitProxmoxTask(
 		proxmoxURL(
-			apiURL,
-			`/nodes/${encodeURIComponent(node)}/lxc/${vmid}/status/stop`,
+			api.apiURL,
+			`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/status/stop`,
 		),
 		{
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "POST",
 		},
 		"stop",
@@ -146,10 +131,7 @@ export function stopContainer(
 
 // deleteContainer destroys one stopped LXC and purges its references.
 export function deleteContainer(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxTaskRequest> {
@@ -157,11 +139,11 @@ export function deleteContainer(
 	// deliberately omitted: it can reach storage this controller never created.
 	return submitProxmoxTask(
 		proxmoxURL(
-			apiURL,
-			`/nodes/${encodeURIComponent(node)}/lxc/${vmid}?purge=1`,
+			api.apiURL,
+			`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}?purge=1`,
 		),
 		{
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "DELETE",
 		},
 		"delete",
@@ -181,9 +163,7 @@ export function containerDescription(
 }
 
 async function readContainer(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
+	api: ProxmoxCredentials,
 	path: string,
 	label: string,
 	fetcher: Fetcher,
@@ -194,8 +174,8 @@ async function readContainer(
 > {
 	let response: Response;
 	try {
-		response = await fetcher(proxmoxURL(apiURL, path), {
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+		response = await fetcher(proxmoxURL(api.apiURL, path), {
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
 			signal: proxmoxTimeout(),
 		});

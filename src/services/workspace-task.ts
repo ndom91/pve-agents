@@ -1,6 +1,6 @@
 import type { ControllerConfig } from "../config/controller-config";
 
-import type { Fetcher } from "./proxmox-http";
+import type { Fetcher, ProxmoxCredentials } from "./proxmox-http";
 import { proxmoxTaskStatus } from "./proxmox-task";
 
 // TASK_TIMEOUT_MS bounds how long a Proxmox task may stay un-terminal before it is given up on.
@@ -47,14 +47,6 @@ export type TaskOutcome =
 	| { kind: "succeeded" }
 	| { kind: "timed_out" };
 
-// ProxmoxCredentials narrows the optional Proxmox configuration once provisioning is enabled.
-export type ProxmoxCredentials = {
-	apiURL: string;
-	node: string;
-	tokenID: string;
-	tokenSecret: string;
-};
-
 // proxmoxCredentials reads the Proxmox settings that configuration validation already guarantees.
 //
 // controller-config.ts requires every one of these when PROVISIONING_ENABLED=true, and no executor
@@ -70,6 +62,16 @@ export function proxmoxCredentials(
 	};
 }
 
+// workspaceNode returns credentials addressing the node a workspace's container lives on.
+export function workspaceNode(
+	config: ControllerConfig,
+	workspace: { node?: string },
+): ProxmoxCredentials {
+	const api = proxmoxCredentials(config);
+
+	return workspace.node === undefined ? api : { ...api, node: workspace.node };
+}
+
 // awaitTask polls one Proxmox task and decides whether the controller may continue.
 export async function awaitTask(
 	config: ControllerConfig,
@@ -79,13 +81,7 @@ export async function awaitTask(
 	now: Date,
 ): Promise<TaskOutcome> {
 	const api = proxmoxCredentials(config);
-	const task = await proxmoxTaskStatus(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
-		upid,
-		fetcher,
-	);
+	const task = await proxmoxTaskStatus(api, upid, fetcher);
 	if (task.kind === "succeeded") {
 		return { kind: "succeeded" };
 	}

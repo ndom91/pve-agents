@@ -13,7 +13,12 @@ import type { Fetcher } from "./proxmox-http";
 import { probeProxmox } from "./proxmox-probe";
 import { proxmoxTaskStatus } from "./proxmox-task";
 
-const API = "https://nas.puff.lan:8006/api2/json";
+const API = {
+	apiURL: "https://nas.puff.lan:8006/api2/json",
+	node: "nas",
+	tokenID: "t",
+	tokenSecret: "s",
+};
 const UPID = "UPID:nas:0000A1B2:00C3D4E5:65F00000:vzclone:109:root@pam:";
 
 // Every Proxmox call must be bounded. An unbounded fetch parks the scheduler on an await it can
@@ -37,20 +42,14 @@ describe("proxmox request timeouts", () => {
 		]);
 	}
 
-	record("nextProxmoxVMID", (f) => nextProxmoxVMID(API, "t", "s", f));
-	record("cloneWorkspace", (f) => cloneWorkspace(API, "t", "s", clone(), f));
-	record("containerConfig", (f) =>
-		containerConfig(API, "t", "s", "nas", 109, f),
-	);
-	record("containerState", (f) => containerState(API, "t", "s", "nas", 109, f));
-	record("shutdownContainer", (f) =>
-		shutdownContainer(API, "t", "s", "nas", 109, f),
-	);
-	record("stopContainer", (f) => stopContainer(API, "t", "s", "nas", 109, f));
-	record("deleteContainer", (f) =>
-		deleteContainer(API, "t", "s", "nas", 109, f),
-	);
-	record("proxmoxTaskStatus", (f) => proxmoxTaskStatus(API, "t", "s", UPID, f));
+	record("nextProxmoxVMID", (f) => nextProxmoxVMID(API, f));
+	record("cloneWorkspace", (f) => cloneWorkspace(API, clone(), f));
+	record("containerConfig", (f) => containerConfig(API, 109, f));
+	record("containerState", (f) => containerState(API, 109, f));
+	record("shutdownContainer", (f) => shutdownContainer(API, 109, f));
+	record("stopContainer", (f) => stopContainer(API, 109, f));
+	record("deleteContainer", (f) => deleteContainer(API, 109, f));
+	record("proxmoxTaskStatus", (f) => proxmoxTaskStatus(API, UPID, f));
 
 	for (const [name, run] of calls) {
 		it(`${name} passes an abort signal`, async () => {
@@ -72,7 +71,7 @@ describe("proxmox request timeouts", () => {
 				PROXMOX_TEMPLATE_VMID: "107",
 				PROXMOX_TOKEN_ID: "t",
 				PROXMOX_TOKEN_SECRET: "s",
-				PROXMOX_URL: API,
+				PROXMOX_URL: API.apiURL,
 			}),
 			async (_url, init) => {
 				seen = init;

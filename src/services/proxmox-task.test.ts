@@ -19,14 +19,14 @@ describe("taskNode", () => {
 describe("proxmoxTaskStatus", () => {
 	it("polls the node named in the UPID, not the configured node", async () => {
 		const urls: string[] = [];
-		await proxmoxTaskStatus(api(), "token", "secret", UPID, async (url) => {
+		await proxmoxTaskStatus(api(), UPID, async (url) => {
 			urls.push(url);
 
 			return Response.json({ data: { exitstatus: "OK", status: "stopped" } });
 		});
 
 		expect(urls).toEqual([
-			`${api()}/nodes/nas/tasks/${encodeURIComponent(UPID)}/status`,
+			`${api().apiURL}/nodes/nas/tasks/${encodeURIComponent(UPID)}/status`,
 		]);
 	});
 
@@ -60,21 +60,13 @@ describe("proxmoxTaskStatus", () => {
 	});
 
 	it("reports a transient error as unknown rather than failed", async () => {
-		const unreachable = await proxmoxTaskStatus(
-			api(),
-			"token",
-			"secret",
-			UPID,
-			async () => {
-				throw new Error("ECONNREFUSED");
-			},
-		);
+		const unreachable = await proxmoxTaskStatus(api(), UPID, async () => {
+			throw new Error("ECONNREFUSED");
+		});
 		expect(unreachable.kind).toBe("unknown");
 
 		const serverError = await proxmoxTaskStatus(
 			api(),
-			"token",
-			"secret",
 			UPID,
 			async () => new Response("", { status: 500 }),
 		);
@@ -82,8 +74,6 @@ describe("proxmoxTaskStatus", () => {
 
 		const badJSON = await proxmoxTaskStatus(
 			api(),
-			"token",
-			"secret",
 			UPID,
 			async () => new Response("not json", { status: 200 }),
 		);
@@ -92,17 +82,11 @@ describe("proxmoxTaskStatus", () => {
 
 	it("fails a malformed UPID without issuing a request", async () => {
 		let called = false;
-		const result = await proxmoxTaskStatus(
-			api(),
-			"token",
-			"secret",
-			"not-a-upid",
-			async () => {
-				called = true;
+		const result = await proxmoxTaskStatus(api(), "not-a-upid", async () => {
+			called = true;
 
-				return Response.json({ data: {} });
-			},
-		);
+			return Response.json({ data: {} });
+		});
 
 		expect(result.kind).toBe("failed");
 		expect(called).toBe(false);
@@ -110,11 +94,14 @@ describe("proxmoxTaskStatus", () => {
 });
 
 function api() {
-	return "https://nas.puff.lan:8006/api2/json";
+	return {
+		apiURL: "https://nas.puff.lan:8006/api2/json",
+		node: "nas",
+		tokenID: "workspace-controller@pve!controller",
+		tokenSecret: "not-a-real-secret",
+	};
 }
 
 function status(data: Record<string, string>) {
-	return proxmoxTaskStatus(api(), "token", "secret", UPID, async () =>
-		Response.json({ data }),
-	);
+	return proxmoxTaskStatus(api(), UPID, async () => Response.json({ data }));
 }

@@ -1,5 +1,6 @@
 import {
 	type Fetcher,
+	type ProxmoxCredentials,
 	proxmoxHeaders,
 	proxmoxTimeout,
 	proxmoxURL,
@@ -35,9 +36,7 @@ export function taskNode(upid: string): string | undefined {
 
 // proxmoxTaskStatus polls one Proxmox task and reports whether it finished successfully.
 export async function proxmoxTaskStatus(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
+	api: ProxmoxCredentials,
 	upid: string,
 	fetcher: Fetcher = fetch,
 ): Promise<ProxmoxTaskStatus> {
@@ -49,8 +48,8 @@ export async function proxmoxTaskStatus(
 	const path = `/nodes/${encodeURIComponent(node)}/tasks/${encodeURIComponent(upid)}/status`;
 	let response: Response;
 	try {
-		response = await fetcher(proxmoxURL(apiURL, path), {
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+		response = await fetcher(proxmoxURL(api.apiURL, path), {
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
 			signal: proxmoxTimeout(),
 		});
@@ -119,18 +118,15 @@ export type RunningTaskLookup =
 // as "never started" and allocating a new candidate would leave the in-flight clone as an orphan
 // wearing this workspace's ownership marker that nothing would ever destroy.
 export async function runningCloneTask(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
-	node: string,
+	api: ProxmoxCredentials,
 	vmid: number,
 	fetcher: Fetcher = fetch,
 ): Promise<RunningTaskLookup> {
-	const path = `/nodes/${encodeURIComponent(node)}/tasks?running=1&limit=500`;
+	const path = `/nodes/${encodeURIComponent(api.node)}/tasks?running=1&limit=500`;
 	let response: Response;
 	try {
-		response = await fetcher(proxmoxURL(apiURL, path), {
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+		response = await fetcher(proxmoxURL(api.apiURL, path), {
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
 			signal: proxmoxTimeout(),
 		});

@@ -12,13 +12,8 @@ import type { Fetcher, ProxmoxTaskRequest } from "./proxmox-http";
 
 describe("containerConfig", () => {
 	it("returns the configuration of an existing container", async () => {
-		const result = await containerConfig(
-			api(),
-			"token",
-			"secret",
-			"nas",
-			109,
-			async () => Response.json({ data: { description: "managed-by=x" } }),
+		const result = await containerConfig(api(), 109, async () =>
+			Response.json({ data: { description: "managed-by=x" } }),
 		);
 
 		expect(result).toEqual({
@@ -59,16 +54,9 @@ describe("containerConfig", () => {
 	});
 
 	it("reports an unreachable Proxmox as transient", async () => {
-		const result = await containerConfig(
-			api(),
-			"token",
-			"secret",
-			"nas",
-			109,
-			async () => {
-				throw new Error("ECONNREFUSED");
-			},
-		);
+		const result = await containerConfig(api(), 109, async () => {
+			throw new Error("ECONNREFUSED");
+		});
 
 		expect(result.kind).toBe("failed");
 	});
@@ -96,9 +84,6 @@ describe("containerState", () => {
 	it("treats a missing container as missing, not failed", async () => {
 		const result = await containerState(
 			api(),
-			"token",
-			"secret",
-			"nas",
 			109,
 			async () => new Response("", { status: 404 }),
 		);
@@ -110,11 +95,13 @@ describe("containerState", () => {
 describe("teardown actions", () => {
 	it("asks for a clean shutdown with a bounded timeout and no forced stop", async () => {
 		const request = await captured((fetcher) =>
-			shutdownContainer(api(), "token", "secret", "nas", 109, fetcher),
+			shutdownContainer(api(), 109, fetcher),
 		);
 
 		expect(request.result).toEqual({ kind: "accepted", upid: "UPID:nas:1" });
-		expect(request.url).toBe(`${api()}/nodes/nas/lxc/109/status/shutdown`);
+		expect(request.url).toBe(
+			`${api().apiURL}/nodes/nas/lxc/109/status/shutdown`,
+		);
 		expect(request.method).toBe("POST");
 		expect(request.body).toContain("forceStop=0");
 		expect(request.body).toMatch(/timeout=\d+/);
@@ -122,17 +109,17 @@ describe("teardown actions", () => {
 
 	it("forces a stop without a timeout", async () => {
 		const request = await captured((fetcher) =>
-			stopContainer(api(), "token", "secret", "nas", 109, fetcher),
+			stopContainer(api(), 109, fetcher),
 		);
 
 		expect(request.result).toEqual({ kind: "accepted", upid: "UPID:nas:1" });
-		expect(request.url).toBe(`${api()}/nodes/nas/lxc/109/status/stop`);
+		expect(request.url).toBe(`${api().apiURL}/nodes/nas/lxc/109/status/stop`);
 		expect(request.method).toBe("POST");
 	});
 
 	it("deletes with purge and never with destroy-unreferenced-disks", async () => {
 		const request = await captured((fetcher) =>
-			deleteContainer(api(), "token", "secret", "nas", 109, fetcher),
+			deleteContainer(api(), 109, fetcher),
 		);
 
 		expect(request.result).toEqual({ kind: "accepted", upid: "UPID:nas:1" });
@@ -142,13 +129,8 @@ describe("teardown actions", () => {
 	});
 
 	it("fails rather than reporting success when no UPID comes back", async () => {
-		const result = await deleteContainer(
-			api(),
-			"token",
-			"secret",
-			"nas",
-			109,
-			async () => Response.json({ data: null }),
+		const result = await deleteContainer(api(), 109, async () =>
+			Response.json({ data: null }),
 		);
 
 		expect(result).toEqual({
@@ -158,16 +140,9 @@ describe("teardown actions", () => {
 	});
 
 	it("reports an unreachable Proxmox as failed", async () => {
-		const result = await stopContainer(
-			api(),
-			"token",
-			"secret",
-			"nas",
-			109,
-			async () => {
-				throw new Error("ECONNREFUSED");
-			},
-		);
+		const result = await stopContainer(api(), 109, async () => {
+			throw new Error("ECONNREFUSED");
+		});
 
 		expect(result.kind).toBe("failed");
 	});
@@ -187,7 +162,12 @@ describe("containerDescription", () => {
 });
 
 function api() {
-	return "https://nas.puff.lan:8006/api2/json";
+	return {
+		apiURL: "https://nas.puff.lan:8006/api2/json",
+		node: "nas",
+		tokenID: "workspace-controller@pve!controller",
+		tokenSecret: "not-a-real-secret",
+	};
 }
 
 // captured runs one action against a stub, returning both its result and the request it made.
@@ -210,18 +190,9 @@ async function captured(
 }
 
 function state(data: Record<string, string>) {
-	return containerState(api(), "token", "secret", "nas", 109, async () =>
-		Response.json({ data }),
-	);
+	return containerState(api(), 109, async () => Response.json({ data }));
 }
 
 function respond(response: Response) {
-	return containerConfig(
-		api(),
-		"token",
-		"secret",
-		"nas",
-		109,
-		async () => response,
-	);
+	return containerConfig(api(), 109, async () => response);
 }

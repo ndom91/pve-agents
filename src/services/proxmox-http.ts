@@ -1,6 +1,17 @@
 // Fetcher is the injectable HTTP transport used by every Proxmox adapter.
 export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
+// ProxmoxCredentials is everything needed to address one Proxmox node.
+//
+// Passed as one object because the three token fields were previously splatted positionally at
+// every call site, where transposing two strings would have type-checked cleanly.
+export type ProxmoxCredentials = {
+	apiURL: string;
+	node: string;
+	tokenID: string;
+	tokenSecret: string;
+};
+
 // PROXMOX_REQUEST_TIMEOUT_MS bounds every call to Proxmox.
 //
 // Without it a half-open connection hangs fetch forever, which parks the scheduler loop on an

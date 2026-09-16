@@ -20,17 +20,11 @@ describe("ownershipMarker", () => {
 describe("cloneWorkspace", () => {
 	it("submits a linked clone with its ownership marker", async () => {
 		let request: RequestInit | undefined;
-		const result = await cloneWorkspace(
-			"https://nas.puff.lan:8006/api2/json",
-			"workspace-controller@pve!controller",
-			"not-a-real-secret",
-			input(),
-			async (_url, init) => {
-				request = init;
+		const result = await cloneWorkspace(api(), input(), async (_url, init) => {
+			request = init;
 
-				return Response.json({ data: "UPID:nas:00000001" });
-			},
-		);
+			return Response.json({ data: "UPID:nas:00000001" });
+		});
 
 		expect(result).toEqual({ kind: "accepted", upid: "UPID:nas:00000001" });
 		expect(request?.method).toBe("POST");
@@ -47,17 +41,11 @@ describe("cloneWorkspace", () => {
 
 	it("never submits a clone without an ownership marker", async () => {
 		let body = new URLSearchParams();
-		await cloneWorkspace(
-			"https://nas.puff.lan:8006/api2/json",
-			"workspace-controller@pve!controller",
-			"not-a-real-secret",
-			input(),
-			async (_url, init) => {
-				body = new URLSearchParams(init.body?.toString());
+		await cloneWorkspace(api(), input(), async (_url, init) => {
+			body = new URLSearchParams(init.body?.toString());
 
-				return Response.json({ data: "UPID:nas:00000001" });
-			},
-		);
+			return Response.json({ data: "UPID:nas:00000001" });
+		});
 
 		const marker = body.get("description") ?? "";
 		for (const field of [
@@ -73,11 +61,8 @@ describe("cloneWorkspace", () => {
 
 describe("nextProxmoxVMID", () => {
 	it("returns a candidate VMID from Proxmox", async () => {
-		const result = await nextProxmoxVMID(
-			"https://nas.puff.lan:8006/api2/json",
-			"workspace-controller@pve!controller",
-			"not-a-real-secret",
-			async () => Response.json({ data: "109" }),
+		const result = await nextProxmoxVMID(api(), async () =>
+			Response.json({ data: "109" }),
 		);
 
 		expect(result).toEqual({ kind: "allocated", vmid: 109 });
@@ -95,5 +80,14 @@ function input() {
 		templateVMID: 107,
 		vmid: 109,
 		workspaceID: "workspace-1",
+	};
+}
+
+function api() {
+	return {
+		apiURL: "https://nas.puff.lan:8006/api2/json",
+		node: "nas",
+		tokenID: "workspace-controller@pve!controller",
+		tokenSecret: "not-a-real-secret",
 	};
 }

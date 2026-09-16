@@ -24,9 +24,9 @@ import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
-	proxmoxCredentials,
 	taskExpiry,
 	type WorkspaceOperationRun,
+	workspaceNode,
 } from "./workspace-task";
 
 // Steps are persisted on the workspace and are the only record of how far teardown has progressed.
@@ -145,18 +145,12 @@ async function teardownContainer(
 	fetcher: Fetcher,
 	now: Date,
 ): Promise<WorkspaceOperationRun> {
-	const api = proxmoxCredentials(config);
-	const node = workspace.node ?? api.node;
+	// The workspace records the node its clone actually landed on, which need not be the node this
+	// controller is configured to clone onto.
+	const api = workspaceNode(config, workspace);
 	const vmid = workspace.vmid as number;
 
-	const container = await containerConfig(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
-		node,
-		vmid,
-		fetcher,
-	);
+	const container = await containerConfig(api, vmid, fetcher);
 	if (container.kind === "failed") {
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
@@ -200,28 +194,14 @@ async function teardownContainer(
 		return submitTeardownTask(
 			db,
 			lease,
-			await stopContainer(
-				api.apiURL,
-				api.tokenID,
-				api.tokenSecret,
-				node,
-				vmid,
-				fetcher,
-			),
+			await stopContainer(api, vmid, fetcher),
 			STOP_SUBMITTED,
 			"stop_submitted",
 			now,
 		);
 	}
 
-	const state = await containerState(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
-		node,
-		vmid,
-		fetcher,
-	);
+	const state = await containerState(api, vmid, fetcher);
 	if (state.kind === "failed") {
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
@@ -238,14 +218,7 @@ async function teardownContainer(
 			return submitTeardownTask(
 				db,
 				lease,
-				await stopContainer(
-					api.apiURL,
-					api.tokenID,
-					api.tokenSecret,
-					node,
-					vmid,
-					fetcher,
-				),
+				await stopContainer(api, vmid, fetcher),
 				STOP_SUBMITTED,
 				"stop_submitted",
 				now,
@@ -255,14 +228,7 @@ async function teardownContainer(
 		return submitTeardownTask(
 			db,
 			lease,
-			await shutdownContainer(
-				api.apiURL,
-				api.tokenID,
-				api.tokenSecret,
-				node,
-				vmid,
-				fetcher,
-			),
+			await shutdownContainer(api, vmid, fetcher),
 			SHUTDOWN_SUBMITTED,
 			"shutdown_submitted",
 			now,
@@ -272,14 +238,7 @@ async function teardownContainer(
 	return submitTeardownTask(
 		db,
 		lease,
-		await deleteContainer(
-			api.apiURL,
-			api.tokenID,
-			api.tokenSecret,
-			node,
-			vmid,
-			fetcher,
-		),
+		await deleteContainer(api, vmid, fetcher),
 		DELETE_SUBMITTED,
 		"delete_submitted",
 		now,

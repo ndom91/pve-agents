@@ -23,6 +23,7 @@ import {
 	proxmoxCredentials,
 	taskExpiry,
 	type WorkspaceOperationRun,
+	workspaceNode,
 } from "./workspace-task";
 
 // executeWorkspaceProvision advances one provision operation by exactly one durable step.
@@ -111,12 +112,9 @@ async function reconcileCandidate(
 	fetcher: Fetcher,
 	now: Date,
 ): Promise<WorkspaceOperationRun> {
-	const api = proxmoxCredentials(config);
+	const api = workspaceNode(config, workspace);
 	const container = await containerConfig(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
-		workspace.node ?? api.node,
+		api,
 		workspace.vmid as number,
 		fetcher,
 	);
@@ -132,10 +130,7 @@ async function reconcileCandidate(
 		// guest, so Proxmox's task list decides between them. Guessing wrong in this direction
 		// orphans a real container wearing this workspace's ownership marker.
 		const running = await runningCloneTask(
-			api.apiURL,
-			api.tokenID,
-			api.tokenSecret,
-			workspace.node ?? api.node,
+			api,
 			workspace.vmid as number,
 			fetcher,
 		);
@@ -212,12 +207,7 @@ async function submitClone(
 	now: Date,
 ): Promise<WorkspaceOperationRun> {
 	const api = proxmoxCredentials(config);
-	const vmid = await nextProxmoxVMID(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
-		fetcher,
-	);
+	const vmid = await nextProxmoxVMID(api, fetcher);
 	if (vmid.kind === "failed") {
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
@@ -236,9 +226,7 @@ async function submitClone(
 	}
 
 	const clone = await cloneWorkspace(
-		api.apiURL,
-		api.tokenID,
-		api.tokenSecret,
+		api,
 		{
 			controllerID: config.CONTROLLER_ID as string,
 			createdAt: now.toISOString(),

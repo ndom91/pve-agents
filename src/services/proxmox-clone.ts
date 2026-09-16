@@ -1,5 +1,6 @@
 import {
 	type Fetcher,
+	type ProxmoxCredentials,
 	type ProxmoxTaskRequest,
 	proxmoxHeaders,
 	proxmoxTimeout,
@@ -22,17 +23,15 @@ export type CloneWorkspaceResult = ProxmoxTaskRequest;
 
 // nextProxmoxVMID returns an unreserved candidate VMID from Proxmox.
 export async function nextProxmoxVMID(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
+	api: ProxmoxCredentials,
 	fetcher: Fetcher = fetch,
 ): Promise<
 	{ kind: "allocated"; vmid: number } | { kind: "failed"; message: string }
 > {
 	let response: Response;
 	try {
-		response = await fetcher(proxmoxURL(apiURL, "/cluster/nextid"), {
-			headers: proxmoxHeaders(tokenID, tokenSecret),
+		response = await fetcher(proxmoxURL(api.apiURL, "/cluster/nextid"), {
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
 			signal: proxmoxTimeout(),
 		});
@@ -66,9 +65,7 @@ export async function nextProxmoxVMID(
 
 // cloneWorkspace submits one linked LXC clone request and returns its Proxmox task identifier.
 export async function cloneWorkspace(
-	apiURL: string,
-	tokenID: string,
-	tokenSecret: string,
+	api: ProxmoxCredentials,
 	input: CloneWorkspaceInput,
 	fetcher: Fetcher = fetch,
 ): Promise<CloneWorkspaceResult> {
@@ -81,13 +78,13 @@ export async function cloneWorkspace(
 	});
 	return submitProxmoxTask(
 		proxmoxURL(
-			apiURL,
+			api.apiURL,
 			`/nodes/${encodeURIComponent(input.node)}/lxc/${input.templateVMID}/clone`,
 		),
 		{
 			body,
 			headers: {
-				...proxmoxHeaders(tokenID, tokenSecret),
+				...proxmoxHeaders(api.tokenID, api.tokenSecret),
 				"Content-Type": "application/x-www-form-urlencoded",
 			},
 			method: "POST",

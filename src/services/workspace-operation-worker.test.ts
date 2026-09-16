@@ -891,3 +891,23 @@ describe("runWorkspaceOperations giving up", () => {
 		expect(result.status).not.toBe("attempts_exhausted");
 	});
 });
+
+describe("workspace node", () => {
+	it("addresses the node the container actually landed on", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+		// The clone recorded node "nas"; pretend the controller is now configured for another.
+		db.prepare("UPDATE workspaces SET node = 'other' WHERE id = ?").run(
+			workspaceID,
+		);
+
+		const urls: string[] = [];
+		await tick(db, async (url) => {
+			urls.push(url);
+
+			return Response.json({ data: { description: "nope" } });
+		});
+
+		expect(urls[0]).toContain("/nodes/other/lxc/109/config");
+	});
+});
