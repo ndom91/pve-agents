@@ -162,6 +162,9 @@ dt {
 .workspace-row {
 	align-items: center;
 	border-top: 1px solid #2c332c;
+	/* Lets the log panel claim a full-width line of its own rather than competing for space on
+	   the row, which was squeezing the hostname onto two lines. */
+	flex-wrap: wrap;
 	gap: 24px;
 	padding: 18px 0;
 }
@@ -197,6 +200,7 @@ dt {
 dd {
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	margin: 0;
+	white-space: nowrap;
 }
 
 .status-requested {
@@ -206,11 +210,13 @@ dd {
 /* Status and action travel together at the right edge. As separate children of a
    space-between row they drifted apart, so a row without a button put its badge where the
    button would have been. */
-/* The row is a flex line; the log panel has to break out of it to sit underneath. */
+/* Forced onto its own line under the row: full basis plus a later order, which needs the row to
+   wrap. */
 .workspace-logs {
 	flex-basis: 100%;
-	margin-top: 12px;
+	margin-top: 4px;
 	order: 1;
+	width: 100%;
 }
 
 .workspace-logs summary {
