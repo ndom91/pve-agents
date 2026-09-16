@@ -16,6 +16,7 @@ export const POLL_INTERVAL_MS = 5_000;
 export type WorkspaceOperationRun = {
 	processed: 0 | 1;
 	status:
+		| "attempts_exhausted"
 		| "awaiting_reconciliation"
 		| "awaiting_task"
 		| "clone_confirmed"

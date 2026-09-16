@@ -802,3 +802,68 @@ function workspaceStatus(db: Database.Database, workspaceID: string): string {
 		}
 	).status;
 }
+
+describe("runWorkspaceOperations giving up", () => {
+	it("fails a provision that has been retrying past its deadline", async () => {
+		const db = database();
+		const workspaceID = workspace(db);
+
+		// Stands in for a durable fault such as a revoked Proxmox token: the request never
+		// succeeds, so no task is ever recorded and the per-task deadline never applies.
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => new Response("", { status: 401 }),
+			new Date(Date.now() + 2 * 60 * 60 * 1000),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "attempts_exhausted" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({
+			error_code: "provision_attempts_exhausted",
+			status: "failed",
+		});
+	});
+
+	it("halts rather than fails an exhausted destroy", async () => {
+		const db = database();
+		const workspaceID = workspace(db);
+		requestWorkspaceOperation(db, workspaceID, "destroy");
+
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => new Response("", { status: 401 }),
+			new Date(Date.now() + 2 * 60 * 60 * 1000),
+		);
+
+		// The desired state is still "destroyed" and the container may still exist, so teardown
+		// stops for a human rather than claiming a terminal failure.
+		expect(result).toEqual({ processed: 1, status: "attempts_exhausted" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({
+			error_code: "destroy_attempts_exhausted",
+			status: "destroying",
+		});
+	});
+
+	it("leaves a young operation alone", async () => {
+		const db = database();
+		workspace(db);
+
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => new Response("", { status: 401 }),
+			new Date(),
+		);
+
+		expect(result.status).not.toBe("attempts_exhausted");
+	});
+});
