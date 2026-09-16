@@ -95,6 +95,40 @@ describe("runWorkspaceOperations", () => {
 		});
 	});
 
+	it("stops once the clone is confirmed rather than re-adopting forever", async () => {
+		const db = database();
+		const workspaceID = await submitted(db);
+
+		const confirmed = await runWorkspaceOperations(
+			db,
+			config(),
+			async () =>
+				Response.json({ data: { exitstatus: "OK", status: "stopped" } }),
+			POLLED_AT,
+		);
+		expect(confirmed).toEqual({ processed: 1, status: "clone_confirmed" });
+
+		// Nothing follows a confirmed clone yet. Leaving the operation queued re-adopted the same
+		// container every tick and appended an identical event each time.
+		const after = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => {
+				throw new Error("proxmox must not be contacted again");
+			},
+			new Date(POLLED_AT.getTime() + 60_000),
+		);
+
+		expect(after).toEqual({ processed: 0, status: "empty" });
+		expect(
+			db
+				.prepare(
+					"SELECT count(*) c FROM workspace_events WHERE workspace_id = ? AND event_type = ?",
+				)
+				.get(workspaceID, "workspace.clone_confirmed"),
+		).toEqual({ c: 1 });
+	});
+
 	it("keeps waiting while the clone task is still running", async () => {
 		const db = database();
 		const workspaceID = await submitted(db);
@@ -514,20 +548,19 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		).toEqual({ status: "failed" });
 	});
 
-	it("cancels outstanding provisioning when a destroy is requested", async () => {
+	it("leaves a finished provision alone when a destroy is requested", async () => {
 		const db = database();
 		const workspaceID = await destroyable(db);
 
+		// The clone finished, so the provision operation had already closed itself; there is
+		// nothing to cancel and a completed operation must not be rewritten.
 		expect(
 			db
 				.prepare(
 					"SELECT status, error_message FROM workspace_operations WHERE kind = 'provision'",
 				)
 				.get(),
-		).toEqual({
-			error_message: "superseded by a destroy request",
-			status: "cancelled",
-		});
+		).toEqual({ error_message: null, status: "completed" });
 
 		// A cancelled provision must never run again; otherwise it could clone a replacement
 		// container while teardown removes the original.

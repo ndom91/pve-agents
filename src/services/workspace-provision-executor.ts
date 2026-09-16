@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
+	completeWorkspaceOperation,
 	confirmWorkspaceClone,
 	failWorkspaceProvision,
 	noteWorkspaceIssue,
@@ -74,10 +75,7 @@ async function pollClone(
 	);
 
 	if (task.kind === "succeeded") {
-		confirmWorkspaceClone(db, lease, now);
-		releaseWorkspaceOperation(db, lease, 0, now);
-
-		return { processed: 1, status: "clone_confirmed" };
+		return finishProvisioning(db, lease, now, "clone_confirmed");
 	}
 	if (task.kind === "failed") {
 		failWorkspaceProvision(db, lease, "clone_task_failed", task.message, now);
@@ -221,10 +219,25 @@ async function reconcileCandidate(
 		return { processed: 1, status: "vmid_released" };
 	}
 
-	confirmWorkspaceClone(db, lease, now);
-	releaseWorkspaceOperation(db, lease, 0, now);
+	return finishProvisioning(db, lease, now, "vmid_adopted");
+}
 
-	return { processed: 1, status: "vmid_adopted" };
+// finishProvisioning records the confirmed clone and closes the operation.
+//
+// Provisioning currently ends here: container start, address discovery, and bootstrap are not
+// implemented, so there is no next step to release the operation for. Releasing it anyway meant
+// re-adopting the same container every few seconds until the operation deadline, appending an
+// identical event each time. Reopen this into a release once a later step exists.
+function finishProvisioning(
+	db: Database.Database,
+	lease: OperationLease,
+	now: Date,
+	status: WorkspaceOperationRun["status"],
+): WorkspaceOperationRun {
+	confirmWorkspaceClone(db, lease, now);
+	completeWorkspaceOperation(db, lease, now);
+
+	return { processed: 1, status };
 }
 
 // submitClone allocates a candidate VMID and submits the linked clone.
