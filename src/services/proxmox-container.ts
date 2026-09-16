@@ -82,6 +82,26 @@ export async function containerState(
 	return { kind: "running" };
 }
 
+// startContainer boots one LXC.
+export function startContainer(
+	api: ProxmoxCredentials,
+	vmid: number,
+	fetcher: Fetcher,
+): Promise<ProxmoxTaskRequest> {
+	return submitProxmoxTask(
+		proxmoxURL(
+			api.apiURL,
+			`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/status/start`,
+		),
+		{
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
+			method: "POST",
+		},
+		"start",
+		fetcher,
+	);
+}
+
 // shutdownContainer asks one LXC to stop cleanly within a bounded timeout.
 export function shutdownContainer(
 	api: ProxmoxCredentials,

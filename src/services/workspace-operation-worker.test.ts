@@ -15,6 +15,7 @@ const CONTROLLER_ID = "b66d3c5d-22c6-4199-889e-764f12d37fe5";
 const UPID = "UPID:nas:0000A1B2:00C3D4E5:65F00000:vzclone:109:root@pam:";
 const SHUTDOWN_UPID =
 	"UPID:nas:0000A1B3:00C3D4E5:65F00001:vzshutdown:109:root@pam:";
+const START_UPID = "UPID:nas:0000A1B6:00C3D4E5:65F00004:vzstart:109:root@pam:";
 const STOP_UPID = "UPID:nas:0000A1B4:00C3D4E5:65F00002:vzstop:109:root@pam:";
 const DELETE_UPID =
 	"UPID:nas:0000A1B5:00C3D4E5:65F00003:vzdestroy:109:root@pam:";
@@ -95,7 +96,7 @@ describe("runWorkspaceOperations", () => {
 		});
 	});
 
-	it("stops once the clone is confirmed rather than re-adopting forever", async () => {
+	it("boots the container, then stops rather than looping", async () => {
 		const db = database();
 		const workspaceID = await submitted(db);
 
@@ -108,17 +109,44 @@ describe("runWorkspaceOperations", () => {
 		);
 		expect(confirmed).toEqual({ processed: 1, status: "clone_confirmed" });
 
-		// Nothing follows a confirmed clone yet. Leaving the operation queued re-adopted the same
-		// container every tick and appended an identical event each time.
+		// A confirmed clone hands off to the boot step, and booting is currently the last step
+		// implemented. Past it the operation must close rather than re-running forever.
+		const started = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => Response.json({ data: START_UPID }),
+			new Date(POLLED_AT.getTime() + 60_000),
+		);
+		expect(started).toEqual({ processed: 1, status: "start_submitted" });
+		expect(workspaceStatus(db, workspaceID)).toBe("booting");
+
+		const booted = await runWorkspaceOperations(
+			db,
+			config(),
+			async () =>
+				Response.json({ data: { exitstatus: "OK", status: "stopped" } }),
+			new Date(POLLED_AT.getTime() + 120_000),
+		);
+		expect(booted).toEqual({ processed: 1, status: "container_booted" });
+
+		const closing = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => {
+				throw new Error("proxmox must not be contacted again");
+			},
+			new Date(POLLED_AT.getTime() + 180_000),
+		);
+		expect(closing).toEqual({ processed: 1, status: "booted" });
+
 		const after = await runWorkspaceOperations(
 			db,
 			config(),
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 60_000),
+			new Date(POLLED_AT.getTime() + 240_000),
 		);
-
 		expect(after).toEqual({ processed: 0, status: "empty" });
 		expect(
 			db
@@ -126,6 +154,47 @@ describe("runWorkspaceOperations", () => {
 					"SELECT count(*) c FROM workspace_events WHERE workspace_id = ? AND event_type = ?",
 				)
 				.get(workspaceID, "workspace.clone_confirmed"),
+		).toEqual({ c: 1 });
+	});
+
+	it("fails the workspace when the start task fails", async () => {
+		const db = database();
+		const workspaceID = await confirmed(db);
+
+		await tick(db, async () => Response.json({ data: START_UPID }));
+		const result = await tick(db, async () =>
+			Response.json({
+				data: { exitstatus: "unable to start CT 109", status: "stopped" },
+			}),
+		);
+
+		// A container that will not boot is a dead workspace, not something to keep retrying.
+		expect(result).toEqual({ processed: 1, status: "task_failed" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ error_code: "start_task_failed", status: "failed" });
+	});
+
+	it("retries a start request that never reached Proxmox", async () => {
+		const db = database();
+		const workspaceID = await confirmed(db);
+
+		const result = await tick(db, async () => {
+			throw new Error("ECONNREFUSED");
+		});
+
+		// The request failed rather than the boot, so the workspace stays provisioning and the
+		// reason reaches the timeline.
+		expect(result).toEqual({ processed: 1, status: "request_failed" });
+		expect(workspaceStatus(db, workspaceID)).toBe("provisioning");
+		expect(
+			db
+				.prepare(
+					"SELECT count(*) c FROM workspace_events WHERE workspace_id = ? AND event_type = ?",
+				)
+				.get(workspaceID, "workspace.retrying"),
 		).toEqual({ c: 1 });
 	});
 
@@ -548,19 +617,22 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		).toEqual({ status: "failed" });
 	});
 
-	it("leaves a finished provision alone when a destroy is requested", async () => {
+	it("cancels the in-flight provision when a destroy is requested", async () => {
 		const db = database();
 		const workspaceID = await destroyable(db);
 
-		// The clone finished, so the provision operation had already closed itself; there is
-		// nothing to cancel and a completed operation must not be rewritten.
+		// Provisioning continues past a confirmed clone now, so there is a live operation to
+		// cancel: left queued it would boot a container teardown is removing.
 		expect(
 			db
 				.prepare(
 					"SELECT status, error_message FROM workspace_operations WHERE kind = 'provision'",
 				)
 				.get(),
-		).toEqual({ error_message: null, status: "completed" });
+		).toEqual({
+			error_message: "superseded by a destroy request",
+			status: "cancelled",
+		});
 
 		// A cancelled provision must never run again; otherwise it could clone a replacement
 		// container while teardown removes the original.
@@ -813,6 +885,20 @@ function destroyPhase(
 			.prepare("SELECT destroy_phase FROM workspaces WHERE id = ?")
 			.get(workspaceID) as { destroy_phase: string | null }
 	).destroy_phase;
+}
+
+// confirmed leaves a workspace whose clone is confirmed and ready for the boot step.
+async function confirmed(db: Database.Database): Promise<string> {
+	const workspaceID = await submitted(db);
+	await runWorkspaceOperations(
+		db,
+		config(),
+		async () =>
+			Response.json({ data: { exitstatus: "OK", status: "stopped" } }),
+		POLLED_AT,
+	);
+
+	return workspaceID;
 }
 
 // destroyable leaves a workspace with a confirmed clone and a queued destroy request.

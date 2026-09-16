@@ -2,6 +2,8 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
+	advanceWorkspaceProvision,
+	advanceWorkspaceStatus,
 	completeWorkspaceOperation,
 	confirmWorkspaceClone,
 	failWorkspaceProvision,
@@ -15,7 +17,11 @@ import {
 	workspaceProvision,
 } from "../db/workspace-repository";
 import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
-import { containerConfig, containerDescription } from "./proxmox-container";
+import {
+	containerConfig,
+	containerDescription,
+	startContainer,
+} from "./proxmox-container";
 import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
@@ -47,14 +53,118 @@ export async function executeWorkspaceProvision(
 		return { processed: 1, status: "stale_operation" };
 	}
 
-	if (workspace.taskUPID !== undefined) {
-		return pollClone(db, config, lease, workspace, fetcher, now);
+	// Dispatch on the recorded phase, not on which columns happen to be set: current_task_upid is
+	// one column shared by every task, so a start task and a clone task are otherwise identical.
+	switch (workspace.phase) {
+		case "clone-submitted":
+			return workspace.taskUPID === undefined
+				? reconcileCandidate(db, config, lease, workspace, fetcher, now)
+				: pollClone(db, config, lease, workspace, fetcher, now);
+		case "clone-confirmed":
+			return submitStart(db, config, lease, workspace, fetcher, now);
+		case "start-submitted":
+			return pollStart(db, lease, workspace, config, fetcher, now);
+		case "booted":
+			// Address discovery and bootstrap are not implemented, so there is no next step to
+			// release the operation for. Reopen this when one exists.
+			completeWorkspaceOperation(db, lease, now);
+
+			return { processed: 1, status: "booted" };
+		default:
+			// No phase yet. A VMID without one means a clone landed before phases existed, or a
+			// candidate was persisted and the response lost.
+			return workspace.vmid === undefined
+				? submitClone(db, config, lease, workspace, fetcher, now)
+				: reconcileCandidate(db, config, lease, workspace, fetcher, now);
 	}
-	if (workspace.vmid !== undefined) {
-		return reconcileCandidate(db, config, lease, workspace, fetcher, now);
+}
+
+// submitStart boots the confirmed clone.
+async function submitStart(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	fetcher: Fetcher,
+	now: Date,
+): Promise<WorkspaceOperationRun> {
+	const api = workspaceNode(config, workspace);
+	const start = await startContainer(api, workspace.vmid as number, fetcher);
+	if (start.kind === "failed") {
+		noteWorkspaceIssue(db, lease, start.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "request_failed" };
 	}
 
-	return submitClone(db, config, lease, workspace, fetcher, now);
+	const recorded = recordWorkspaceTask(
+		db,
+		lease,
+		{
+			expiresAt: taskExpiry(now),
+			kind: "provision",
+			phase: "start-submitted",
+			step: "start task accepted",
+			upid: start.upid,
+		},
+		now,
+	);
+	if (recorded.kind !== "prepared") {
+		return { processed: 1, status: "stale_operation" };
+	}
+
+	// Booting begins when the task is accepted, not when it finishes: the container is no longer
+	// merely provisioned from here.
+	advanceWorkspaceStatus(db, lease, "booting", now);
+	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+	return { processed: 1, status: "start_submitted" };
+}
+
+// pollStart resolves the boot task.
+async function pollStart(
+	db: Database.Database,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	config: ControllerConfig,
+	fetcher: Fetcher,
+	now: Date,
+): Promise<WorkspaceOperationRun> {
+	const task = await awaitTask(
+		config,
+		workspace.taskUPID as string,
+		workspace.taskExpiresAt,
+		fetcher,
+		now,
+	);
+	if (task.kind === "pending") {
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_task" };
+	}
+	if (task.kind !== "succeeded") {
+		failWorkspaceProvision(
+			db,
+			lease,
+			task.kind === "failed" ? "start_task_failed" : "start_task_timeout",
+			task.kind === "failed"
+				? task.message
+				: "proxmox start task did not finish before its deadline",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{ phase: "booted", step: "container booted" },
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "container_booted" };
 }
 
 // pollClone resolves a submitted clone task against Proxmox.
@@ -227,12 +337,7 @@ async function reconcileCandidate(
 	return finishProvisioning(db, lease, now, "vmid_adopted");
 }
 
-// finishProvisioning records the confirmed clone and closes the operation.
-//
-// Provisioning currently ends here: container start, address discovery, and bootstrap are not
-// implemented, so there is no next step to release the operation for. Releasing it anyway meant
-// re-adopting the same container every few seconds until the operation deadline, appending an
-// identical event each time. Reopen this into a release once a later step exists.
+// finishProvisioning records the confirmed clone and hands off to the boot step.
 function finishProvisioning(
 	db: Database.Database,
 	lease: OperationLease,
@@ -240,7 +345,13 @@ function finishProvisioning(
 	status: WorkspaceOperationRun["status"],
 ): WorkspaceOperationRun {
 	confirmWorkspaceClone(db, lease, now);
-	completeWorkspaceOperation(db, lease, now);
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{ phase: "clone-confirmed", step: "clone confirmed" },
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
 
 	return { processed: 1, status };
 }
@@ -304,6 +415,7 @@ async function submitClone(
 		{
 			expiresAt: taskExpiry(now),
 			kind: "provision",
+			phase: "clone-submitted",
 			step: "clone task accepted",
 			upid: clone.upid,
 		},

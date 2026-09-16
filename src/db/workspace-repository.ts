@@ -7,6 +7,7 @@ import {
 	DEFAULT_WORKSPACE_STATUS,
 	type DestroyPhase,
 	nextWorkspaceStatus,
+	type ProvisionPhase,
 	type WorkspaceActivity,
 	type WorkspaceStatus,
 	type WorkspaceTarget,
@@ -93,7 +94,9 @@ export type WorkspaceMutation =
 	| { kind: "stale_operation" };
 
 // WorkspaceTeardown is the private workspace data needed to destroy one LXC.
-export type WorkspaceTeardown = WorkspaceProvision & {
+// Its own phase, not the provision one: teardown and provisioning progress independently and a
+// row can carry both.
+export type WorkspaceTeardown = Omit<WorkspaceProvision, "phase"> & {
 	phase?: DestroyPhase;
 };
 
@@ -103,6 +106,7 @@ export type WorkspaceProvision = {
 	id: string;
 	node?: string;
 	ownershipToken: string;
+	phase?: ProvisionPhase;
 	taskExpiresAt?: string;
 	taskUPID?: string;
 	vmid?: number;
@@ -328,7 +332,7 @@ export function recordWorkspaceTask(
 	input: {
 		expiresAt: string;
 		kind: WorkspaceOperation["kind"];
-		phase?: DestroyPhase;
+		phase?: DestroyPhase | ProvisionPhase;
 		step: string;
 		upid: string;
 	},
@@ -338,13 +342,73 @@ export function recordWorkspaceTask(
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = ?, current_task_expires_at = ?, current_step = ?,
-				destroy_phase = COALESCE(?, destroy_phase), updated_at = ?
+				destroy_phase = CASE WHEN ? = 'destroy' THEN COALESCE(?, destroy_phase)
+					ELSE destroy_phase END,
+				provision_phase = CASE WHEN ? = 'provision' THEN COALESCE(?, provision_phase)
+					ELSE provision_phase END,
+				updated_at = ?
 			 WHERE id = ?`,
 		).run(
 			input.upid,
 			input.expiresAt,
 			input.step,
+			input.kind,
 			input.phase ?? null,
+			input.kind,
+			input.phase ?? null,
+			now.toISOString(),
+			workspaceId,
+		);
+	});
+}
+
+// advanceWorkspaceStatus moves the workspace through its lifecycle, validating the transition.
+//
+// The domain state machine decides what is legal; an illegal move is a programming error rather
+// than something to record, so it throws rather than being silently dropped.
+export function advanceWorkspaceStatus(
+	db: Database.Database,
+	lease: OperationLease,
+	status: WorkspaceStatus,
+	now: Date = new Date(),
+): WorkspaceMutation {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
+		const current = workspaceById(db, workspaceId);
+		if (current === undefined) {
+			return;
+		}
+
+		const transition = nextWorkspaceStatus(current.status, status);
+		if (!transition.ok) {
+			throw new Error(`workspace-repository: ${transition.error.message}`);
+		}
+
+		db.prepare(
+			"UPDATE workspaces SET status = ?, updated_at = ? WHERE id = ?",
+		).run(transition.status, now.toISOString(), workspaceId);
+	});
+}
+
+// advanceWorkspaceProvision clears a finished provision task and records the next phase.
+//
+// Takes the status too, because reaching a phase is what moves the workspace through its
+// lifecycle: submitting a start is exactly when it becomes "booting".
+export function advanceWorkspaceProvision(
+	db: Database.Database,
+	lease: OperationLease,
+	input: { phase: ProvisionPhase; status?: WorkspaceStatus; step: string },
+	now: Date = new Date(),
+): WorkspaceMutation {
+	return withRunningOperation(db, lease, "provision", (workspaceId) => {
+		db.prepare(
+			`UPDATE workspaces
+			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
+				provision_phase = ?, status = COALESCE(?, status), updated_at = ?
+			 WHERE id = ?`,
+		).run(
+			input.step,
+			input.phase,
+			input.status ?? null,
 			now.toISOString(),
 			workspaceId,
 		);
@@ -645,15 +709,27 @@ export function workspaceTeardown(
 	return operationWorkspace(db, lease, "destroy");
 }
 
+// Overloaded so each caller gets the phase type for its own lifecycle rather than a union it
+// would have to narrow.
+function operationWorkspace(
+	db: Database.Database,
+	lease: OperationLease,
+	kind: "provision",
+): WorkspaceProvision | undefined;
+function operationWorkspace(
+	db: Database.Database,
+	lease: OperationLease,
+	kind: "destroy",
+): WorkspaceTeardown | undefined;
 function operationWorkspace(
 	db: Database.Database,
 	lease: OperationLease,
 	kind: WorkspaceOperation["kind"],
-): WorkspaceTeardown | undefined {
+): (WorkspaceProvision | WorkspaceTeardown) | undefined {
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.destroy_phase
+				w.current_task_expires_at, w.destroy_phase, w.provision_phase
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
@@ -665,6 +741,7 @@ function operationWorkspace(
 				hostname: string;
 				id: string;
 				destroy_phase: DestroyPhase | null;
+				provision_phase: ProvisionPhase | null;
 				node: string | null;
 				ownership_token: string;
 				vmid: number | null;
@@ -674,13 +751,18 @@ function operationWorkspace(
 		return undefined;
 	}
 
-	const workspace: WorkspaceTeardown = {
+	const workspace: Omit<WorkspaceProvision, "phase"> & {
+		phase?: DestroyPhase | ProvisionPhase;
+	} = {
 		hostname: row.hostname,
 		id: row.id,
 		ownershipToken: row.ownership_token,
 	};
-	if (row.destroy_phase !== null) {
+	if (kind === "destroy" && row.destroy_phase !== null) {
 		workspace.phase = row.destroy_phase;
+	}
+	if (kind === "provision" && row.provision_phase !== null) {
+		workspace.phase = row.provision_phase;
 	}
 	if (row.current_task_expires_at !== null) {
 		workspace.taskExpiresAt = row.current_task_expires_at;

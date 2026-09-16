@@ -19,6 +19,18 @@ export type WorkspaceStatus =
 	| "registering"
 	| "requested";
 
+// ProvisionPhase is how far provisioning has progressed.
+//
+// Separate from current_step for the same reason as DestroyPhase: a step is prose for an
+// operator, and a state machine that branches on prose cannot be checked. The phase also
+// disambiguates current_task_upid, which is one column shared by every task the workspace has
+// outstanding — without it, a start task and a clone task look identical.
+export type ProvisionPhase =
+	| "booted"
+	| "clone-confirmed"
+	| "clone-submitted"
+	| "start-submitted";
+
 // DestroyPhase is how far teardown has progressed.
 //
 // Separate from current_step, which is prose for an operator. Encoding the state machine in
