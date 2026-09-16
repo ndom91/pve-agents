@@ -27,7 +27,14 @@ export async function currentSession(): Promise<OperatorSession> {
 export async function requireSession(): Promise<OperatorSession> {
 	const session = await currentSession();
 	if (session === null && authConfigured(controllerRuntimeConfig())) {
-		throw new Error("Unauthorized");
+		// Thrown as a Response, not an Error: a generic Error surfaces to the browser as a 500,
+		// which is indistinguishable from the controller being broken. The HTTP routes answer 401
+		// for the same denial, and a session that expires between page load and submit should look
+		// the same either way.
+		throw new Response(JSON.stringify({ error: "unauthorized" }), {
+			headers: { "content-type": "application/json" },
+			status: 401,
+		});
 	}
 
 	return session;
