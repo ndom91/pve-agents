@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { sessionState } from "../server/session.functions";
+import { controllerStatus } from "../server/status.functions";
 import { createWorkspace, listWorkspaces } from "../server/workspace.functions";
 
 export const Route = createFileRoute("/")({
@@ -14,11 +15,14 @@ export const Route = createFileRoute("/")({
 		}
 	},
 	component: Home,
-	loader: () => listWorkspaces(),
+	loader: async () => ({
+		status: await controllerStatus(),
+		workspaces: await listWorkspaces(),
+	}),
 });
 
 function Home() {
-	const workspaces = Route.useLoaderData();
+	const { status, workspaces } = Route.useLoaderData();
 	const [error, setError] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 
@@ -66,7 +70,13 @@ function Home() {
 					<p className="eyebrow">PVE / HERDR</p>
 					<h1>Agent compute</h1>
 				</div>
-				<p className="mode">Provisioning disabled</p>
+				<p className="mode">
+					{status.provisioningEnabled
+						? status.workerEnabled
+							? "Provisioning enabled"
+							: "Provisioning enabled · worker off"
+						: "Provisioning disabled"}
+				</p>
 			</header>
 
 			<section className="request-panel" aria-labelledby="request-title">
