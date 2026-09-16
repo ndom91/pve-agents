@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { requestId } from "../lib/request-id";
 import { sessionState } from "../server/session.functions";
 import { controllerStatus } from "../server/status.functions";
 import { createWorkspace, listWorkspaces } from "../server/workspace.functions";
@@ -47,7 +48,7 @@ function Home() {
 		try {
 			await createWorkspace({
 				data: {
-					idempotencyKey: crypto.randomUUID(),
+					idempotencyKey: requestId(),
 					purpose: purposeText,
 					repository,
 					ref,
