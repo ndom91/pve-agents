@@ -159,7 +159,14 @@ async function pollStart(
 	advanceWorkspaceProvision(
 		db,
 		lease,
-		{ phase: "booted", step: "container booted" },
+		{
+			event: {
+				message: "proxmox confirmed the container booted",
+				type: "workspace.booted",
+			},
+			phase: "booted",
+			step: "container booted",
+		},
 		now,
 	);
 	releaseWorkspaceOperation(db, lease, 0, now);

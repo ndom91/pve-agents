@@ -140,8 +140,18 @@ pct exec "$NEW_VMID" -- bash -eux -c "
 	done
 	if [ -d /root/.opencode ]; then
 		cp -a /root/.opencode /home/${WORKSPACE_USER}/.opencode
+		if [ -x /home/${WORKSPACE_USER}/.opencode/bin/opencode ]; then
+			ln -sf /home/${WORKSPACE_USER}/.opencode/bin/opencode /usr/local/bin/opencode
+		fi
 	fi
 	chown -R ${WORKSPACE_USER}:${WORKSPACE_USER} /home/${WORKSPACE_USER}
+
+	# ssh host command runs a non-login, non-interactive shell, which sources neither .profile nor
+	# .bashrc, so ~/.local/bin is not on PATH there. That is exactly how the controller invokes
+	# herdr, so the tooling has to be reachable without a login shell.
+	for tool in /home/${WORKSPACE_USER}/.local/bin/*; do
+		[ -x \"\$tool\" ] && ln -sf \"\$tool\" /usr/local/bin/\"\$(basename \"\$tool\")\"
+	done
 "
 
 log "installing coding agents for ${WORKSPACE_USER}"
@@ -203,8 +213,10 @@ pct exec "$NEW_VMID" -- bash -eu -c "
 	for tool in git gh node pnpm python3 go rustc rg jq sshd; do
 		command -v \$tool >/dev/null 2>&1 || missing=\"\$missing \$tool(root)\"
 	done
-	for tool in herdr uv claude codex; do
-		su - ${WORKSPACE_USER} -c \"command -v \$tool\" >/dev/null 2>&1 || missing=\"\$missing \$tool(${WORKSPACE_USER})\"
+	# Checked without a login shell, because that is how the controller reaches them over SSH.
+	for tool in herdr uv opencode claude codex; do
+		su ${WORKSPACE_USER} -s /bin/sh -c \"command -v \$tool\" >/dev/null 2>&1 ||
+			missing=\"\$missing \$tool(${WORKSPACE_USER}, non-login)\"
 	done
 	[ -s /home/${WORKSPACE_USER}/.ssh/authorized_keys ] || missing=\"\$missing authorized_keys\"
 	if [ -n \"\$missing\" ]; then

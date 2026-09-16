@@ -128,6 +128,19 @@ describe("runWorkspaceOperations", () => {
 			new Date(POLLED_AT.getTime() + 120_000),
 		);
 		expect(booted).toEqual({ processed: 1, status: "container_booted" });
+		// The timeline is where an operator follows this, so each milestone has to land in it.
+		expect(
+			db
+				.prepare(
+					"SELECT event_type FROM workspace_events WHERE workspace_id = ? ORDER BY id",
+				)
+				.all(workspaceID)
+				.map((row) => (row as { event_type: string }).event_type),
+		).toEqual([
+			"workspace.requested",
+			"workspace.clone_confirmed",
+			"workspace.booted",
+		]);
 
 		const closing = await runWorkspaceOperations(
 			db,

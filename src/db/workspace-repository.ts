@@ -396,22 +396,33 @@ export function advanceWorkspaceStatus(
 export function advanceWorkspaceProvision(
 	db: Database.Database,
 	lease: OperationLease,
-	input: { phase: ProvisionPhase; status?: WorkspaceStatus; step: string },
+	input: {
+		event?: { message: string; type: string };
+		phase: ProvisionPhase;
+		status?: WorkspaceStatus;
+		step: string;
+	},
 	now: Date = new Date(),
 ): WorkspaceMutation {
+	const nowText = now.toISOString();
+
 	return withRunningOperation(db, lease, "provision", (workspaceId) => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				provision_phase = ?, status = COALESCE(?, status), updated_at = ?
 			 WHERE id = ?`,
-		).run(
-			input.step,
-			input.phase,
-			input.status ?? null,
-			now.toISOString(),
-			workspaceId,
-		);
+		).run(input.step, input.phase, input.status ?? null, nowText, workspaceId);
+
+		if (input.event !== undefined) {
+			appendWorkspaceEvent(
+				db,
+				workspaceId,
+				input.event.type,
+				input.event.message,
+				nowText,
+			);
+		}
 	});
 }
 
