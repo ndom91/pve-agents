@@ -513,6 +513,53 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		expect(workspaceStatus(db, workspaceID)).toBe("destroying");
 	});
 
+	it("halts on a container this controller owns but for a different workspace", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+		const calls: string[] = [];
+
+		// managed-by and controller-id both match; only workspace-id and the token differ. This is
+		// what VMID reuse produces on real hardware, and it is the case an unmarked-container test
+		// cannot catch.
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, {
+				calls,
+				description: ownershipMarker({
+					controllerID: CONTROLLER_ID,
+					createdAt: "2026-01-01T00:00:00.000Z",
+					ownershipToken: "99999999-9999-9999-9999-999999999999",
+					workspaceID: "88888888-8888-8888-8888-888888888888",
+				}),
+			}),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "destroy_halted" });
+		expect(calls).toEqual(["GET /config"]);
+		expect(
+			db
+				.prepare("SELECT error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ error_code: "destroy_ownership_mismatch" });
+	});
+
+	it("does not fail a teardown on a transient Proxmox error", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+
+		const result = await tick(
+			db,
+			async () => new Response("permission denied", { status: 500 }),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "awaiting_reconciliation" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ error_code: null, status: "destroying" });
+	});
+
 	it("claims a destroy ahead of another workspace's queued provision", async () => {
 		const db = database();
 		const destroying = await destroyable(db);

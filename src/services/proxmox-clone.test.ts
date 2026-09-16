@@ -34,9 +34,40 @@ describe("cloneWorkspace", () => {
 
 		expect(result).toEqual({ kind: "accepted", upid: "UPID:nas:00000001" });
 		expect(request?.method).toBe("POST");
-		expect(request?.body?.toString()).toContain("full=0");
-		expect(request?.body?.toString()).toContain("newid=109");
-		expect(request?.body?.toString()).toContain("pool=disposable-workspaces");
+
+		const body = new URLSearchParams(request?.body?.toString());
+		expect(body.get("full")).toBe("0");
+		expect(body.get("newid")).toBe("109");
+		expect(body.get("pool")).toBe("disposable-workspaces");
+		expect(body.get("hostname")).toBe("agent-workspace");
+		// The marker is the only authorization proof for every later destructive action and for
+		// adopting a candidate VMID. A clone that shipped without it would orphan its container.
+		expect(body.get("description")).toBe(ownershipMarker(input()));
+	});
+
+	it("never submits a clone without an ownership marker", async () => {
+		let body = new URLSearchParams();
+		await cloneWorkspace(
+			"https://nas.puff.lan:8006/api2/json",
+			"workspace-controller@pve!controller",
+			"not-a-real-secret",
+			input(),
+			async (_url, init) => {
+				body = new URLSearchParams(init.body?.toString());
+
+				return Response.json({ data: "UPID:nas:00000001" });
+			},
+		);
+
+		const marker = body.get("description") ?? "";
+		for (const field of [
+			"managed-by=pve-herdr-agents",
+			`controller-id=${input().controllerID}`,
+			`workspace-id=${input().workspaceID}`,
+			`ownership-token=${input().ownershipToken}`,
+		]) {
+			expect(marker).toContain(field);
+		}
 	});
 });
 
