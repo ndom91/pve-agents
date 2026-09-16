@@ -106,7 +106,7 @@ async function pollTeardownTask(
 	}
 
 	if (task.kind !== "succeeded") {
-		return haltTeardown(
+		haltWorkspaceDestroy(
 			db,
 			lease,
 			workspace.phase === "delete-submitted"
@@ -117,6 +117,8 @@ async function pollTeardownTask(
 				: "proxmox teardown task did not finish before its deadline",
 			now,
 		);
+
+		return { processed: 1, status: "destroy_halted" };
 	}
 
 	if (workspace.phase === "delete-submitted") {
@@ -184,13 +186,15 @@ async function teardownContainer(
 			workspaceID: workspace.id,
 		})
 	) {
-		return haltTeardown(
+		haltWorkspaceDestroy(
 			db,
 			lease,
 			"destroy_ownership_mismatch",
 			`container ${vmid} does not carry this workspace's ownership marker and was left untouched`,
 			now,
 		);
+
+		return { processed: 1, status: "destroy_halted" };
 	}
 
 	const state = await containerState(api, vmid, fetcher);
@@ -274,16 +278,4 @@ function submitTeardownTask(
 	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 	return { processed: 1, status };
-}
-
-function haltTeardown(
-	db: Database.Database,
-	lease: OperationLease,
-	code: string,
-	message: string,
-	now: Date,
-): WorkspaceOperationRun {
-	haltWorkspaceDestroy(db, lease, code, message, now);
-
-	return { processed: 1, status: "destroy_halted" };
 }

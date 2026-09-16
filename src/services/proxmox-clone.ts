@@ -24,7 +24,7 @@ export type CloneWorkspaceResult = ProxmoxTaskRequest;
 // nextProxmoxVMID returns an unreserved candidate VMID from Proxmox.
 export async function nextProxmoxVMID(
 	api: ProxmoxCredentials,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<
 	{ kind: "allocated"; vmid: number } | { kind: "failed"; message: string }
 > {
@@ -67,7 +67,7 @@ export async function nextProxmoxVMID(
 export async function cloneWorkspace(
 	api: ProxmoxCredentials,
 	input: CloneWorkspaceInput,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<CloneWorkspaceResult> {
 	const body = new URLSearchParams({
 		description: ownershipMarker(input),

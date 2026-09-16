@@ -34,7 +34,7 @@ export type ProxmoxContainerConfig =
 export async function containerConfig(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxContainerConfig> {
 	const read = await readContainer(
 		api,
@@ -53,7 +53,7 @@ export async function containerConfig(
 export async function containerState(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxContainerState> {
 	const read = await readContainer(
 		api,
@@ -84,7 +84,7 @@ export async function containerState(
 export function shutdownContainer(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxTaskRequest> {
 	// forceStop=0 keeps escalation a decision the controller makes and records, rather than one
 	// Proxmox takes silently when the timeout expires.
@@ -113,7 +113,7 @@ export function shutdownContainer(
 export function stopContainer(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxTaskRequest> {
 	return submitProxmoxTask(
 		proxmoxURL(
@@ -133,7 +133,7 @@ export function stopContainer(
 export function deleteContainer(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxTaskRequest> {
 	// purge=1 removes the LXC from backup and HA references. destroy-unreferenced-disks is
 	// deliberately omitted: it can reach storage this controller never created.

@@ -38,7 +38,7 @@ export function taskNode(upid: string): string | undefined {
 export async function proxmoxTaskStatus(
 	api: ProxmoxCredentials,
 	upid: string,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<ProxmoxTaskStatus> {
 	const node = taskNode(upid);
 	if (node === undefined) {
@@ -120,7 +120,7 @@ export type RunningTaskLookup =
 export async function runningCloneTask(
 	api: ProxmoxCredentials,
 	vmid: number,
-	fetcher: Fetcher = fetch,
+	fetcher: Fetcher,
 ): Promise<RunningTaskLookup> {
 	const path = `/nodes/${encodeURIComponent(api.node)}/tasks?running=1&limit=500`;
 	let response: Response;

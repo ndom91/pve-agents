@@ -1,5 +1,10 @@
 import type { ControllerConfig } from "../config/controller-config";
-import { proxmoxTimeout } from "./proxmox-http";
+import {
+	type Fetcher,
+	proxmoxHeaders,
+	proxmoxTimeout,
+	proxmoxURL,
+} from "./proxmox-http";
 
 // ProxmoxCheck is one read-only infrastructure validation result.
 export type ProxmoxCheck = {
@@ -13,8 +18,6 @@ export type ProxmoxProbe = {
 	checks: ProxmoxCheck[];
 	ok: boolean;
 };
-
-type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
 type ProxmoxResponse = {
 	data: unknown;
@@ -251,11 +254,8 @@ async function request(
 ): Promise<{ data: unknown; ok: true } | { error: string; ok: false }> {
 	let response: Response;
 	try {
-		response = await fetcher(`${urlWithoutTrailingSlash(api.url)}${path}`, {
-			headers: {
-				Accept: "application/json",
-				Authorization: `PVEAPIToken=${api.tokenID}=${api.tokenSecret}`,
-			},
+		response = await fetcher(proxmoxURL(api.url, path), {
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
 			signal: proxmoxTimeout(),
 		});
@@ -376,12 +376,4 @@ function templateCheck(
 		name: "template",
 		status: "ok",
 	};
-}
-
-function urlWithoutTrailingSlash(url: string): string {
-	if (url.endsWith("/")) {
-		return url.slice(0, -1);
-	}
-
-	return url;
 }
