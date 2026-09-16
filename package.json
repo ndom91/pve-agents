@@ -7,7 +7,7 @@
 	},
 	"scripts": {
 		"dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev --port 3000",
-		"start": "node --env-file-if-exists=.env bin/controller-server.mjs",
+		"start": "./bin/controller-node.sh bin/controller-server.mjs",
 		"generate-routes": "tsr generate",
 		"build": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js build && node --env-file-if-exists=.env node_modules/vite/bin/vite.js build --config vite.cli.config.ts",
 		"preview": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js preview",
@@ -18,9 +18,9 @@
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit",
 		"build:cli": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js build --config vite.cli.config.ts",
-		"worker:tick": "node --env-file-if-exists=.env dist/cli/worker.js",
-		"apikey:create": "node --env-file-if-exists=.env dist/cli/apikey.js",
-		"db:migrate": "node --env-file-if-exists=.env dist/cli/migrate.js"
+		"worker:tick": "./bin/controller-node.sh dist/cli/worker.js",
+		"apikey:create": "./bin/controller-node.sh dist/cli/apikey.js",
+		"db:migrate": "./bin/controller-node.sh dist/cli/migrate.js"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "^1.7.4",
