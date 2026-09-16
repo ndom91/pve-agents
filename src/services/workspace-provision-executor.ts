@@ -18,7 +18,7 @@ import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
 import { containerConfig, containerDescription } from "./proxmox-container";
 import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
-import { poolMembers } from "./proxmox-pool";
+import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
 import {
 	awaitTask,
@@ -129,14 +129,19 @@ async function reconcileCandidate(
 	if (container.kind === "forbidden") {
 		// A pool-scoped token cannot read a guest outside its pool, so this covers a VMID that is
 		// free, deleted, or someone else's alike. None of them may be adopted.
-		const pool = await poolMembers(api, config.PROXMOX_POOL as string, fetcher);
-		if (pool.kind === "failed") {
-			noteWorkspaceIssue(db, lease, pool.message, now);
+		const membership = await poolContainsVMID(
+			api,
+			config.PROXMOX_POOL as string,
+			workspace.vmid as number,
+			fetcher,
+		);
+		if (membership.kind === "failed") {
+			noteWorkspaceIssue(db, lease, membership.message, now);
 			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 			return { processed: 1, status: "awaiting_reconciliation" };
 		}
-		if (!pool.vmids.has(workspace.vmid as number)) {
+		if (membership.kind === "outside") {
 			releaseWorkspaceCandidateVMID(
 				db,
 				lease,

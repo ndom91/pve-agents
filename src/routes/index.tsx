@@ -236,7 +236,7 @@ function WorkspaceRow({
 								className={
 									isProblem(event.eventType) ? "log-problem" : undefined
 								}
-								key={`${event.createdAt}-${event.eventType}`}
+								key={event.id}
 							>
 								<time dateTime={event.createdAt}>
 									{event.createdAt.slice(11, 19)}

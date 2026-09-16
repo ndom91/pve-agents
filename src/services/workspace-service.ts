@@ -5,7 +5,6 @@ import {
 	createWorkspace,
 	listWorkspaces,
 	requestWorkspaceOperation,
-	type WorkspaceEvent,
 	workspaceById,
 	workspaceEvents,
 } from "../db/workspace-repository";
@@ -18,6 +17,9 @@ export const workspaceRequestSchema = z.object({
 
 // WorkspaceRequest is the public creation request accepted by the controller.
 export type WorkspaceRequest = z.output<typeof workspaceRequestSchema>;
+
+// EVENT_LIMIT caps the timeline per workspace so the fleet view cannot grow without bound.
+const EVENT_LIMIT = 50;
 
 // listRequestedWorkspaces returns all persisted workspace records with their timelines.
 //
@@ -32,11 +34,6 @@ export function listRequestedWorkspaces(db: Database.Database) {
 
 // FleetWorkspace is one workspace as the fleet view receives it.
 export type FleetWorkspace = ReturnType<typeof listRequestedWorkspaces>[number];
-
-// EVENT_LIMIT caps the timeline per workspace so the fleet view cannot grow without bound.
-const EVENT_LIMIT = 50;
-
-export type { WorkspaceEvent };
 
 // requestedWorkspace returns one persisted workspace when it exists.
 export function requestedWorkspace(db: Database.Database, id: string) {

@@ -81,6 +81,9 @@ export type WorkspaceOperationResult =
 export type WorkspaceEvent = {
 	createdAt: string;
 	eventType: string;
+	// Row id, because two events written in one transaction share a timestamp and a caller
+	// needs something that distinguishes them.
+	id: number;
 	message: string;
 };
 
@@ -531,11 +534,11 @@ export function countActiveOperations(db: Database.Database): number {
 export function workspaceEvents(
 	db: Database.Database,
 	workspaceId: string,
-	limit = 100,
+	limit: number,
 ): WorkspaceEvent[] {
 	return db
 		.prepare(
-			`SELECT created_at, event_type, message FROM workspace_events
+			`SELECT id, created_at, event_type, message FROM workspace_events
 			 WHERE workspace_id = ? ORDER BY id DESC LIMIT ?`,
 		)
 		.all(workspaceId, limit)
@@ -544,12 +547,14 @@ export function workspaceEvents(
 			const entry = row as {
 				created_at: string;
 				event_type: string;
+				id: number;
 				message: string;
 			};
 
 			return {
 				createdAt: entry.created_at,
 				eventType: entry.event_type,
+				id: entry.id,
 				message: entry.message,
 			};
 		});
@@ -566,40 +571,31 @@ export function noteWorkspaceIssue(
 	message: string,
 	now: Date = new Date(),
 ): void {
-	// Checks the lease like every other write. An issue applies to either kind of operation, so
-	// this is the one guard that does not also filter on kind.
-	const operation = db
-		.prepare(
-			`SELECT workspace_id FROM workspace_operations
-			 WHERE id = ? AND status = 'running' AND lease_token = ?`,
-		)
-		.get(lease.id, lease.token) as { workspace_id: string } | undefined;
-	if (operation === undefined) {
-		return;
-	}
+	// "any" because an issue applies to either kind of operation. Going through the guard keeps
+	// the read and the insert in one transaction, so two workers cannot both decide the message
+	// is new.
+	withRunningOperation(db, lease, "any", (workspaceId) => {
+		const latest = db
+			.prepare(
+				`SELECT event_type, message FROM workspace_events
+				 WHERE workspace_id = ? ORDER BY id DESC LIMIT 1`,
+			)
+			.get(workspaceId) as { event_type: string; message: string } | undefined;
+		if (
+			latest?.event_type === "workspace.retrying" &&
+			latest.message === message
+		) {
+			return;
+		}
 
-	const latest = db
-		.prepare(
-			`SELECT event_type, message FROM workspace_events
-			 WHERE workspace_id = ? ORDER BY id DESC LIMIT 1`,
-		)
-		.get(operation.workspace_id) as
-		| { event_type: string; message: string }
-		| undefined;
-	if (
-		latest?.event_type === "workspace.retrying" &&
-		latest.message === message
-	) {
-		return;
-	}
-
-	appendWorkspaceEvent(
-		db,
-		operation.workspace_id,
-		"workspace.retrying",
-		message,
-		now.toISOString(),
-	);
+		appendWorkspaceEvent(
+			db,
+			workspaceId,
+			"workspace.retrying",
+			message,
+			now.toISOString(),
+		);
+	});
 }
 
 // releaseWorkspaceOperation returns a still-unfinished operation to the queue after one step.
@@ -939,11 +935,16 @@ function appendWorkspaceEvent(
 // withRunningOperation performs one write, in a transaction, only while this worker holds the
 // operation.
 //
-// Every mutator goes through this so the guard cannot be forgotten on the next one added.
+// Every write made on behalf of an operation goes through this, so the guard cannot be forgotten
+// on the next one added. createWorkspace and requestWorkspaceOperation deliberately do not: they
+// serve an HTTP request and there is no lease to prove.
+// OperationKind is the kind a write applies to, or "any" for the writes that suit both.
+type OperationKind = WorkspaceOperation["kind"] | "any";
+
 function withRunningOperation(
 	db: Database.Database,
 	lease: OperationLease,
-	kind: WorkspaceOperation["kind"],
+	kind: OperationKind,
 	mutate: (workspaceId: string) => void,
 ): WorkspaceMutation {
 	const run = db.transaction((): WorkspaceMutation => {
@@ -983,8 +984,17 @@ function finishOperation(
 function runningOperation(
 	db: Database.Database,
 	lease: OperationLease,
-	kind: WorkspaceOperation["kind"],
+	kind: OperationKind,
 ) {
+	if (kind === "any") {
+		return db
+			.prepare(
+				`SELECT workspace_id FROM workspace_operations
+				 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+			)
+			.get(lease.id, lease.token) as { workspace_id: string } | undefined;
+	}
+
 	return db
 		.prepare(
 			`SELECT workspace_id FROM workspace_operations

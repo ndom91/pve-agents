@@ -562,7 +562,7 @@ describe("workspace timeline", () => {
 			noteWorkspaceIssue(db, claimed.lease, "proxmox clone request failed");
 		}
 
-		const retrying = workspaceEvents(db, created.workspace.id).filter(
+		const retrying = workspaceEvents(db, created.workspace.id, 50).filter(
 			(event) => event.eventType === "workspace.retrying",
 		);
 		expect(retrying).toHaveLength(1);
@@ -585,7 +585,7 @@ describe("workspace timeline", () => {
 		noteWorkspaceIssue(db, claimed.lease, "proxmox config request failed");
 
 		expect(
-			workspaceEvents(db, created.workspace.id)
+			workspaceEvents(db, created.workspace.id, 50)
 				.filter((event) => event.eventType === "workspace.retrying")
 				.map((event) => event.message),
 		).toEqual([
@@ -603,7 +603,7 @@ describe("workspace timeline", () => {
 		requestWorkspaceOperation(db, created.workspace.id, "destroy");
 
 		expect(
-			workspaceEvents(db, created.workspace.id).map((e) => e.eventType),
+			workspaceEvents(db, created.workspace.id, 50).map((e) => e.eventType),
 		).toEqual([
 			"workspace.requested",
 			"workspace.provision_cancelled",
@@ -675,7 +675,7 @@ describe("noteWorkspaceIssue", () => {
 		noteWorkspaceIssue(db, second.lease, "current worker complaining");
 
 		expect(
-			workspaceEvents(db, created.workspace.id)
+			workspaceEvents(db, created.workspace.id, 50)
 				.filter((event) => event.eventType === "workspace.retrying")
 				.map((event) => event.message),
 		).toEqual(["current worker complaining"]);

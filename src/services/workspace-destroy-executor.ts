@@ -23,7 +23,7 @@ import {
 } from "./proxmox-container";
 import type { Fetcher, ProxmoxTaskRequest } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
-import { poolMembers } from "./proxmox-pool";
+import { poolContainsVMID } from "./proxmox-pool";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -179,14 +179,19 @@ async function teardownContainer(
 		return { processed: 1, status: "container_missing" };
 	}
 	if (container.kind === "forbidden") {
-		const pool = await poolMembers(api, config.PROXMOX_POOL as string, fetcher);
-		if (pool.kind === "failed") {
-			noteWorkspaceIssue(db, lease, pool.message, now);
+		const membership = await poolContainsVMID(
+			api,
+			config.PROXMOX_POOL as string,
+			vmid,
+			fetcher,
+		);
+		if (membership.kind === "failed") {
+			noteWorkspaceIssue(db, lease, membership.message, now);
 			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 			return { processed: 1, status: "awaiting_reconciliation" };
 		}
-		if (pool.vmids.has(vmid)) {
+		if (membership.kind === "inside") {
 			// In our pool but unreadable: a real permission problem, not an absent container.
 			haltWorkspaceDestroy(
 				db,

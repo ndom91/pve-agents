@@ -216,7 +216,6 @@ dd {
 	flex-basis: 100%;
 	margin-top: 4px;
 	order: 1;
-	width: 100%;
 }
 
 .workspace-logs summary {

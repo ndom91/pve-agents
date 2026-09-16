@@ -65,3 +65,28 @@ export async function poolMembers(
 
 	return { kind: "members", vmids };
 }
+
+// PoolMembership is whether one VMID belongs to the controller's pool.
+export type PoolMembership =
+	| { kind: "failed"; message: string }
+	| { kind: "inside" }
+	| { kind: "outside" };
+
+// poolContainsVMID answers the question a 403 cannot.
+//
+// Reading a guest outside the pool is forbidden whether it was deleted, never existed, or belongs
+// to someone else. Callers need to know which side of the pool it is on; what they do about it
+// differs, so that stays with them.
+export async function poolContainsVMID(
+	api: ProxmoxCredentials,
+	pool: string,
+	vmid: number,
+	fetcher: Fetcher,
+): Promise<PoolMembership> {
+	const members = await poolMembers(api, pool, fetcher);
+	if (members.kind === "failed") {
+		return members;
+	}
+
+	return members.vmids.has(vmid) ? { kind: "inside" } : { kind: "outside" };
+}
