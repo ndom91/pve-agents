@@ -189,6 +189,13 @@ async function teardownContainer(
 		);
 	}
 
+	// A guest still running after its shutdown task reported success will never respond to a
+	// second ACPI request either. Escalating here is what stops shutdown -> confirm -> shutdown
+	// cycling until the operation deadline.
+	const shutdownAlreadyTried =
+		workspace.currentStep === STOP_REQUIRED ||
+		workspace.currentStep === SHUTDOWN_CONFIRMED;
+
 	if (workspace.currentStep === STOP_REQUIRED) {
 		return submitTeardownTask(
 			db,
@@ -227,6 +234,24 @@ async function teardownContainer(
 	}
 
 	if (state.kind === "running") {
+		if (shutdownAlreadyTried) {
+			return submitTeardownTask(
+				db,
+				lease,
+				await stopContainer(
+					api.apiURL,
+					api.tokenID,
+					api.tokenSecret,
+					node,
+					vmid,
+					fetcher,
+				),
+				STOP_SUBMITTED,
+				"stop_submitted",
+				now,
+			);
+		}
+
 		return submitTeardownTask(
 			db,
 			lease,
