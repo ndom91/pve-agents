@@ -28,6 +28,15 @@ fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 # is never left behind to be mistaken for a finished template.
 cleanup() {
 	local code=$?
+	if [ "$code" -ne 0 ] && [ -n "${PROVISIONED:-}" ]; then
+		cat >&2 <<KEPT
+
+Container $NEW_VMID was provisioned but failed its checks, so it has been kept rather than
+destroyed. Inspect it with: pct start $NEW_VMID && pct exec $NEW_VMID -- bash
+Remove it with: pct destroy $NEW_VMID --purge
+KEPT
+		return
+	fi
 	if [ "$code" -ne 0 ] && [ -n "${SCRATCH_CREATED:-}" ]; then
 		printf '\nfailed; removing scratch container %s\n' "$NEW_VMID" >&2
 		pct stop "$NEW_VMID" >/dev/null 2>&1 || true
@@ -185,13 +194,16 @@ pct exec "$NEW_VMID" -- bash -eux -c '
 	truncate -s 0 /var/log/*.log 2>/dev/null || true
 '
 
+# Past this point the container is fully provisioned; a failure is worth inspecting, not deleting.
+PROVISIONED=1
+
 log "verifying before converting"
 pct exec "$NEW_VMID" -- bash -eu -c "
 	missing=
-	for tool in git gh node pnpm python3 uv go rustc rg jq sshd; do
-		command -v \$tool >/dev/null 2>&1 || missing=\"\$missing \$tool\"
+	for tool in git gh node pnpm python3 go rustc rg jq sshd; do
+		command -v \$tool >/dev/null 2>&1 || missing=\"\$missing \$tool(root)\"
 	done
-	for tool in herdr claude codex; do
+	for tool in herdr uv claude codex; do
 		su - ${WORKSPACE_USER} -c \"command -v \$tool\" >/dev/null 2>&1 || missing=\"\$missing \$tool(${WORKSPACE_USER})\"
 	done
 	[ -s /home/${WORKSPACE_USER}/.ssh/authorized_keys ] || missing=\"\$missing authorized_keys\"
@@ -207,6 +219,7 @@ pct stop "$NEW_VMID"
 pct set "$NEW_VMID" --hostname "herdr-template"
 pct template "$NEW_VMID"
 SCRATCH_CREATED=
+PROVISIONED=
 
 cat <<SUMMARY
 
