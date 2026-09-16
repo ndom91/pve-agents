@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+	destroyWorkspace,
 	listRequestedWorkspaces,
 	requestWorkspace,
 	workspaceRequestSchema,
@@ -29,6 +30,22 @@ export const createWorkspace = createServerFn({ method: "POST" })
 			throw new Error(
 				"workspace: idempotency key has already been used for another request",
 			);
+		}
+
+		return result;
+	});
+
+// destroyWorkspaceRequest queues teardown for one workspace.
+export const destroyWorkspaceRequest = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().trim().min(1) }))
+	.handler(({ data }) => {
+		const result = destroyWorkspace(controllerDatabase(), data.id);
+		if (result.kind === "not_found") {
+			throw new Error("workspace: not found");
+		}
+		if (result.kind !== "created") {
+			throw new Error(`workspace: ${result.message}`);
 		}
 
 		return result;

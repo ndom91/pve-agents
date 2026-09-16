@@ -285,6 +285,29 @@ describe("runWorkspaceOperations", () => {
 		).toEqual({ current_task_upid: UPID, vmid: 109 });
 	});
 
+	it("abandons a candidate VMID the token cannot read and does not own", async () => {
+		const db = database();
+		const workspaceID = await lostCloneResponse(db);
+
+		const result = await runWorkspaceOperations(
+			db,
+			config(),
+			async (url) => {
+				if (url.includes("/pools/")) {
+					return Response.json({ data: { members: [] } });
+				}
+
+				return new Response("Permission check failed", { status: 403 });
+			},
+			POLLED_AT,
+		);
+
+		expect(result).toEqual({ processed: 1, status: "vmid_released" });
+		expect(
+			db.prepare("SELECT vmid FROM workspaces WHERE id = ?").get(workspaceID),
+		).toEqual({ vmid: null });
+	});
+
 	it("ignores an unrelated running task on the same VMID", async () => {
 		const db = database();
 		const workspaceID = await lostCloneResponse(db);
@@ -586,6 +609,46 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
 				.get(workspaceID),
 		).toEqual({ error_code: null, status: "destroying" });
+	});
+
+	it("completes when the container is gone and the token cannot see it", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+
+		// A pool-scoped token answers 403 for every guest outside its pool, so the pool listing is
+		// what distinguishes "deleted" from "cannot reach Proxmox".
+		const result = await tick(db, async (url) => {
+			if (url.includes("/pools/")) {
+				return Response.json({ data: { members: [] } });
+			}
+
+			return new Response("Permission check failed", { status: 403 });
+		});
+
+		expect(result).toEqual({ processed: 1, status: "container_missing" });
+		expect(workspaceStatus(db, workspaceID)).toBe("destroyed");
+	});
+
+	it("halts when the container is in the pool but unreadable", async () => {
+		const db = database();
+		const workspaceID = await destroyable(db);
+
+		const result = await tick(db, async (url) => {
+			if (url.includes("/pools/")) {
+				return Response.json({ data: { members: [{ vmid: 109 }] } });
+			}
+
+			return new Response("Permission check failed", { status: 403 });
+		});
+
+		// Present but unreadable is a permission fault, not an absent container. Claiming it was
+		// destroyed would be a lie.
+		expect(result).toEqual({ processed: 1, status: "destroy_halted" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ error_code: "destroy_forbidden", status: "destroying" });
 	});
 
 	it("claims a destroy ahead of another workspace's queued provision", async () => {

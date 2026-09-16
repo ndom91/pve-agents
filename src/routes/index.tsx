@@ -1,10 +1,14 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { requestId } from "../lib/request-id";
 import { sessionState } from "../server/session.functions";
 import { controllerStatus } from "../server/status.functions";
-import { createWorkspace, listWorkspaces } from "../server/workspace.functions";
+import {
+	createWorkspace,
+	destroyWorkspaceRequest,
+	listWorkspaces,
+} from "../server/workspace.functions";
 
 export const Route = createFileRoute("/")({
 	// Runs on every navigation, including client-side <Link> transitions, so a session that
@@ -24,8 +28,24 @@ export const Route = createFileRoute("/")({
 
 function Home() {
 	const { status, workspaces } = Route.useLoaderData();
+	const router = useRouter();
 	const [error, setError] = useState("");
 	const [submitting, setSubmitting] = useState(false);
+	const [destroying, setDestroying] = useState("");
+
+	async function destroy(id: string) {
+		setError("");
+		setDestroying(id);
+
+		try {
+			await destroyWorkspaceRequest({ data: { id } });
+			await router.invalidate();
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : "destroy failed");
+		} finally {
+			setDestroying("");
+		}
+	}
 
 	async function submit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -147,6 +167,15 @@ function Home() {
 								<p className={`status status-${workspace.status}`}>
 									{workspace.status}
 								</p>
+								{workspace.desiredState === "destroyed" ? null : (
+									<button
+										disabled={destroying === workspace.id}
+										onClick={() => destroy(workspace.id)}
+										type="button"
+									>
+										{destroying === workspace.id ? "Queueing" : "Destroy"}
+									</button>
+								)}
 							</article>
 						))}
 					</div>

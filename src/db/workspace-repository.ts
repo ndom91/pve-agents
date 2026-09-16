@@ -638,13 +638,7 @@ export function requestWorkspaceOperation(
 			`UPDATE workspaces
 			 SET desired_state = ?, status = ?, current_step = ?, updated_at = ?
 			 WHERE id = ?`,
-		).run(
-			desiredState,
-			transition.status,
-			`${kind} queued; executor disabled`,
-			now,
-			workspaceId,
-		);
+		).run(desiredState, transition.status, `${kind} queued`, now, workspaceId);
 
 		if (kind === "destroy") {
 			// Cancel outstanding provisioning. Left queued, it would keep driving the workspace
@@ -693,7 +687,7 @@ export function requestWorkspaceOperation(
 			operation,
 			workspace: {
 				...workspace,
-				currentStep: `${kind} queued; executor disabled`,
+				currentStep: `${kind} queued`,
 				desiredState,
 				status: transition.status,
 				updatedAt: now,

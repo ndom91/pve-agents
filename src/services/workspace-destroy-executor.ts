@@ -22,6 +22,7 @@ import {
 } from "./proxmox-container";
 import type { Fetcher, ProxmoxTaskRequest } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
+import { poolMembers } from "./proxmox-pool";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -175,6 +176,35 @@ async function teardownContainer(
 
 		return { processed: 1, status: "container_missing" };
 	}
+	if (container.kind === "forbidden") {
+		const pool = await poolMembers(api, config.PROXMOX_POOL as string, fetcher);
+		if (pool.kind === "failed") {
+			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+			return { processed: 1, status: "awaiting_reconciliation" };
+		}
+		if (pool.vmids.has(vmid)) {
+			// In our pool but unreadable: a real permission problem, not an absent container.
+			haltWorkspaceDestroy(
+				db,
+				lease,
+				"destroy_forbidden",
+				`container ${vmid} is in the pool but the controller token cannot read it`,
+				now,
+			);
+
+			return { processed: 1, status: "destroy_halted" };
+		}
+
+		completeWorkspaceDestroy(
+			db,
+			lease,
+			"container is no longer in the controller pool",
+			now,
+		);
+
+		return { processed: 1, status: "container_missing" };
+	}
 
 	// Ownership is re-proved before every action, shutdown included. Shutting down a container this
 	// controller does not own is itself destructive, so verification cannot wait until delete.
@@ -203,7 +233,7 @@ async function teardownContainer(
 
 		return { processed: 1, status: "awaiting_reconciliation" };
 	}
-	if (state.kind === "missing") {
+	if (state.kind === "missing" || state.kind === "forbidden") {
 		completeWorkspaceDestroy(db, lease, "container was already absent", now);
 
 		return { processed: 1, status: "container_missing" };

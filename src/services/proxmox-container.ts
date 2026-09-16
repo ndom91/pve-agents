@@ -17,6 +17,7 @@ const SHUTDOWN_TIMEOUT_SECONDS = 60;
 // ProxmoxContainerState is the runtime state of one LXC.
 export type ProxmoxContainerState =
 	| { kind: "failed"; message: string }
+	| { kind: "forbidden" }
 	| { kind: "missing" }
 	| { kind: "running" }
 	| { kind: "stopped" };
@@ -28,6 +29,7 @@ export type ProxmoxContainerState =
 export type ProxmoxContainerConfig =
 	| { config: Record<string, unknown>; kind: "found" }
 	| { kind: "failed"; message: string }
+	| { kind: "forbidden" }
 	| { kind: "missing" };
 
 // containerConfig reads one LXC configuration without modifying it.
@@ -170,6 +172,7 @@ async function readContainer(
 ): Promise<
 	| { data: Record<string, unknown>; kind: "found" }
 	| { kind: "failed"; message: string }
+	| { kind: "forbidden" }
 	| { kind: "missing" }
 > {
 	let response: Response;
@@ -188,6 +191,11 @@ async function readContainer(
 		// body has to be inspected before a 5xx can be dismissed as transient.
 		if (response.status === 404) {
 			return { kind: "missing" };
+		}
+		// A pool-scoped token gets 403 for every guest outside its pool, whether it was deleted,
+		// never existed, or belongs to someone else. Only the pool listing can tell those apart.
+		if (response.status === 403) {
+			return { kind: "forbidden" };
 		}
 
 		const body = await response.text().catch(() => "");
