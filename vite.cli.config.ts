@@ -11,6 +11,7 @@ const config = defineConfig({
 		lib: {
 			entry: {
 				apikey: "src/cli/apikey.ts",
+				config: "src/cli/config.ts",
 				scheduler: "src/cli/scheduler.ts",
 				worker: "src/cli/worker.ts",
 			},

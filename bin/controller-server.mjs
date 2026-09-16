@@ -196,15 +196,20 @@ async function main() {
 		throw new Error("CONTROLLER_PORT must be an integer between 1 and 65535");
 	}
 
+	// Parse configuration before binding. Left to the first request, a misconfigured controller
+	// starts, reports itself active, and then 500s everything.
+	const { validateStartupConfig } = await import("../dist/cli/config.js");
+	const { workerEnabled } = validateStartupConfig();
+
 	const { default: controller } = await import("../dist/server/server.js");
 	const server = createServer(controller.fetch);
 	server.listen(port, host, () => {
 		console.log(`controller listening on http://${host}:${port}`);
 	});
 
-	// The scheduler is a separate bundle so the HTTP server keeps starting even when it is off,
-	// which is the default. Nothing here runs until WORKER_ENABLED=true.
-	if (process.env.WORKER_ENABLED === "true") {
+	// Gated on the validated value, not the raw variable: WORKER_ENABLED=1 should be a startup
+	// error rather than a scheduler that silently never runs.
+	if (workerEnabled) {
 		const { startScheduler } = await import("../dist/cli/scheduler.js");
 		const abort = new AbortController();
 		for (const signal of ["SIGINT", "SIGTERM"]) {
