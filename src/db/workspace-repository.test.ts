@@ -11,11 +11,13 @@ import {
 	failWorkspaceProvision,
 	haltWorkspaceDestroy,
 	listWorkspaces,
+	noteWorkspaceIssue,
 	prepareWorkspaceProvision,
 	recordWorkspaceTask,
 	releaseWorkspaceCandidateVMID,
 	releaseWorkspaceOperation,
 	requestWorkspaceOperation,
+	workspaceEvents,
 } from "./workspace-repository";
 
 const databases: ReturnType<typeof openDatabase>[] = [];
@@ -540,3 +542,71 @@ function input(idempotencyKey: string) {
 		ref: "main",
 	};
 }
+
+describe("workspace timeline", () => {
+	it("records a transient failure once, however often it retries", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		// A failing Proxmox call retries every few seconds. One line per attempt would bury the
+		// timeline in identical rows and hide everything that came before.
+		for (let attempt = 0; attempt < 50; attempt += 1) {
+			noteWorkspaceIssue(db, claimed.lease, "proxmox clone request failed");
+		}
+
+		const retrying = workspaceEvents(db, created.workspace.id).filter(
+			(event) => event.eventType === "workspace.retrying",
+		);
+		expect(retrying).toHaveLength(1);
+		expect(retrying[0]?.message).toBe("proxmox clone request failed");
+	});
+
+	it("records a different failure as its own entry", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		const claimed = claimWorkspaceOperation(db, "provision");
+		if (claimed.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		noteWorkspaceIssue(db, claimed.lease, "proxmox clone request failed");
+		noteWorkspaceIssue(db, claimed.lease, "proxmox clone request failed");
+		noteWorkspaceIssue(db, claimed.lease, "proxmox config request failed");
+
+		expect(
+			workspaceEvents(db, created.workspace.id)
+				.filter((event) => event.eventType === "workspace.retrying")
+				.map((event) => event.message),
+		).toEqual([
+			"proxmox clone request failed",
+			"proxmox config request failed",
+		]);
+	});
+
+	it("returns the timeline oldest first", () => {
+		const db = database();
+		const created = createWorkspace(db, input("request-a"));
+		if (created.kind !== "created") {
+			throw new Error("expected workspace creation");
+		}
+		requestWorkspaceOperation(db, created.workspace.id, "destroy");
+
+		expect(
+			workspaceEvents(db, created.workspace.id).map((e) => e.eventType),
+		).toEqual([
+			"workspace.requested",
+			"workspace.provision_cancelled",
+			"workspace.destroy_queued",
+		]);
+	});
+});

@@ -77,6 +77,13 @@ export type WorkspaceOperationResult =
 	| { kind: "invalid_transition"; message: string }
 	| { kind: "not_found" };
 
+// WorkspaceEvent is one entry in a workspace's redacted, append-only timeline.
+export type WorkspaceEvent = {
+	createdAt: string;
+	eventType: string;
+	message: string;
+};
+
 // WorkspaceMutation is the durable result of one guarded write against a leased operation.
 export type WorkspaceMutation =
 	| { kind: "prepared" }
@@ -507,6 +514,76 @@ export function failWorkspaceProvision(
 			nowText,
 		);
 	});
+}
+
+// workspaceEvents returns a workspace's timeline, newest last.
+export function workspaceEvents(
+	db: Database.Database,
+	workspaceId: string,
+	limit = 100,
+): WorkspaceEvent[] {
+	return db
+		.prepare(
+			`SELECT created_at, event_type, message FROM workspace_events
+			 WHERE workspace_id = ? ORDER BY id DESC LIMIT ?`,
+		)
+		.all(workspaceId, limit)
+		.reverse()
+		.map((row) => {
+			const entry = row as {
+				created_at: string;
+				event_type: string;
+				message: string;
+			};
+
+			return {
+				createdAt: entry.created_at,
+				eventType: entry.event_type,
+				message: entry.message,
+			};
+		});
+}
+
+// noteWorkspaceIssue records a transient failure, without repeating itself.
+//
+// These retry every few seconds, so appending one per attempt would bury the timeline in
+// identical rows. Writing only when the message changes keeps a stuck workspace legible: one line
+// saying what is wrong, not seven hundred an hour.
+export function noteWorkspaceIssue(
+	db: Database.Database,
+	lease: OperationLease,
+	message: string,
+	now: Date = new Date(),
+): void {
+	const operation = db
+		.prepare("SELECT workspace_id FROM workspace_operations WHERE id = ?")
+		.get(lease.id) as { workspace_id: string } | undefined;
+	if (operation === undefined) {
+		return;
+	}
+
+	const latest = db
+		.prepare(
+			`SELECT event_type, message FROM workspace_events
+			 WHERE workspace_id = ? ORDER BY id DESC LIMIT 1`,
+		)
+		.get(operation.workspace_id) as
+		| { event_type: string; message: string }
+		| undefined;
+	if (
+		latest?.event_type === "workspace.retrying" &&
+		latest.message === message
+	) {
+		return;
+	}
+
+	appendWorkspaceEvent(
+		db,
+		operation.workspace_id,
+		"workspace.retrying",
+		message,
+		now.toISOString(),
+	);
 }
 
 // releaseWorkspaceOperation returns a still-unfinished operation to the queue after one step.

@@ -5,6 +5,7 @@ import {
 	advanceWorkspaceDestroy,
 	completeWorkspaceDestroy,
 	haltWorkspaceDestroy,
+	noteWorkspaceIssue,
 	type OperationLease,
 	recordWorkspaceTask,
 	releaseWorkspaceOperation,
@@ -165,6 +166,7 @@ async function teardownContainer(
 
 	const container = await containerConfig(api, vmid, fetcher);
 	if (container.kind === "failed") {
+		noteWorkspaceIssue(db, lease, container.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "awaiting_reconciliation" };
@@ -179,6 +181,7 @@ async function teardownContainer(
 	if (container.kind === "forbidden") {
 		const pool = await poolMembers(api, config.PROXMOX_POOL as string, fetcher);
 		if (pool.kind === "failed") {
+			noteWorkspaceIssue(db, lease, pool.message, now);
 			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 			return { processed: 1, status: "awaiting_reconciliation" };
@@ -229,6 +232,7 @@ async function teardownContainer(
 
 	const state = await containerState(api, vmid, fetcher);
 	if (state.kind === "failed") {
+		noteWorkspaceIssue(db, lease, state.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "awaiting_reconciliation" };
@@ -284,6 +288,7 @@ function submitTeardownTask(
 	if (request.kind === "failed") {
 		// The action may still have been accepted, so the next pass re-inspects the container
 		// rather than assuming the request never landed.
+		noteWorkspaceIssue(db, lease, request.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "request_failed" };

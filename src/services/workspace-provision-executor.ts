@@ -4,6 +4,7 @@ import type { ControllerConfig } from "../config/controller-config";
 import {
 	confirmWorkspaceClone,
 	failWorkspaceProvision,
+	noteWorkspaceIssue,
 	type OperationLease,
 	prepareWorkspaceProvision,
 	recordWorkspaceTask,
@@ -121,6 +122,7 @@ async function reconcileCandidate(
 	);
 
 	if (container.kind === "failed") {
+		noteWorkspaceIssue(db, lease, container.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "awaiting_reconciliation" };
@@ -131,6 +133,7 @@ async function reconcileCandidate(
 		// free, deleted, or someone else's alike. None of them may be adopted.
 		const pool = await poolMembers(api, config.PROXMOX_POOL as string, fetcher);
 		if (pool.kind === "failed") {
+			noteWorkspaceIssue(db, lease, pool.message, now);
 			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 			return { processed: 1, status: "awaiting_reconciliation" };
@@ -236,6 +239,7 @@ async function submitClone(
 	const api = proxmoxCredentials(config);
 	const vmid = await nextProxmoxVMID(api, fetcher);
 	if (vmid.kind === "failed") {
+		noteWorkspaceIssue(db, lease, vmid.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "request_failed" };
@@ -270,6 +274,7 @@ async function submitClone(
 	if (clone.kind === "failed") {
 		// The outcome is unknown: the clone may still have been accepted. The persisted VMID sends
 		// the next pass through reconciliation rather than blindly retrying the clone.
+		noteWorkspaceIssue(db, lease, clone.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "request_failed" };

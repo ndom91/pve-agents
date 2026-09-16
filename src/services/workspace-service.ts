@@ -5,7 +5,9 @@ import {
 	createWorkspace,
 	listWorkspaces,
 	requestWorkspaceOperation,
+	type WorkspaceEvent,
 	workspaceById,
+	workspaceEvents,
 } from "../db/workspace-repository";
 
 export const workspaceRequestSchema = z.object({
@@ -17,10 +19,21 @@ export const workspaceRequestSchema = z.object({
 // WorkspaceRequest is the public creation request accepted by the controller.
 export type WorkspaceRequest = z.output<typeof workspaceRequestSchema>;
 
-// listRequestedWorkspaces returns all persisted workspace records.
+// listRequestedWorkspaces returns all persisted workspace records with their timelines.
+//
+// The timeline is the only place a transient failure is visible: a workspace retrying a Proxmox
+// call that keeps failing otherwise sits at its old status with nothing to show for it.
 export function listRequestedWorkspaces(db: Database.Database) {
-	return listWorkspaces(db);
+	return listWorkspaces(db).map((workspace) => ({
+		...workspace,
+		events: workspaceEvents(db, workspace.id, EVENT_LIMIT),
+	}));
 }
+
+// EVENT_LIMIT caps the timeline per workspace so the fleet view cannot grow without bound.
+const EVENT_LIMIT = 50;
+
+export type { WorkspaceEvent };
 
 // requestedWorkspace returns one persisted workspace when it exists.
 export function requestedWorkspace(db: Database.Database, id: string) {

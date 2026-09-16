@@ -178,6 +178,36 @@ function Home() {
 										</button>
 									)}
 								</div>
+								{workspace.events.length === 0 ? null : (
+									<details className="workspace-logs">
+										<summary>
+											Logs
+											<span>{workspace.events.length}</span>
+										</summary>
+										<ol>
+											{workspace.events.map((event) => (
+												<li
+													className={
+														event.eventType.includes("failed") ||
+														event.eventType.includes("halted") ||
+														event.eventType === "workspace.retrying"
+															? "log-problem"
+															: undefined
+													}
+													key={`${event.createdAt}-${event.eventType}`}
+												>
+													<time dateTime={event.createdAt}>
+														{event.createdAt.slice(11, 19)}
+													</time>
+													<span className="log-type">
+														{event.eventType.replace("workspace.", "")}
+													</span>
+													<span>{event.message}</span>
+												</li>
+											))}
+										</ol>
+									</details>
+								)}
 							</article>
 						))}
 					</div>

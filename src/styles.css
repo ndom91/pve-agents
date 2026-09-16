@@ -206,6 +206,58 @@ dd {
 /* Status and action travel together at the right edge. As separate children of a
    space-between row they drifted apart, so a row without a button put its badge where the
    button would have been. */
+/* The row is a flex line; the log panel has to break out of it to sit underneath. */
+.workspace-logs {
+	flex-basis: 100%;
+	margin-top: 12px;
+	order: 1;
+}
+
+.workspace-logs summary {
+	color: #a9b8a2;
+	cursor: pointer;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.workspace-logs summary span {
+	color: #7b8b71;
+	margin-left: 8px;
+}
+
+.workspace-logs ol {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+}
+
+.workspace-logs li {
+	color: #c4d1bd;
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	gap: 12px;
+	padding: 3px 0;
+}
+
+.workspace-logs time {
+	color: #7b8b71;
+	flex-shrink: 0;
+}
+
+.log-type {
+	color: #a9b8a2;
+	flex-shrink: 0;
+	min-width: 148px;
+}
+
+.log-problem span:last-child,
+.log-problem .log-type {
+	color: #e0a2a2;
+}
+
 .workspace-actions {
 	align-items: center;
 	display: flex;
