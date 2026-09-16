@@ -27,35 +27,53 @@ const CONTENT_TYPES = {
 	".woff2": "font/woff2",
 };
 
-export function createServer(fetchHandler, clientDir = CLIENT_DIR) {
+export function createServer(fetchHandler) {
 	return createHttpServer(async (request, response) => {
-		// TanStack Start's fetch handler renders routes but does not serve the built client
-		// bundle, so without this every asset 404s: no stylesheet, and no hydration, which leaves
-		// the page rendered but completely inert.
-		if (await serveStaticFile(request, response, clientDir)) {
-			return;
-		}
+		// Nothing below may reject: an unhandled rejection in this callback terminates the whole
+		// process, taking the in-process scheduler with it.
+		try {
+			// TanStack Start's fetch handler renders routes but does not serve the built client
+			// bundle, so without this every asset 404s: no stylesheet, and no hydration, which
+			// leaves the page rendered but completely inert.
+			if (await serveStaticFile(request, response)) {
+				return;
+			}
 
-		return handleFetch(fetchHandler, request, response);
+			await handleFetch(fetchHandler, request, response);
+		} catch (error) {
+			console.error("controller request failed", error);
+			if (!response.headersSent) {
+				response.statusCode = 400;
+				response.end("bad request");
+			}
+		}
 	});
 }
 
-async function serveStaticFile(request, response, clientDir) {
+async function serveStaticFile(request, response) {
 	if (request.method !== "GET" && request.method !== "HEAD") {
 		return false;
 	}
 
-	const pathname = decodeURIComponent(
-		new URL(requestUrl(request)).pathname,
-	).replace(/\/+$/, "");
+	// A malformed percent escape or an unparseable Host header throws here. Both are reachable by
+	// any unauthenticated caller, so neither may be allowed to escape.
+	let pathname;
+	try {
+		pathname = decodeURIComponent(new URL(requestUrl(request)).pathname).replace(
+			/\/+$/,
+			"",
+		);
+	} catch {
+		return false;
+	}
 	if (pathname === "") {
 		return false;
 	}
 
 	// normalize collapses any ".." before the prefix check, so a crafted path cannot escape the
 	// client directory and read arbitrary files.
-	const candidate = join(clientDir, normalize(pathname));
-	if (candidate !== clientDir && !candidate.startsWith(clientDir + sep)) {
+	const candidate = join(CLIENT_DIR, normalize(pathname));
+	if (candidate !== CLIENT_DIR && !candidate.startsWith(CLIENT_DIR + sep)) {
 		return false;
 	}
 

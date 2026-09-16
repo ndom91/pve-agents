@@ -1,3 +1,5 @@
+import { setTimeout as delay } from "node:timers/promises";
+
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
@@ -33,11 +35,11 @@ export async function startWorkspaceScheduler(
 	const intervalMs = config.WORKER_INTERVAL_SECONDS * 1_000;
 
 	while (!signal.aborted) {
-		let delay = intervalMs;
+		let waitMs = intervalMs;
 		try {
 			await tick();
 		} catch (error) {
-			delay = options.errorBackoffMs ?? ERROR_BACKOFF_MS;
+			waitMs = options.errorBackoffMs ?? ERROR_BACKOFF_MS;
 			options.onError?.(error);
 		}
 
@@ -45,23 +47,8 @@ export async function startWorkspaceScheduler(
 			return;
 		}
 
-		await sleep(delay, signal);
+		// Rejects on abort, which is the wanted outcome: stop waiting and let the loop condition
+		// end it.
+		await delay(waitMs, undefined, { signal }).catch(() => undefined);
 	}
-}
-
-// sleep waits for a delay, returning early when the signal aborts.
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-	return new Promise((resolve) => {
-		const timer = setTimeout(() => {
-			signal.removeEventListener("abort", abort);
-			resolve();
-		}, ms);
-
-		function abort() {
-			clearTimeout(timer);
-			resolve();
-		}
-
-		signal.addEventListener("abort", abort, { once: true });
-	});
 }

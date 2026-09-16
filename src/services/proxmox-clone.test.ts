@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	cloneWorkspace,
-	nextProxmoxVMID,
-	ownershipMarker,
-} from "./proxmox-clone";
+import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
+import { ownershipMarker } from "./proxmox-ownership";
 
 describe("ownershipMarker", () => {
 	it("includes every ownership proof", () => {

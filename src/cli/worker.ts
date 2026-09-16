@@ -5,8 +5,8 @@ import {
 import { runWorkspaceOperations } from "../services/workspace-operation-worker";
 import { startWorkspaceScheduler } from "../services/workspace-scheduler";
 
-// The worker has no timer and no HTTP trigger on purpose. Until the lifecycle has been proven
-// against real infrastructure, an operator steps it by hand and inspects Proxmox between passes.
+// Defaults to a single pass so an operator can step the lifecycle by hand and inspect Proxmox
+// between passes. --watch runs the same loop the server runs under WORKER_ENABLED=true.
 async function main(): Promise<void> {
 	const watch = watchInterval(process.argv.slice(2));
 	const db = controllerDatabase();

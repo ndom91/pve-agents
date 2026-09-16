@@ -429,6 +429,30 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		).toEqual({ processed: 0, status: "empty" });
 	});
 
+	it("does not poll a cancelled clone task as though it were a teardown task", async () => {
+		const db = database();
+		// Destroy requested while the clone is still in flight: the workspace row still carries the
+		// clone UPID, and both kinds share that one column.
+		const workspaceID = await submitted(db);
+		expect(requestWorkspaceOperation(db, workspaceID, "destroy").kind).toBe(
+			"created",
+		);
+		expect(
+			db
+				.prepare("SELECT current_task_upid FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ current_task_upid: null });
+
+		// A failed clone task must not halt teardown. Teardown re-inspects Proxmox instead.
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { state: "stopped", task: "clone failed" }),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "delete_submitted" });
+		expect(workspaceStatus(db, workspaceID)).toBe("destroying");
+	});
+
 	it("claims a destroy ahead of another workspace's queued provision", async () => {
 		const db = database();
 		const destroying = await destroyable(db);

@@ -108,6 +108,10 @@ export function openDatabase(path: string): Database.Database {
 
 	db.pragma("foreign_keys = ON");
 	db.pragma("journal_mode = WAL");
+	// better-sqlite3 throws SQLITE_BUSY immediately without this. The controller server and the
+	// scheduler hold separate connections to the same file, and both take immediate write
+	// transactions, so a lock collision is routine rather than exceptional.
+	db.pragma("busy_timeout = 5000");
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version INTEGER PRIMARY KEY,

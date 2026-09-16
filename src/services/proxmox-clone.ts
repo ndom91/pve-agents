@@ -94,5 +94,3 @@ export async function cloneWorkspace(
 		fetcher,
 	);
 }
-
-export { ownershipMarker };

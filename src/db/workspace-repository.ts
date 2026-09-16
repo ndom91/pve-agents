@@ -712,6 +712,16 @@ export function requestWorkspaceOperation(
 					now,
 				);
 			}
+
+			// current_task_upid is shared by both operation kinds and carries no kind of its own.
+			// A clone UPID left here would be polled by the destroy executor as though it were a
+			// teardown task, and a failed clone would then halt teardown with the container still
+			// running. The clone's own outcome no longer matters: teardown re-inspects Proxmox.
+			db.prepare(
+				`UPDATE workspaces
+				 SET current_task_upid = NULL, current_task_expires_at = NULL
+				 WHERE id = ?`,
+			).run(workspaceId);
 		}
 
 		const operation = insertOperation(db, workspaceId, kind, now);
