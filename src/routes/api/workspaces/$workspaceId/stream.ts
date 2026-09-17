@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { workspaceDetail } from "../../../../db/workspace-repository";
+import {
+	recordWorkspaceInteraction,
+	workspaceDetail,
+} from "../../../../db/workspace-repository";
 import { requireOperator } from "../../../../server/authorize";
 import {
 	controllerDatabase,
@@ -85,6 +88,16 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/stream")({
 					},
 					start(controller) {
 						const send = (snapshot: WorkspaceSnapshot) => {
+							// An agent seen working is the finest-grained evidence available: this
+							// reads every couple of seconds, against thirty for the scheduler, so
+							// a turn the observer would miss entirely still moves the idle clock.
+							if (snapshot.activity === "working") {
+								recordWorkspaceInteraction(
+									controllerDatabase(),
+									params.workspaceId,
+								);
+							}
+
 							try {
 								controller.enqueue(
 									encoder.encode(`data: ${JSON.stringify(snapshot)}\n\n`),

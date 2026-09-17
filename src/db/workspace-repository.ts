@@ -896,6 +896,27 @@ export function recordWorkspaceCredential(
 	).run(nowText, nowText, id);
 }
 
+// recordWorkspaceInteraction marks that someone gave this workspace work to do.
+//
+// Ground truth, unlike the sampled activity beside it. The observer reads every thirty seconds and
+// an agent answering a short prompt finishes well inside that, so a workspace can be prompted
+// repeatedly and never once be *seen* working. Left to sampling alone the reaper concluded a
+// workspace prompted fourteen minutes earlier had never done any work, and destroyed it.
+//
+// Only last_activity_at moves. Claiming the agent is active would be a guess; that it was given
+// something to do is a fact.
+export function recordWorkspaceInteraction(
+	db: Database.Database,
+	id: string,
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		"UPDATE workspaces SET last_activity_at = ?, updated_at = ? WHERE id = ?",
+	).run(nowText, nowText, id);
+}
+
 // recordWorkspaceActivity stores what a workspace's agent was last seen doing.
 //
 // No lease, unlike every operation-scoped write in this file. Observing a settled workspace is not

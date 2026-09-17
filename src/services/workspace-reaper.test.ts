@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase } from "../db/database";
 import { updateControllerSettings } from "../db/settings-repository";
-import { createWorkspace } from "../db/workspace-repository";
+import {
+	createWorkspace,
+	recordWorkspaceInteraction,
+} from "../db/workspace-repository";
 import { reapWorkspaces } from "./workspace-reaper";
 
 const NOW = new Date("2026-01-01T12:00:00Z");
@@ -55,6 +58,25 @@ describe("reapWorkspaces", () => {
 		enable(db, { reapIdleMinutes: 60 });
 
 		// Twelve hours old but working ten minutes ago, so not idle.
+		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+	});
+
+	it("does not reap a workspace that was prompted recently", async () => {
+		// The failure this was written for. An agent answering a short prompt finishes inside the
+		// thirty-second observation interval, so it can be prompted repeatedly and never once be
+		// *seen* working. A workspace prompted fourteen minutes earlier was destroyed as one that
+		// had "never done any work", because sampled activity was the only evidence being kept.
+		const db = database();
+		const id = ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T10:00:00Z",
+			lastActivityAt: null,
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		// An operator prompts it. Nothing observes the agent working, because the turn is short.
+		recordWorkspaceInteraction(db, id, new Date("2026-01-01T11:46:00Z"));
+
 		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
 	});
 

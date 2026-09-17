@@ -10,6 +10,7 @@ import {
 	noteWorkspaceIssue,
 	type OperationLease,
 	prepareWorkspaceProvision,
+	recordWorkspaceInteraction,
 	recordWorkspaceTask,
 	releaseWorkspaceCandidateVMID,
 	releaseWorkspaceOperation,
@@ -724,6 +725,11 @@ async function briefWorkspaceAgent(
 	}
 
 	const prompted = await promptHerdrAgent(target, name, purpose, ssh);
+	// The briefing is work given to the agent, so it starts the idle clock. Otherwise a workspace
+	// that was briefed and answered quickly looks, to the reaper, like one that never did anything.
+	if (prompted.kind === "submitted") {
+		recordWorkspaceInteraction(db, workspace.id, now);
+	}
 	if (prompted.kind === "failed") {
 		noteWorkspaceIssue(db, lease, prompted.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);

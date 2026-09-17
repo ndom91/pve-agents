@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
+	recordWorkspaceInteraction,
 	recordWorkspaceNote,
 	workspaceDetail,
 } from "../db/workspace-repository";
@@ -136,6 +137,9 @@ export const promptWorkspaceAgent = createServerFn({ method: "POST" })
 			"workspace.prompted",
 			data.text.length > 160 ? `${data.text.slice(0, 160)}...` : data.text,
 		);
+		// The reaper's idle clock. Without this it runs on sampled activity alone, which misses
+		// any turn shorter than the observation interval.
+		recordWorkspaceInteraction(controllerDatabase(), data.id);
 
 		return { kind: "sent" };
 	});
@@ -173,6 +177,7 @@ export const sendWorkspaceKeys = createServerFn({ method: "POST" })
 			"workspace.answered",
 			`sent ${data.key}`,
 		);
+		recordWorkspaceInteraction(controllerDatabase(), data.id);
 
 		return { kind: "sent" };
 	});
