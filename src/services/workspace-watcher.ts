@@ -120,7 +120,7 @@ function start(
 	const loop = async () => {
 		while (running) {
 			const [pane, state] = await Promise.all([
-				readHerdrAgent(target, agent, ssh, "visible"),
+				readHerdrAgent(target, agent, ssh, "visible", "ansi"),
 				herdrAgentStatus(target, agent, ssh),
 			]);
 

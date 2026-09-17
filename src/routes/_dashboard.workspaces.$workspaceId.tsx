@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-
+import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
@@ -201,10 +201,8 @@ function WorkspaceDetail() {
 
 				{!ready ? null : (
 					<section className="centre-screen">
-						{/* Terminal output from a process no operator controls, so it is rendered
-						    as text and never interpreted as markup. */}
 						{pane?.kind === "screen" ? (
-							<pre className="detail-screen">{pane.text}</pre>
+							<AgentScreen screen={pane.text} />
 						) : (
 							<p className="detail-note">
 								{pane?.kind === "unavailable"

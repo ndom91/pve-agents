@@ -46,6 +46,7 @@ export const workspacePane = createServerFn({ method: "GET" })
 			agent.name,
 			runSsh,
 			"visible",
+			"ansi",
 		);
 
 		return pane.kind === "read"

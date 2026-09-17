@@ -340,15 +340,19 @@ export async function sendHerdrKeys(
 // "detection" is the plain-text buffer Herdr classifies agents from, which is the right source for
 // deciding whether an agent is usable. "visible" is the rendered viewport, which is the right
 // source for showing a human what is on screen.
+//
+// Format follows from that. A decision wants plain text to match against; a person wants the ansi
+// the agent actually emitted, since colour is how Claude Code distinguishes a diff from prose.
 export async function readHerdrAgent(
 	target: HerdrTarget,
 	name: string,
 	ssh: SshRunner,
 	source: "detection" | "visible" = "detection",
+	format: "ansi" | "text" = "text",
 ): Promise<HerdrPane> {
 	const result = await run(
 		target,
-		["agent", "read", name, "--source", source, "--format", "text"],
+		["agent", "read", name, "--source", source, "--format", format],
 		ssh,
 	);
 
