@@ -1,5 +1,10 @@
+import { generateKeyPairSync } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import type Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { controllerConfig } from "../config/controller-config";
 import { openDatabase } from "../db/database";
@@ -26,8 +31,21 @@ const DELETE_UPID =
 const SUBMITTED_AT = new Date("2026-01-01T00:00:00Z");
 const POLLED_AT = new Date("2026-01-01T00:00:10Z");
 
+const APP_KEY_PATH = join(tmpdir(), "pve-herdr-agents-worker-app.pem");
+
 const databases: Database.Database[] = [];
 let ticks = 0;
+
+// The checkout step signs a GitHub App assertion before it makes any request, so a real key is
+// needed even though every request is faked.
+beforeAll(() => {
+	const { privateKey } = generateKeyPairSync("rsa", {
+		modulusLength: 2048,
+		privateKeyEncoding: { format: "pem", type: "pkcs1" },
+		publicKeyEncoding: { format: "pem", type: "spki" },
+	});
+	writeFileSync(APP_KEY_PATH, privateKey, { mode: 0o600 });
+});
 
 beforeEach(() => {
 	ticks = 0;
@@ -177,6 +195,17 @@ describe("runWorkspaceOperations", () => {
 			processed: 1,
 			status: "bootstrapped",
 		});
+
+		// Mints a repo-scoped token and clones, which is the only step that talks to GitHub.
+		expect(
+			await runWorkspaceOperations(
+				db,
+				config(),
+				github,
+				new Date(POLLED_AT.getTime() + 330_000),
+				workspace.ssh,
+			),
+		).toEqual({ processed: 1, status: "checked_out" });
 		// The server is launched detached, so the pass that starts it cannot also confirm it. It
 		// takes a second pass to observe the socket listening.
 		expect(await step(360_000)).toEqual({
@@ -211,6 +240,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.addressed",
 			"workspace.reachable",
 			"workspace.bootstrapped",
+			"workspace.checked_out",
 			"workspace.session_started",
 			"workspace.herdr_registered",
 			"workspace.ready",
@@ -252,6 +282,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.addressed",
 			"workspace.reachable",
 			"workspace.bootstrapped",
+			"workspace.checked_out",
 			"workspace.session_started",
 			"workspace.herdr_registered",
 			"workspace.ready",
@@ -1164,15 +1195,19 @@ async function registered(db: Database.Database): Promise<string> {
 	};
 	const workspace = herdrWorkspace();
 
+	// One pass per step, spelled out rather than counted, because the count changed silently every
+	// time a phase was added and the failure landed somewhere unrelated.
 	await tick(db, proxmox, async () => ({
 		code: 0,
 		kind: "ran",
 		stderr: "",
 		stdout: "",
-	}));
-	for (let pass = 0; pass < 4; pass += 1) {
-		await tick(db, proxmox, workspace.ssh);
-	}
+	})); // addressed -> reachable
+	await tick(db, proxmox, workspace.ssh); // -> bootstrapped
+	await tick(db, github, workspace.ssh); // -> checked-out, the only step reaching GitHub
+	await tick(db, proxmox, workspace.ssh); // launches the herdr server
+	await tick(db, proxmox, workspace.ssh); // -> session-started
+	await tick(db, proxmox, workspace.ssh); // -> herdr-registered
 
 	return workspaceID;
 }
@@ -1212,9 +1247,24 @@ function config() {
 		PROXMOX_TOKEN_ID: "workspace-controller@pve!controller",
 		PROXMOX_TOKEN_SECRET: "not-a-real-secret",
 		PROXMOX_URL: "https://nas.puff.lan:8006/api2/json",
+		GITHUB_APP_ID: "123456",
+		GITHUB_APP_INSTALLATION_ID: "7890",
+		GITHUB_APP_PRIVATE_KEY_PATH: APP_KEY_PATH,
 		WORKSPACE_CLAUDE_OAUTH_TOKEN: "not-a-real-token",
 	});
 }
+
+// github fakes the installation-token endpoint, and refuses anything else.
+const github: Fetcher = async (url) => {
+	if (String(url).includes("api.github.com")) {
+		return Response.json({
+			expires_at: "2026-01-01T01:00:00Z",
+			token: "ghs_worker_test_token",
+		});
+	}
+
+	throw new Error(`unexpected request: ${url}`);
+};
 
 // herdrWorkspace fakes a workspace container running herdr, routing on the command it is given.
 //
@@ -1240,6 +1290,13 @@ function herdrWorkspace() {
 		});
 
 		if (command.includes("hasCompletedOnboarding")) {
+			return stdout("");
+		}
+		if (
+			command.includes("credential.helper") ||
+			command.includes("git clone") ||
+			command.includes("user.name")
+		) {
 			return stdout("");
 		}
 		if (command.includes("setsid")) {

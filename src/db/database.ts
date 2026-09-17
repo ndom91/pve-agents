@@ -126,6 +126,12 @@ const migrations = [
 			ALTER TABLE workspaces ADD COLUMN activity_observed_at TEXT;
 		`,
 	},
+	{
+		version: 10,
+		sql: `
+			ALTER TABLE workspaces ADD COLUMN git_credential_at TEXT;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

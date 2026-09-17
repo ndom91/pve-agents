@@ -9,8 +9,26 @@ const envSchema = z
 		CONTROLLER_OPERATOR_GITHUB_ID: z.string().min(1).optional(),
 		CONTROLLER_URL: z.url().default("http://127.0.0.1:3000"),
 		DATABASE_PATH: z.string().min(1).default("./data/controller.db"),
+		// The GitHub App the controller clones as. Optional like the Claude token: a controller
+		// that only builds containers has no repository to fetch, and the checkout step fails with
+		// a named reason when these are missing rather than refusing to start.
+		//
+		// Distinct from GITHUB_CLIENT_ID/SECRET below, which are the OAuth app operators sign in
+		// with. Different credential, different purpose, easy to confuse.
+		GITHUB_APP_ID: z.string().min(1).optional(),
+		GITHUB_APP_INSTALLATION_ID: z.string().min(1).optional(),
+		GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
 		GITHUB_CLIENT_ID: z.string().min(1).optional(),
 		GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+		// How old a stored git credential may get before it is replaced. Installation tokens last
+		// an hour, so the default leaves a wide margin: a workspace should never be holding an
+		// expired credential when its agent decides to push.
+		GITHUB_TOKEN_REFRESH_SECONDS: z.coerce
+			.number()
+			.int()
+			.min(60)
+			.max(3000)
+			.default(2400),
 		PROVISIONING_ENABLED: z.enum(["false", "true"]).default("false"),
 		PROXMOX_BRIDGE: z.string().min(1).optional(),
 		PROXMOX_NODE: z.string().min(1).optional(),

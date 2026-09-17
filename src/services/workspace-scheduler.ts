@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import { observeWorkspaceActivity } from "./workspace-activity";
+import { refreshWorkspaceCredentials } from "./workspace-credentials";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
 
 // ERROR_BACKOFF_MS is the pause after a tick throws, so a persistent fault cannot become a hot
@@ -65,4 +66,5 @@ async function sweep(
 ): Promise<void> {
 	await runWorkspaceOperations(db, config);
 	await observeWorkspaceActivity(db, config);
+	await refreshWorkspaceCredentials(db, config);
 }

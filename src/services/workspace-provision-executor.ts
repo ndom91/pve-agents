@@ -15,8 +15,11 @@ import {
 	releaseWorkspaceOperation,
 	type WorkspaceProvision,
 	workspaceProvision,
+	workspaceRequest,
 } from "../db/workspace-repository";
+import { parseRepository } from "../domain/repository";
 import { claudeAwaitingInput, prepareClaudeWorkspace } from "./claude-agent";
+import { type GitHubAppCredentials, installationToken } from "./github-app";
 import {
 	createHerdrWorkspace,
 	type HerdrTarget,
@@ -39,6 +42,7 @@ import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
 import type { SshRunner, SshTarget } from "./ssh";
+import { checkoutRepository } from "./workspace-checkout";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -50,8 +54,8 @@ import {
 
 // AGENT_CWD is where the agent runs inside the workspace.
 //
-// Created during bootstrap and empty for now: repository checkout is not implemented, so nothing
-// puts a repository there yet.
+// Created during bootstrap and filled by the checkout step, so the agent's first pane opens in a
+// working copy rather than an empty directory.
 const AGENT_CWD = "/workspace/repo";
 
 // workspaceSsh builds the connection to a workspace, or nothing when no key is configured.
@@ -129,6 +133,16 @@ export async function executeWorkspaceProvision(
 		case "reachable":
 			return bootstrapAgentHome(db, config, lease, workspace, now, ssh);
 		case "bootstrapped":
+			return checkoutWorkspaceRepository(
+				db,
+				config,
+				lease,
+				workspace,
+				fetcher,
+				now,
+				ssh,
+			);
+		case "checked-out":
 			return startHerdrSession(db, config, lease, workspace, now, ssh);
 		case "session-started":
 			return registerHerdrWorkspace(db, config, lease, workspace, now, ssh);
@@ -270,6 +284,124 @@ async function bootstrapAgentHome(
 	releaseWorkspaceOperation(db, lease, 0, now);
 
 	return { processed: 1, status: "bootstrapped" };
+}
+
+// checkoutWorkspaceRepository puts the requested repository into the workspace.
+//
+// Before the Herdr session rather than after, so the agent's pane opens in a populated repository
+// instead of racing the clone.
+async function checkoutWorkspaceRepository(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	fetcher: Fetcher,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = workspaceSsh(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const credentials = githubAppCredentials(config);
+	if (credentials === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"github_app_missing",
+			"GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID and GITHUB_APP_PRIVATE_KEY_PATH are required to check out a repository",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const request = workspaceRequest(db, workspace.id);
+	if (request === undefined) {
+		return { processed: 1, status: "stale_operation" };
+	}
+
+	const repository = parseRepository(request.repository);
+	if (repository.kind === "invalid") {
+		// The request named something this controller will not clone. No retry will change that,
+		// and the reason belongs in front of whoever asked for it.
+		failWorkspaceProvision(
+			db,
+			lease,
+			"repository_invalid",
+			`${request.repository}: ${repository.message}`,
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const minted = await installationToken(credentials, repository, fetcher);
+	if (minted.kind === "failed") {
+		noteWorkspaceIssue(db, lease, minted.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "request_failed" };
+	}
+
+	const cloned = await checkoutRepository(
+		target,
+		{
+			cwd: AGENT_CWD,
+			ref: request.ref,
+			repository,
+			token: minted.token,
+		},
+		ssh,
+	);
+	if (cloned.kind === "failed") {
+		noteWorkspaceIssue(db, lease, cloned.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "request_failed" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			credentialAt: now.toISOString(),
+			event: {
+				message: `checked out ${repository.owner}/${repository.name} at ${request.ref}`,
+				type: "workspace.checked_out",
+			},
+			phase: "checked-out",
+			step: `checked out ${request.ref}`,
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "checked_out" };
+}
+
+// githubAppCredentials assembles the App settings, or nothing when the App is not configured.
+function githubAppCredentials(
+	config: ControllerConfig,
+): GitHubAppCredentials | undefined {
+	const appId = config.GITHUB_APP_ID;
+	const installationId = config.GITHUB_APP_INSTALLATION_ID;
+	const privateKeyPath = config.GITHUB_APP_PRIVATE_KEY_PATH;
+
+	return appId === undefined ||
+		installationId === undefined ||
+		privateKeyPath === undefined
+		? undefined
+		: { appId, installationId, privateKeyPath };
 }
 
 // startHerdrSession brings up the named Herdr server the workspace's panes will live in.

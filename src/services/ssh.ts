@@ -20,9 +20,14 @@ export type SshResult =
 
 // SshRunner is the injection point for SSH, mirroring how Proxmox calls take a Fetcher: tests
 // must not spawn a real client or depend on a reachable network.
+//
+// input is stdin for the remote command. It exists so a secret can be handed over without ever
+// becoming an argument: arguments are visible in ps on the workspace for as long as the command
+// runs, and stdin is not visible at all.
 export type SshRunner = (
 	target: SshTarget,
 	command: string[],
+	input?: string,
 ) => Promise<SshResult>;
 
 // SSH_TIMEOUT_SECONDS bounds a single connection attempt. Readiness is retried by the worker, so
@@ -48,6 +53,7 @@ export function quoteRemote(command: string[]): string {
 export function runSsh(
 	target: SshTarget,
 	command: string[],
+	input?: string,
 ): Promise<SshResult> {
 	return new Promise((resolve) => {
 		const ssh = spawn(
@@ -72,15 +78,22 @@ export function runSsh(
 				"--",
 				quoteRemote(command),
 			],
-			{ stdio: ["ignore", "pipe", "pipe"] },
+			{ stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"] },
 		);
+
+		if (input !== undefined) {
+			// Closed immediately after writing, because the remote command reads to end of file and
+			// would otherwise wait for a stream that never closes.
+			ssh.stdin?.on("error", () => undefined);
+			ssh.stdin?.end(input);
+		}
 
 		let stdout = "";
 		let stderr = "";
-		ssh.stdout.on("data", (chunk) => {
+		ssh.stdout?.on("data", (chunk) => {
 			stdout += String(chunk);
 		});
-		ssh.stderr.on("data", (chunk) => {
+		ssh.stderr?.on("data", (chunk) => {
 			stderr += String(chunk);
 		});
 

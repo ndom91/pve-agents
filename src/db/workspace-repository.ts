@@ -400,6 +400,7 @@ export function advanceWorkspaceProvision(
 	db: Database.Database,
 	lease: OperationLease,
 	input: {
+		credentialAt?: string;
 		event?: { message: string; type: string };
 		herdrPaneId?: string;
 		herdrWorkspaceId?: string;
@@ -419,6 +420,7 @@ export function advanceWorkspaceProvision(
 				provision_phase = ?, status = COALESCE(?, status), ip = COALESCE(?, ip),
 				herdr_workspace_id = COALESCE(?, herdr_workspace_id),
 				herdr_pane_id = COALESCE(?, herdr_pane_id),
+				git_credential_at = COALESCE(?, git_credential_at),
 				updated_at = ?
 			 WHERE id = ?`,
 		).run(
@@ -428,6 +430,7 @@ export function advanceWorkspaceProvision(
 			input.ip ?? null,
 			input.herdrWorkspaceId ?? null,
 			input.herdrPaneId ?? null,
+			input.credentialAt ?? null,
 			nowText,
 			workspaceId,
 		);
@@ -666,6 +669,19 @@ export function workspaceEventTimelines(
 	return timelines;
 }
 
+// workspaceRequest returns what a workspace was asked to be built for.
+//
+// Read separately from WorkspaceProvision because the repository and ref are the request, not the
+// placement: they never change once persisted, and only the checkout step needs them.
+export function workspaceRequest(
+	db: Database.Database,
+	id: string,
+): { ref: string; repository: string } | undefined {
+	return db
+		.prepare("SELECT repository, ref FROM workspaces WHERE id = ?")
+		.get(id) as { ref: string; repository: string } | undefined;
+}
+
 // WorkspaceActivityTarget is one ready workspace whose agent can be asked what it is doing.
 export type WorkspaceActivityTarget = {
 	hostname: string;
@@ -692,6 +708,50 @@ export function staleWorkspaceActivity(
 			 LIMIT ?`,
 		)
 		.all(observedBefore, limit) as WorkspaceActivityTarget[];
+}
+
+// WorkspaceCredentialTarget is one ready workspace whose git credential is due for replacement.
+export type WorkspaceCredentialTarget = {
+	id: string;
+	ip: string;
+	repository: string;
+};
+
+// staleWorkspaceCredentials returns ready workspaces holding a credential near its expiry.
+//
+// Only workspaces that have had one: a workspace with no git_credential_at never reached the
+// checkout step, and pushing a credential to it would put one where the provisioning sequence has
+// not yet decided there should be one.
+export function staleWorkspaceCredentials(
+	db: Database.Database,
+	mintedBefore: string,
+	limit: number,
+): WorkspaceCredentialTarget[] {
+	return db
+		.prepare(
+			`SELECT id, ip, repository FROM workspaces
+			 WHERE status = 'ready' AND ip IS NOT NULL
+				AND git_credential_at IS NOT NULL AND git_credential_at < ?
+			 ORDER BY git_credential_at
+			 LIMIT ?`,
+		)
+		.all(mintedBefore, limit) as WorkspaceCredentialTarget[];
+}
+
+// recordWorkspaceCredential notes that a workspace now holds a freshly minted credential.
+//
+// No lease, like the other observations of a settled workspace. Written only after the credential
+// is confirmed stored, so this timestamp always describes something that is really there.
+export function recordWorkspaceCredential(
+	db: Database.Database,
+	id: string,
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		"UPDATE workspaces SET git_credential_at = ?, updated_at = ? WHERE id = ?",
+	).run(nowText, nowText, id);
 }
 
 // recordWorkspaceActivity stores what a workspace's agent was last seen doing.

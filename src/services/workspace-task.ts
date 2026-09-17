@@ -28,6 +28,7 @@ export type WorkspaceOperationRun = {
 		| "awaiting_task"
 		| "booted"
 		| "bootstrapped"
+		| "checked_out"
 		| "container_booted"
 		| "herdr_registered"
 		| "session_started"
