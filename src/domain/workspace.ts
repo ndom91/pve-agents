@@ -27,10 +27,14 @@ export type WorkspaceStatus =
 // outstanding — without it, a start task and a clone task look identical.
 export type ProvisionPhase =
 	| "addressed"
+	| "agent-started"
 	| "booted"
+	| "bootstrapped"
 	| "clone-confirmed"
 	| "clone-submitted"
+	| "herdr-registered"
 	| "reachable"
+	| "session-started"
 	| "start-submitted";
 
 // DestroyPhase is how far teardown has progressed.

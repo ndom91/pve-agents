@@ -102,6 +102,8 @@ export type WorkspaceTeardown = Omit<WorkspaceProvision, "phase"> & {
 
 // WorkspaceProvision is the private workspace data needed to submit one clone request.
 export type WorkspaceProvision = {
+	herdrPaneId?: string;
+	herdrWorkspaceId?: string;
 	hostname: string;
 	id: string;
 	ip?: string;
@@ -399,6 +401,8 @@ export function advanceWorkspaceProvision(
 	lease: OperationLease,
 	input: {
 		event?: { message: string; type: string };
+		herdrPaneId?: string;
+		herdrWorkspaceId?: string;
 		ip?: string;
 		phase: ProvisionPhase;
 		status?: WorkspaceStatus;
@@ -413,6 +417,8 @@ export function advanceWorkspaceProvision(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				provision_phase = ?, status = COALESCE(?, status), ip = COALESCE(?, ip),
+				herdr_workspace_id = COALESCE(?, herdr_workspace_id),
+				herdr_pane_id = COALESCE(?, herdr_pane_id),
 				updated_at = ?
 			 WHERE id = ?`,
 		).run(
@@ -420,6 +426,8 @@ export function advanceWorkspaceProvision(
 			input.phase,
 			input.status ?? null,
 			input.ip ?? null,
+			input.herdrWorkspaceId ?? null,
+			input.herdrPaneId ?? null,
 			nowText,
 			workspaceId,
 		);
@@ -750,7 +758,8 @@ function operationWorkspace(
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip
+				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip,
+				w.herdr_pane_id, w.herdr_workspace_id
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
@@ -762,6 +771,8 @@ function operationWorkspace(
 				hostname: string;
 				id: string;
 				destroy_phase: DestroyPhase | null;
+				herdr_pane_id: string | null;
+				herdr_workspace_id: string | null;
 				ip: string | null;
 				provision_phase: ProvisionPhase | null;
 				node: string | null;
@@ -791,6 +802,12 @@ function operationWorkspace(
 	}
 	if (row.current_task_upid !== null) {
 		workspace.taskUPID = row.current_task_upid;
+	}
+	if (row.herdr_pane_id !== null) {
+		workspace.herdrPaneId = row.herdr_pane_id;
+	}
+	if (row.herdr_workspace_id !== null) {
+		workspace.herdrWorkspaceId = row.herdr_workspace_id;
 	}
 	if (row.ip !== null) {
 		workspace.ip = row.ip;

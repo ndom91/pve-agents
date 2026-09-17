@@ -9,7 +9,7 @@ import {
 } from "../db/workspace-repository";
 import type { Fetcher } from "./proxmox-http";
 import { ownershipMarker } from "./proxmox-ownership";
-import type { SshRunner } from "./ssh";
+import type { SshResult, SshRunner } from "./ssh";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
 
 const CONTROLLER_ID = "b66d3c5d-22c6-4199-889e-764f12d37fe5";
@@ -97,7 +97,7 @@ describe("runWorkspaceOperations", () => {
 		});
 	});
 
-	it("boots, addresses, proves ssh, then stops rather than looping", async () => {
+	it("carries one workspace from a clone to a running agent", async () => {
 		const db = database();
 		const workspaceID = await submitted(db);
 
@@ -110,8 +110,6 @@ describe("runWorkspaceOperations", () => {
 		);
 		expect(confirmed).toEqual({ processed: 1, status: "clone_confirmed" });
 
-		// A confirmed clone hands off to the boot step, and booting is currently the last step
-		// implemented. Past it the operation must close rather than re-running forever.
 		const started = await runWorkspaceOperations(
 			db,
 			config(),
@@ -163,18 +161,40 @@ describe("runWorkspaceOperations", () => {
 		);
 		expect(reachable).toEqual({ processed: 1, status: "ssh_ready" });
 
-		const closing = await runWorkspaceOperations(
-			db,
-			config(),
-			async () => {
-				throw new Error("proxmox must not be contacted again");
-			},
-			new Date(POLLED_AT.getTime() + 300_000),
-			async () => {
-				throw new Error("ssh must not be attempted again");
-			},
-		);
-		expect(closing).toEqual({ processed: 1, status: "reachable" });
+		const workspace = herdrWorkspace();
+		const step = async (at: number) =>
+			runWorkspaceOperations(
+				db,
+				config(),
+				async () => {
+					throw new Error("proxmox must not be contacted for herdr steps");
+				},
+				new Date(POLLED_AT.getTime() + at),
+				workspace.ssh,
+			);
+
+		expect(await step(300_000)).toEqual({
+			processed: 1,
+			status: "bootstrapped",
+		});
+		// The server is launched detached, so the pass that starts it cannot also confirm it. It
+		// takes a second pass to observe the socket listening.
+		expect(await step(360_000)).toEqual({
+			processed: 1,
+			status: "awaiting_session",
+		});
+		expect(await step(420_000)).toEqual({
+			processed: 1,
+			status: "session_started",
+		});
+		expect(await step(480_000)).toEqual({
+			processed: 1,
+			status: "herdr_registered",
+		});
+		expect(await step(540_000)).toEqual({
+			processed: 1,
+			status: "workspace_ready",
+		});
 
 		// The timeline is where an operator follows this, so every milestone has to land in it.
 		expect(
@@ -190,9 +210,34 @@ describe("runWorkspaceOperations", () => {
 			"workspace.booted",
 			"workspace.addressed",
 			"workspace.reachable",
+			"workspace.bootstrapped",
+			"workspace.session_started",
+			"workspace.herdr_registered",
+			"workspace.ready",
 		]);
 
-		expect(workspaceStatus(db, workspaceID)).toBe("booting");
+		expect(workspaceStatus(db, workspaceID)).toBe("ready");
+		// Recorded from herdr's response rather than derived, so a later step can address the pane.
+		expect(
+			db
+				.prepare(
+					"SELECT herdr_workspace_id, herdr_pane_id FROM workspaces WHERE id = ?",
+				)
+				.get(workspaceID),
+		).toEqual({ herdr_pane_id: "w1:p1", herdr_workspace_id: "w1" });
+
+		const settled = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => {
+				throw new Error("proxmox must not be contacted again");
+			},
+			new Date(POLLED_AT.getTime() + 600_000),
+			async () => {
+				throw new Error("ssh must not be attempted again");
+			},
+		);
+		expect(settled).toEqual({ processed: 0, status: "empty" });
 		expect(
 			db
 				.prepare(
@@ -206,6 +251,10 @@ describe("runWorkspaceOperations", () => {
 			"workspace.booted",
 			"workspace.addressed",
 			"workspace.reachable",
+			"workspace.bootstrapped",
+			"workspace.session_started",
+			"workspace.herdr_registered",
+			"workspace.ready",
 		]);
 		expect(
 			db
@@ -214,6 +263,41 @@ describe("runWorkspaceOperations", () => {
 				)
 				.get(workspaceID, "workspace.clone_confirmed"),
 		).toEqual({ c: 1 });
+	});
+
+	it("refuses a workspace whose agent is stuck in its first-run wizard", async () => {
+		const db = database();
+		const workspaceID = await registered(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async (_target, args) =>
+				args.join(" ").includes("agent read")
+					? {
+							code: 0,
+							kind: "ran",
+							stderr: "",
+							stdout: "Let's get started.\n\nChoose the text style",
+						}
+					: {
+							code: 0,
+							kind: "ran",
+							stderr: "",
+							stdout: JSON.stringify({ result: { type: "agent_started" } }),
+						},
+		);
+
+		// Retrying cannot dismiss a wizard, and handing the workspace over would let its first
+		// prompt be typed into a menu. Both make this terminal rather than transient.
+		expect(result).toEqual({ processed: 1, status: "task_failed" });
+		expect(
+			db
+				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
+				.get(workspaceID),
+		).toEqual({ error_code: "agent_onboarding_required", status: "failed" });
 	});
 
 	it("keeps waiting while sshd is still coming up", async () => {
@@ -1039,6 +1123,27 @@ async function addressed(db: Database.Database): Promise<string> {
 	return workspaceID;
 }
 
+// registered leaves a workspace with a herdr workspace created and an agent not yet started.
+async function registered(db: Database.Database): Promise<string> {
+	const workspaceID = await addressed(db);
+	const proxmox = async () => {
+		throw new Error("proxmox must not be contacted");
+	};
+	const workspace = herdrWorkspace();
+
+	await tick(db, proxmox, async () => ({
+		code: 0,
+		kind: "ran",
+		stderr: "",
+		stdout: "",
+	}));
+	for (let pass = 0; pass < 4; pass += 1) {
+		await tick(db, proxmox, workspace.ssh);
+	}
+
+	return workspaceID;
+}
+
 // destroyable leaves a workspace with a confirmed clone and a queued destroy request.
 async function destroyable(db: Database.Database): Promise<string> {
 	const workspaceID = await submitted(db);
@@ -1074,7 +1179,60 @@ function config() {
 		PROXMOX_TOKEN_ID: "workspace-controller@pve!controller",
 		PROXMOX_TOKEN_SECRET: "not-a-real-secret",
 		PROXMOX_URL: "https://nas.puff.lan:8006/api2/json",
+		WORKSPACE_CLAUDE_OAUTH_TOKEN: "not-a-real-token",
 	});
+}
+
+// herdrWorkspace fakes a workspace container running herdr, routing on the command it is given.
+//
+// Stateful in one respect that matters: the server reports itself stopped until it is started, so
+// the two-pass launch-then-confirm sequence is exercised rather than assumed away.
+function herdrWorkspace() {
+	let running = false;
+	const created = JSON.stringify({
+		result: {
+			root_pane: { cwd: "/workspace/repo", pane_id: "w1:p1", tab_id: "w1:t1" },
+			tab: { tab_id: "w1:t1" },
+			workspace: { workspace_id: "w1" },
+		},
+	});
+
+	const ssh: SshRunner = async (_target, args) => {
+		const command = args.join(" ");
+		const stdout = (text: string): SshResult => ({
+			code: 0,
+			kind: "ran",
+			stderr: "",
+			stdout: text,
+		});
+
+		if (command.includes("hasCompletedOnboarding")) {
+			return stdout("");
+		}
+		if (command.includes("setsid")) {
+			running = true;
+
+			return stdout("");
+		}
+		if (command.endsWith("status")) {
+			return stdout(
+				`server:\n  status: ${running ? "running" : "not running"}\n`,
+			);
+		}
+		if (command.includes("workspace create")) {
+			return stdout(created);
+		}
+		if (command.includes("agent start")) {
+			return stdout(JSON.stringify({ result: { type: "agent_started" } }));
+		}
+		if (command.includes("agent read")) {
+			return stdout("agent@agent-abcd:/workspace/repo$ claude\n>\n");
+		}
+
+		throw new Error(`unexpected ssh command: ${command}`);
+	};
+
+	return { ssh };
 }
 
 function database(): Database.Database {

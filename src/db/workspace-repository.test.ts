@@ -499,6 +499,7 @@ describe("openDatabase", () => {
 			{ version: 5 },
 			{ version: 6 },
 			{ version: 7 },
+			{ version: 8 },
 		]);
 	});
 });

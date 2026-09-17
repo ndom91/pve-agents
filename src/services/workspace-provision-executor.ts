@@ -16,6 +16,19 @@ import {
 	type WorkspaceProvision,
 	workspaceProvision,
 } from "../db/workspace-repository";
+import {
+	claudeAwaitingOnboarding,
+	prepareClaudeWorkspace,
+} from "./claude-agent";
+import {
+	createHerdrWorkspace,
+	type HerdrTarget,
+	herdrAgentName,
+	herdrServerState,
+	readHerdrAgent,
+	startHerdrAgent,
+	startHerdrServer,
+} from "./herdr";
 import { containerAddress } from "./proxmox-address";
 import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
 import {
@@ -27,7 +40,7 @@ import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
-import type { SshRunner } from "./ssh";
+import type { SshRunner, SshTarget } from "./ssh";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -36,6 +49,38 @@ import {
 	type WorkspaceOperationRun,
 	workspaceNode,
 } from "./workspace-task";
+
+// AGENT_CWD is where the agent runs inside the workspace.
+//
+// Created during bootstrap and empty for now: repository checkout is not implemented, so nothing
+// puts a repository there yet.
+const AGENT_CWD = "/workspace/repo";
+
+// workspaceSsh builds the connection to a workspace, or nothing when no key is configured.
+function workspaceSsh(
+	config: ControllerConfig,
+	workspace: WorkspaceProvision,
+): SshTarget | undefined {
+	return config.WORKSPACE_SSH_KEY_PATH === undefined
+		? undefined
+		: {
+				address: workspace.ip as string,
+				keyPath: config.WORKSPACE_SSH_KEY_PATH,
+				user: config.WORKSPACE_SSH_USER,
+			};
+}
+
+// herdrTarget addresses the workspace's named Herdr server.
+function herdrTarget(
+	config: ControllerConfig,
+	workspace: WorkspaceProvision,
+): HerdrTarget | undefined {
+	const ssh = workspaceSsh(config, workspace);
+
+	return ssh === undefined
+		? undefined
+		: { session: config.WORKSPACE_HERDR_SESSION, ssh };
+}
 
 // executeWorkspaceProvision advances one provision operation by exactly one durable step.
 //
@@ -72,11 +117,19 @@ export async function executeWorkspaceProvision(
 		case "addressed":
 			return checkReachable(db, config, lease, workspace, now, ssh);
 		case "reachable":
-			// Credential bootstrap and repository checkout are not implemented, so there is no
-			// next step to release the operation for. Reopen this when one exists.
+			return bootstrapAgentHome(db, config, lease, workspace, now, ssh);
+		case "bootstrapped":
+			return startHerdrSession(db, config, lease, workspace, now, ssh);
+		case "session-started":
+			return registerHerdrWorkspace(db, config, lease, workspace, now, ssh);
+		case "herdr-registered":
+			return startWorkspaceAgent(db, config, lease, workspace, now, ssh);
+		case "agent-started":
+			// Reached only by an operation that advanced and then lost its release, since the pass
+			// that sets this phase also completes.
 			completeWorkspaceOperation(db, lease, now);
 
-			return { processed: 1, status: "reachable" };
+			return { processed: 1, status: "workspace_ready" };
 		default:
 			// No phase yet. A VMID without one means a clone landed before phases existed, or a
 			// candidate was persisted and the response lost.
@@ -155,6 +208,316 @@ async function checkReachable(
 	releaseWorkspaceOperation(db, lease, 0, now);
 
 	return { processed: 1, status: "ssh_ready" };
+}
+
+// bootstrapAgentHome prepares the workspace for an agent that nobody is watching.
+//
+// Claude Code's first run is an interactive wizard. Seeding the flag that skips it is what makes
+// an unattended start possible at all.
+async function bootstrapAgentHome(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = workspaceSsh(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const prepared = await prepareClaudeWorkspace(target, AGENT_CWD, ssh);
+	if (prepared.kind === "failed") {
+		noteWorkspaceIssue(db, lease, prepared.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "request_failed" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `prepared ${AGENT_CWD} for an unattended agent`,
+				type: "workspace.bootstrapped",
+			},
+			phase: "bootstrapped",
+			status: "bootstrapping",
+			step: "agent home prepared",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "bootstrapped" };
+}
+
+// startHerdrSession brings up the named Herdr server the workspace's panes will live in.
+//
+// Starting and confirming are separate calls because launching is detached: the command returns
+// before the socket is listening, so only a later status check proves anything.
+async function startHerdrSession(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = herdrTarget(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const state = await herdrServerState(target, ssh);
+	if (state.kind === "failed") {
+		noteWorkspaceIssue(db, lease, state.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_session" };
+	}
+	if (state.kind === "stopped") {
+		const started = await startHerdrServer(target, ssh);
+		if (started.kind === "failed") {
+			noteWorkspaceIssue(db, lease, started.message, now);
+		}
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_session" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `herdr session ${config.WORKSPACE_HERDR_SESSION} is running`,
+				type: "workspace.session_started",
+			},
+			phase: "session-started",
+			step: "herdr session running",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "session_started" };
+}
+
+// registerHerdrWorkspace creates the Herdr workspace the agent will run in.
+//
+// This is where the subscription credential enters the container, because Herdr attaches env to
+// the panes it creates rather than to agents started in them later.
+async function registerHerdrWorkspace(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = herdrTarget(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const token = config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
+	if (token === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_token_missing",
+			"WORKSPACE_CLAUDE_OAUTH_TOKEN is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	// The token reaches the workspace as a herdr argument, so it is briefly visible to ps there.
+	// Acceptable only because a workspace is single-tenant and disposable; it would not be on a
+	// shared host.
+	const created = await createHerdrWorkspace(
+		target,
+		{
+			cwd: AGENT_CWD,
+			env: { CLAUDE_CODE_OAUTH_TOKEN: token },
+			label: workspace.hostname,
+		},
+		ssh,
+	);
+	if (created.kind === "rejected") {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"herdr_workspace_rejected",
+			created.message,
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+	if (created.kind === "failed") {
+		noteWorkspaceIssue(db, lease, created.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "request_failed" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `herdr workspace ${created.workspaceId} rooted at ${created.cwd}`,
+				type: "workspace.herdr_registered",
+			},
+			herdrPaneId: created.paneId,
+			herdrWorkspaceId: created.workspaceId,
+			phase: "herdr-registered",
+			status: "registering",
+			step: `herdr workspace ${created.workspaceId}`,
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "herdr_registered" };
+}
+
+// startWorkspaceAgent starts the coding agent and proves it is actually usable.
+//
+// The pane is read afterwards because Herdr cannot tell a working agent from one sitting in a
+// first-run wizard: both report "idle" and both exit 0. Only the screen distinguishes them.
+async function startWorkspaceAgent(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = herdrTarget(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const name = herdrAgentName(workspace.hostname);
+	const paneId = workspace.herdrPaneId;
+	if (name === undefined || paneId === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_target_missing",
+			name === undefined
+				? `${workspace.hostname} is not a usable herdr agent name`
+				: "herdr pane was not recorded",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const started = await startHerdrAgent(
+		target,
+		{ agentKind: config.WORKSPACE_AGENT_KIND, name, paneId },
+		ssh,
+	);
+	if (started.kind === "rejected") {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_start_rejected",
+			started.message,
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+	if (started.kind === "failed") {
+		noteWorkspaceIssue(db, lease, started.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+
+	const pane = await readHerdrAgent(target, name, ssh);
+	if (pane.kind === "failed") {
+		noteWorkspaceIssue(db, lease, pane.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+	if (claudeAwaitingOnboarding(pane.text)) {
+		// Retrying cannot clear a wizard, and leaving it would hand over a workspace whose agent
+		// silently consumes its first prompt as menu input.
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_onboarding_required",
+			`${config.WORKSPACE_AGENT_KIND} is waiting at its first-run wizard`,
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+	if (started.kind === "not-ready") {
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `${config.WORKSPACE_AGENT_KIND} running as ${name} in ${paneId}`,
+				type: "workspace.ready",
+			},
+			phase: "agent-started",
+			status: "ready",
+			step: "agent ready",
+		},
+		now,
+	);
+	completeWorkspaceOperation(db, lease, now);
+
+	return { processed: 1, status: "workspace_ready" };
 }
 
 // discoverAddress records where the workspace can be reached.

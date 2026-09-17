@@ -27,6 +27,13 @@ const envSchema = z
 			.min(1)
 			.max(3600)
 			.default(5),
+		// The coding agent started in the workspace's first pane. Must be a kind Herdr recognises,
+		// because Herdr refuses to start one it cannot detect afterwards.
+		WORKSPACE_AGENT_KIND: z.string().min(1).default("claude"),
+		// A long-lived OAuth token from `claude setup-token`, tied to a Claude subscription. Not an
+		// API key, and deliberately not required to start: a controller that only clones containers
+		// has no use for it. The agent step fails with a named reason when it is missing.
+		WORKSPACE_CLAUDE_OAUTH_TOKEN: z.string().min(1).optional(),
 		WORKSPACE_HERDR_SESSION: z.string().min(1).default("agents"),
 		// Restricts address discovery to the workspace network, so a container's own bridge is never
 		// mistaken for its address. CIDR, for example 10.0.3.0/24.
