@@ -666,6 +666,59 @@ export function workspaceEventTimelines(
 	return timelines;
 }
 
+// WorkspaceActivityTarget is one ready workspace whose agent can be asked what it is doing.
+export type WorkspaceActivityTarget = {
+	hostname: string;
+	id: string;
+	ip: string;
+};
+
+// staleWorkspaceActivity returns the ready workspaces whose activity reading is oldest.
+//
+// Ordered by how long ago each was observed, with nulls first, so a fleet larger than one batch
+// is polled round-robin rather than starving whichever workspaces sort last. The caller bounds
+// the batch, which is what stops a large fleet turning one tick into hundreds of SSH connections.
+export function staleWorkspaceActivity(
+	db: Database.Database,
+	observedBefore: string,
+	limit: number,
+): WorkspaceActivityTarget[] {
+	return db
+		.prepare(
+			`SELECT id, hostname, ip FROM workspaces
+			 WHERE status = 'ready' AND ip IS NOT NULL
+				AND (activity_observed_at IS NULL OR activity_observed_at < ?)
+			 ORDER BY activity_observed_at IS NOT NULL, activity_observed_at
+			 LIMIT ?`,
+		)
+		.all(observedBefore, limit) as WorkspaceActivityTarget[];
+}
+
+// recordWorkspaceActivity stores what a workspace's agent was last seen doing.
+//
+// No lease, unlike every operation-scoped write in this file. Observing a settled workspace is not
+// operation work: there is nothing to resume, nothing to retry, and no exclusivity to protect. Two
+// controllers both recording the same reading would be harmless.
+//
+// last_activity_at moves only when the agent is actually working, because its job is to answer
+// "how long has this been doing nothing", which a reading taken every thirty seconds would
+// otherwise reset forever.
+export function recordWorkspaceActivity(
+	db: Database.Database,
+	input: { activity: WorkspaceActivity; id: string },
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		`UPDATE workspaces
+		 SET activity = ?, activity_observed_at = ?,
+			last_activity_at = CASE WHEN ? = 'active' THEN ? ELSE last_activity_at END,
+			updated_at = ?
+		 WHERE id = ?`,
+	).run(input.activity, nowText, input.activity, nowText, nowText, input.id);
+}
+
 // noteWorkspaceIssue records a transient failure, without repeating itself.
 //
 // These retry every few seconds, so appending one per attempt would bury the timeline in
@@ -940,6 +993,68 @@ export function listWorkspaces(db: Database.Database): Workspace[] {
 	}
 
 	return workspaces;
+}
+
+// WorkspaceDetail is everything about one workspace an operator may need to diagnose it.
+//
+// Deliberately wider than Workspace, which is the fleet-list projection: placement and error
+// detail matter on a page about one workspace and would be noise on a page about forty.
+export type WorkspaceDetail = Workspace & {
+	activityObservedAt?: string;
+	errorCode?: string;
+	errorMessage?: string;
+	herdrPaneId?: string;
+	herdrWorkspaceId?: string;
+	ip?: string;
+	lastActivityAt?: string;
+	node?: string;
+	provisionPhase?: string;
+	vmid?: number;
+};
+
+// workspaceDetail returns one workspace with its placement and failure detail.
+export function workspaceDetail(
+	db: Database.Database,
+	id: string,
+): WorkspaceDetail | undefined {
+	const row = db
+		.prepare(
+			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
+				herdr_session, created_at, updated_at, current_step, node, vmid, ip,
+				herdr_workspace_id, herdr_pane_id, provision_phase, error_code, error_message,
+				last_activity_at, activity_observed_at
+			 FROM workspaces WHERE id = ?`,
+		)
+		.get(id) as
+		| (WorkspaceRow & Record<string, string | number | null>)
+		| undefined;
+	if (row === undefined) {
+		return undefined;
+	}
+
+	const detail: WorkspaceDetail = workspaceFromRow(row);
+	const optional = {
+		activityObservedAt: row.activity_observed_at,
+		errorCode: row.error_code,
+		errorMessage: row.error_message,
+		herdrPaneId: row.herdr_pane_id,
+		herdrWorkspaceId: row.herdr_workspace_id,
+		ip: row.ip,
+		lastActivityAt: row.last_activity_at,
+		node: row.node,
+		provisionPhase: row.provision_phase,
+		vmid: row.vmid,
+	};
+
+	// Null columns are left off rather than carried as nulls, so the page can ask whether a field
+	// is there instead of whether it is there and also not null.
+	for (const [key, value] of Object.entries(optional)) {
+		if (value !== null) {
+			Object.assign(detail, { [key]: value });
+		}
+	}
+
+	return detail;
 }
 
 // workspaceById returns one workspace when it exists.

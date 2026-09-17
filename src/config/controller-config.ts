@@ -27,6 +27,15 @@ const envSchema = z
 			.min(1)
 			.max(3600)
 			.default(5),
+		// How stale an activity reading may get before it is taken again. Every reading costs one
+		// SSH round trip per ready workspace, so this is the knob between a fresh fleet view and a
+		// controller that spends its life reconnecting to idle containers.
+		WORKSPACE_ACTIVITY_INTERVAL_SECONDS: z.coerce
+			.number()
+			.int()
+			.min(5)
+			.max(3600)
+			.default(30),
 		// The coding agent started in the workspace's first pane. Must be a kind Herdr recognises,
 		// because Herdr refuses to start one it cannot detect afterwards.
 		WORKSPACE_AGENT_KIND: z.string().min(1).default("claude"),

@@ -258,14 +258,19 @@ export async function herdrAgentStatus(
 }
 
 // readHerdrAgent snapshots what an agent's pane is showing.
+//
+// "detection" is the plain-text buffer Herdr classifies agents from, which is the right source for
+// deciding whether an agent is usable. "visible" is the rendered viewport, which is the right
+// source for showing a human what is on screen.
 export async function readHerdrAgent(
 	target: HerdrTarget,
 	name: string,
 	ssh: SshRunner,
+	source: "detection" | "visible" = "detection",
 ): Promise<HerdrPane> {
 	const result = await run(
 		target,
-		["agent", "read", name, "--source", "detection", "--format", "text"],
+		["agent", "read", name, "--source", source, "--format", "text"],
 		ssh,
 	);
 

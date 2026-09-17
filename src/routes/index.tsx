@@ -1,4 +1,9 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { requestId } from "../lib/request-id";
@@ -37,8 +42,15 @@ function Home() {
 	// The worker advances one step every few seconds, so the page follows it by refetching rather
 	// than holding a connection open. It runs only while work is outstanding and only while the
 	// tab is visible, so a settled fleet polls nothing.
+	// Ready workspaces count as live work even though they hold no operation: their agent's
+	// activity keeps changing, and gating on operations alone would freeze the fleet view at the
+	// moment it starts being interesting.
+	const watching =
+		status.activeOperations > 0 ||
+		workspaces.some((workspace) => workspace.status === "ready");
+
 	useEffect(() => {
-		if (status.activeOperations === 0) {
+		if (!watching) {
 			return;
 		}
 
@@ -49,7 +61,7 @@ function Home() {
 		}, REFRESH_MS);
 
 		return () => clearInterval(timer);
-	}, [router, status.activeOperations]);
+	}, [router, watching]);
 	const [error, setError] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [destroying, setDestroying] = useState("");
@@ -214,6 +226,17 @@ function WorkspaceRow({
 				<p className={`status status-${workspace.status}`}>
 					{workspace.status}
 				</p>
+				{workspace.status === "ready" ? (
+					<p className={`activity activity-${workspace.activity}`}>
+						{workspace.activity}
+					</p>
+				) : null}
+				<Link
+					params={{ workspaceId: workspace.id }}
+					to="/workspaces/$workspaceId"
+				>
+					Details
+				</Link>
 				{workspace.desiredState === "destroyed" ? null : (
 					<button
 						disabled={destroying}

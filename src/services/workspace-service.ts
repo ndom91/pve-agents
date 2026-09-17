@@ -6,6 +6,7 @@ import {
 	listWorkspaces,
 	requestWorkspaceOperation,
 	workspaceById,
+	workspaceDetail,
 	workspaceEventTimelines,
 } from "../db/workspace-repository";
 
@@ -32,6 +33,19 @@ export function listRequestedWorkspaces(db: Database.Database) {
 		...workspace,
 		events: timelines.get(workspace.id) ?? [],
 	}));
+}
+
+// workspaceWithTimeline returns one workspace, its placement, and its whole timeline.
+export function workspaceWithTimeline(db: Database.Database, id: string) {
+	const workspace = workspaceDetail(db, id);
+	if (workspace === undefined) {
+		return undefined;
+	}
+
+	return {
+		...workspace,
+		events: workspaceEventTimelines(db, EVENT_LIMIT).get(id) ?? [],
+	};
 }
 
 // FleetWorkspace is one workspace as the fleet view receives it.

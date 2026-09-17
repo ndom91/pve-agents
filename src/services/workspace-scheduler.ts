@@ -3,6 +3,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
+import { observeWorkspaceActivity } from "./workspace-activity";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
 
 // ERROR_BACKOFF_MS is the pause after a tick throws, so a persistent fault cannot become a hot
@@ -31,7 +32,7 @@ export async function startWorkspaceScheduler(
 	signal: AbortSignal,
 	options: WorkspaceSchedulerOptions = {},
 ): Promise<void> {
-	const tick = options.tick ?? (() => runWorkspaceOperations(db, config));
+	const tick = options.tick ?? (() => sweep(db, config));
 	const intervalMs = config.WORKER_INTERVAL_SECONDS * 1_000;
 
 	while (!signal.aborted) {
@@ -51,4 +52,17 @@ export async function startWorkspaceScheduler(
 		// end it.
 		await delay(waitMs, undefined, { signal }).catch(() => undefined);
 	}
+}
+
+// sweep advances queued lifecycle work, then refreshes what settled workspaces are doing.
+//
+// Sequential, for the same reason passes never overlap: both write to SQLite, and one writer at a
+// time is what keeps a busy controller off the busy_timeout. Activity runs second because it is
+// the one that can be late without anything breaking.
+async function sweep(
+	db: Database.Database,
+	config: ControllerConfig,
+): Promise<void> {
+	await runWorkspaceOperations(db, config);
+	await observeWorkspaceActivity(db, config);
 }

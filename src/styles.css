@@ -66,6 +66,7 @@ h2 {
 	margin-bottom: 0;
 }
 
+.activity,
 .mode,
 .status {
 	border: 1px solid #7b8b71;
@@ -275,7 +276,9 @@ dd {
 
 /* The badge and the button sit side by side, so one height governs both rather than each being
    sized by its own padding and font. */
+.workspace-actions .activity,
 .workspace-actions .status,
+.workspace-actions a,
 .workspace-actions button {
 	align-items: center;
 	box-sizing: border-box;
@@ -284,8 +287,152 @@ dd {
 	padding-block: 0;
 }
 
+.workspace-actions .activity,
 .workspace-actions .status {
 	padding-inline: 12px;
+}
+
+.workspace-actions a {
+	border: 1px solid #4a5646;
+	color: #a9b8a2;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	padding-inline: 12px;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+
+.workspace-actions a:hover {
+	border-color: #7b8b71;
+	color: #d6e2cf;
+}
+
+/* Activity is a weaker signal than status: it changes every half minute and means nothing about
+   whether the workspace is healthy. Dimmer by default so it cannot be mistaken for one, and
+   coloured only when it is asking for something. */
+.activity {
+	border-color: #4a5646;
+	color: #8a9a83;
+}
+
+.activity-active {
+	border-color: #7b8b71;
+	color: #c4d1bd;
+}
+
+.activity-blocked {
+	border-color: #b08a4a;
+	color: #e0b36a;
+}
+
+.detail {
+	margin: 0 auto;
+	max-width: 900px;
+	padding: 28px 24px 64px;
+}
+
+.detail nav {
+	margin-bottom: 24px;
+}
+
+.detail nav a {
+	color: #8a9a83;
+	font-size: 12px;
+	letter-spacing: 0.08em;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+
+.detail nav a:hover {
+	color: #d6e2cf;
+}
+
+.detail h1 {
+	font-size: 20px;
+	margin: 0 0 4px;
+}
+
+.detail h2 {
+	color: #8a9a83;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	margin: 32px 0 12px;
+	text-transform: uppercase;
+}
+
+.detail .badges {
+	display: flex;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.detail-error {
+	border: 1px solid #8c4a4a;
+	margin-top: 24px;
+	padding: 12px 16px;
+}
+
+.detail-error h2 {
+	color: #e08a8a;
+	margin: 0 0 6px;
+}
+
+.detail-error p {
+	margin: 0;
+}
+
+.detail-facts {
+	display: grid;
+	gap: 12px 24px;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	margin: 0;
+}
+
+.detail-facts dt {
+	color: #7b8b71;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+/* Terminal output, so it keeps its own spacing and scrolls rather than reflowing. */
+.detail-screen {
+	background: #10140f;
+	border: 1px solid #2c3428;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	line-height: 1.4;
+	margin: 0;
+	overflow-x: auto;
+	padding: 12px;
+	white-space: pre;
+}
+
+.detail-note {
+	color: #8a9a83;
+	font-size: 12px;
+	margin: 0 0 12px;
+}
+
+.detail-timeline {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.detail-timeline li {
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	gap: 12px;
+}
+
+.detail-timeline time {
+	color: #7b8b71;
 }
 
 @media (max-width: 640px) {

@@ -5,6 +5,7 @@ import {
 	listRequestedWorkspaces,
 	requestWorkspace,
 	workspaceRequestSchema,
+	workspaceWithTimeline,
 } from "../services/workspace-service";
 import { controllerDatabase, controllerHerdrSession } from "./controller";
 import { operatorMiddleware } from "./middleware";
@@ -56,4 +57,17 @@ export const listWorkspaces = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.handler(() => {
 		return listRequestedWorkspaces(controllerDatabase());
+	});
+
+// workspaceDetail returns one workspace with its placement, failure detail, and whole timeline.
+export const workspaceDetail = createServerFn({ method: "GET" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().trim().min(1) }))
+	.handler(({ data }) => {
+		const workspace = workspaceWithTimeline(controllerDatabase(), data.id);
+		if (workspace === undefined) {
+			throw new Error("workspace: not found");
+		}
+
+		return workspace;
 	});
