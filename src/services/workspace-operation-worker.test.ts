@@ -4,7 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type Database from "better-sqlite3";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 
 import { controllerConfig } from "../config/controller-config";
 import { openDatabase } from "../db/database";
@@ -16,6 +24,21 @@ import type { Fetcher } from "./proxmox-http";
 import { ownershipMarker } from "./proxmox-ownership";
 import type { SshResult, SshRunner } from "./ssh";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
+
+// Records which addresses had their pinned key dropped, so the test can assert it happened without
+// spawning a real ssh-keygen against a real known_hosts file.
+const forgotten: string[] = [];
+
+vi.mock("./ssh", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("./ssh")>();
+
+	return {
+		...actual,
+		forgetHost: async (_keyPath: string, address: string) => {
+			forgotten.push(address);
+		},
+	};
+});
 
 const CONTROLLER_ID = "b66d3c5d-22c6-4199-889e-764f12d37fe5";
 const UPID = "UPID:nas:0000A1B2:00C3D4E5:65F00000:vzclone:109:root@pam:";
@@ -49,6 +72,7 @@ beforeAll(() => {
 
 beforeEach(() => {
 	ticks = 0;
+	forgotten.length = 0;
 });
 
 afterEach(() => {
@@ -420,6 +444,28 @@ describe("runWorkspaceOperations", () => {
 				)
 				.get(workspaceID),
 		).toEqual({ message: "workspace ready, awaiting instructions" });
+	});
+
+	it("clears a stale host key before first reaching a workspace", async () => {
+		// DHCP hands out the low addresses of the range repeatedly, so a new workspace inheriting a
+		// destroyed one's address is routine. Its host keys are generated on first boot, so the
+		// pinned key never matches and ssh refuses with a host-key warning that reads like an
+		// attack. Forgetting only on destroy was not enough: one missed cleanup poisons the next
+		// workspace handed that address, which is exactly what happened.
+		const db = database();
+		const workspaceID = await addressed(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async () => ({ code: 0, kind: "ran", stderr: "", stdout: "" }),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "ssh_ready" });
+		expect(forgotten).toContain("10.0.3.101");
+		expect(workspaceStatus(db, workspaceID)).toBe("booting");
 	});
 
 	it("keeps waiting while sshd is still coming up", async () => {

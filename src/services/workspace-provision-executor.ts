@@ -48,7 +48,7 @@ import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
-import type { SshRunner, SshTarget } from "./ssh";
+import { forgetHost, type SshRunner, type SshTarget } from "./ssh";
 import { checkoutRepository } from "./workspace-checkout";
 import {
 	awaitTask,
@@ -197,6 +197,23 @@ async function checkReachable(
 
 		return { processed: 1, status: "task_failed" };
 	}
+
+	// Drop any key pinned against this address before the first connection.
+	//
+	// The workspace is seconds old and its host keys were generated on first boot, so anything
+	// already pinned for this address belongs to a container that no longer exists. DHCP hands out
+	// the low addresses of the range over and over, so a workspace inheriting a predecessor's
+	// address is routine rather than exceptional.
+	//
+	// Forgetting on destroy is not enough on its own, because it is a cleanup that can be missed:
+	// by an orphan removed outside the teardown path, by a workspace destroyed before it ever had
+	// an address, by a controller that stopped mid-teardown. One miss poisons the next workspace
+	// to be handed that address, which is what happened.
+	//
+	// This does not weaken the protection that matters. Only the phase before a workspace is first
+	// reachable runs this; once accept-new has pinned the real key, a change during the workspace's
+	// life is still refused, and that is the case pinning actually defends against.
+	await forgetHost(keyPath, workspace.ip as string);
 
 	const result = await ssh(
 		{
