@@ -507,7 +507,8 @@ dd {
 .dashboard {
 	display: grid;
 	grid-template-columns: 260px minmax(0, 1fr) 260px;
-	min-height: 100vh;
+	height: 100vh;
+	overflow: hidden;
 }
 
 /* Only the detail route fills all three. Everything else spans the rest. */
@@ -665,7 +666,9 @@ dd {
 	display: flex;
 	flex-direction: column;
 	gap: 24px;
+	min-height: 0;
 	min-width: 0;
+	overflow-y: auto;
 	padding: 24px 28px 48px;
 }
 
@@ -700,9 +703,7 @@ dd {
 	gap: 12px;
 }
 
-/* The terminal gets the vertical space. Capped so the prompt stays reachable without scrolling. */
 .centre-screen .detail-screen {
-	max-height: 60vh;
 	overflow: auto;
 }
 
@@ -716,6 +717,8 @@ dd {
 
 .dashboard-rail {
 	border-left: 1px solid #2c3428;
+	min-height: 0;
+	overflow-y: auto;
 	padding: 24px 16px;
 }
 
@@ -742,9 +745,32 @@ dd {
 	white-space: normal;
 }
 
+/* Below this the rail drops under the centre, so a locked viewport height would clip it. The
+   whole shell goes back to growing with its content and scrolling normally. */
 @media (max-width: 1100px) {
 	.dashboard {
 		grid-template-columns: 220px minmax(0, 1fr);
+		height: auto;
+		min-height: 100vh;
+		overflow: visible;
+	}
+
+	.dashboard-main,
+	.dashboard-rail {
+		overflow-y: visible;
+	}
+
+	.dashboard-main-fixed {
+		overflow: visible;
+	}
+
+	.dashboard-main-fixed .centre-screen,
+	.dashboard-main-fixed .centre-timeline {
+		flex: 0 0 auto;
+	}
+
+	.dashboard-main-fixed .detail-screen {
+		max-height: 60vh;
 	}
 
 	.dashboard-rail {
@@ -764,10 +790,11 @@ dd {
 	}
 
 	.dashboard-sidebar {
-		height: auto;
-		position: static;
-		border-right: none;
 		border-bottom: 1px solid #2c3428;
+		border-right: none;
+		height: auto;
+		overflow-y: visible;
+		position: static;
 	}
 
 	.dashboard-rail,
@@ -907,4 +934,68 @@ dd {
 	align-self: flex-start;
 	min-height: var(--control-height);
 	padding-inline: 18px;
+}
+
+/* ── Fixed-height detail layout ──────────────────────────────────────────────
+   The screen and the timeline each scroll themselves, so the column never
+   does. Without this the page grew with the transcript and the prompt walked
+   off the bottom of the window, which is the one control you always want. */
+.dashboard-main-fixed {
+	overflow: hidden;
+	padding-bottom: 24px;
+}
+
+/* Three to one: the terminal is what is being watched, the timeline is a reference. Both are
+   flex-basis zero so they divide the leftover space rather than their content deciding it. */
+.dashboard-main-fixed .centre-screen {
+	flex: 3 1 0;
+	min-height: 0;
+}
+
+.dashboard-main-fixed .detail-screen {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.dashboard-main-fixed .centre-timeline {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* Takes the whole column when there is no screen, which is every workspace still building. */
+.dashboard-main-fixed .detail-timeline {
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────────
+   Thin and the colour of a border, so a scrollable region is discoverable
+   without a bright bar drawing the eye away from the terminal. */
+* {
+	scrollbar-color: #2c3428 transparent;
+	scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+	height: 8px;
+	width: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #2c3428;
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #4a5646;
+}
+
+::-webkit-scrollbar-corner {
+	background: transparent;
 }

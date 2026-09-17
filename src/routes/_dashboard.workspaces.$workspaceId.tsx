@@ -105,7 +105,7 @@ function WorkspaceDetail() {
 
 	return (
 		<>
-			<main className="dashboard-main">
+			<main className="dashboard-main dashboard-main-fixed">
 				<header className="centre-head">
 					<div>
 						<h1>{workspace.hostname}</h1>
