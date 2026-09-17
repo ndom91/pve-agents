@@ -27,6 +27,7 @@ import {
 	herdrAgentName,
 	herdrAgentStatus,
 	herdrServerState,
+	promptHerdrAgent,
 	readHerdrAgent,
 	startHerdrAgent,
 	startHerdrServer,
@@ -154,6 +155,8 @@ export async function executeWorkspaceProvision(
 		case "herdr-registered":
 			return startWorkspaceAgent(db, config, lease, workspace, now, ssh);
 		case "agent-started":
+			return briefWorkspaceAgent(db, config, lease, workspace, now, ssh);
+		case "briefed":
 			// Reached only by an operation that advanced and then lost its release, since the pass
 			// that sets this phase also completes.
 			completeWorkspaceOperation(db, lease, now);
@@ -663,11 +666,95 @@ async function startWorkspaceAgent(
 		{
 			event: {
 				message: `${config.WORKSPACE_AGENT_KIND} running as ${name} in ${paneId}`,
-				type: "workspace.ready",
+				type: "workspace.agent_started",
 			},
 			phase: "agent-started",
+			step: "agent running",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "agent_started" };
+}
+
+// briefWorkspaceAgent tells the agent what the workspace was requested for.
+//
+// This is what makes "ready" mean working on it rather than merely built. The purpose is sent
+// verbatim: wrapping it in invented context would hand the agent instructions the operator never
+// wrote, and a terse prompt is better than a surprising one.
+async function briefWorkspaceAgent(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const request = workspaceRequest(db, workspace.id);
+	const purpose = request?.purpose?.trim();
+	const target = herdrTarget(config, workspace);
+	const name = herdrAgentName(workspace.hostname);
+
+	// Nothing to say. A workspace requested without a purpose is ready and idle, waiting for
+	// someone to tell it something from the UI.
+	if (
+		purpose === undefined ||
+		purpose === "" ||
+		target === undefined ||
+		name === undefined
+	) {
+		advanceWorkspaceProvision(
+			db,
+			lease,
+			{
+				event: {
+					message: "workspace ready, awaiting instructions",
+					type: "workspace.ready",
+				},
+				phase: "briefed",
+				status: "ready",
+				step: "ready",
+			},
+			now,
+		);
+		completeWorkspaceOperation(db, lease, now);
+
+		return { processed: 1, status: "workspace_ready" };
+	}
+
+	const prompted = await promptHerdrAgent(target, name, purpose, ssh);
+	if (prompted.kind === "failed") {
+		noteWorkspaceIssue(db, lease, prompted.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+	// Blocked before it was even briefed. Retrying cannot clear a dialog, and the workspace is
+	// usable: an operator answers it and prompts by hand. Better ready and waiting than failed.
+	if (prompted.kind === "blocked") {
+		noteWorkspaceIssue(
+			db,
+			lease,
+			"agent was waiting for input before it could be briefed",
+			now,
+		);
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message:
+					prompted.kind === "blocked"
+						? "workspace ready, agent waiting for input"
+						: `briefed: ${summarise(purpose)}`,
+				type: "workspace.ready",
+			},
+			phase: "briefed",
 			status: "ready",
-			step: "agent ready",
+			step: "ready",
 		},
 		now,
 	);

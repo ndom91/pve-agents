@@ -445,3 +445,58 @@ dd {
 		flex-direction: column;
 	}
 }
+
+/* Blocked is the one state that needs a person, so it gets a banner rather than a badge. */
+.detail-blocked {
+	border: 1px solid #b08a4a;
+	margin-top: 24px;
+	padding: 12px 16px;
+}
+
+.detail-blocked h2 {
+	color: #e0b36a;
+	margin: 0 0 6px;
+}
+
+.detail-blocked p {
+	margin: 0;
+}
+
+.detail-keys {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.detail-keys button {
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	min-width: 56px;
+}
+
+.detail-prompt {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.detail-prompt textarea {
+	background: #10140f;
+	border: 1px solid #2c3428;
+	color: #d6e2cf;
+	font-family: inherit;
+	font-size: 14px;
+	padding: 10px;
+	resize: vertical;
+	width: 100%;
+}
+
+.detail-prompt textarea:focus {
+	border-color: #7b8b71;
+	outline: none;
+}
+
+.detail-prompt button {
+	align-self: flex-start;
+}

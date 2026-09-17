@@ -30,6 +30,7 @@ export type ProvisionPhase =
 	| "agent-started"
 	| "booted"
 	| "bootstrapped"
+	| "briefed"
 	| "checked-out"
 	| "clone-confirmed"
 	| "clone-submitted"

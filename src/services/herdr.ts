@@ -254,6 +254,87 @@ export async function herdrAgentStatus(
 		: { kind: "found", status };
 }
 
+// HerdrPrompt is what happened to a prompt handed to an agent.
+//
+// "blocked" is its own outcome rather than a failure. Herdr refuses a prompt to an agent sitting
+// at a dialog, before sending anything, and that is not a fault: it is the agent waiting for an
+// answer. A caller needs to tell an operator to answer the question, not that something broke.
+export type HerdrPrompt =
+	| { kind: "blocked" }
+	| { kind: "failed"; message: string }
+	| { kind: "submitted" };
+
+// KEYS are the key presses this controller is willing to send.
+//
+// An allow-list because send-keys writes raw input to a terminal running an agent that holds
+// repository write access and a live GitHub token. These exist for one job, answering a dialog.
+// A general "type this into the terminal" capability is a different feature with a different risk.
+const KEYS = new Set([
+	"1",
+	"2",
+	"3",
+	"4",
+	"5",
+	"6",
+	"7",
+	"8",
+	"9",
+	"ctrl+c",
+	"down",
+	"enter",
+	"esc",
+	"up",
+]);
+
+// herdrKey accepts a key press only if it is one this controller sends.
+export function herdrKey(key: string): string | undefined {
+	return KEYS.has(key) ? key : undefined;
+}
+
+// promptHerdrAgent submits a prompt and returns as soon as it has been written.
+//
+// Without --wait on purpose. Herdr reports submission rather than completion, and waiting for an
+// agent's turn to finish would hold the caller for however long the work takes. What the agent
+// does next is already reported by the activity pass.
+export async function promptHerdrAgent(
+	target: HerdrTarget,
+	name: string,
+	text: string,
+	ssh: SshRunner,
+): Promise<HerdrPrompt> {
+	const result = await run(target, ["agent", "prompt", name, text], ssh);
+	if (result.kind === "ok") {
+		return { kind: "submitted" };
+	}
+	if (result.message.includes("agent_blocked")) {
+		return { kind: "blocked" };
+	}
+
+	return { kind: "failed", message: result.message };
+}
+
+// sendHerdrKeys answers a dialog an agent is waiting at.
+export async function sendHerdrKeys(
+	target: HerdrTarget,
+	name: string,
+	key: string,
+	ssh: SshRunner,
+): Promise<HerdrPrompt> {
+	const allowed = herdrKey(key);
+	if (allowed === undefined) {
+		return {
+			kind: "failed",
+			message: `${key} is not a key this controller sends`,
+		};
+	}
+
+	const result = await run(target, ["agent", "send-keys", name, allowed], ssh);
+
+	return result.kind === "ok"
+		? { kind: "submitted" }
+		: { kind: "failed", message: result.message };
+}
+
 // readHerdrAgent snapshots what an agent's pane is showing.
 //
 // "detection" is the plain-text buffer Herdr classifies agents from, which is the right source for

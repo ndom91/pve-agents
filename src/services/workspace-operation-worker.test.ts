@@ -222,6 +222,11 @@ describe("runWorkspaceOperations", () => {
 		});
 		expect(await step(540_000)).toEqual({
 			processed: 1,
+			status: "agent_started",
+		});
+		// The workspace is only "ready" once it has been told what it was requested for.
+		expect(await step(600_000)).toEqual({
+			processed: 1,
 			status: "workspace_ready",
 		});
 
@@ -243,6 +248,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.checked_out",
 			"workspace.session_started",
 			"workspace.herdr_registered",
+			"workspace.agent_started",
 			"workspace.ready",
 		]);
 
@@ -262,7 +268,7 @@ describe("runWorkspaceOperations", () => {
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 600_000),
+			new Date(POLLED_AT.getTime() + 660_000),
 			async () => {
 				throw new Error("ssh must not be attempted again");
 			},
@@ -285,6 +291,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.checked_out",
 			"workspace.session_started",
 			"workspace.herdr_registered",
+			"workspace.agent_started",
 			"workspace.ready",
 		]);
 		expect(
@@ -362,6 +369,57 @@ describe("runWorkspaceOperations", () => {
 			error_message:
 				"claude is waiting for input: Some future prompt this controller has never seen",
 		});
+	});
+
+	it("briefs the agent with the purpose it was requested for, verbatim", async () => {
+		const db = database();
+		await registered(db);
+		const workspace = herdrWorkspace();
+		const proxmox = async () => {
+			throw new Error("proxmox must not be contacted");
+		};
+
+		await tick(db, proxmox, workspace.ssh); // -> agent-started
+
+		let prompt: string[] = [];
+		await tick(db, proxmox, async (target, command, input) => {
+			if (command.join(" ").includes("agent prompt")) {
+				prompt = command;
+			}
+
+			return workspace.ssh(target, command, input);
+		});
+
+		// Verbatim: wrapping it would hand the agent instructions nobody wrote.
+		expect(prompt).toContain("a stated purpose");
+	});
+
+	it("reaches ready without a purpose, and says so", async () => {
+		const db = database();
+		const workspaceID = await registered(db, null);
+		const workspace = herdrWorkspace();
+		const proxmox = async () => {
+			throw new Error("proxmox must not be contacted");
+		};
+
+		await tick(db, proxmox, workspace.ssh); // -> agent-started
+		const briefed = await tick(db, proxmox, async (target, command, input) => {
+			if (command.join(" ").includes("agent prompt")) {
+				throw new Error("nothing to say, so nothing should be sent");
+			}
+
+			return workspace.ssh(target, command, input);
+		});
+
+		expect(briefed).toEqual({ processed: 1, status: "workspace_ready" });
+		expect(workspaceStatus(db, workspaceID)).toBe("ready");
+		expect(
+			db
+				.prepare(
+					"SELECT message FROM workspace_events WHERE workspace_id = ? ORDER BY id DESC LIMIT 1",
+				)
+				.get(workspaceID),
+		).toEqual({ message: "workspace ready, awaiting instructions" });
 	});
 
 	it("keeps waiting while sshd is still coming up", async () => {
@@ -1188,8 +1246,17 @@ async function addressed(db: Database.Database): Promise<string> {
 }
 
 // registered leaves a workspace with a herdr workspace created and an agent not yet started.
-async function registered(db: Database.Database): Promise<string> {
+// purpose is nullable rather than optional: a default parameter also applies when undefined is
+// passed explicitly, so "no purpose" has to be a value the default cannot swallow.
+async function registered(
+	db: Database.Database,
+	purpose: string | null = "a stated purpose",
+): Promise<string> {
 	const workspaceID = await addressed(db);
+	db.prepare("UPDATE workspaces SET purpose = ? WHERE id = ?").run(
+		purpose,
+		workspaceID,
+	);
 	const proxmox = async () => {
 		throw new Error("proxmox must not be contacted");
 	};
@@ -1319,6 +1386,9 @@ function herdrWorkspace() {
 			return stdout(
 				JSON.stringify({ result: { agent: { agent_status: "idle" } } }),
 			);
+		}
+		if (command.includes("agent prompt")) {
+			return stdout(JSON.stringify({ result: { type: "agent_prompted" } }));
 		}
 		if (command.includes("agent read")) {
 			return stdout("agent@agent-abcd:/workspace/repo$ claude\n>\n");

@@ -690,10 +690,35 @@ export function reservedVMIDs(db: Database.Database): Set<number> {
 export function workspaceRequest(
 	db: Database.Database,
 	id: string,
-): { ref: string; repository: string } | undefined {
-	return db
-		.prepare("SELECT repository, ref FROM workspaces WHERE id = ?")
-		.get(id) as { ref: string; repository: string } | undefined;
+): { purpose?: string; ref: string; repository: string } | undefined {
+	const row = db
+		.prepare("SELECT repository, ref, purpose FROM workspaces WHERE id = ?")
+		.get(id) as
+		| { purpose: string | null; ref: string; repository: string }
+		| undefined;
+	if (row === undefined) {
+		return undefined;
+	}
+
+	return row.purpose === null
+		? { ref: row.ref, repository: row.repository }
+		: { purpose: row.purpose, ref: row.ref, repository: row.repository };
+}
+
+// recordWorkspaceNote appends a timeline entry for something a person did.
+//
+// No lease, unlike the operation-scoped writes in this file. A prompt sent from the UI is not
+// operation work: it has no retry budget and nothing to resume. Recording it matters because the
+// timeline would otherwise show everything the controller did and nothing about what the workspace
+// was actually asked to do, which is the more interesting half.
+export function recordWorkspaceNote(
+	db: Database.Database,
+	id: string,
+	type: string,
+	message: string,
+	now: Date = new Date(),
+): void {
+	appendWorkspaceEvent(db, id, type, message, now.toISOString());
 }
 
 // WorkspaceActivityTarget is one ready workspace whose agent can be asked what it is doing.

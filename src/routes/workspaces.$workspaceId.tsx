@@ -6,7 +6,11 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { workspacePane } from "../server/agent.functions";
+import {
+	promptWorkspaceAgent,
+	sendWorkspaceKeys,
+	workspacePane,
+} from "../server/agent.functions";
 import { sessionState } from "../server/session.functions";
 import { workspaceDetail } from "../server/workspace.functions";
 
@@ -34,6 +38,9 @@ function WorkspaceDetail() {
 	const router = useRouter();
 	const [screen, setScreen] = useState("");
 	const [screenError, setScreenError] = useState("");
+	const [prompt, setPrompt] = useState("");
+	const [sending, setSending] = useState(false);
+	const [inputNote, setInputNote] = useState("");
 
 	const settled =
 		workspace.status === "destroyed" || workspace.status === "failed";
@@ -91,6 +98,30 @@ function WorkspaceDetail() {
 		};
 	}, [id, ready]);
 
+	async function send(
+		action: () => Promise<{ kind: string; reason?: string }>,
+	) {
+		setSending(true);
+		setInputNote("");
+		try {
+			const result = await action();
+			if (result.kind === "blocked") {
+				setInputNote("The agent is waiting for input. Answer it first.");
+			} else if (result.kind === "unavailable") {
+				setInputNote(result.reason ?? "could not reach the agent");
+			} else {
+				setPrompt("");
+				router.invalidate();
+			}
+		} catch {
+			setInputNote("could not reach the controller");
+		} finally {
+			setSending(false);
+		}
+	}
+
+	const blocked = workspace.activity === "blocked";
+
 	return (
 		<main className="detail">
 			<nav>
@@ -119,6 +150,16 @@ function WorkspaceDetail() {
 				</section>
 			)}
 
+			{!blocked ? null : (
+				<section className="detail-blocked">
+					<h2>Waiting for you</h2>
+					<p>
+						The agent has asked a question and will not continue until it is
+						answered.
+					</p>
+				</section>
+			)}
+
 			<section>
 				<h2>Placement</h2>
 				<dl className="detail-facts">
@@ -144,6 +185,49 @@ function WorkspaceDetail() {
 					{/* Terminal output from a process no operator controls, so it is rendered as
 					    text and never interpreted as markup. */}
 					{screen === "" ? null : <pre className="detail-screen">{screen}</pre>}
+
+					{/* Keys are offered only when the agent is actually waiting, so they cannot be
+					    fired at a working agent by accident. */}
+					{!blocked ? null : (
+						<div className="detail-keys">
+							{["1", "2", "3", "up", "down", "enter", "esc"].map((key) => (
+								<button
+									disabled={sending}
+									key={key}
+									onClick={() =>
+										send(() => sendWorkspaceKeys({ data: { id, key } }))
+									}
+									type="button"
+								>
+									{key}
+								</button>
+							))}
+						</div>
+					)}
+
+					<form
+						className="detail-prompt"
+						onSubmit={(event) => {
+							event.preventDefault();
+							if (prompt.trim() !== "") {
+								void send(() =>
+									promptWorkspaceAgent({ data: { id, text: prompt } }),
+								);
+							}
+						}}
+					>
+						<textarea
+							disabled={sending}
+							onChange={(event) => setPrompt(event.target.value)}
+							placeholder="Tell the agent what to do next"
+							rows={3}
+							value={prompt}
+						/>
+						<button disabled={sending || prompt.trim() === ""} type="submit">
+							{sending ? "Sending" : "Send"}
+						</button>
+					</form>
+					{inputNote === "" ? null : <p className="detail-note">{inputNote}</p>}
 				</section>
 			)}
 

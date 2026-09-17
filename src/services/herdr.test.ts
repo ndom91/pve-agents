@@ -4,6 +4,8 @@ import {
 	createHerdrWorkspace,
 	herdrAgentName,
 	herdrServerState,
+	promptHerdrAgent,
+	sendHerdrKeys,
 	startHerdrAgent,
 	startHerdrServer,
 } from "./herdr";
@@ -182,3 +184,84 @@ function ran(code: number, stdout: string, stderr = ""): SshRunner {
 		stdout,
 	});
 }
+
+describe("promptHerdrAgent", () => {
+	it("reports a blocked agent as blocked, not as a failure", async () => {
+		// The UI branches on this. Herdr refuses a prompt to an agent at a dialog before sending
+		// anything, which is not a fault: it is the agent waiting for an answer, and an operator
+		// needs to be told to answer it rather than told something broke.
+		const prompted = await promptHerdrAgent(
+			TARGET,
+			"agent-2881",
+			"do the thing",
+			ran(1, "", '{"error":{"code":"agent_blocked"}}'),
+		);
+
+		expect(prompted).toEqual({ kind: "blocked" });
+	});
+
+	it("sends the text it was given, unchanged", async () => {
+		let command: string[] = [];
+		await promptHerdrAgent(
+			TARGET,
+			"agent-2881",
+			"Fix the login bug; don't touch the tests",
+			async (_target, args) => {
+				command = args;
+
+				return { code: 0, kind: "ran", stderr: "", stdout: "{}" };
+			},
+		);
+
+		expect(command).toContain("Fix the login bug; don't touch the tests");
+	});
+
+	it("returns as soon as the prompt is submitted", async () => {
+		// No --wait: Herdr reports submission rather than completion, and waiting for a turn to
+		// finish would hold the caller for however long the work takes.
+		let command: string[] = [];
+		await promptHerdrAgent(
+			TARGET,
+			"agent-2881",
+			"go",
+			async (_target, args) => {
+				command = args;
+
+				return { code: 0, kind: "ran", stderr: "", stdout: "{}" };
+			},
+		);
+
+		expect(command).not.toContain("--wait");
+	});
+});
+
+describe("sendHerdrKeys", () => {
+	it("sends a key from the allow-list", async () => {
+		let command: string[] = [];
+		const sent = await sendHerdrKeys(
+			TARGET,
+			"agent-2881",
+			"enter",
+			async (_target, args) => {
+				command = args;
+
+				return { code: 0, kind: "ran", stderr: "", stdout: "{}" };
+			},
+		);
+
+		expect(sent).toEqual({ kind: "submitted" });
+		expect(command).toContain("enter");
+	});
+
+	it("refuses anything else before it reaches herdr", async () => {
+		// send-keys writes raw input to a terminal running an agent that holds repository write
+		// access and a live GitHub token. These exist to answer a dialog, not to type commands.
+		for (const key of ["ctrl+d", "rm -rf /", "a", "tab", "f1"]) {
+			const sent = await sendHerdrKeys(TARGET, "agent-2881", key, async () => {
+				throw new Error("herdr must not be contacted for a rejected key");
+			});
+
+			expect(sent.kind).toBe("failed");
+		}
+	});
+});
