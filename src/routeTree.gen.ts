@@ -9,20 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as DashboardIndexRouteImport } from './routes/_dashboard.index'
+import { Route as DashboardSettingsRouteImport } from './routes/_dashboard.settings'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiWorkspacesRouteImport } from './routes/api/workspaces'
-import { Route as WorkspacesWorkspaceIdRouteImport } from './routes/workspaces.$workspaceId'
+import { Route as DashboardWorkspacesWorkspaceIdRouteImport } from './routes/_dashboard.workspaces.$workspaceId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiInfrastructureProbeRouteImport } from './routes/api/infrastructure/probe'
 import { Route as ApiWorkspacesWorkspaceIdRouteImport } from './routes/api/workspaces/$workspaceId'
 import { Route as ApiWorkspacesWorkspaceIdRetryRouteImport } from './routes/api/workspaces/$workspaceId/retry'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -30,10 +30,15 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => DashboardRoute,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
@@ -45,11 +50,12 @@ const ApiWorkspacesRoute = ApiWorkspacesRouteImport.update({
   path: '/api/workspaces',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspacesWorkspaceIdRoute = WorkspacesWorkspaceIdRouteImport.update({
-  id: '/workspaces/$workspaceId',
-  path: '/workspaces/$workspaceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const DashboardWorkspacesWorkspaceIdRoute =
+  DashboardWorkspacesWorkspaceIdRouteImport.update({
+    id: '/workspaces/$workspaceId',
+    path: '/workspaces/$workspaceId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -74,24 +80,24 @@ const ApiWorkspacesWorkspaceIdRetryRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof DashboardIndexRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof DashboardSettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
+  '/workspaces/$workspaceId': typeof DashboardWorkspacesWorkspaceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof DashboardSettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
+  '/': typeof DashboardIndexRoute
+  '/workspaces/$workspaceId': typeof DashboardWorkspacesWorkspaceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
@@ -99,12 +105,13 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/_dashboard/settings': typeof DashboardSettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
-  '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
+  '/_dashboard/': typeof DashboardIndexRoute
+  '/_dashboard/workspaces/$workspaceId': typeof DashboardWorkspacesWorkspaceIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
@@ -125,11 +132,11 @@ export interface FileRouteTypes {
     | '/api/workspaces/$workspaceId/retry'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/login'
     | '/settings'
     | '/api/health'
     | '/api/workspaces'
+    | '/'
     | '/workspaces/$workspaceId'
     | '/api/auth/$'
     | '/api/infrastructure/probe'
@@ -137,12 +144,13 @@ export interface FileRouteTypes {
     | '/api/workspaces/$workspaceId/retry'
   id:
     | '__root__'
-    | '/'
+    | '/_dashboard'
     | '/login'
-    | '/settings'
+    | '/_dashboard/settings'
     | '/api/health'
     | '/api/workspaces'
-    | '/workspaces/$workspaceId'
+    | '/_dashboard/'
+    | '/_dashboard/workspaces/$workspaceId'
     | '/api/auth/$'
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
@@ -150,23 +158,21 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
-  SettingsRoute: typeof SettingsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiWorkspacesRoute: typeof ApiWorkspacesRouteWithChildren
-  WorkspacesWorkspaceIdRoute: typeof WorkspacesWorkspaceIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiInfrastructureProbeRoute: typeof ApiInfrastructureProbeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_dashboard': {
+      id: '/_dashboard'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -176,12 +182,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
+    '/_dashboard/': {
+      id: '/_dashboard/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/settings': {
+      id: '/_dashboard/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/api/health': {
       id: '/api/health'
@@ -197,12 +210,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWorkspacesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspaces/$workspaceId': {
-      id: '/workspaces/$workspaceId'
+    '/_dashboard/workspaces/$workspaceId': {
+      id: '/_dashboard/workspaces/$workspaceId'
       path: '/workspaces/$workspaceId'
       fullPath: '/workspaces/$workspaceId'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof DashboardWorkspacesWorkspaceIdRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -235,6 +248,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardWorkspacesWorkspaceIdRoute: typeof DashboardWorkspacesWorkspaceIdRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  DashboardWorkspacesWorkspaceIdRoute: DashboardWorkspacesWorkspaceIdRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 interface ApiWorkspacesWorkspaceIdRouteChildren {
   ApiWorkspacesWorkspaceIdRetryRoute: typeof ApiWorkspacesWorkspaceIdRetryRoute
 }
@@ -262,12 +291,10 @@ const ApiWorkspacesRouteWithChildren = ApiWorkspacesRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
-  SettingsRoute: SettingsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiWorkspacesRoute: ApiWorkspacesRouteWithChildren,
-  WorkspacesWorkspaceIdRoute: WorkspacesWorkspaceIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiInfrastructureProbeRoute: ApiInfrastructureProbeRoute,
 }

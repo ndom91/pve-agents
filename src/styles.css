@@ -600,3 +600,281 @@ dd {
 	justify-content: space-between;
 	padding: 8px 12px;
 }
+
+/* ── Dashboard shell ─────────────────────────────────────────────────────────
+   Three columns: navigation, the agent screen, and reference material. The
+   centre takes the remaining space because the terminal is the thing being
+   watched; the rail is fixed and narrow so it cannot squeeze it. */
+.dashboard {
+	display: grid;
+	grid-template-columns: 260px minmax(0, 1fr) 260px;
+	min-height: 100vh;
+}
+
+/* Only the detail route fills all three. Everything else spans the rest. */
+.dashboard-main-wide {
+	grid-column: 2 / -1;
+}
+
+.dashboard-sidebar {
+	border-right: 1px solid #2c3428;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: 20px 16px;
+	position: sticky;
+	top: 0;
+	height: 100vh;
+	overflow-y: auto;
+}
+
+.sidebar-head {
+	align-items: baseline;
+	display: flex;
+	justify-content: space-between;
+}
+
+.sidebar-head a {
+	color: #7b8b71;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+
+.sidebar-head a:hover {
+	color: #d6e2cf;
+}
+
+.sidebar-label {
+	color: #7b8b71;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	margin: 0 0 10px;
+	text-transform: uppercase;
+}
+
+.sidebar-empty {
+	color: #6d7a67;
+	font-size: 13px;
+	margin: 0;
+}
+
+.sidebar-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.sidebar-entry {
+	border: 1px solid transparent;
+	border-left: 2px solid transparent;
+	display: grid;
+	gap: 2px;
+	padding: 8px 10px;
+	text-decoration: none;
+}
+
+.sidebar-entry:hover {
+	background: #161b14;
+}
+
+.sidebar-entry.is-active {
+	background: #161b14;
+	border-left-color: #7b8b71;
+}
+
+.sidebar-name {
+	color: #d6e2cf;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 13px;
+}
+
+.sidebar-repo {
+	color: #6d7a67;
+	font-size: 11px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sidebar-badges {
+	display: flex;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+/* Smaller here than on the detail page: in the sidebar they are a glance, not a statement. */
+.sidebar-badges .status,
+.sidebar-badges .activity {
+	font-size: 9px;
+	padding: 2px 5px;
+}
+
+.sidebar-destroyed {
+	margin-top: 20px;
+}
+
+.sidebar-destroyed summary {
+	color: #6d7a67;
+	cursor: pointer;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.sidebar-destroyed summary span {
+	color: #4a5646;
+	margin-left: 8px;
+}
+
+.sidebar-destroyed .sidebar-list {
+	margin-top: 8px;
+}
+
+.sidebar-new {
+	border: 1px solid #4a5646;
+	color: #a9b8a2;
+	font-size: 12px;
+	margin-top: auto;
+	padding: 8px 10px;
+	text-align: center;
+	text-decoration: none;
+}
+
+.sidebar-new:hover {
+	border-color: #7b8b71;
+	color: #d6e2cf;
+}
+
+.sidebar-mode {
+	color: #6d7a67;
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	margin: 0;
+	text-transform: uppercase;
+}
+
+.dashboard-main {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	min-width: 0;
+	padding: 24px 28px 48px;
+}
+
+.centre-head {
+	align-items: start;
+	display: flex;
+	gap: 16px;
+	justify-content: space-between;
+}
+
+.centre-head h1 {
+	font-size: 18px;
+	margin: 0 0 4px;
+}
+
+.centre-head p {
+	color: #8a9a83;
+	margin: 0;
+	max-width: 60ch;
+}
+
+.centre-head-actions {
+	align-items: center;
+	display: flex;
+	flex-shrink: 0;
+	gap: 8px;
+}
+
+.centre-screen {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* The terminal gets the vertical space. Capped so the prompt stays reachable without scrolling. */
+.centre-screen .detail-screen {
+	max-height: 60vh;
+	overflow: auto;
+}
+
+.centre-timeline h2 {
+	color: #8a9a83;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	margin: 0 0 12px;
+	text-transform: uppercase;
+}
+
+.dashboard-rail {
+	border-left: 1px solid #2c3428;
+	padding: 24px 16px;
+}
+
+.dashboard-rail dl {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+}
+
+.dashboard-rail dt {
+	color: #6d7a67;
+	font-size: 10px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.dashboard-rail dd {
+	color: #a9b8a2;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	margin: 0;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+.field-wide {
+	width: 100%;
+	max-width: 420px;
+}
+
+/* One column rather than three squeezed ones. The rail is reference material, so it goes last. */
+@media (max-width: 1100px) {
+	.dashboard {
+		grid-template-columns: 220px minmax(0, 1fr);
+	}
+
+	.dashboard-rail {
+		border-left: none;
+		border-top: 1px solid #2c3428;
+		grid-column: 2;
+	}
+
+	.dashboard-main-wide {
+		grid-column: 2;
+	}
+}
+
+@media (max-width: 760px) {
+	.dashboard {
+		grid-template-columns: 1fr;
+	}
+
+	.dashboard-sidebar {
+		height: auto;
+		position: static;
+		border-right: none;
+		border-bottom: 1px solid #2c3428;
+	}
+
+	.dashboard-rail,
+	.dashboard-main-wide {
+		grid-column: 1;
+	}
+}

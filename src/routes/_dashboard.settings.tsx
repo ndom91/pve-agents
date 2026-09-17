@@ -1,36 +1,24 @@
-import {
-	createFileRoute,
-	Link,
-	redirect,
-	useRouter,
-} from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-
+import { settingsQuery } from "../lib/queries";
 import {
 	destroyOrphan,
 	type OrphanRemoval,
 	scanOrphans,
 } from "../server/orphan.functions";
-import { sessionState } from "../server/session.functions";
-import {
-	saveWorkspaceSettings,
-	workspaceSettings,
-} from "../server/settings.functions";
+import { saveWorkspaceSettings } from "../server/settings.functions";
 
-export const Route = createFileRoute("/settings")({
-	beforeLoad: async () => {
-		const state = await sessionState();
-		if (state.required && !state.signedIn) {
-			throw redirect({ to: "/login" });
-		}
-	},
+export const Route = createFileRoute("/_dashboard/settings")({
 	component: Settings,
-	loader: async () => workspaceSettings(),
+	// Auth is handled once by the _dashboard layout, so it is not repeated here.
+	loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery()),
 });
 
 function Settings() {
-	const settings = Route.useLoaderData();
-	const router = useRouter();
+	// Suspense rather than a guard: the loader already ensured this key, so the data is present
+	// and the component does not need a loading branch it will never render.
+	const { data: settings } = useSuspenseQuery(settingsQuery());
 	const [enabled, setEnabled] = useState(settings.reapingEnabled);
 	const [idle, setIdle] = useState(String(settings.reapIdleMinutes));
 	const [maxAge, setMaxAge] = useState(String(settings.reapMaxAgeHours));
@@ -59,7 +47,6 @@ function Settings() {
 				},
 			});
 			setNote("Saved. In effect from the next pass.");
-			router.invalidate();
 		} catch (cause) {
 			setNote(cause instanceof Error ? cause.message : "could not save");
 		} finally {
@@ -68,11 +55,7 @@ function Settings() {
 	}
 
 	return (
-		<main className="detail">
-			<nav>
-				<Link to="/">Back to fleet</Link>
-			</nav>
-
+		<main className="dashboard-main dashboard-main-wide">
 			<header>
 				<h1>Settings</h1>
 				<p className="workspace-purpose">
