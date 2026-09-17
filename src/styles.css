@@ -1,4 +1,9 @@
 :root {
+	/* One height for every control that sits in a row with another. Lived on .workspace-actions
+	   until the dashboard removed that class, at which point every var() referring to it silently
+	   resolved to nothing and the rules using it were dropped. */
+	--control-height: 42px;
+
 	background: #111411;
 	color: #e6e9df;
 	font-family: "Avenir Next", "Helvetica Neue", sans-serif;
@@ -26,11 +31,6 @@ input {
 
 .masthead,
 .section-heading,
-.workspace-row {
-	display: flex;
-	justify-content: space-between;
-}
-
 .masthead {
 	align-items: start;
 	border-bottom: 1px solid #384036;
@@ -67,7 +67,6 @@ h2 {
 }
 
 .activity,
-.mode,
 .status {
 	border: 1px solid #7b8b71;
 	color: #c4d1bd;
@@ -160,21 +159,6 @@ dt {
 	margin-top: 24px;
 }
 
-.workspace-row {
-	align-items: center;
-	border-top: 1px solid #2c332c;
-	/* Lets the log panel claim a full-width line of its own rather than competing for space on
-	   the row, which was squeezing the hostname onto two lines. */
-	flex-wrap: wrap;
-	gap: 24px;
-	padding: 18px 0;
-}
-
-.workspace-name {
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	margin-bottom: 6px;
-}
-
 .workspace-purpose {
 	margin-bottom: 0;
 }
@@ -213,46 +197,6 @@ dd {
    button would have been. */
 /* Forced onto its own line under the row: full basis plus a later order, which needs the row to
    wrap. */
-.workspace-logs {
-	flex-basis: 100%;
-	margin-top: 4px;
-	order: 1;
-}
-
-.workspace-logs summary {
-	color: #a9b8a2;
-	cursor: pointer;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-.workspace-logs summary span {
-	color: #7b8b71;
-	margin-left: 8px;
-}
-
-.workspace-logs ol {
-	list-style: none;
-	margin: 10px 0 0;
-	padding: 0;
-}
-
-.workspace-logs li {
-	color: #c4d1bd;
-	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
-	gap: 12px;
-	padding: 3px 0;
-}
-
-.workspace-logs time {
-	color: #7b8b71;
-	flex-shrink: 0;
-}
-
 .log-type {
 	color: #a9b8a2;
 	flex-shrink: 0;
@@ -264,53 +208,6 @@ dd {
 	color: #e0a2a2;
 }
 
-.workspace-actions {
-	--control-height: 42px;
-
-	align-items: center;
-	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
-	margin-left: auto;
-}
-
-/* The badge and the button sit side by side, so one height governs both rather than each being
-   sized by its own padding and font. */
-.workspace-actions .activity,
-.workspace-actions .status,
-.workspace-actions a,
-.workspace-actions button {
-	align-items: center;
-	box-sizing: border-box;
-	display: inline-flex;
-	min-height: var(--control-height);
-	padding-block: 0;
-}
-
-.workspace-actions .activity,
-.workspace-actions .status {
-	padding-inline: 12px;
-}
-
-.workspace-actions a {
-	border: 1px solid #4a5646;
-	color: #a9b8a2;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
-	letter-spacing: 0.08em;
-	padding-inline: 12px;
-	text-decoration: none;
-	text-transform: uppercase;
-}
-
-.workspace-actions a:hover {
-	border-color: #7b8b71;
-	color: #d6e2cf;
-}
-
-/* Activity is a weaker signal than status: it changes every half minute and means nothing about
-   whether the workspace is healthy. Dimmer by default so it cannot be mistaken for one, and
-   coloured only when it is asking for something. */
 .activity {
 	border-color: #4a5646;
 	color: #8a9a83;
@@ -382,21 +279,6 @@ dd {
 	margin: 0;
 }
 
-.detail-facts {
-	display: grid;
-	gap: 12px 24px;
-	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	margin: 0;
-}
-
-.detail-facts dt {
-	color: #7b8b71;
-	font-size: 11px;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-/* Terminal output, so it keeps its own spacing and scrolls rather than reflowing. */
 .detail-screen {
 	background: #10140f;
 	border: 1px solid #2c3428;
@@ -843,12 +725,6 @@ dd {
 	white-space: normal;
 }
 
-.field-wide {
-	width: 100%;
-	max-width: 420px;
-}
-
-/* One column rather than three squeezed ones. The rail is reference material, so it goes last. */
 @media (max-width: 1100px) {
 	.dashboard {
 		grid-template-columns: 220px minmax(0, 1fr);
@@ -909,15 +785,18 @@ dd {
 
 /* One height governs the badges and the button beside them, rather than each being sized by its
    own padding and font. Without this the badges sit short next to the control they line up with. */
+/* The badges take the button's height, not the other way round: the button is the control with a
+   size worth keeping, and a badge has no intrinsic one. */
 .centre-head-actions .status,
 .centre-head-actions .activity,
 .centre-head-actions button {
 	align-items: center;
 	box-sizing: border-box;
 	display: inline-flex;
-	min-height: var(--control-height);
+	font-size: 12px;
+	height: var(--control-height);
 	padding-block: 0;
-	padding-inline: 14px;
+	padding-inline: 16px;
 }
 
 /* The empty state is the whole content area, so the card is centred in it rather than sitting in
