@@ -6,6 +6,7 @@ import type { ControllerConfig } from "../config/controller-config";
 import { observeWorkspaceActivity } from "./workspace-activity";
 import { refreshWorkspaceCredentials } from "./workspace-credentials";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
+import { reapWorkspaces } from "./workspace-reaper";
 
 // ERROR_BACKOFF_MS is the pause after a tick throws, so a persistent fault cannot become a hot
 // loop against Proxmox or the database.
@@ -65,6 +66,9 @@ async function sweep(
 	config: ControllerConfig,
 ): Promise<void> {
 	await runWorkspaceOperations(db, config);
+	// Activity first, deliberately: the reaper decides on the activity this records, and reaping
+	// on a stale reading is how a working agent gets destroyed.
 	await observeWorkspaceActivity(db, config);
 	await refreshWorkspaceCredentials(db, config);
+	reapWorkspaces(db);
 }

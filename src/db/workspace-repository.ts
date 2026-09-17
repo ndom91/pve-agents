@@ -705,6 +705,51 @@ export function workspaceRequest(
 		: { purpose: row.purpose, ref: row.ref, repository: row.repository };
 }
 
+// ReapableWorkspace is one workspace the reaper may consider.
+export type ReapableWorkspace = {
+	activity: WorkspaceActivity;
+	createdAt: string;
+	id: string;
+	lastActivityAt?: string;
+};
+
+// reapableWorkspaces returns the workspaces a reaper is allowed to look at.
+//
+// Only "ready" ones, and only those with no live operation. A workspace mid-provision is not idle,
+// it is busy being built, and one already being destroyed must not be queued a second time. Both
+// exclusions live in the query rather than in the reaper, so the reaper cannot forget them.
+export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
+	const rows = db
+		.prepare(
+			`SELECT w.id, w.activity, w.created_at, w.last_activity_at
+			 FROM workspaces w
+			 WHERE w.status = 'ready' AND w.desired_state = 'present'
+				AND NOT EXISTS (
+					SELECT 1 FROM workspace_operations o
+					WHERE o.workspace_id = w.id AND o.status IN ('queued', 'running')
+				)`,
+		)
+		.all() as {
+		activity: WorkspaceActivity;
+		created_at: string;
+		id: string;
+		last_activity_at: string | null;
+	}[];
+
+	return rows.map((row) => {
+		const workspace: ReapableWorkspace = {
+			activity: row.activity,
+			createdAt: row.created_at,
+			id: row.id,
+		};
+		if (row.last_activity_at !== null) {
+			workspace.lastActivityAt = row.last_activity_at;
+		}
+
+		return workspace;
+	});
+}
+
 // recordWorkspaceNote appends a timeline entry for something a person did.
 //
 // No lease, unlike the operation-scoped writes in this file. A prompt sent from the UI is not

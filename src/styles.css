@@ -500,3 +500,72 @@ dd {
 .detail-prompt button {
 	align-self: flex-start;
 }
+
+.masthead-link {
+	color: #8a9a83;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	margin-left: auto;
+	margin-right: 16px;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+
+.masthead-link:hover {
+	color: #d6e2cf;
+}
+
+.settings-form {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	margin-top: 8px;
+	max-width: 560px;
+}
+
+.settings-toggle {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+}
+
+.settings-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.settings-field span {
+	color: #7b8b71;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.settings-field input {
+	background: #10140f;
+	border: 1px solid #2c3428;
+	color: #d6e2cf;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	padding: 8px 10px;
+	width: 140px;
+}
+
+.settings-field small {
+	color: #8a9a83;
+	line-height: 1.5;
+}
+
+/* The one consequence of the blocked exemption that is worth stating up front rather than being
+   discovered as a container that never went away. */
+.settings-caveat {
+	border-left: 2px solid #b08a4a;
+	color: #a9b8a2;
+	line-height: 1.6;
+	margin: 0;
+	padding-left: 12px;
+}
+
+.settings-form button {
+	align-self: flex-start;
+}

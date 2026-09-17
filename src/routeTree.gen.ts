@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiWorkspacesRouteImport } from './routes/api/workspaces'
 import { Route as WorkspacesWorkspaceIdRouteImport } from './routes/workspaces.$workspaceId'
@@ -27,6 +28,11 @@ const IndexRoute = IndexRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -70,6 +76,7 @@ const ApiWorkspacesWorkspaceIdRetryRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/workspaces': typeof ApiWorkspacesRouteWithChildren
   '/workspaces/$workspaceId': typeof WorkspacesWorkspaceIdRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/settings'
     | '/api/health'
     | '/api/workspaces'
     | '/workspaces/$workspaceId'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/settings'
     | '/api/health'
     | '/api/workspaces'
     | '/workspaces/$workspaceId'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
+    | '/settings'
     | '/api/health'
     | '/api/workspaces'
     | '/workspaces/$workspaceId'
@@ -140,6 +152,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiWorkspacesRoute: typeof ApiWorkspacesRouteWithChildren
   WorkspacesWorkspaceIdRoute: typeof WorkspacesWorkspaceIdRoute
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -244,6 +264,7 @@ const ApiWorkspacesRouteWithChildren = ApiWorkspacesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiWorkspacesRoute: ApiWorkspacesRouteWithChildren,
   WorkspacesWorkspaceIdRoute: WorkspacesWorkspaceIdRoute,

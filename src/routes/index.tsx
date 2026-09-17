@@ -124,6 +124,9 @@ function Home() {
 					<p className="eyebrow">PVE / HERDR</p>
 					<h1>Agent compute</h1>
 				</div>
+				<Link className="masthead-link" to="/settings">
+					Settings
+				</Link>
 				<p className="mode">
 					{status.provisioningEnabled
 						? status.workerEnabled
