@@ -104,6 +104,7 @@ export type WorkspaceTeardown = Omit<WorkspaceProvision, "phase"> & {
 export type WorkspaceProvision = {
 	hostname: string;
 	id: string;
+	ip?: string;
 	node?: string;
 	ownershipToken: string;
 	phase?: ProvisionPhase;
@@ -749,7 +750,7 @@ function operationWorkspace(
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.destroy_phase, w.provision_phase
+				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
@@ -761,6 +762,7 @@ function operationWorkspace(
 				hostname: string;
 				id: string;
 				destroy_phase: DestroyPhase | null;
+				ip: string | null;
 				provision_phase: ProvisionPhase | null;
 				node: string | null;
 				ownership_token: string;
@@ -789,6 +791,9 @@ function operationWorkspace(
 	}
 	if (row.current_task_upid !== null) {
 		workspace.taskUPID = row.current_task_upid;
+	}
+	if (row.ip !== null) {
+		workspace.ip = row.ip;
 	}
 	if (row.node !== null) {
 		workspace.node = row.node;

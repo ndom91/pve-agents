@@ -27,6 +27,7 @@ import type { Fetcher } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
+import type { SshRunner } from "./ssh";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -46,6 +47,7 @@ export async function executeWorkspaceProvision(
 	lease: OperationLease,
 	fetcher: Fetcher,
 	now: Date,
+	ssh: SshRunner,
 ): Promise<WorkspaceOperationRun> {
 	const workspace = workspaceProvision(db, lease);
 	if (workspace === undefined) {
@@ -68,11 +70,13 @@ export async function executeWorkspaceProvision(
 		case "booted":
 			return discoverAddress(db, config, lease, workspace, fetcher, now);
 		case "addressed":
-			// SSH readiness and bootstrap are not implemented, so there is no next step to release
-			// the operation for. Reopen this when one exists.
+			return checkReachable(db, config, lease, workspace, now, ssh);
+		case "reachable":
+			// Credential bootstrap and repository checkout are not implemented, so there is no
+			// next step to release the operation for. Reopen this when one exists.
 			completeWorkspaceOperation(db, lease, now);
 
-			return { processed: 1, status: "addressed" };
+			return { processed: 1, status: "reachable" };
 		default:
 			// No phase yet. A VMID without one means a clone landed before phases existed, or a
 			// candidate was persisted and the response lost.
@@ -80,6 +84,77 @@ export async function executeWorkspaceProvision(
 				? submitClone(db, config, lease, workspace, fetcher, now)
 				: reconcileCandidate(db, config, lease, workspace, fetcher, now);
 	}
+}
+
+// checkReachable confirms the controller can actually log in.
+//
+// A booted container is not a usable one: sshd starts after boot, and the first clone from a new
+// template is where a missing key or an unreachable network shows up. Proving it here means every
+// later step can assume a working connection.
+async function checkReachable(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const keyPath = config.WORKSPACE_SSH_KEY_PATH;
+	if (keyPath === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const result = await ssh(
+		{
+			address: workspace.ip as string,
+			keyPath,
+			user: config.WORKSPACE_SSH_USER,
+		},
+		["true"],
+	);
+
+	if (result.kind === "refused") {
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_ssh" };
+	}
+	if (result.kind === "rejected") {
+		// A rejected key or a changed host key will not fix itself, and retrying buries the
+		// reason under an hour of identical attempts.
+		failWorkspaceProvision(db, lease, "ssh_rejected", result.message, now);
+
+		return { processed: 1, status: "task_failed" };
+	}
+	if (result.code !== 0) {
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_ssh" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `controller can reach ${workspace.ip} as ${config.WORKSPACE_SSH_USER}`,
+				type: "workspace.reachable",
+			},
+			phase: "reachable",
+			step: "reachable over ssh",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "ssh_ready" };
 }
 
 // discoverAddress records where the workspace can be reached.

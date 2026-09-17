@@ -9,6 +9,7 @@ import {
 } from "../db/workspace-repository";
 import type { Fetcher } from "./proxmox-http";
 import { ownershipMarker } from "./proxmox-ownership";
+import type { SshRunner } from "./ssh";
 import { runWorkspaceOperations } from "./workspace-operation-worker";
 
 const CONTROLLER_ID = "b66d3c5d-22c6-4199-889e-764f12d37fe5";
@@ -96,7 +97,7 @@ describe("runWorkspaceOperations", () => {
 		});
 	});
 
-	it("boots, finds its address, then stops rather than looping", async () => {
+	it("boots, addresses, proves ssh, then stops rather than looping", async () => {
 		const db = database();
 		const workspaceID = await submitted(db);
 
@@ -128,19 +129,6 @@ describe("runWorkspaceOperations", () => {
 			new Date(POLLED_AT.getTime() + 120_000),
 		);
 		expect(booted).toEqual({ processed: 1, status: "container_booted" });
-		// The timeline is where an operator follows this, so each milestone has to land in it.
-		expect(
-			db
-				.prepare(
-					"SELECT event_type FROM workspace_events WHERE workspace_id = ? ORDER BY id",
-				)
-				.all(workspaceID)
-				.map((row) => (row as { event_type: string }).event_type),
-		).toEqual([
-			"workspace.requested",
-			"workspace.clone_confirmed",
-			"workspace.booted",
-		]);
 
 		const addressed = await runWorkspaceOperations(
 			db,
@@ -159,25 +147,66 @@ describe("runWorkspaceOperations", () => {
 			db.prepare("SELECT ip FROM workspaces WHERE id = ?").get(workspaceID),
 		).toEqual({ ip: "10.0.3.101" });
 
+		const reachable = await runWorkspaceOperations(
+			db,
+			config(),
+			async () => {
+				throw new Error("proxmox must not be contacted for ssh readiness");
+			},
+			new Date(POLLED_AT.getTime() + 240_000),
+			async (target) => {
+				expect(target.address).toBe("10.0.3.101");
+				expect(target.user).toBe("agent");
+
+				return { code: 0, kind: "ran", stderr: "", stdout: "" };
+			},
+		);
+		expect(reachable).toEqual({ processed: 1, status: "ssh_ready" });
+
 		const closing = await runWorkspaceOperations(
 			db,
 			config(),
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 240_000),
-		);
-		expect(closing).toEqual({ processed: 1, status: "addressed" });
-
-		const after = await runWorkspaceOperations(
-			db,
-			config(),
-			async () => {
-				throw new Error("proxmox must not be contacted again");
-			},
 			new Date(POLLED_AT.getTime() + 300_000),
+			async () => {
+				throw new Error("ssh must not be attempted again");
+			},
 		);
-		expect(after).toEqual({ processed: 0, status: "empty" });
+		expect(closing).toEqual({ processed: 1, status: "reachable" });
+
+		// The timeline is where an operator follows this, so every milestone has to land in it.
+		expect(
+			db
+				.prepare(
+					"SELECT event_type FROM workspace_events WHERE workspace_id = ? ORDER BY id",
+				)
+				.all(workspaceID)
+				.map((row) => (row as { event_type: string }).event_type),
+		).toEqual([
+			"workspace.requested",
+			"workspace.clone_confirmed",
+			"workspace.booted",
+			"workspace.addressed",
+			"workspace.reachable",
+		]);
+
+		expect(workspaceStatus(db, workspaceID)).toBe("booting");
+		expect(
+			db
+				.prepare(
+					"SELECT event_type FROM workspace_events WHERE workspace_id = ? ORDER BY id",
+				)
+				.all(workspaceID)
+				.map((row) => (row as { event_type: string }).event_type),
+		).toEqual([
+			"workspace.requested",
+			"workspace.clone_confirmed",
+			"workspace.booted",
+			"workspace.addressed",
+			"workspace.reachable",
+		]);
 		expect(
 			db
 				.prepare(
@@ -185,6 +214,70 @@ describe("runWorkspaceOperations", () => {
 				)
 				.get(workspaceID, "workspace.clone_confirmed"),
 		).toEqual({ c: 1 });
+	});
+
+	it("keeps waiting while sshd is still coming up", async () => {
+		const db = database();
+		const workspaceID = await addressed(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async () => ({ kind: "refused" }),
+		);
+
+		// sshd starts after the container boots, so a refused connection is ordinary.
+		expect(result).toEqual({ processed: 1, status: "awaiting_ssh" });
+		expect(workspaceStatus(db, workspaceID)).toBe("booting");
+	});
+
+	it("fails the workspace when ssh rejects the controller", async () => {
+		const db = database();
+		const workspaceID = await addressed(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async () => ({
+				kind: "rejected",
+				message: "Permission denied (publickey).",
+			}),
+		);
+
+		// A rejected key will not start working on its own, and retrying buries the reason under
+		// an hour of identical attempts.
+		expect(result).toEqual({ processed: 1, status: "task_failed" });
+		expect(
+			db
+				.prepare(
+					"SELECT status, error_code, error_message FROM workspaces WHERE id = ?",
+				)
+				.get(workspaceID),
+		).toEqual({
+			error_code: "ssh_rejected",
+			error_message: "Permission denied (publickey).",
+			status: "failed",
+		});
+	});
+
+	it("keeps waiting when the remote command itself fails", async () => {
+		const db = database();
+		await addressed(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async () => ({ code: 1, kind: "ran", stderr: "", stdout: "" }),
+		);
+
+		// The connection worked but the box is not settled yet; that is not a credential problem.
+		expect(result).toEqual({ processed: 1, status: "awaiting_ssh" });
 	});
 
 	it("fails the workspace when the start task fails", async () => {
@@ -895,7 +988,7 @@ function proxmox(
 
 // tick advances the clock a minute per pass, since an operation released to wait on Proxmox is
 // deliberately not due again immediately.
-function tick(db: Database.Database, fetcher: Fetcher) {
+function tick(db: Database.Database, fetcher: Fetcher, ssh?: SshRunner) {
 	ticks += 1;
 
 	return runWorkspaceOperations(
@@ -903,6 +996,7 @@ function tick(db: Database.Database, fetcher: Fetcher) {
 		config(),
 		fetcher,
 		new Date(POLLED_AT.getTime() + ticks * 60_000),
+		ssh,
 	);
 }
 
@@ -931,6 +1025,20 @@ async function confirmed(db: Database.Database): Promise<string> {
 	return workspaceID;
 }
 
+// addressed leaves a workspace booted with a discovered address, ready for the ssh check.
+async function addressed(db: Database.Database): Promise<string> {
+	const workspaceID = await confirmed(db);
+	await tick(db, async () => Response.json({ data: START_UPID }));
+	await tick(db, async () =>
+		Response.json({ data: { exitstatus: "OK", status: "stopped" } }),
+	);
+	await tick(db, async () =>
+		Response.json({ data: [{ inet: "10.0.3.101/24", name: "eth0" }] }),
+	);
+
+	return workspaceID;
+}
+
 // destroyable leaves a workspace with a confirmed clone and a queued destroy request.
 async function destroyable(db: Database.Database): Promise<string> {
 	const workspaceID = await submitted(db);
@@ -953,6 +1061,7 @@ async function destroyable(db: Database.Database): Promise<string> {
 function config() {
 	return controllerConfig({
 		CONTROLLER_AUTH_SECRET: "c".repeat(48),
+		WORKSPACE_SSH_KEY_PATH: "/tmp/test-controller-key",
 		CONTROLLER_ID,
 		CONTROLLER_OPERATOR_GITHUB_ID: "1",
 		GITHUB_CLIENT_ID: "github-client",

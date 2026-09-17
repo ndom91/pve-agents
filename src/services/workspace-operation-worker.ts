@@ -9,6 +9,7 @@ import {
 	type WorkspaceOperation,
 } from "../db/workspace-repository";
 import type { Fetcher } from "./proxmox-http";
+import { runSsh, type SshRunner } from "./ssh";
 import { executeWorkspaceDestroy } from "./workspace-destroy-executor";
 import { executeWorkspaceProvision } from "./workspace-provision-executor";
 import type { WorkspaceOperationRun } from "./workspace-task";
@@ -32,6 +33,7 @@ export async function runWorkspaceOperations(
 	config: ControllerConfig,
 	fetcher: Fetcher = fetch,
 	now: Date = new Date(),
+	ssh: SshRunner = runSsh,
 ): Promise<WorkspaceOperationRun> {
 	if (!config.provisioningEnabled) {
 		return { processed: 0, status: "disabled" };
@@ -55,6 +57,7 @@ export async function runWorkspaceOperations(
 				provision.lease,
 				fetcher,
 				now,
+				ssh,
 			))
 		);
 	}

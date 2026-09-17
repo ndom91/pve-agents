@@ -24,6 +24,7 @@ import {
 import type { Fetcher, ProxmoxTaskRequest } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
+import { forgetHost } from "./ssh";
 import {
 	awaitTask,
 	POLL_INTERVAL_MS,
@@ -124,6 +125,7 @@ async function pollTeardownTask(
 	}
 
 	if (workspace.phase === "delete-submitted") {
+		await forgetWorkspaceHost(config, workspace);
 		completeWorkspaceDestroy(
 			db,
 			lease,
@@ -148,6 +150,24 @@ function advance(
 ): void {
 	advanceWorkspaceDestroy(db, lease, phase, STEPS[phase], now);
 	releaseWorkspaceOperation(db, lease, 0, now);
+}
+
+// forgetWorkspaceHost drops the destroyed workspace's pinned SSH host key.
+//
+// Left pinned, the next workspace handed this address fails host verification, and the error
+// names a key mismatch rather than the recycled address that actually caused it.
+async function forgetWorkspaceHost(
+	config: ControllerConfig,
+	workspace: WorkspaceTeardown,
+): Promise<void> {
+	if (
+		config.WORKSPACE_SSH_KEY_PATH === undefined ||
+		workspace.ip === undefined
+	) {
+		return;
+	}
+
+	await forgetHost(config.WORKSPACE_SSH_KEY_PATH, workspace.ip);
 }
 
 // teardownContainer verifies ownership, then takes the next teardown action.

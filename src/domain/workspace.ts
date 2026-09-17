@@ -30,6 +30,7 @@ export type ProvisionPhase =
 	| "booted"
 	| "clone-confirmed"
 	| "clone-submitted"
+	| "reachable"
 	| "start-submitted";
 
 // DestroyPhase is how far teardown has progressed.
