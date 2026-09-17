@@ -1,6 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+
+import { Button } from "../components/button";
 import { settingsQuery } from "../lib/queries";
 import {
 	destroyOrphan,
@@ -130,9 +132,9 @@ function Settings() {
 					the fleet.
 				</p>
 
-				<button disabled={saving} type="submit">
+				<Button disabled={saving} type="submit">
 					{saving ? "Saving" : "Save"}
-				</button>
+				</Button>
 				{note === "" ? null : <p className="detail-note">{note}</p>}
 			</form>
 
@@ -145,7 +147,7 @@ function Settings() {
 					automatic would then destroy the fleet.
 				</p>
 
-				<button
+				<Button
 					disabled={scanning}
 					onClick={async () => {
 						setScanning(true);
@@ -158,10 +160,9 @@ function Settings() {
 							setScanning(false);
 						}
 					}}
-					type="button"
 				>
 					{scanning ? "Scanning" : "Scan for orphans"}
-				</button>
+				</Button>
 
 				{scan === null ? null : scan.kind === "failed" ? (
 					<p className="detail-note">{scan.message}</p>
@@ -176,7 +177,7 @@ function Settings() {
 										<span>
 											{orphan.vmid} {orphan.hostname ?? ""}
 										</span>
-										<button
+										<Button
 											onClick={async () => {
 												setMaintenanceNote("");
 												const removed: OrphanRemoval = await destroyOrphan({
@@ -189,10 +190,9 @@ function Settings() {
 												);
 												setScan(await scanOrphans());
 											}}
-											type="button"
 										>
 											Destroy
-										</button>
+										</Button>
 									</li>
 								))}
 							</ul>

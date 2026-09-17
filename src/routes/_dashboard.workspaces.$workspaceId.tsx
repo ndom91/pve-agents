@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Button } from "../components/button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { paneQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
@@ -117,13 +118,12 @@ function WorkspaceDetail() {
 							status={workspace.status}
 						/>
 						{workspace.desiredState === "destroyed" ? null : (
-							<button
+							<Button
 								disabled={destroy.isPending}
 								onClick={() => destroy.mutate()}
-								type="button"
 							>
 								{destroy.isPending ? "Queueing" : "Destroy"}
-							</button>
+							</Button>
 						)}
 					</div>
 				</header>
@@ -143,13 +143,9 @@ function WorkspaceDetail() {
 						<h2>{workspace.errorCode ?? "error"}</h2>
 						<p>{workspace.errorMessage}</p>
 						{workspace.status !== "failed" ? null : (
-							<button
-								disabled={retry.isPending}
-								onClick={() => retry.mutate()}
-								type="button"
-							>
+							<Button disabled={retry.isPending} onClick={() => retry.mutate()}>
 								{retry.isPending ? "Queueing" : "Retry"}
-							</button>
+							</Button>
 						)}
 					</section>
 				)}
@@ -173,14 +169,13 @@ function WorkspaceDetail() {
 						{!blocked ? null : (
 							<div className="detail-keys">
 								{ANSWER_KEYS.map((key) => (
-									<button
+									<Button
 										disabled={busy}
 										key={key}
 										onClick={() => answer.mutate(key)}
-										type="button"
 									>
 										{key}
-									</button>
+									</Button>
 								))}
 							</div>
 						)}
@@ -212,14 +207,14 @@ function WorkspaceDetail() {
 									rows={3}
 									value={prompt}
 								/>
-								<button
+								<Button
 									className="prompt-send"
 									disabled={busy || prompt.trim() === ""}
 									title="Send (Cmd or Ctrl + Enter)"
 									type="submit"
 								>
 									{send.isPending ? "Sending" : "Send"}
-								</button>
+								</Button>
 							</div>
 						</form>
 						{note === "" ? null : <p className="detail-note">{note}</p>}

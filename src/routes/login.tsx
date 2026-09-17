@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Button } from "../components/button";
 import { authClient } from "../lib/auth-client";
 
 export const Route = createFileRoute("/login")({
@@ -40,9 +41,9 @@ function Login() {
 					<h2 id="login-title">Controller access</h2>
 				</div>
 				<p>This controller admits a single GitHub account.</p>
-				<button disabled={signingIn} onClick={signIn} type="button">
+				<Button disabled={signingIn} onClick={signIn}>
 					{signingIn ? "Redirecting" : "Sign in with GitHub"}
-				</button>
+				</Button>
 				{error === "" ? null : <p className="error">{error}</p>}
 			</section>
 		</main>

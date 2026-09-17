@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Button } from "../components/button";
 import { workspaceKeys } from "../lib/queries";
 import { requestId } from "../lib/request-id";
 import { createWorkspace } from "../server/workspace.functions";
@@ -89,12 +90,12 @@ function NewWorkspace() {
 					</small>
 				</label>
 
-				<button
+				<Button
 					disabled={request.isPending || repository.trim() === ""}
 					type="submit"
 				>
 					{request.isPending ? "Requesting" : "Request workspace"}
-				</button>
+				</Button>
 
 				{request.error === null ? null : (
 					<p className="detail-note">

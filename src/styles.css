@@ -134,6 +134,15 @@ button:hover:not(:disabled) {
 	background: #d0e4c5;
 }
 
+/* Every text control, so the same button cannot read as mono in one place and body text in
+   another depending on which selector reached it first. */
+.button {
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
 button:disabled {
 	cursor: wait;
 	opacity: 0.6;
@@ -817,7 +826,10 @@ dd {
 	width: 32px;
 }
 
+/* background is restated because the base button:hover fills with the accent colour, and without
+   it an icon button flashed solid green while the anchor beside it did not. */
 .icon-button:hover:not(:disabled) {
+	background: #161b14;
 	border-color: #7b8b71;
 	color: #d6e2cf;
 }
@@ -846,6 +858,12 @@ dd {
 	padding-block: 0;
 	padding-inline: 16px;
 	text-transform: uppercase;
+}
+
+/* The icon buttons opt out: an icon has no letter-spacing and nothing to uppercase. */
+.icon-button {
+	letter-spacing: normal;
+	text-transform: none;
 }
 
 /* The empty state is the whole content area, so the card is centred in it rather than sitting in
