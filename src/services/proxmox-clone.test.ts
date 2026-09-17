@@ -1,93 +1,103 @@
 import { describe, expect, it } from "vitest";
 
-import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
-import { ownershipMarker } from "./proxmox-ownership";
+import { allocateProxmoxVMID } from "./proxmox-clone";
 
-describe("ownershipMarker", () => {
-	it("includes every ownership proof", () => {
-		expect(ownershipMarker(input())).toBe(
-			[
-				"managed-by=pve-herdr-agents",
-				"controller-id=controller-1",
-				"workspace-id=workspace-1",
-				"ownership-token=ownership-1",
-				"created-at=2026-01-01T00:00:00.000Z",
-			].join("\n"),
-		);
-	});
-});
+const API = {
+	apiURL: "https://nas.puff.lan:8006/api2/json",
+	node: "nas",
+	tokenID: "workspace-controller@pve!controller",
+	tokenSecret: "not-a-real-secret",
+};
 
-describe("cloneWorkspace", () => {
-	it("submits a linked clone with its ownership marker", async () => {
-		let request: RequestInit | undefined;
-		const result = await cloneWorkspace(api(), input(), async (_url, init) => {
-			request = init;
+// taken fakes Proxmox: /cluster/nextid?vmid=N answers 400 for an id already in use.
+function taken(used: number[]) {
+	return async (url: string) => {
+		const vmid = Number(new URL(url).searchParams.get("vmid"));
 
-			return Response.json({ data: "UPID:nas:00000001" });
-		});
-
-		expect(result).toEqual({ kind: "accepted", upid: "UPID:nas:00000001" });
-		expect(request?.method).toBe("POST");
-
-		const body = new URLSearchParams(request?.body?.toString());
-		expect(body.get("full")).toBe("0");
-		expect(body.get("newid")).toBe("109");
-		expect(body.get("pool")).toBe("disposable-workspaces");
-		expect(body.get("hostname")).toBe("agent-workspace");
-		// The marker is the only authorization proof for every later destructive action and for
-		// adopting a candidate VMID. A clone that shipped without it would orphan its container.
-		expect(body.get("description")).toBe(ownershipMarker(input()));
-	});
-
-	it("never submits a clone without an ownership marker", async () => {
-		let body = new URLSearchParams();
-		await cloneWorkspace(api(), input(), async (_url, init) => {
-			body = new URLSearchParams(init.body?.toString());
-
-			return Response.json({ data: "UPID:nas:00000001" });
-		});
-
-		const marker = body.get("description") ?? "";
-		for (const field of [
-			"managed-by=pve-herdr-agents",
-			`controller-id=${input().controllerID}`,
-			`workspace-id=${input().workspaceID}`,
-			`ownership-token=${input().ownershipToken}`,
-		]) {
-			expect(marker).toContain(field);
-		}
-	});
-});
-
-describe("nextProxmoxVMID", () => {
-	it("returns a candidate VMID from Proxmox", async () => {
-		const result = await nextProxmoxVMID(api(), async () =>
-			Response.json({ data: "109" }),
-		);
-
-		expect(result).toEqual({ kind: "allocated", vmid: 109 });
-	});
-});
-
-function input() {
-	return {
-		controllerID: "controller-1",
-		createdAt: "2026-01-01T00:00:00.000Z",
-		hostname: "agent-workspace",
-		node: "nas",
-		ownershipToken: "ownership-1",
-		pool: "disposable-workspaces",
-		templateVMID: 107,
-		vmid: 109,
-		workspaceID: "workspace-1",
+		return used.includes(vmid)
+			? Response.json(
+					{ errors: { vmid: `VM ${vmid} already exists` } },
+					{ status: 400 },
+				)
+			: Response.json({ data: String(vmid) });
 	};
 }
 
-function api() {
-	return {
-		apiURL: "https://nas.puff.lan:8006/api2/json",
-		node: "nas",
-		tokenID: "workspace-controller@pve!controller",
-		tokenSecret: "not-a-real-secret",
-	};
-}
+describe("allocateProxmoxVMID", () => {
+	it("takes the floor when it is free", async () => {
+		const allocated = await allocateProxmoxVMID(API, taken([]), 400);
+
+		expect(allocated).toEqual({ kind: "allocated", vmid: 400 });
+	});
+
+	it("walks past ids Proxmox reports as taken", async () => {
+		const allocated = await allocateProxmoxVMID(
+			API,
+			taken([400, 401, 402]),
+			400,
+		);
+
+		expect(allocated).toEqual({ kind: "allocated", vmid: 403 });
+	});
+
+	it("never lands below the floor", async () => {
+		// The whole point of a floor is that disposable workspaces stay out of the range where
+		// hand-built guests live, so a free low id must not tempt it.
+		let lowest = Number.POSITIVE_INFINITY;
+		await allocateProxmoxVMID(
+			API,
+			async (url) => {
+				const vmid = Number(new URL(url).searchParams.get("vmid"));
+				lowest = Math.min(lowest, vmid);
+
+				return Response.json({ data: String(vmid) });
+			},
+			400,
+		);
+
+		expect(lowest).toBe(400);
+	});
+
+	it("skips ids this controller has already promised", async () => {
+		// Proxmox does not know about a candidate until the clone starts, so it would happily
+		// report 400 free to two provisions a second apart.
+		const allocated = await allocateProxmoxVMID(
+			API,
+			taken([]),
+			400,
+			new Set([400, 401]),
+		);
+
+		expect(allocated).toEqual({ kind: "allocated", vmid: 402 });
+	});
+
+	it("gives up rather than scanning forever", async () => {
+		const exhausted = await allocateProxmoxVMID(
+			API,
+			async (url) =>
+				Response.json(
+					{ errors: { vmid: "taken" } },
+					{ status: 400, statusText: String(url) },
+				),
+			400,
+		);
+
+		expect(exhausted.kind).toBe("failed");
+		expect(JSON.stringify(exhausted)).toContain("400");
+	});
+
+	it("treats a server error as a fault rather than a taken id", async () => {
+		// 400 is Proxmox's way of saying "that one is in use". Anything else means the question
+		// was not answered, and walking on would silently pick a colliding id.
+		const failed = await allocateProxmoxVMID(
+			API,
+			async () => new Response("{}", { status: 500 }),
+			400,
+		);
+
+		expect(failed).toEqual({
+			kind: "failed",
+			message: "proxmox next VMID request returned HTTP 500",
+		});
+	});
+});

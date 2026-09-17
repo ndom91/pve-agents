@@ -669,6 +669,20 @@ export function workspaceEventTimelines(
 	return timelines;
 }
 
+// reservedVMIDs returns every VMID this controller has already promised to a workspace.
+//
+// Proxmox does not know about a candidate until a clone actually starts, so two provisions running
+// seconds apart would otherwise be told the same id is free and both take it.
+export function reservedVMIDs(db: Database.Database): Set<number> {
+	const rows = db
+		.prepare(
+			"SELECT vmid FROM workspaces WHERE vmid IS NOT NULL AND status != 'destroyed'",
+		)
+		.all() as { vmid: number }[];
+
+	return new Set(rows.map((row) => row.vmid));
+}
+
 // workspaceRequest returns what a workspace was asked to be built for.
 //
 // Read separately from WorkspaceProvision because the repository and ref are the request, not the

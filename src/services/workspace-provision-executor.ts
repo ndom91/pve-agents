@@ -13,6 +13,7 @@ import {
 	recordWorkspaceTask,
 	releaseWorkspaceCandidateVMID,
 	releaseWorkspaceOperation,
+	reservedVMIDs,
 	type WorkspaceProvision,
 	workspaceProvision,
 	workspaceRequest,
@@ -31,7 +32,11 @@ import {
 	startHerdrServer,
 } from "./herdr";
 import { containerAddress } from "./proxmox-address";
-import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
+import {
+	allocateProxmoxVMID,
+	cloneWorkspace,
+	nextProxmoxVMID,
+} from "./proxmox-clone";
 import {
 	containerConfig,
 	containerDescription,
@@ -1015,7 +1020,13 @@ async function submitClone(
 	now: Date,
 ): Promise<WorkspaceOperationRun> {
 	const api = proxmoxCredentials(config);
-	const vmid = await nextProxmoxVMID(api, fetcher);
+	// A configured floor keeps disposable workspaces in their own VMID band, away from guests
+	// built by hand.
+	const floor = config.PROXMOX_VMID_MIN;
+	const vmid =
+		floor === undefined
+			? await nextProxmoxVMID(api, fetcher)
+			: await allocateProxmoxVMID(api, fetcher, floor, reservedVMIDs(db));
 	if (vmid.kind === "failed") {
 		noteWorkspaceIssue(db, lease, vmid.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);

@@ -34,6 +34,11 @@ const envSchema = z
 		PROXMOX_NODE: z.string().min(1).optional(),
 		PROXMOX_POOL: z.string().min(1).optional(),
 		PROXMOX_TEMPLATE_VMID: z.coerce.number().int().min(100).optional(),
+		// The lowest VMID a workspace may be given. Left unset, Proxmox picks the next free id from
+		// 100, which interleaves disposable workspaces with whatever else lives on the cluster.
+		// Setting a floor keeps them in their own band, so they are recognisable at a glance and a
+		// mistaken destroy cannot land on a hand-built guest.
+		PROXMOX_VMID_MIN: z.coerce.number().int().min(100).max(999_999).optional(),
 		PROXMOX_TOKEN_ID: z.string().min(1).optional(),
 		PROXMOX_TOKEN_SECRET: z.string().min(1).optional(),
 		PROXMOX_URL: z.url().optional(),
