@@ -21,6 +21,7 @@ describe("controllerSettings", () => {
 	it("runs a never-configured controller on safe defaults", () => {
 		// Off, because reaping removes real containers without being asked.
 		expect(controllerSettings(database())).toEqual({
+			reapFailedAfterHours: 6,
 			reapIdleMinutes: 60,
 			reapMaxAgeHours: 24,
 			reapingEnabled: false,
@@ -49,6 +50,7 @@ describe("updateControllerSettings", () => {
 
 		expect(saved.kind).toBe("saved");
 		expect(controllerSettings(db)).toEqual({
+			reapFailedAfterHours: 6,
 			reapIdleMinutes: 30,
 			reapMaxAgeHours: 24,
 			reapingEnabled: true,

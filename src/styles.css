@@ -569,3 +569,34 @@ dd {
 .settings-form button {
 	align-self: flex-start;
 }
+
+.settings-maintenance {
+	border-top: 1px solid #2c3428;
+	margin-top: 40px;
+	max-width: 560px;
+	padding-top: 24px;
+}
+
+.settings-maintenance p {
+	color: #a9b8a2;
+	line-height: 1.6;
+}
+
+.settings-orphans ul {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	list-style: none;
+	margin: 16px 0 0;
+	padding: 0;
+}
+
+.settings-orphans li {
+	align-items: center;
+	border: 1px solid #2c3428;
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	gap: 16px;
+	justify-content: space-between;
+	padding: 8px 12px;
+}

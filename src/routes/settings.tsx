@@ -6,6 +6,11 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 
+import {
+	destroyOrphan,
+	type OrphanRemoval,
+	scanOrphans,
+} from "../server/orphan.functions";
 import { sessionState } from "../server/session.functions";
 import {
 	saveWorkspaceSettings,
@@ -29,8 +34,16 @@ function Settings() {
 	const [enabled, setEnabled] = useState(settings.reapingEnabled);
 	const [idle, setIdle] = useState(String(settings.reapIdleMinutes));
 	const [maxAge, setMaxAge] = useState(String(settings.reapMaxAgeHours));
+	const [failedAfter, setFailedAfter] = useState(
+		String(settings.reapFailedAfterHours),
+	);
 	const [note, setNote] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [scan, setScan] = useState<Awaited<
+		ReturnType<typeof scanOrphans>
+	> | null>(null);
+	const [scanning, setScanning] = useState(false);
+	const [maintenanceNote, setMaintenanceNote] = useState("");
 
 	async function save(event: React.FormEvent) {
 		event.preventDefault();
@@ -39,6 +52,7 @@ function Settings() {
 		try {
 			await saveWorkspaceSettings({
 				data: {
+					reapFailedAfterHours: Number(failedAfter),
 					reapIdleMinutes: Number(idle),
 					reapMaxAgeHours: Number(maxAge),
 					reapingEnabled: enabled,
@@ -109,6 +123,22 @@ function Settings() {
 					</small>
 				</label>
 
+				<label className="settings-field">
+					<span>Failed grace period</span>
+					<input
+						min={1}
+						max={720}
+						onChange={(event) => setFailedAfter(event.target.value)}
+						type="number"
+						value={failedAfter}
+					/>
+					<small>
+						Hours a failed workspace keeps its container before it is destroyed.
+						Long enough to log in and see what went wrong; without this, the
+						container leaks forever.
+					</small>
+				</label>
+
 				<p className="settings-caveat">
 					An agent waiting at a question is exempt from both rules, so that
 					answering it later cannot lose its work. That does mean a question
@@ -122,6 +152,80 @@ function Settings() {
 				</button>
 				{note === "" ? null : <p className="detail-note">{note}</p>}
 			</form>
+
+			<section className="settings-maintenance">
+				<h2>Orphaned containers</h2>
+				<p>
+					Containers this controller created and no longer has a record of. The
+					scan runs only when asked, never on a timer: a restored or lost
+					database would make every live workspace look orphaned, and anything
+					automatic would then destroy the fleet.
+				</p>
+
+				<button
+					disabled={scanning}
+					onClick={async () => {
+						setScanning(true);
+						setMaintenanceNote("");
+						try {
+							setScan(await scanOrphans());
+						} catch {
+							setMaintenanceNote("could not reach the controller");
+						} finally {
+							setScanning(false);
+						}
+					}}
+					type="button"
+				>
+					{scanning ? "Scanning" : "Scan for orphans"}
+				</button>
+
+				{scan === null ? null : scan.kind === "failed" ? (
+					<p className="detail-note">{scan.message}</p>
+				) : (
+					<div className="settings-orphans">
+						{scan.orphans.length === 0 ? (
+							<p className="detail-note">Nothing orphaned.</p>
+						) : (
+							<ul>
+								{scan.orphans.map((orphan) => (
+									<li key={orphan.vmid}>
+										<span>
+											{orphan.vmid} {orphan.hostname ?? ""}
+										</span>
+										<button
+											onClick={async () => {
+												setMaintenanceNote("");
+												const removed: OrphanRemoval = await destroyOrphan({
+													data: { vmid: orphan.vmid },
+												});
+												setMaintenanceNote(
+													removed.kind === "removed"
+														? `${orphan.vmid} destroyed`
+														: removed.message,
+												);
+												setScan(await scanOrphans());
+											}}
+											type="button"
+										>
+											Destroy
+										</button>
+									</li>
+								))}
+							</ul>
+						)}
+						{scan.unreadable.length === 0 ? null : (
+							<p className="detail-note">
+								Could not read {scan.unreadable.join(", ")}, so those were not
+								judged either way.
+							</p>
+						)}
+					</div>
+				)}
+				{maintenanceNote === "" ? null : (
+					<p className="detail-note">{maintenanceNote}</p>
+				)}
+			</section>
 		</main>
 	);
 }

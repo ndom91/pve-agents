@@ -12,7 +12,10 @@ import {
 	workspacePane,
 } from "../server/agent.functions";
 import { sessionState } from "../server/session.functions";
-import { workspaceDetail } from "../server/workspace.functions";
+import {
+	retryWorkspaceRequest,
+	workspaceDetail,
+} from "../server/workspace.functions";
 
 export const Route = createFileRoute("/workspaces/$workspaceId")({
 	beforeLoad: async () => {
@@ -147,6 +150,21 @@ function WorkspaceDetail() {
 				<section className="detail-error">
 					<h2>{workspace.errorCode ?? "error"}</h2>
 					<p>{workspace.errorMessage}</p>
+					{workspace.status !== "failed" ? null : (
+						<button
+							disabled={sending}
+							onClick={() =>
+								send(async () => {
+									await retryWorkspaceRequest({ data: { id } });
+
+									return { kind: "sent" };
+								})
+							}
+							type="button"
+						>
+							{sending ? "Queueing" : "Retry"}
+						</button>
+					)}
 				</section>
 			)}
 

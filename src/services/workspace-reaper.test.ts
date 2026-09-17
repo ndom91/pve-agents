@@ -110,6 +110,35 @@ describe("reapWorkspaces", () => {
 		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
 	});
 
+	it("holds a failed workspace through its grace period", async () => {
+		// That container is the only copy of whatever went wrong, so there has to be time to look
+		// at it before it is purged.
+		const db = database();
+		failed(db, { errorAt: "2026-01-01T09:00:00Z", vmid: 400 });
+		enable(db, {});
+
+		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+	});
+
+	it("reaps a failed workspace once the grace period is past", async () => {
+		const db = database();
+		const id = failed(db, { errorAt: "2026-01-01T02:00:00Z", vmid: 400 });
+		enable(db, {});
+
+		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 1 });
+		expect(lastNote(db, id)).toContain("grace period");
+	});
+
+	it("leaves a failed workspace that never got a container", async () => {
+		// Nothing to clean up, and queueing a destroy would be teardown of something that never
+		// existed.
+		const db = database();
+		failed(db, { errorAt: "2025-01-01T00:00:00Z", vmid: null });
+		enable(db, {});
+
+		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+	});
+
 	it("does not queue a second destroy for one already being torn down", async () => {
 		const db = database();
 		ready(db, { activity: "idle", createdAt: "2025-01-01T00:00:00Z" });
@@ -123,7 +152,11 @@ describe("reapWorkspaces", () => {
 
 function enable(
 	db: Database.Database,
-	patch: { reapIdleMinutes?: number; reapMaxAgeHours?: number },
+	patch: {
+		reapFailedAfterHours?: number;
+		reapIdleMinutes?: number;
+		reapMaxAgeHours?: number;
+	},
 ): void {
 	updateControllerSettings(db, { reapingEnabled: true, ...patch });
 }
@@ -158,6 +191,30 @@ function ready(
 		input.lastActivityAt ?? null,
 		created.workspace.id,
 	);
+
+	return created.workspace.id;
+}
+
+function failed(
+	db: Database.Database,
+	input: { errorAt: string; vmid: number | null },
+): string {
+	const created = createWorkspace(db, {
+		herdrSession: "agents",
+		idempotencyKey: `failed-${Math.random()}`,
+		repository: "github.com/ndom91/open-plan-annotator",
+		ref: "main",
+	});
+	if (created.kind !== "created") {
+		throw new Error("expected workspace creation");
+	}
+
+	db.prepare("UPDATE workspace_operations SET status = 'completed'").run();
+	db.prepare(
+		`UPDATE workspaces
+		 SET status = 'failed', vmid = ?, error_occurred_at = ?, error_code = 'clone_task_failed'
+		 WHERE id = ?`,
+	).run(input.vmid, input.errorAt, created.workspace.id);
 
 	return created.workspace.id;
 }

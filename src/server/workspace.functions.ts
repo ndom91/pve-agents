@@ -5,6 +5,7 @@ import {
 	destroyWorkspace,
 	listRequestedWorkspaces,
 	requestWorkspace,
+	retryWorkspace,
 	workspaceRequestSchema,
 	workspaceWithTimeline,
 } from "../services/workspace-service";
@@ -83,4 +84,23 @@ export const workspaceDetail = createServerFn({ method: "GET" })
 		}
 
 		return workspace;
+	});
+
+// retryWorkspaceRequest queues a fresh provision for a workspace that failed.
+//
+// The state machine allows failed -> provisioning, and the phase is deliberately not cleared, so a
+// retry resumes from the step that failed rather than rebuilding from nothing.
+export const retryWorkspaceRequest = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().trim().min(1) }))
+	.handler(({ data }) => {
+		const result = retryWorkspace(controllerDatabase(), data.id);
+		if (result.kind === "not_found") {
+			throw new Error("workspace: not found");
+		}
+		if (result.kind !== "created") {
+			throw new Error(`workspace: ${result.message}`);
+		}
+
+		return result;
 	});

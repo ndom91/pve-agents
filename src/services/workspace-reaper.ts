@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import { controllerSettings } from "../db/settings-repository";
 import {
+	reapableFailedWorkspaces,
 	reapableWorkspaces,
 	recordWorkspaceNote,
 	requestWorkspaceOperation,
@@ -48,6 +49,26 @@ export function reapWorkspaces(
 			workspace.id,
 			"workspace.reaped",
 			reason.message,
+			now,
+		);
+		requestWorkspaceOperation(db, workspace.id, "destroy");
+		reaped += 1;
+	}
+
+	// A failed workspace keeps its container, and nothing else would ever remove it. Held for a
+	// grace period first, because that container is the only copy of whatever went wrong.
+	for (const workspace of reapableFailedWorkspaces(db)) {
+		const failedAt = workspace.errorOccurredAt ?? workspace.createdAt;
+		const heldHours = minutesSince(failedAt, now) / 60;
+		if (heldHours < settings.reapFailedAfterHours) {
+			continue;
+		}
+
+		recordWorkspaceNote(
+			db,
+			workspace.id,
+			"workspace.reaped",
+			`destroyed after failing ${Math.round(heldHours)}h ago, past the ${settings.reapFailedAfterHours}h grace period`,
 			now,
 		);
 		requestWorkspaceOperation(db, workspace.id, "destroy");

@@ -17,6 +17,10 @@ export const controllerSettingsSchema = z.object({
 	reapingEnabled: z.boolean().default(false),
 	reapIdleMinutes: z.coerce.number().int().min(5).max(10_080).default(60),
 	reapMaxAgeHours: z.coerce.number().int().min(1).max(720).default(24),
+	// How long a failed workspace keeps its container. The grace period exists so there is time to
+	// log in and see what went wrong: reaping immediately would destroy the only copy of the
+	// evidence before anyone could look at it.
+	reapFailedAfterHours: z.coerce.number().int().min(1).max(720).default(6),
 });
 
 // ControllerSettings is the validated operational policy.

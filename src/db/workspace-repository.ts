@@ -750,6 +750,64 @@ export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
 	});
 }
 
+// FailedWorkspace is one workspace whose container outlived the provisioning that failed.
+export type FailedWorkspace = {
+	createdAt: string;
+	errorOccurredAt?: string;
+	id: string;
+	vmid: number;
+};
+
+// reapableFailedWorkspaces returns failed workspaces still holding a container.
+//
+// Only those with a VMID: a workspace that failed before anything was cloned has nothing to clean
+// up, and queueing a destroy for it would be teardown of something that never existed.
+export function reapableFailedWorkspaces(
+	db: Database.Database,
+): FailedWorkspace[] {
+	const rows = db
+		.prepare(
+			`SELECT w.id, w.vmid, w.created_at, w.error_occurred_at
+			 FROM workspaces w
+			 WHERE w.status = 'failed' AND w.vmid IS NOT NULL
+				AND NOT EXISTS (
+					SELECT 1 FROM workspace_operations o
+					WHERE o.workspace_id = w.id AND o.status IN ('queued', 'running')
+				)`,
+		)
+		.all() as {
+		created_at: string;
+		error_occurred_at: string | null;
+		id: string;
+		vmid: number;
+	}[];
+
+	return rows.map((row) => {
+		const workspace: FailedWorkspace = {
+			createdAt: row.created_at,
+			id: row.id,
+			vmid: row.vmid,
+		};
+		if (row.error_occurred_at !== null) {
+			workspace.errorOccurredAt = row.error_occurred_at;
+		}
+
+		return workspace;
+	});
+}
+
+// liveWorkspaceIDs returns every workspace the controller still considers its own.
+//
+// Used to decide what counts as an orphan, so a destroyed workspace is deliberately absent: its
+// container should not exist, and one that does is exactly what wants finding.
+export function liveWorkspaceIDs(db: Database.Database): Set<string> {
+	const rows = db
+		.prepare("SELECT id FROM workspaces WHERE status != 'destroyed'")
+		.all() as { id: string }[];
+
+	return new Set(rows.map((row) => row.id));
+}
+
 // recordWorkspaceNote appends a timeline entry for something a person did.
 //
 // No lease, unlike the operation-scoped writes in this file. A prompt sent from the UI is not
