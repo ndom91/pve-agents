@@ -274,20 +274,16 @@ describe("runWorkspaceOperations", () => {
 			async () => {
 				throw new Error("proxmox must not be contacted");
 			},
-			async (_target, args) =>
-				args.join(" ").includes("agent read")
-					? {
-							code: 0,
-							kind: "ran",
-							stderr: "",
-							stdout: "Let's get started.\n\nChoose the text style",
-						}
-					: {
-							code: 0,
-							kind: "ran",
-							stderr: "",
-							stdout: JSON.stringify({ result: { type: "agent_started" } }),
-						},
+			async (_target, args) => {
+				const command = args.join(" ");
+				const body = command.includes("agent read")
+					? "Let's get started.\n\nChoose the text style"
+					: command.includes("agent get")
+						? JSON.stringify({ result: { agent: { agent_status: "idle" } } })
+						: JSON.stringify({ result: { type: "agent_started" } });
+
+				return { code: 0, kind: "ran", stderr: "", stdout: body };
+			},
 		);
 
 		// Retrying cannot dismiss a wizard, and handing the workspace over would let its first
@@ -297,7 +293,44 @@ describe("runWorkspaceOperations", () => {
 			db
 				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
 				.get(workspaceID),
-		).toEqual({ error_code: "agent_onboarding_required", status: "failed" });
+		).toEqual({ error_code: "agent_awaiting_input", status: "failed" });
+	});
+
+	it("refuses a workspace whose agent is blocked on a dialog it does not recognise", async () => {
+		const db = database();
+		const workspaceID = await registered(db);
+
+		const result = await tick(
+			db,
+			async () => {
+				throw new Error("proxmox must not be contacted");
+			},
+			async (_target, args) => {
+				const command = args.join(" ");
+				const body = command.includes("agent read")
+					? "Some future prompt this controller has never seen"
+					: command.includes("agent get")
+						? JSON.stringify({ result: { agent: { agent_status: "blocked" } } })
+						: JSON.stringify({ result: { type: "agent_started" } });
+
+				return { code: 0, kind: "ran", stderr: "", stdout: body };
+			},
+		);
+
+		// The screen is unrecognised, so only herdr's own "blocked" catches it. That is the point
+		// of asking for the status as well as reading the pane.
+		expect(result).toEqual({ processed: 1, status: "task_failed" });
+		expect(
+			db
+				.prepare(
+					"SELECT error_code, error_message FROM workspaces WHERE id = ?",
+				)
+				.get(workspaceID),
+		).toEqual({
+			error_code: "agent_awaiting_input",
+			error_message:
+				"claude is waiting for input: Some future prompt this controller has never seen",
+		});
 	});
 
 	it("keeps waiting while sshd is still coming up", async () => {
@@ -1224,6 +1257,11 @@ function herdrWorkspace() {
 		}
 		if (command.includes("agent start")) {
 			return stdout(JSON.stringify({ result: { type: "agent_started" } }));
+		}
+		if (command.includes("agent get")) {
+			return stdout(
+				JSON.stringify({ result: { agent: { agent_status: "idle" } } }),
+			);
 		}
 		if (command.includes("agent read")) {
 			return stdout("agent@agent-abcd:/workspace/repo$ claude\n>\n");

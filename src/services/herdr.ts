@@ -218,10 +218,43 @@ export async function startHerdrAgent(
 	if (result.kind === "rejected") {
 		return { kind: "rejected", message: result.message };
 	}
+	// Already ours. The name is derived from this workspace and the server hosts nothing else, so
+	// a taken name means an earlier pass started the agent and lost its release. Starting again
+	// would be wrong; the caller inspects what is there instead.
+	if (result.message.includes("agent_name_taken")) {
+		return { kind: "started" };
+	}
 
 	return result.message.includes("agent_not_ready")
 		? { kind: "not-ready" }
 		: { kind: "failed", message: result.message };
+}
+
+// HerdrAgentState is a live agent's lifecycle state, as Herdr classifies it.
+export type HerdrAgentState =
+	| { kind: "failed"; message: string }
+	| { kind: "found"; status: string };
+
+// herdrAgentStatus reads whether an agent is idle, working, blocked, or unrecognised.
+//
+// Worth asking separately from the pane text: "blocked" names an approval or question dialog that
+// no amount of retrying clears, whichever dialog it happens to be, and catches gates this
+// controller has never seen.
+export async function herdrAgentStatus(
+	target: HerdrTarget,
+	name: string,
+	ssh: SshRunner,
+): Promise<HerdrAgentState> {
+	const result = await run(target, ["agent", "get", name], ssh);
+	if (result.kind !== "ok") {
+		return { kind: "failed", message: result.message };
+	}
+
+	const status = text(record(payload(result.stdout)?.agent)?.agent_status);
+
+	return status === undefined
+		? { kind: "failed", message: "herdr omitted the agent status" }
+		: { kind: "found", status };
 }
 
 // readHerdrAgent snapshots what an agent's pane is showing.

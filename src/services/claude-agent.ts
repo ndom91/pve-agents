@@ -5,40 +5,57 @@ export type ClaudeBootstrap =
 	| { kind: "failed"; message: string }
 	| { kind: "prepared" };
 
-// ONBOARDING is the first-run state Claude Code shows before it has been configured.
+// WIZARDS are the interactive gates Claude Code puts in front of a first run.
 //
-// Worth matching explicitly because Herdr reports this screen as agent_status "idle" with
-// interactive_ready true, and `agent start` exits 0. Nothing in the machine-readable response
-// distinguishes a usable agent from a theme picker, so the screen itself is the only evidence. A
-// controller that skipped this check would send its first prompt into a menu.
-const ONBOARDING = [
+// Matched explicitly because the machine-readable state does not always give them away: Herdr
+// reported the theme picker as agent_status "idle" with interactive_ready true, and `agent start`
+// exited 0. A controller trusting that alone would send its first prompt into a menu.
+const WIZARDS = [
 	/Choose the text style/i,
+	/Is this a project you created or one you trust/i,
 	/Let's get started/i,
 	/Select login method/i,
 ];
 
-// SEED prepares a home directory for a non-interactive first run.
+// SEED_SCRIPT writes the settings that let Claude Code start without a human.
 //
-// hasCompletedOnboarding is the single flag gating the first-run wizard; theme may stay unset. The
-// file is written whole rather than merged because a freshly cloned workspace has no prior state,
-// and umask keeps it private since Claude Code also stores account details here later.
-//
-// Fixed script text with the path supplied positionally, so nothing is parsed as shell.
-const SEED = [
+// Fixed script text. The directory and the settings arrive as positional arguments, so neither is
+// ever parsed as shell.
+const SEED_SCRIPT = [
 	"umask 077",
 	'mkdir -p "$HOME/.claude" "$1"',
-	'printf %s \'{"hasCompletedOnboarding":true}\' > "$HOME/.claude.json"',
+	'printf %s "$2" > "$HOME/.claude.json"',
 ].join("; ");
 
-// prepareClaudeWorkspace seeds onboarding state and creates the directory the agent will work in.
+// claudeSeed builds the settings that skip every first-run gate for one working directory.
 //
-// Both are done together because they are one idempotent step with nothing to resume between them.
+// Two separate gates, found the hard way, one at a time. hasCompletedOnboarding skips the theme
+// picker. hasTrustDialogAccepted skips the "is this a folder you trust" prompt, which is per
+// directory and which Herdr reports as a blocked agent.
+export function claudeSeed(cwd: string): string {
+	return JSON.stringify({
+		hasCompletedOnboarding: true,
+		projects: { [cwd]: { hasTrustDialogAccepted: true } },
+	});
+}
+
+// prepareClaudeWorkspace seeds first-run settings and creates the directory the agent works in.
+//
+// Both happen together because they are one idempotent step with nothing worth resuming between
+// them. Rerunning it repairs a partial result rather than compounding one.
 export async function prepareClaudeWorkspace(
 	target: SshTarget,
 	cwd: string,
 	ssh: SshRunner,
 ): Promise<ClaudeBootstrap> {
-	const result = await ssh(target, ["sh", "-c", SEED, "sh", cwd]);
+	const result = await ssh(target, [
+		"sh",
+		"-c",
+		SEED_SCRIPT,
+		"sh",
+		cwd,
+		claudeSeed(cwd),
+	]);
 	if (result.kind === "refused") {
 		return { kind: "failed", message: "workspace refused the connection" };
 	}
@@ -55,7 +72,7 @@ export async function prepareClaudeWorkspace(
 	return { kind: "prepared" };
 }
 
-// claudeAwaitingOnboarding reports whether a pane is showing the first-run wizard.
-export function claudeAwaitingOnboarding(pane: string): boolean {
-	return ONBOARDING.some((marker) => marker.test(pane));
+// claudeAwaitingInput reports whether a pane is showing a first-run gate.
+export function claudeAwaitingInput(pane: string): boolean {
+	return WIZARDS.some((wizard) => wizard.test(pane));
 }

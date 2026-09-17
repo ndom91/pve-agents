@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	claudeAwaitingOnboarding,
+	claudeAwaitingInput,
+	claudeSeed,
 	prepareClaudeWorkspace,
 } from "./claude-agent";
 
@@ -23,15 +24,36 @@ const PROMPT = `agent@agent-2881:/workspace/repo$ claude
  > Try "how do I log an error?"
 `;
 
-describe("claudeAwaitingOnboarding", () => {
+describe("claudeAwaitingInput", () => {
 	it("recognises the first-run wizard", () => {
 		// Herdr reports this screen as idle with interactive_ready true, and `agent start` exits 0.
 		// The screen is the only evidence that the agent is unusable.
-		expect(claudeAwaitingOnboarding(WIZARD)).toBe(true);
+		expect(claudeAwaitingInput(WIZARD)).toBe(true);
+	});
+
+	it("recognises the folder-trust dialog", () => {
+		// A second gate, per working directory, found only after the first one was closed. Herdr
+		// does report this one as blocked, but the two checks cover each other.
+		expect(
+			claudeAwaitingInput(
+				"Quick safety check: Is this a project you created or one you trust?",
+			),
+		).toBe(true);
 	});
 
 	it("passes an agent sitting at its prompt", () => {
-		expect(claudeAwaitingOnboarding(PROMPT)).toBe(false);
+		expect(claudeAwaitingInput(PROMPT)).toBe(false);
+	});
+});
+
+describe("claudeSeed", () => {
+	it("trusts the directory the agent will actually run in", () => {
+		// Trust is recorded per directory, so seeding it for the wrong path leaves the dialog in
+		// place and the agent blocked.
+		expect(JSON.parse(claudeSeed("/workspace/repo"))).toEqual({
+			hasCompletedOnboarding: true,
+			projects: { "/workspace/repo": { hasTrustDialogAccepted: true } },
+		});
 	});
 });
 
@@ -49,9 +71,11 @@ describe("prepareClaudeWorkspace", () => {
 		);
 
 		expect(prepared).toEqual({ kind: "prepared" });
-		expect(command.join(" ")).toContain("hasCompletedOnboarding");
-		// The path is a positional argument, so it is never parsed as shell.
-		expect(command.at(-1)).toBe("/workspace/repo");
+		// Both the path and the settings are positional arguments, so neither is parsed as shell.
+		expect(command.at(-2)).toBe("/workspace/repo");
+		expect(JSON.parse(command.at(-1) as string)).toEqual(
+			JSON.parse(claudeSeed("/workspace/repo")),
+		);
 	});
 
 	it("reports a workspace that refused the connection as retryable", async () => {

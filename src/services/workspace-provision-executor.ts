@@ -16,14 +16,12 @@ import {
 	type WorkspaceProvision,
 	workspaceProvision,
 } from "../db/workspace-repository";
-import {
-	claudeAwaitingOnboarding,
-	prepareClaudeWorkspace,
-} from "./claude-agent";
+import { claudeAwaitingInput, prepareClaudeWorkspace } from "./claude-agent";
 import {
 	createHerdrWorkspace,
 	type HerdrTarget,
 	herdrAgentName,
+	herdrAgentStatus,
 	herdrServerState,
 	readHerdrAgent,
 	startHerdrAgent,
@@ -68,6 +66,18 @@ function workspaceSsh(
 				keyPath: config.WORKSPACE_SSH_KEY_PATH,
 				user: config.WORKSPACE_SSH_USER,
 			};
+}
+
+// summarise picks the line of a pane most likely to tell an operator what it is asking.
+//
+// Whole terminal snapshots are mostly banner art and blank rows, and the timeline shows one line.
+function summarise(pane: string): string {
+	const lines = pane
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => /[a-z]{4}/i.test(line));
+
+	return lines.at(-1)?.slice(0, 160) ?? "no readable output";
 }
 
 // herdrTarget addresses the workspace's named Herdr server.
@@ -475,6 +485,14 @@ async function startWorkspaceAgent(
 		return { processed: 1, status: "awaiting_agent" };
 	}
 
+	const state = await herdrAgentStatus(target, name, ssh);
+	if (state.kind === "failed") {
+		noteWorkspaceIssue(db, lease, state.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+
 	const pane = await readHerdrAgent(target, name, ssh);
 	if (pane.kind === "failed") {
 		noteWorkspaceIssue(db, lease, pane.message, now);
@@ -482,20 +500,24 @@ async function startWorkspaceAgent(
 
 		return { processed: 1, status: "awaiting_agent" };
 	}
-	if (claudeAwaitingOnboarding(pane.text)) {
-		// Retrying cannot clear a wizard, and leaving it would hand over a workspace whose agent
-		// silently consumes its first prompt as menu input.
+
+	// Two signals, because each covers the other's blind spot. "blocked" catches any dialog,
+	// including ones this controller has never seen. The pane text catches the first-run gates
+	// Herdr reports as a perfectly ordinary idle agent.
+	if (state.status === "blocked" || claudeAwaitingInput(pane.text)) {
+		// No amount of retrying dismisses a dialog, and handing the workspace over would let its
+		// first prompt be typed into a menu.
 		failWorkspaceProvision(
 			db,
 			lease,
-			"agent_onboarding_required",
-			`${config.WORKSPACE_AGENT_KIND} is waiting at its first-run wizard`,
+			"agent_awaiting_input",
+			`${config.WORKSPACE_AGENT_KIND} is waiting for input: ${summarise(pane.text)}`,
 			now,
 		);
 
 		return { processed: 1, status: "task_failed" };
 	}
-	if (started.kind === "not-ready") {
+	if (started.kind === "not-ready" || state.status === "unknown") {
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
 
 		return { processed: 1, status: "awaiting_agent" };
