@@ -95,6 +95,14 @@ function WorkspaceDetail() {
 
 	const busy = send.isPending || answer.isPending;
 
+	// Shared by the button and the keyboard shortcut, so the two cannot diverge on what counts as
+	// an empty prompt.
+	function submitPrompt() {
+		if (!busy && prompt.trim() !== "") {
+			send.mutate(prompt);
+		}
+	}
+
 	return (
 		<>
 			<main className="dashboard-main">
@@ -181,21 +189,38 @@ function WorkspaceDetail() {
 							className="detail-prompt"
 							onSubmit={(event) => {
 								event.preventDefault();
-								if (prompt.trim() !== "") {
-									send.mutate(prompt);
-								}
+								submitPrompt();
 							}}
 						>
-							<textarea
-								disabled={busy}
-								onChange={(event) => setPrompt(event.target.value)}
-								placeholder="Tell the agent what to do next"
-								rows={3}
-								value={prompt}
-							/>
-							<button disabled={busy || prompt.trim() === ""} type="submit">
-								{send.isPending ? "Sending" : "Send"}
-							</button>
+							<div className="prompt-field">
+								<textarea
+									disabled={busy}
+									onChange={(event) => setPrompt(event.target.value)}
+									// Enter alone inserts a newline, because a prompt is often a
+									// paragraph and losing one to a stray keystroke is worse than
+									// reaching for a modifier.
+									onKeyDown={(event) => {
+										if (
+											event.key === "Enter" &&
+											(event.metaKey || event.ctrlKey)
+										) {
+											event.preventDefault();
+											submitPrompt();
+										}
+									}}
+									placeholder="Tell the agent what to do next"
+									rows={3}
+									value={prompt}
+								/>
+								<button
+									className="prompt-send"
+									disabled={busy || prompt.trim() === ""}
+									title="Send (Cmd or Ctrl + Enter)"
+									type="submit"
+								>
+									{send.isPending ? "Sending" : "Send"}
+								</button>
+							</div>
 						</form>
 						{note === "" ? null : <p className="detail-note">{note}</p>}
 					</section>

@@ -379,8 +379,25 @@ dd {
 	outline: none;
 }
 
-.detail-prompt button {
-	align-self: flex-start;
+/* The send control sits inside the field it belongs to, rather than below it where it read as an
+   unrelated button. */
+.prompt-field {
+	position: relative;
+}
+
+.prompt-field textarea {
+	/* Room for the button, so a long prompt wraps above it instead of running underneath. */
+	padding-bottom: 46px;
+	width: 100%;
+}
+
+.prompt-send {
+	bottom: 10px;
+	font-size: 12px;
+	letter-spacing: 0.06em;
+	padding: 7px 14px;
+	position: absolute;
+	right: 12px;
 }
 
 .masthead-link {
