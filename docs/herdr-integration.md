@@ -25,19 +25,62 @@ caller-context variables do not apply to this controller, which drives a remote 
 outside. Its constraints on names, IDs, lifecycle states, and failure responses do apply, and are
 recorded below.
 
+## Running Herdr Over SSH
+
+**`ssh` does not preserve argument boundaries.** The client joins the command it is given with
+spaces and hands the result to the remote login shell, which splits it again and interprets every
+metacharacter. An array of arguments is not an array by the time it arrives.
+
+Everything the controller sends is therefore quoted by `quoteRemote` in `src/services/ssh.ts`
+before it leaves. Without that, a workspace label containing a space becomes two arguments, and
+one containing a semicolon runs as a second command under the controller's key.
+
+The same fact shapes how a script is sent. A fixed script with data supplied positionally is safe
+once quoted:
+
+```bash
+sh -c 'printf %s "$2" > "$HOME/.claude.json"' sh <cwd> <json>
+```
+
+The script text never varies, so nothing a caller supplies is ever parsed as shell.
+
+## Claude Code's First-Run Gates
+
+Three separate gates stand between a fresh container and an agent that accepts a prompt. They were
+found one at a time, each only after the previous was closed.
+
+1. **Theme picker** — gated on `hasCompletedOnboarding` in `~/.claude.json`.
+2. **Folder trust** — gated on `projects["<cwd>"].hasTrustDialogAccepted`. Recorded **per
+   directory**, so seeding it for the wrong path leaves the dialog in place.
+3. **Login** — avoided entirely by `CLAUDE_CODE_OAUTH_TOKEN`, from `claude setup-token`. That is
+   the subscription path; it is not an API key.
+
+Herdr classifies these inconsistently, which is the important part. The trust dialog is reported
+as `blocked`. The theme picker is reported as `idle` with `interactive_ready: true` and
+`agent start` exits 0. **Neither the status nor the pane text alone detects both**, so the
+controller reads both and refuses the workspace if either says it is waiting.
+
+`agent start` on a name that already exists returns `agent_name_taken`, not success. A pass that
+started an agent and then lost its release must inspect what is there rather than start it again.
+
 ## Verified On Hardware
 
-The following was run end to end against a real workspace container (template 114, Herdr 0.9.0),
-not inferred from documentation:
+The whole chain runs unattended against real hardware (template 114, Herdr 0.9.0). A workspace
+goes from `requested` to `ready` in roughly one minute:
 
-- Starting a detached headless server for a named session over SSH, with no TTY.
-- `workspace create` with a valid `--cwd`, and the silent fallback when the path is missing.
-- `agent start --kind opencode`, reaching `agent_status: idle` and `interactive_ready: true`.
-- `agent read`, showing the agent at its prompt.
-- `workspace close` and `server stop`.
+```
+requested -> clone -> booted -> addressed -> reachable
+          -> bootstrapped -> session-started -> herdr-registered -> agent-started
+```
 
-The one thing still unproven is any agent doing real work, because no model-provider credential is
-installed yet. opencode starts and then reports `Run /connect to add an AI provider`.
+At `ready` the container holds a detached Herdr server, a workspace rooted at `/workspace/repo`,
+and a Claude Code agent reporting `agent_status: idle` with `interactive_ready: true`.
+
+Proven by prompting that agent and getting an answer, so the subscription token authenticates.
+Note that the answer itself was **not** readable through `agent read`: Claude Code draws on the
+terminal's alternate screen, whose rows never enter Herdr's scrollback. The evidence was the
+terminal title, which Claude sets from the conversation. Anything that needs an agent's output
+will have to have it written to a file.
 
 ## Remote Machine Registration
 
