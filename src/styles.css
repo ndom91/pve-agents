@@ -735,11 +735,22 @@ dd {
 	margin-top: 8px;
 }
 
+.sidebar-foot {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: auto;
+}
+
+.sidebar-tools {
+	display: flex;
+	gap: 8px;
+}
+
 .sidebar-new {
 	border: 1px solid #4a5646;
 	color: #a9b8a2;
 	font-size: 12px;
-	margin-top: auto;
 	padding: 8px 10px;
 	text-align: center;
 	text-decoration: none;
@@ -750,13 +761,6 @@ dd {
 	color: #d6e2cf;
 }
 
-.sidebar-mode {
-	color: #6d7a67;
-	font-size: 11px;
-	letter-spacing: 0.06em;
-	margin: 0;
-	text-transform: uppercase;
-}
 
 .dashboard-main {
 	display: flex;
@@ -877,4 +881,41 @@ dd {
 	.dashboard-main-wide {
 		grid-column: 1;
 	}
+}
+
+/* Square, quiet, and the same whether it is a button or a link that looks like one. */
+.icon-button {
+	align-items: center;
+	background: none;
+	border: 1px solid #2c3428;
+	color: #8a9a83;
+	cursor: pointer;
+	display: inline-flex;
+	height: 32px;
+	justify-content: center;
+	padding: 0;
+	width: 32px;
+}
+
+.icon-button:hover:not(:disabled) {
+	border-color: #7b8b71;
+	color: #d6e2cf;
+}
+
+.icon-button:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+/* One height governs the badges and the button beside them, rather than each being sized by its
+   own padding and font. Without this the badges sit short next to the control they line up with. */
+.centre-head-actions .status,
+.centre-head-actions .activity,
+.centre-head-actions button {
+	align-items: center;
+	box-sizing: border-box;
+	display: inline-flex;
+	min-height: var(--control-height);
+	padding-block: 0;
+	padding-inline: 14px;
 }

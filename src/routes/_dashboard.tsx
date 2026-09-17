@@ -5,9 +5,13 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
+import { LogOut, Settings } from "lucide-react";
+import { useState } from "react";
 
+import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
-import { fleetQuery, statusQuery } from "../lib/queries";
+import { authClient } from "../lib/auth-client";
+import { fleetQuery } from "../lib/queries";
 import { sessionState } from "../server/session.functions";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -22,12 +26,7 @@ export const Route = createFileRoute("/_dashboard")({
 	component: Dashboard,
 	// Primed rather than fetched: the component reads the same key, so the first paint has data
 	// and hydration does not refetch it.
-	loader: async ({ context }) => {
-		await Promise.all([
-			context.queryClient.ensureQueryData(fleetQuery()),
-			context.queryClient.ensureQueryData(statusQuery()),
-		]);
-	},
+	loader: ({ context }) => context.queryClient.ensureQueryData(fleetQuery()),
 });
 
 // DESTROYED_SHOWN caps the history group. The list is navigation, and destroyed workspaces already
@@ -35,8 +34,20 @@ export const Route = createFileRoute("/_dashboard")({
 const DESTROYED_SHOWN = 15;
 
 function Dashboard() {
-	const { data: status } = useQuery(statusQuery());
 	const { data: workspaces = [] } = useQuery(fleetQuery());
+	const [signingOut, setSigningOut] = useState(false);
+
+	async function signOut() {
+		setSigningOut(true);
+		try {
+			await authClient.signOut();
+			// Hard navigation rather than a client transition, so nothing cached from the old
+			// session survives into the next one.
+			window.location.href = "/login";
+		} catch {
+			setSigningOut(false);
+		}
+	}
 
 	const live = workspaces.filter(
 		(workspace) => workspace.status !== "destroyed",
@@ -50,7 +61,6 @@ function Dashboard() {
 			<aside className="dashboard-sidebar">
 				<div className="sidebar-head">
 					<p className="eyebrow">PVE / HERDR</p>
-					<Link to="/settings">Settings</Link>
 				</div>
 
 				<nav>
@@ -109,17 +119,29 @@ function Dashboard() {
 					)}
 				</nav>
 
-				<Link className="sidebar-new" to="/">
-					+ New workspace
-				</Link>
-
-				<p className="sidebar-mode">
-					{status?.provisioningEnabled
-						? status.workerEnabled
-							? "Provisioning enabled"
-							: "Worker stopped"
-						: "Provisioning disabled"}
-				</p>
+				<div className="sidebar-foot">
+					<Link className="sidebar-new" to="/">
+						+ New workspace
+					</Link>
+					<div className="sidebar-tools">
+						{/* An anchor rather than an IconButton because it navigates. It borrows
+						    the same class so the pair still reads as one control group. */}
+						<Link
+							aria-label="Settings"
+							className="icon-button"
+							title="Settings"
+							to="/settings"
+						>
+							<Settings aria-hidden size={16} strokeWidth={1.75} />
+						</Link>
+						<IconButton
+							disabled={signingOut}
+							icon={LogOut}
+							label="Sign out"
+							onClick={signOut}
+						/>
+					</div>
+				</div>
 			</aside>
 
 			<Outlet />
