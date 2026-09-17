@@ -379,7 +379,9 @@ dd {
 	font-family: inherit;
 	font-size: 14px;
 	padding: 10px;
-	resize: vertical;
+	/* Dragging the handle fought the fixed-height column: growing the field pushed the terminal
+	   and the timeline around rather than scrolling anything. */
+	resize: none;
 	width: 100%;
 }
 
@@ -934,7 +936,7 @@ dd {
 .empty-field textarea {
 	font-family: inherit;
 	font-size: 14px;
-	resize: vertical;
+	resize: none;
 }
 
 .empty-field input:focus,
