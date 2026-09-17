@@ -397,6 +397,11 @@ dd {
 }
 
 .prompt-field textarea {
+	/* block, not the default inline-block. As an inline element the textarea leaves a baseline
+	   descender gap beneath it, so the wrapper ended up taller than the field and the button's
+	   bottom offset was measured from below the border. No value for `bottom` could look even
+	   against `right` while that gap existed. */
+	display: block;
 	/* Room for the button, so a long prompt wraps above it instead of running underneath. */
 	padding-bottom: 46px;
 	width: 100%;
