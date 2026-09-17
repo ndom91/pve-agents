@@ -20,6 +20,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiInfrastructureProbeRouteImport } from './routes/api/infrastructure/probe'
 import { Route as ApiWorkspacesWorkspaceIdRouteImport } from './routes/api/workspaces/$workspaceId'
 import { Route as ApiWorkspacesWorkspaceIdRetryRouteImport } from './routes/api/workspaces/$workspaceId/retry'
+import { Route as ApiWorkspacesWorkspaceIdStreamRouteImport } from './routes/api/workspaces/$workspaceId/stream'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/_dashboard',
@@ -78,6 +79,12 @@ const ApiWorkspacesWorkspaceIdRetryRoute =
     path: '/retry',
     getParentRoute: () => ApiWorkspacesWorkspaceIdRoute,
   } as any)
+const ApiWorkspacesWorkspaceIdStreamRoute =
+  ApiWorkspacesWorkspaceIdStreamRouteImport.update({
+    id: '/stream',
+    path: '/stream',
+    getParentRoute: () => ApiWorkspacesWorkspaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof DashboardIndexRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
+  '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -102,6 +110,7 @@ export interface FileRoutesByTo {
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
+  '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +125,7 @@ export interface FileRoutesById {
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
+  '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
+    | '/api/workspaces/$workspaceId/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
+    | '/api/workspaces/$workspaceId/stream'
   id:
     | '__root__'
     | '/_dashboard'
@@ -155,6 +167,7 @@ export interface FileRouteTypes {
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
     | '/api/workspaces/$workspaceId/retry'
+    | '/api/workspaces/$workspaceId/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWorkspacesWorkspaceIdRetryRouteImport
       parentRoute: typeof ApiWorkspacesWorkspaceIdRoute
     }
+    '/api/workspaces/$workspaceId/stream': {
+      id: '/api/workspaces/$workspaceId/stream'
+      path: '/stream'
+      fullPath: '/api/workspaces/$workspaceId/stream'
+      preLoaderRoute: typeof ApiWorkspacesWorkspaceIdStreamRouteImport
+      parentRoute: typeof ApiWorkspacesWorkspaceIdRoute
+    }
   }
 }
 
@@ -266,11 +286,13 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 
 interface ApiWorkspacesWorkspaceIdRouteChildren {
   ApiWorkspacesWorkspaceIdRetryRoute: typeof ApiWorkspacesWorkspaceIdRetryRoute
+  ApiWorkspacesWorkspaceIdStreamRoute: typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
 
 const ApiWorkspacesWorkspaceIdRouteChildren: ApiWorkspacesWorkspaceIdRouteChildren =
   {
     ApiWorkspacesWorkspaceIdRetryRoute: ApiWorkspacesWorkspaceIdRetryRoute,
+    ApiWorkspacesWorkspaceIdStreamRoute: ApiWorkspacesWorkspaceIdStreamRoute,
   }
 
 const ApiWorkspacesWorkspaceIdRouteWithChildren =

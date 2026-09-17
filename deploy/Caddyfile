@@ -5,9 +5,18 @@
 herdr-controller.puff.lan {
 	tls /etc/caddy/certs/herdr-controller.crt /etc/caddy/certs/herdr-controller.key
 
-	reverse_proxy 127.0.0.1:3000
+	# flush_interval -1 disables response buffering. Without it Caddy holds the agent event
+	# stream in a buffer, and the detail page updates in bursts or not at all. This fails only
+	# behind the proxy, never against the port directly, which is what makes it worth stating.
+	reverse_proxy 127.0.0.1:3000 {
+		flush_interval -1
+	}
 
-	encode gzip
+	# Compression buffers too, so the stream path is excluded and everything else still gets
+	# gzip. A response matcher cannot express this: `encode` rejects `not` there, so the
+	# exclusion is a named request matcher on the path instead.
+	@compressible not path /api/workspaces/*/stream
+	encode @compressible gzip
 
 	# The controller holds a Proxmox token that can purge containers. Keep the access log.
 	log {

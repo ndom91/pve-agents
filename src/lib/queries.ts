@@ -77,17 +77,19 @@ function settled(status?: string): boolean {
 	return status === "destroyed" || status === "failed";
 }
 
-// paneQuery reads the agent's live screen over SSH.
+// paneQuery holds the agent's screen.
 //
-// Enabled only for a ready workspace, so switching to one that is still building opens no
-// connection at all.
+// Fetched once for a first paint, then fed by the event stream rather than polled: a fixed
+// interval is either too slow to catch a turn or too expensive to run all day, which is the
+// problem the stream exists to solve. The initial fetch stays so the page has something before
+// the stream's first message.
 export function paneQuery(id: string, ready: boolean) {
 	return queryOptions({
 		enabled: ready,
 		queryFn: () => workspacePane({ data: { id } }),
 		queryKey: workspaceKeys.pane(id),
-		refetchInterval: SCREEN_REFRESH_MS,
-		refetchIntervalInBackground: false,
+		refetchInterval: false,
+		staleTime: SCREEN_REFRESH_MS,
 	});
 }
 

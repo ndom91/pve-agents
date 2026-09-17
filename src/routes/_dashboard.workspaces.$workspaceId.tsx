@@ -6,6 +6,7 @@ import { Button } from "../components/button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { paneQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
+import { useWorkspaceStream } from "../lib/use-workspace-stream";
 import {
 	promptWorkspaceAgent,
 	sendWorkspaceKeys,
@@ -35,6 +36,28 @@ function WorkspaceDetail() {
 	const ready = workspace?.status === "ready";
 	const blocked = workspace?.activity === "blocked";
 	const { data: pane } = useQuery(paneQuery(workspaceId, ready));
+	// Pushes the screen and the observed activity straight into the cache while the page is open.
+	useWorkspaceStream(workspaceId, ready);
+
+	// predict shows the result of an action before the server has confirmed it, and hands back a
+	// rollback. Every optimistic mutation uses it, so none of them can forget to restore the
+	// snapshot when the prediction turns out wrong.
+	async function predict(patch: Record<string, unknown>) {
+		await queryClient.cancelQueries({
+			queryKey: workspaceKeys.detail(workspaceId),
+		});
+		const previous = queryClient.getQueryData(
+			workspaceKeys.detail(workspaceId),
+		);
+		queryClient.setQueryData(
+			workspaceKeys.detail(workspaceId),
+			(current: Record<string, unknown> | undefined) =>
+				current === undefined ? current : { ...current, ...patch },
+		);
+
+		return () =>
+			queryClient.setQueryData(workspaceKeys.detail(workspaceId), previous);
+	}
 
 	// Every operator action refreshes the same two keys, so the timeline shows what was just done
 	// without waiting for the next poll.
@@ -50,14 +73,23 @@ function WorkspaceDetail() {
 	const send = useMutation({
 		mutationFn: (text: string) =>
 			promptWorkspaceAgent({ data: { id: workspaceId, text } }),
-		onSuccess: async (result) => {
-			if (result.kind === "blocked") {
-				setNote("The agent is waiting for input. Answer it first.");
-
-				return;
-			}
-			if (result.kind === "unavailable") {
-				setNote(result.reason);
+		// Never predicts away "blocked". Showing a blocked agent as working hides the one state
+		// that needs a person, which is worse than a badge that lags.
+		onMutate: () => (blocked ? undefined : predict({ activity: "active" })),
+		onError: async (_error, _text, rollback) => {
+			(await rollback)?.();
+			setNote("could not reach the agent");
+		},
+		onSuccess: async (result, _text, rollback) => {
+			// Accepted-but-refused still has to put the prediction back: the agent is not working,
+			// it is waiting.
+			if (result.kind !== "sent") {
+				(await rollback)?.();
+				setNote(
+					result.kind === "blocked"
+						? "The agent is waiting for input. Answer it first."
+						: result.reason,
+				);
 
 				return;
 			}
@@ -71,22 +103,39 @@ function WorkspaceDetail() {
 	const answer = useMutation({
 		mutationFn: (key: string) =>
 			sendWorkspaceKeys({ data: { id: workspaceId, key } }),
-		onSuccess: async (result) => {
+		// Answering a dialog is what unblocks an agent, so this is the one place predicting away
+		// "blocked" is honest.
+		onMutate: () => predict({ activity: "active" }),
+		onError: async (_error, _key, rollback) => {
+			(await rollback)?.();
+			setNote("could not reach the agent");
+		},
+		onSuccess: async (result, _key, rollback) => {
+			if (result.kind !== "sent") {
+				(await rollback)?.();
+			}
 			setNote(result.kind === "unavailable" ? result.reason : "");
-			await queryClient.invalidateQueries({
-				queryKey: workspaceKeys.pane(workspaceId),
-			});
 			await refresh();
 		},
 	});
 
 	const retry = useMutation({
 		mutationFn: () => retryWorkspaceRequest({ data: { id: workspaceId } }),
+		onMutate: () =>
+			predict({
+				errorCode: undefined,
+				errorMessage: undefined,
+				status: "provisioning",
+			}),
+		onError: async (_error, _input, rollback) => (await rollback)?.(),
 		onSuccess: refresh,
 	});
 
 	const destroy = useMutation({
 		mutationFn: () => destroyWorkspaceRequest({ data: { id: workspaceId } }),
+		onMutate: () =>
+			predict({ desiredState: "destroyed", status: "destroying" }),
+		onError: async (_error, _input, rollback) => (await rollback)?.(),
 		onSuccess: refresh,
 	});
 
