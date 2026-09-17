@@ -19,6 +19,26 @@ References:
 - [CLI reference](https://herdr.dev/docs/cli-reference/)
 - [Socket API](https://herdr.dev/docs/socket-api/)
 
+`herdr --skill` prints Herdr's own agent-control guide from the installed binary. It is written
+for an agent running *inside* a Herdr pane, so its `HERDR_ENV` check, `--current` targeting, and
+caller-context variables do not apply to this controller, which drives a remote server from
+outside. Its constraints on names, IDs, lifecycle states, and failure responses do apply, and are
+recorded below.
+
+## Verified On Hardware
+
+The following was run end to end against a real workspace container (template 114, Herdr 0.9.0),
+not inferred from documentation:
+
+- Starting a detached headless server for a named session over SSH, with no TTY.
+- `workspace create` with a valid `--cwd`, and the silent fallback when the path is missing.
+- `agent start --kind opencode`, reaching `agent_status: idle` and `interactive_ready: true`.
+- `agent read`, showing the agent at its prompt.
+- `workspace close` and `server stop`.
+
+The one thing still unproven is any agent doing real work, because no model-provider credential is
+installed yet. opencode starts and then reports `Run /connect to add an AI provider`.
+
 ## Remote Machine Registration
 
 Register a prepared SSH machine with:
@@ -95,6 +115,34 @@ bridge -> controller: observed profile IDs and errors
 
 The bridge reconciles desired state rather than blindly executing messages. It holds no Proxmox, GitHub, or model-provider credentials and is outside the initial controller critical path.
 
+## Remote Server Startup
+
+A named session has no server until one is started. `herdr --session agents status` reports
+`not running` on a freshly booted workspace, and every workspace or agent command fails until a
+server exists.
+
+The headless server starts fine over a non-interactive SSH command. It needs no TTY, no dbus, and
+no writable state outside `~/.config/herdr`:
+
+```bash
+setsid nohup herdr --session agents server > /tmp/herdr-server.log 2>&1 < /dev/null &
+```
+
+`setsid` is what makes it outlive the SSH connection. Without it the server dies with the session
+that spawned it.
+
+Each named session gets its own socket, so the session name is part of the address:
+
+```text
+~/.config/herdr/sessions/agents/herdr.sock
+```
+
+Poll `herdr --session agents status` for `status: running` rather than sleeping a fixed interval.
+Do not run bare `herdr server`: that starts the *default* session, not `agents`.
+
+Every command must repeat `--session agents`. IDs and agent names are scoped to a single server,
+so a command without the flag silently addresses a different session.
+
 ## Remote Workspace Creation
 
 Herdr commands are scoped to the server where they run. After the container is reachable, create the workspace remotely:
@@ -105,6 +153,23 @@ ssh -T agent-7f2a \
 ```
 
 The JSON response returns the workspace, first tab, and root pane IDs. Persist these IDs as observed state, but rediscover them after server replacement or reconciliation rather than assuming examples such as `w1:p1`.
+
+### `--cwd` fails silently
+
+A `--cwd` that does not exist is **ignored without any error**. The command exits 0, reports
+`workspace_created`, and puts the pane in the user's home directory instead. An agent then starts
+in `/home/agent` and finds no repository, with nothing in any log to explain it.
+
+The controller must therefore create the directory first, and then verify the echoed path:
+
+```text
+.result.root_pane.cwd == the requested --cwd
+```
+
+Treat a mismatch as a failed step. The exit status alone proves nothing here.
+
+`workspace create` also accepts `--env KEY=VALUE`, which is the injection point for
+model-provider credentials once that decision is made.
 
 ## Agent Operations
 
@@ -121,11 +186,53 @@ herdr --session agents agent wait investigator-backend --until blocked --timeout
 
 Additional agents require additional panes. Create topology explicitly with `pane split`, then use `agent start` in the returned pane.
 
-Agent names are unique only within one Herdr server. Controller-level identities should include the workspace ID:
+### Agent names are constrained
 
-```text
-<workspace-id>:<agent-name>
-```
+Herdr enforces `[a-z][a-z0-9_-]{0,31}` on agent names, and requires uniqueness only among *live*
+agents on one server.
+
+A workspace UUID therefore cannot be used, nor can the `<workspace-id>:<agent-name>` form this
+document previously recommended: the colon is not in the allowed set, and the result exceeds 32
+characters. Derive the name from the same short slug already used for the hostname instead, such
+as `agent-596a`. One server hosts one controller-managed workspace, so that slug is unique by
+construction, and the server-scoping problem does not arise.
+
+The constraint is worth enforcing controller-side, because a bad name is rejected at `agent start`
+only after the container, the session, and the workspace all exist.
+
+A name is not a durable handle. It follows the current pane occupant and is cleared when that
+agent exits, is released, or is replaced. Persist the pane ID for durability: closed pane and tab
+IDs are never reused.
+
+### Lifecycle states
+
+`idle` and `done` both mean the agent is ready for input; they differ only in whether the server
+has seen the completion. `blocked` means Herdr recognised an approval or question dialog.
+
+`unknown` means an agent is present but Herdr cannot classify it. It does **not** prove
+completion, so the controller must not treat it as a finished turn.
+
+### Failure responses
+
+Server errors arrive as JSON on stderr with exit status 1. CLI syntax errors exit 2. The two need
+different handling: exit 2 is a controller bug and will never succeed on retry.
+
+Three named responses matter to the state machine:
+
+- `agent_not_ready` — the agent was blocked during startup. The name still resolves, so
+  `agent read` and `agent send-keys` work. Wait for idle rather than restarting.
+- `agent_blocked` — a prompt was refused because the agent sits at a dialog. No input was sent.
+- `agent_prompt_stalled` — submitted, but no `working` or `blocked` activity within five seconds.
+
+A `timeout` or a stall does not prove the prompt was never delivered. Re-sending blindly can
+double-submit; read the pane first.
+
+### Reading output
+
+Prefer `--source recent-unwrapped` for transcripts. Raising `--lines` cannot recover output from
+an agent drawing on the terminal's alternate screen, because those rows never enter Herdr's
+scrollback. When a read comes back short for that reason, the fallback is to have the agent write
+its response to a file and read the file.
 
 ## Overview Data
 
