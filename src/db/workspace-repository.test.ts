@@ -223,6 +223,74 @@ describe("releaseWorkspaceOperation", () => {
 	});
 });
 
+describe("claimWorkspaceOperation fairness", () => {
+	// Both operations are pinned to the same creation time, because createWorkspace stamps them
+	// from the wall clock and the rest of the test runs on a fixed one. Comparing a real timestamp
+	// against a fixed one tests nothing; in production both come from the same clock.
+	function queuedPair(db: ReturnType<typeof openDatabase>): void {
+		createWorkspace(db, input("request-a"));
+		createWorkspace(db, input("request-b"));
+		db.prepare("UPDATE workspace_operations SET created_at = ?").run(
+			"2026-01-01T00:00:00Z",
+		);
+	}
+
+	it("does not let one workspace starve the ones queued behind it", () => {
+		// Found by running six workspaces at once. Ordering by creation meant the oldest always
+		// won, and because a released operation is due immediately it won again on every pass
+		// until it finished. Six provisioned strictly one after another, and the last showed its
+		// operator nothing at all for seven minutes.
+		//
+		// Which is claimed first is not asserted: they are created together and either is fine.
+		// What matters is that the second claim goes to the other one.
+		const db = database();
+		queuedPair(db);
+
+		const at = new Date("2026-01-01T00:01:00Z");
+		const first = claimWorkspaceOperation(db, "provision", at);
+		if (first.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		// It takes its step and is due again immediately, as every fast step is.
+		releaseWorkspaceOperation(db, first.lease, 0, at);
+
+		const second = claimWorkspaceOperation(
+			db,
+			"provision",
+			new Date("2026-01-01T00:01:01Z"),
+		);
+		if (second.kind !== "claimed") {
+			throw new Error("expected operation claim");
+		}
+
+		expect(second.operation.workspaceId).not.toBe(first.operation.workspaceId);
+	});
+
+	it("comes back round rather than running one to completion", () => {
+		const db = database();
+		queuedPair(db);
+
+		const claimed: string[] = [];
+		for (let step = 0; step < 4; step += 1) {
+			const at = new Date(Date.UTC(2026, 0, 1, 0, 1, step));
+			const claim = claimWorkspaceOperation(db, "provision", at);
+			if (claim.kind !== "claimed") {
+				throw new Error("expected operation claim");
+			}
+
+			claimed.push(claim.operation.workspaceId);
+			releaseWorkspaceOperation(db, claim.lease, 0, at);
+		}
+
+		// Alternating, not one workspace four times over.
+		expect(claimed[0]).not.toBe(claimed[1]);
+		expect(claimed[1]).not.toBe(claimed[2]);
+		expect(claimed[2]).not.toBe(claimed[3]);
+		expect(new Set(claimed).size).toBe(2);
+	});
+});
+
 describe("requestWorkspaceOperation", () => {
 	it("refuses a second live operation of the same kind", () => {
 		const db = database();

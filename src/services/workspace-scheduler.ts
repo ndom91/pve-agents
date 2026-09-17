@@ -65,10 +65,45 @@ async function sweep(
 	db: Database.Database,
 	config: ControllerConfig,
 ): Promise<void> {
-	await runWorkspaceOperations(db, config);
+	await drainOperations(db, config);
 	// Activity first, deliberately: the reaper decides on the activity this records, and reaping
 	// on a stale reading is how a working agent gets destroyed.
 	await observeWorkspaceActivity(db, config);
 	await refreshWorkspaceCredentials(db, config);
 	reapWorkspaces(db);
+}
+
+// OPERATIONS_PER_TICK bounds how much lifecycle work one pass will do.
+//
+// One step per tick meant global throughput of one step every five seconds, so a workspace needing
+// nine steps took the better part of a minute even with nothing else running, and six of them took
+// nine minutes. Each step is one Proxmox call or one SSH round trip, so a handful fits comfortably
+// inside a tick.
+const OPERATIONS_PER_TICK = 6;
+
+// OPERATIONS_BUDGET_MS stops a slow step turning the batch into a long one.
+//
+// A connection to a container that is not answering waits out its timeout, and several of those in
+// a row would hold up the activity and credential passes that run after this. Overrunning does not
+// overlap ticks, because the scheduler awaits the whole sweep, but it does delay them.
+const OPERATIONS_BUDGET_MS = 4_000;
+
+// drainOperations advances several queued operations, rather than exactly one.
+async function drainOperations(
+	db: Database.Database,
+	config: ControllerConfig,
+): Promise<void> {
+	const deadline = Date.now() + OPERATIONS_BUDGET_MS;
+
+	for (let step = 0; step < OPERATIONS_PER_TICK; step += 1) {
+		const run = await runWorkspaceOperations(db, config);
+		// Nothing due. Stopping here is what keeps an idle controller idle rather than spinning
+		// through its budget every five seconds.
+		if (run.processed === 0) {
+			return;
+		}
+		if (Date.now() >= deadline) {
+			return;
+		}
+	}
 }

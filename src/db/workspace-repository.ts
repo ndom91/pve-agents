@@ -235,6 +235,15 @@ export function createWorkspace(
 //
 // The kind filter keeps each executor to its own lifecycle. The provision executor must never
 // claim a destroy operation, because destruction has its own ownership-verification rules.
+//
+// Ordered by when an operation is next due, not by when it was created. Ordering by creation
+// starved everything behind the first request: six workspaces queued together are milliseconds
+// apart, so the oldest always won, and since it releases itself due immediately it won again on
+// the next pass and every pass after, until it was finished. Six provisioned strictly one after
+// another and the last sat at "requested", showing its operator nothing at all, for seven minutes.
+//
+// A released operation is due now; one that has never run is due from its creation, which is
+// earlier. So waiting work goes first and the fleet advances together.
 export function claimWorkspaceOperation(
 	db: Database.Database,
 	kind: WorkspaceOperation["kind"],
@@ -250,7 +259,7 @@ export function claimWorkspaceOperation(
 				 WHERE kind = ?
 					AND (next_run_at IS NULL OR next_run_at <= ?)
 					AND (status = 'queued' OR (status = 'running' AND lease_expires_at < ?))
-				 ORDER BY created_at ASC LIMIT 1`,
+				 ORDER BY COALESCE(next_run_at, created_at) ASC LIMIT 1`,
 			)
 			.get(kind, nowText, nowText) as WorkspaceOperationRow | undefined;
 		if (row === undefined) {
