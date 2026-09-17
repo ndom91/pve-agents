@@ -785,18 +785,23 @@ dd {
 
 /* One height governs the badges and the button beside them, rather than each being sized by its
    own padding and font. Without this the badges sit short next to the control they line up with. */
-/* The badges take the button's height, not the other way round: the button is the control with a
-   size worth keeping, and a badge has no intrinsic one. */
+/* One rule for all three, covering type as well as size. The badges take the button's height,
+   because the button is the control with a size worth keeping and a badge has no intrinsic one;
+   the button takes the badges' typeface, because three controls in a row reading as one group is
+   the point, and the odd one out was the button in the body font. */
 .centre-head-actions .status,
 .centre-head-actions .activity,
 .centre-head-actions button {
 	align-items: center;
 	box-sizing: border-box;
 	display: inline-flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: 12px;
 	height: var(--control-height);
+	letter-spacing: 0.08em;
 	padding-block: 0;
 	padding-inline: 16px;
+	text-transform: uppercase;
 }
 
 /* The empty state is the whole content area, so the card is centred in it rather than sitting in
