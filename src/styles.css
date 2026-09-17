@@ -403,12 +403,12 @@ dd {
 }
 
 .prompt-send {
+	/* Equal on both axes. They were 10 and 12, which reads as a mistake rather than as intent. */
 	bottom: 10px;
 	font-size: 12px;
-	letter-spacing: 0.06em;
 	padding: 7px 14px;
 	position: absolute;
-	right: 12px;
+	right: 10px;
 }
 
 .masthead-link {
