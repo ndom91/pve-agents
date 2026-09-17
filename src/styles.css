@@ -919,3 +919,91 @@ dd {
 	padding-block: 0;
 	padding-inline: 14px;
 }
+
+/* The empty state is the whole content area, so the card is centred in it rather than sitting in
+   the top-left corner of a mostly blank screen. */
+.empty-state {
+	align-items: center;
+	justify-content: center;
+	padding: 48px 28px;
+}
+
+.empty-card {
+	background: #10140f;
+	border: 1px solid #2c3428;
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	max-width: 460px;
+	padding: 28px;
+	width: 100%;
+}
+
+.empty-card header {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.empty-card h1 {
+	font-size: 17px;
+	margin: 0;
+}
+
+/* The description belongs with the thing it describes. It used to float at the far right of the
+   content area, where it read as unrelated chrome. */
+.empty-card header p {
+	color: #8a9a83;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.empty-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.empty-field span {
+	color: #7b8b71;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+/* Full width inside the card, unlike the numeric settings inputs these otherwise share styling
+   with: a repository path is long and a purpose is a paragraph. */
+.empty-field input,
+.empty-field textarea {
+	background: #0b0f0a;
+	border: 1px solid #2c3428;
+	box-sizing: border-box;
+	color: #d6e2cf;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 13px;
+	padding: 9px 10px;
+	width: 100%;
+}
+
+.empty-field textarea {
+	font-family: inherit;
+	font-size: 14px;
+	resize: vertical;
+}
+
+.empty-field input:focus,
+.empty-field textarea:focus {
+	border-color: #7b8b71;
+	outline: none;
+}
+
+.empty-field small {
+	color: #6d7a67;
+	line-height: 1.5;
+}
+
+.empty-card button[type="submit"] {
+	align-self: flex-start;
+	min-height: var(--control-height);
+	padding-inline: 18px;
+}

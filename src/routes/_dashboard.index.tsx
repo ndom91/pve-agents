@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+
 import { workspaceKeys } from "../lib/queries";
 import { requestId } from "../lib/request-id";
 import { createWorkspace } from "../server/workspace.functions";
@@ -38,17 +39,9 @@ function NewWorkspace() {
 	});
 
 	return (
-		<main className="dashboard-main dashboard-main-wide">
-			<header className="centre-head">
-				<h1>New workspace</h1>
-				<p>
-					A workspace clones the repository, starts an agent in it, and briefs
-					that agent with the purpose below.
-				</p>
-			</header>
-
+		<main className="dashboard-main dashboard-main-wide empty-state">
 			<form
-				className="settings-form"
+				className="empty-card"
 				onSubmit={(event) => {
 					event.preventDefault();
 					if (repository.trim() !== "") {
@@ -56,17 +49,24 @@ function NewWorkspace() {
 					}
 				}}
 			>
-				<label className="settings-field">
+				<header>
+					<h1>New workspace</h1>
+					<p>
+						Clones the repository into a fresh container, starts an agent in it,
+						and gives that agent the purpose below.
+					</p>
+				</header>
+
+				<label className="empty-field">
 					<span>Repository</span>
 					<input
-						className="field-wide"
 						onChange={(event) => setRepository(event.target.value)}
 						placeholder="github.com/owner/name"
 						value={repository}
 					/>
 				</label>
 
-				<label className="settings-field">
+				<label className="empty-field">
 					<span>Ref</span>
 					<input
 						onChange={(event) => setRef(event.target.value)}
@@ -75,7 +75,7 @@ function NewWorkspace() {
 					/>
 				</label>
 
-				<label className="settings-field">
+				<label className="empty-field">
 					<span>Purpose</span>
 					<textarea
 						onChange={(event) => setPurpose(event.target.value)}
@@ -84,7 +84,7 @@ function NewWorkspace() {
 						value={purpose}
 					/>
 					<small>
-						Leave empty to have the workspace come up idle and wait to be told
+						Leave empty and the workspace comes up idle, waiting to be told
 						something.
 					</small>
 				</label>
