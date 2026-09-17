@@ -96,7 +96,7 @@ describe("runWorkspaceOperations", () => {
 		});
 	});
 
-	it("boots the container, then stops rather than looping", async () => {
+	it("boots, finds its address, then stops rather than looping", async () => {
 		const db = database();
 		const workspaceID = await submitted(db);
 
@@ -142,15 +142,32 @@ describe("runWorkspaceOperations", () => {
 			"workspace.booted",
 		]);
 
+		const addressed = await runWorkspaceOperations(
+			db,
+			config(),
+			async () =>
+				Response.json({
+					data: [
+						{ inet: "127.0.0.1/8", name: "lo" },
+						{ inet: "10.0.3.101/24", name: "eth0" },
+					],
+				}),
+			new Date(POLLED_AT.getTime() + 180_000),
+		);
+		expect(addressed).toEqual({ processed: 1, status: "address_found" });
+		expect(
+			db.prepare("SELECT ip FROM workspaces WHERE id = ?").get(workspaceID),
+		).toEqual({ ip: "10.0.3.101" });
+
 		const closing = await runWorkspaceOperations(
 			db,
 			config(),
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 180_000),
+			new Date(POLLED_AT.getTime() + 240_000),
 		);
-		expect(closing).toEqual({ processed: 1, status: "booted" });
+		expect(closing).toEqual({ processed: 1, status: "addressed" });
 
 		const after = await runWorkspaceOperations(
 			db,
@@ -158,7 +175,7 @@ describe("runWorkspaceOperations", () => {
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 240_000),
+			new Date(POLLED_AT.getTime() + 300_000),
 		);
 		expect(after).toEqual({ processed: 0, status: "empty" });
 		expect(

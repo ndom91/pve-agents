@@ -16,6 +16,7 @@ import {
 	type WorkspaceProvision,
 	workspaceProvision,
 } from "../db/workspace-repository";
+import { containerAddress } from "./proxmox-address";
 import { cloneWorkspace, nextProxmoxVMID } from "./proxmox-clone";
 import {
 	containerConfig,
@@ -65,11 +66,13 @@ export async function executeWorkspaceProvision(
 		case "start-submitted":
 			return pollStart(db, lease, workspace, config, fetcher, now);
 		case "booted":
-			// Address discovery and bootstrap are not implemented, so there is no next step to
-			// release the operation for. Reopen this when one exists.
+			return discoverAddress(db, config, lease, workspace, fetcher, now);
+		case "addressed":
+			// SSH readiness and bootstrap are not implemented, so there is no next step to release
+			// the operation for. Reopen this when one exists.
 			completeWorkspaceOperation(db, lease, now);
 
-			return { processed: 1, status: "booted" };
+			return { processed: 1, status: "addressed" };
 		default:
 			// No phase yet. A VMID without one means a clone landed before phases existed, or a
 			// candidate was persisted and the response lost.
@@ -77,6 +80,56 @@ export async function executeWorkspaceProvision(
 				? submitClone(db, config, lease, workspace, fetcher, now)
 				: reconcileCandidate(db, config, lease, workspace, fetcher, now);
 	}
+}
+
+// discoverAddress records where the workspace can be reached.
+//
+// DHCP does not answer the instant a container boots, so an address that is not there yet is
+// pending rather than a failure. The operation deadline bounds how long that is tolerated.
+async function discoverAddress(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	fetcher: Fetcher,
+	now: Date,
+): Promise<WorkspaceOperationRun> {
+	const api = workspaceNode(config, workspace);
+	const found = await containerAddress(
+		api,
+		workspace.vmid as number,
+		config.WORKSPACE_SUBNET,
+		fetcher,
+	);
+	if (found.kind === "failed") {
+		noteWorkspaceIssue(db, lease, found.message, now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_address" };
+	}
+	if (found.kind === "pending") {
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_address" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `workspace reachable at ${found.address}`,
+				type: "workspace.addressed",
+			},
+			ip: found.address,
+			phase: "addressed",
+			step: `address ${found.address}`,
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "address_found" };
 }
 
 // submitStart boots the confirmed clone.

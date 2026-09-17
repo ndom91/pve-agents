@@ -28,6 +28,9 @@ const envSchema = z
 			.max(3600)
 			.default(5),
 		WORKSPACE_HERDR_SESSION: z.string().min(1).default("agents"),
+		// Restricts address discovery to the workspace network, so a container's own bridge is never
+		// mistaken for its address. CIDR, for example 10.0.3.0/24.
+		WORKSPACE_SUBNET: z.string().min(1).optional(),
 		WORKSPACE_SSH_KEY_PATH: z.string().min(1).optional(),
 		WORKSPACE_SSH_USER: z.string().min(1).default("agent"),
 	})

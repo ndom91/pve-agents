@@ -26,6 +26,7 @@ export type WorkspaceStatus =
 // disambiguates current_task_upid, which is one column shared by every task the workspace has
 // outstanding — without it, a start task and a clone task look identical.
 export type ProvisionPhase =
+	| "addressed"
 	| "booted"
 	| "clone-confirmed"
 	| "clone-submitted"

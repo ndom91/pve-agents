@@ -398,6 +398,7 @@ export function advanceWorkspaceProvision(
 	lease: OperationLease,
 	input: {
 		event?: { message: string; type: string };
+		ip?: string;
 		phase: ProvisionPhase;
 		status?: WorkspaceStatus;
 		step: string;
@@ -410,9 +411,17 @@ export function advanceWorkspaceProvision(
 		db.prepare(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
-				provision_phase = ?, status = COALESCE(?, status), updated_at = ?
+				provision_phase = ?, status = COALESCE(?, status), ip = COALESCE(?, ip),
+				updated_at = ?
 			 WHERE id = ?`,
-		).run(input.step, input.phase, input.status ?? null, nowText, workspaceId);
+		).run(
+			input.step,
+			input.phase,
+			input.status ?? null,
+			input.ip ?? null,
+			nowText,
+			workspaceId,
+		);
 
 		if (input.event !== undefined) {
 			appendWorkspaceEvent(
