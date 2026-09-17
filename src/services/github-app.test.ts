@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { installationToken } from "./github-app";
+import { installationToken, repositoryAccess } from "./github-app";
 
 const KEY_PATH = join(tmpdir(), "pve-herdr-agents-github-app.pem");
 
@@ -132,5 +132,51 @@ describe("installationToken", () => {
 			kind: "failed",
 			message: "github could not be reached",
 		});
+	});
+});
+
+describe("repositoryAccess", () => {
+	it("accepts a repository the installation covers", async () => {
+		const access = await repositoryAccess(CREDENTIALS, REPOSITORY, async () =>
+			Response.json({ expires_at: "2026-01-01T01:00:00Z", token: "t" }),
+		);
+
+		expect(access).toEqual({ kind: "accessible" });
+	});
+
+	it("refuses a repository the installation cannot see", async () => {
+		// GitHub answers 422 when the repository is not in the installation. Catching it here is
+		// what turns a minute of provisioning and a failed clone into an immediate answer.
+		const access = await repositoryAccess(
+			CREDENTIALS,
+			REPOSITORY,
+			async () => new Response("{}", { status: 422 }),
+		);
+
+		expect(access).toEqual({
+			kind: "inaccessible",
+			message:
+				"ndom91/open-plan-annotator is not available to this GitHub App installation",
+		});
+	});
+
+	it("does not call an outage a refusal", async () => {
+		// The controller knows nothing about the repository when it cannot reach GitHub. Refusing
+		// would make an outage there an outage here, and the checkout step retries anyway.
+		const access = await repositoryAccess(CREDENTIALS, REPOSITORY, async () => {
+			throw new Error("network down");
+		});
+
+		expect(access).toEqual({ kind: "unknown" });
+	});
+
+	it("does not call a server error a refusal", async () => {
+		const access = await repositoryAccess(
+			CREDENTIALS,
+			REPOSITORY,
+			async () => new Response("{}", { status: 500 }),
+		);
+
+		expect(access).toEqual({ kind: "unknown" });
 	});
 });

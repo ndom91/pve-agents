@@ -1,13 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
+	checkWorkspaceRequest,
 	destroyWorkspace,
 	listRequestedWorkspaces,
 	requestWorkspace,
 	workspaceRequestSchema,
 	workspaceWithTimeline,
 } from "../services/workspace-service";
-import { controllerDatabase, controllerHerdrSession } from "./controller";
+import {
+	controllerDatabase,
+	controllerHerdrSession,
+	controllerRuntimeConfig,
+} from "./controller";
 import { operatorMiddleware } from "./middleware";
 
 const createWorkspaceInput = z
@@ -20,7 +25,15 @@ const createWorkspaceInput = z
 export const createWorkspace = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
 	.validator(createWorkspaceInput)
-	.handler(({ data }) => {
+	.handler(async ({ data }) => {
+		const refusal = await checkWorkspaceRequest(
+			controllerRuntimeConfig(),
+			data,
+		);
+		if (refusal !== undefined) {
+			throw new Error(`workspace: ${refusal.message}`);
+		}
+
 		const result = requestWorkspace(
 			controllerDatabase(),
 			controllerHerdrSession(),

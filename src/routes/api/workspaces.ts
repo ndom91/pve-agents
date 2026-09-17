@@ -4,9 +4,11 @@ import { requireOperator } from "../../server/authorize";
 import {
 	controllerDatabase,
 	controllerHerdrSession,
+	controllerRuntimeConfig,
 } from "../../server/controller";
 import { invalidJson, json } from "../../server/http";
 import {
+	checkWorkspaceRequest,
 	listRequestedWorkspaces,
 	requestWorkspace,
 	workspaceRequestSchema,
@@ -43,6 +45,14 @@ export const Route = createFileRoute("/api/workspaces")({
 				const input = createWorkspaceInput.safeParse(body);
 				if (!input.success) {
 					return json({ error: "invalid workspace request" }, 400);
+				}
+
+				const refusal = await checkWorkspaceRequest(
+					controllerRuntimeConfig(),
+					input.data,
+				);
+				if (refusal !== undefined) {
+					return json({ error: refusal.message }, 400);
 				}
 
 				const result = requestWorkspace(

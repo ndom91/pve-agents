@@ -259,7 +259,24 @@ async function bootstrapAgentHome(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const prepared = await prepareClaudeWorkspace(target, AGENT_CWD, ssh);
+	const token = config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
+	if (token === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_token_missing",
+			"WORKSPACE_CLAUDE_OAUTH_TOKEN is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	const prepared = await prepareClaudeWorkspace(
+		target,
+		{ cwd: AGENT_CWD, token },
+		ssh,
+	);
 	if (prepared.kind === "failed") {
 		noteWorkspaceIssue(db, lease, prepared.message, now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
@@ -466,8 +483,8 @@ async function startHerdrSession(
 
 // registerHerdrWorkspace creates the Herdr workspace the agent will run in.
 //
-// This is where the subscription credential enters the container, because Herdr attaches env to
-// the panes it creates rather than to agents started in them later.
+// Carries no credentials: the pane's shell picks those up from the file bootstrap wrote, so
+// nothing secret passes through a Herdr argument.
 async function registerHerdrWorkspace(
 	db: Database.Database,
 	config: ControllerConfig,
@@ -489,29 +506,9 @@ async function registerHerdrWorkspace(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const token = config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
-	if (token === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_token_missing",
-			"WORKSPACE_CLAUDE_OAUTH_TOKEN is not configured",
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-
-	// The token reaches the workspace as a herdr argument, so it is briefly visible to ps there.
-	// Acceptable only because a workspace is single-tenant and disposable; it would not be on a
-	// shared host.
 	const created = await createHerdrWorkspace(
 		target,
-		{
-			cwd: AGENT_CWD,
-			env: { CLAUDE_CODE_OAUTH_TOKEN: token },
-			label: workspace.hostname,
-		},
+		{ cwd: AGENT_CWD, label: workspace.hostname },
 		ssh,
 	);
 	if (created.kind === "rejected") {

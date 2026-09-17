@@ -80,6 +80,42 @@ export async function installationToken(
 	}
 }
 
+// RepositoryAccess is whether the App can reach a repository.
+//
+// "unknown" is not "no". A controller that cannot reach GitHub knows nothing about the repository,
+// and refusing the request would turn a GitHub outage into a controller outage.
+export type RepositoryAccess =
+	| { kind: "accessible" }
+	| { kind: "inaccessible"; message: string }
+	| { kind: "unknown" };
+
+// repositoryAccess checks whether a repository can be cloned, before anything is built for it.
+//
+// Minting a scoped token is the check: GitHub refuses with 422 when the repository is not in the
+// installation. Asking at request time turns a minute of provisioning followed by a failed clone
+// into an immediate, readable answer.
+export async function repositoryAccess(
+	credentials: GitHubAppCredentials,
+	repository: { name: string; owner: string },
+	fetcher: Fetcher = fetch,
+): Promise<RepositoryAccess> {
+	const minted = await installationToken(credentials, repository, fetcher);
+	if (minted.kind === "minted") {
+		return { kind: "accessible" };
+	}
+	if (
+		minted.message.includes("HTTP 422") ||
+		minted.message.includes("HTTP 404")
+	) {
+		return {
+			kind: "inaccessible",
+			message: `${repository.owner}/${repository.name} is not available to this GitHub App installation`,
+		};
+	}
+
+	return { kind: "unknown" };
+}
+
 // AppAssertion is the signed proof that this controller is the configured App.
 type AppAssertion =
 	| { jwt: string; kind: "signed" }

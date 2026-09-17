@@ -129,13 +129,12 @@ export async function startHerdrServer(
 // the home directory instead. The exit status proves nothing on its own.
 export async function createHerdrWorkspace(
 	target: HerdrTarget,
-	input: { cwd: string; env: Record<string, string>; label: string },
+	input: { cwd: string; label: string },
 	ssh: SshRunner,
 ): Promise<HerdrWorkspace> {
-	const env = Object.entries(input.env).flatMap(([key, value]) => [
-		"--env",
-		`${key}=${value}`,
-	]);
+	// No --env. Herdr supports it and this used it at first, but an --env argument is visible in
+	// the workspace's process list for as long as the command runs. Credentials are written to a
+	// file the pane's shell sources instead, during bootstrap.
 	const result = await run(
 		target,
 		[
@@ -146,10 +145,8 @@ export async function createHerdrWorkspace(
 			"--label",
 			input.label,
 			"--no-focus",
-			...env,
 		],
 		ssh,
-		Object.values(input.env),
 	);
 	if (result.kind !== "ok") {
 		return { kind: result.kind, message: result.message };
@@ -292,7 +289,6 @@ async function run(
 	target: HerdrTarget,
 	args: string[],
 	ssh: SshRunner,
-	secrets: string[] = [],
 ): Promise<HerdrCommand> {
 	const result = await ssh(target.ssh, [
 		"herdr",
@@ -304,29 +300,17 @@ async function run(
 		return { kind: "failed", message: "workspace refused the connection" };
 	}
 	if (result.kind === "rejected") {
-		return { kind: "failed", message: redact(result.message, secrets) };
+		return { kind: "failed", message: result.message };
 	}
 	if (result.code === 0) {
 		return { kind: "ok", stdout: result.stdout };
 	}
 
-	const failure = redact(message(result.stderr, result.stdout), secrets);
+	const failure = message(result.stderr, result.stdout);
 
 	return result.code === 2
 		? { kind: "rejected", message: failure }
 		: { kind: "failed", message: failure };
-}
-
-// redact removes injected credentials from anything that becomes an operator-visible message.
-//
-// Herdr echoes the failing command in its errors, and these messages are appended to the workspace
-// timeline the UI renders. Scrubbing at the boundary is the only place that covers every caller.
-function redact(value: string, secrets: string[]): string {
-	return secrets.reduce(
-		(scrubbed, secret) =>
-			secret === "" ? scrubbed : scrubbed.split(secret).join("[redacted]"),
-		value,
-	);
 }
 
 function message(stderr: string, stdout: string): string {

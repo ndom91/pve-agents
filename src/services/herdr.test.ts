@@ -14,8 +14,6 @@ const TARGET = {
 	ssh: { address: "10.0.3.102", keyPath: "/keys/id", user: "agent" },
 };
 
-const TOKEN = "sk-ant-oat01-not-a-real-token";
-
 // Captured from herdr 0.9.0 on a real workspace container.
 const CREATED = JSON.stringify({
 	id: "cli:workspace:create",
@@ -93,7 +91,7 @@ describe("createHerdrWorkspace", () => {
 	it("returns the ids herdr reported", async () => {
 		const created = await createHerdrWorkspace(
 			TARGET,
-			{ cwd: "/workspace/repo", env: {}, label: "agent-2881" },
+			{ cwd: "/workspace/repo", label: "agent-2881" },
 			ran(0, CREATED),
 		);
 
@@ -112,18 +110,21 @@ describe("createHerdrWorkspace", () => {
 		const elsewhere = CREATED.replaceAll("/workspace/repo", "/home/agent");
 		const created = await createHerdrWorkspace(
 			TARGET,
-			{ cwd: "/workspace/repo", env: {}, label: "agent-2881" },
+			{ cwd: "/workspace/repo", label: "agent-2881" },
 			ran(0, elsewhere),
 		);
 
 		expect(created.kind).toBe("rejected");
 	});
 
-	it("passes env through to the created panes", async () => {
+	it("passes no credentials as arguments", async () => {
+		// Herdr supports --env and this used it at first, but an --env argument is in the process
+		// list of the workspace for as long as the command runs. Credentials go to a file the
+		// pane's shell sources instead.
 		let command: string[] = [];
 		await createHerdrWorkspace(
 			TARGET,
-			{ cwd: "/workspace/repo", env: { A: "b" }, label: "l" },
+			{ cwd: "/workspace/repo", label: "l" },
 			async (_target, args) => {
 				command = args;
 
@@ -131,30 +132,7 @@ describe("createHerdrWorkspace", () => {
 			},
 		);
 
-		expect(command).toContain("--env");
-		expect(command).toContain("A=b");
-	});
-
-	it("never returns a message containing an injected credential", async () => {
-		// These messages are appended to the workspace timeline the UI renders, and herdr echoes
-		// the failing command back in its errors.
-		const created = await createHerdrWorkspace(
-			TARGET,
-			{
-				cwd: "/workspace/repo",
-				env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN },
-				label: "l",
-			},
-			ran(
-				1,
-				"",
-				`error running: herdr workspace create --env CLAUDE_CODE_OAUTH_TOKEN=${TOKEN}`,
-			),
-		);
-
-		expect(created.kind).toBe("failed");
-		expect(JSON.stringify(created)).not.toContain(TOKEN);
-		expect(JSON.stringify(created)).toContain("[redacted]");
+		expect(command).not.toContain("--env");
 	});
 
 	it("does not retry a command herdr could not parse", async () => {
@@ -162,7 +140,7 @@ describe("createHerdrWorkspace", () => {
 		// will fail identically forever, so it must not look like a transient fault.
 		const created = await createHerdrWorkspace(
 			TARGET,
-			{ cwd: "/workspace/repo", env: {}, label: "l" },
+			{ cwd: "/workspace/repo", label: "l" },
 			ran(2, "", "unknown option: --nope"),
 		);
 
