@@ -29,10 +29,22 @@ export type SshRunner = (
 // this only needs to be long enough for a booted container to answer.
 const SSH_TIMEOUT_SECONDS = 10;
 
-// runSsh executes one command on a workspace.
+// quoteRemote makes one argument survive the remote shell intact.
 //
-// Arguments are a fixed array and never a shell string: a repository name, ref, or agent prompt
-// reaching a shell here would be remote code execution on the controller's own credentials.
+// ssh does not preserve argv boundaries. It joins the command it is given with spaces and hands
+// the result to the remote login shell, which splits it again on whitespace and interprets every
+// metacharacter in it. Callers reasonably expect an array of arguments to behave like one, so the
+// quoting that makes that true belongs here rather than in each of them.
+//
+// Without it, an argument containing a space silently becomes two, and a repository name, ref, or
+// agent prompt carrying a semicolon is remote code execution under the controller's own key.
+export function quoteRemote(command: string[]): string {
+	return command
+		.map((argument) => `'${argument.split("'").join(`'\\''`)}'`)
+		.join(" ");
+}
+
+// runSsh executes one command on a workspace.
 export function runSsh(
 	target: SshTarget,
 	command: string[],
@@ -58,7 +70,7 @@ export function runSsh(
 				"LogLevel=ERROR",
 				`${target.user}@${target.address}`,
 				"--",
-				...command,
+				quoteRemote(command),
 			],
 			{ stdio: ["ignore", "pipe", "pipe"] },
 		);
