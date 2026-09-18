@@ -269,26 +269,7 @@ function WorkspaceDetail() {
 
 				{!ready ? null : (
 					<section className="centre-screen">
-						{/* A diff needs the width, and the rail does not have it. Selecting a file
-						    in the tree therefore takes over the centre, with the terminal one
-						    click away: the terminal is what you watch while an agent works, and
-						    the diff is what you read once it has stopped. */}
-						{file === undefined ? null : (
-							<div className="centre-switch">
-								<button
-									className="centre-back"
-									onClick={() => setFile(undefined)}
-									type="button"
-								>
-									Back to the terminal
-								</button>
-								<span className="centre-switch-path">{file}</span>
-							</div>
-						)}
-
-						{file !== undefined ? (
-							<FileDiff path={file} sides={sides} />
-						) : pane?.kind === "screen" ? (
+						{pane?.kind === "screen" ? (
 							<AgentScreen screen={pane.text} />
 						) : (
 							<p className="detail-note">
@@ -379,8 +360,14 @@ function WorkspaceDetail() {
 					!ready ? undefined : (
 						<ChangesPanel
 							changes={changes}
+							diff={
+								file === undefined ? undefined : (
+									<FileDiff path={file} sides={sides} />
+								)
+							}
 							discarding={discard.isPending}
 							note={note}
+							onClose={() => setFile(undefined)}
 							onDiscard={() => discard.mutate()}
 							onPush={(message) => push.mutate(message)}
 							onSelect={setFile}

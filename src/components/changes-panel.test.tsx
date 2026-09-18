@@ -15,6 +15,7 @@ function panel(props: Partial<Parameters<typeof ChangesPanel>[0]> = {}) {
 			changes={{ files: [], kind: "changes" }}
 			discarding={false}
 			note=""
+			onClose={() => undefined}
 			onDiscard={() => undefined}
 			onPush={() => undefined}
 			onSelect={() => undefined}
@@ -102,6 +103,45 @@ describe("ChangesPanel", () => {
 		expect(
 			screen.getByRole("button", { name: "Discard changes" }),
 		).toBeDefined();
+	});
+
+	it("shows the file beside the tree rather than somewhere else", async () => {
+		// The diff used to take over the centre, which meant reading a change cost you the sight of
+		// the terminal and a click to get it back.
+		render(
+			panel({
+				changes: files(1),
+				diff: <p>the diff</p>,
+				selected: "src/file-0.ts",
+			}),
+		);
+
+		expect(screen.getByText("the diff")).toBeDefined();
+		expect(screen.getByText("src/file-0.ts")).toBeDefined();
+	});
+
+	it("shows no diff area until a file is chosen", () => {
+		render(panel({ changes: files(1), diff: <p>the diff</p> }));
+
+		expect(screen.queryByText("the diff")).toBeNull();
+	});
+
+	it("closes the file without touching the changes", async () => {
+		const onClose = vi.fn();
+		render(
+			panel({
+				changes: files(1),
+				diff: <p>the diff</p>,
+				onClose,
+				selected: "src/file-0.ts",
+			}),
+		);
+
+		await userEvent.click(
+			screen.getByRole("button", { name: /close the file/i }),
+		);
+
+		expect(onClose).toHaveBeenCalled();
 	});
 
 	it("offers the purpose as the commit message", () => {

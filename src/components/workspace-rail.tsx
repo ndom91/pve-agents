@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { useRailWidth } from "../lib/use-rail-width";
+import { RailResizer } from "./rail-resizer";
+
 // RailWorkspace is the placement detail the rail reads. Structural rather than the full record, so
 // this does not have to move every time the workspace type grows a field it does not show.
 type RailWorkspace = {
@@ -40,9 +43,16 @@ export function WorkspaceRail({
 	tab?: RailTab;
 	workspace: RailWorkspace;
 }): ReactNode {
+	const { setWidth, width } = useRailWidth();
+
+	// The rail sets its own width rather than the grid setting it, so the handle does not have to
+	// reach across routes to the layout that owns the columns. The grid's last column is `auto`.
+	const sized = { width: `${width}px` };
+
 	if (changes !== undefined && tab === "diff") {
 		return (
-			<aside className="dashboard-rail">
+			<aside className="dashboard-rail" style={sized}>
+				<RailResizer onResize={setWidth} width={width} />
 				<Tabs onTab={onTab} tab={tab} />
 				{changes}
 			</aside>
@@ -50,7 +60,8 @@ export function WorkspaceRail({
 	}
 
 	return (
-		<aside className="dashboard-rail">
+		<aside className="dashboard-rail" style={sized}>
+			<RailResizer onResize={setWidth} width={width} />
 			{changes === undefined ? (
 				<p className="sidebar-label">Placement</p>
 			) : (

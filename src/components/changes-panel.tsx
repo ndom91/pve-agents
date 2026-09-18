@@ -1,14 +1,18 @@
+import { X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import type { ChangedFiles } from "../services/workspace-changes";
 import { Button } from "./button";
+import { IconButton } from "./icon-button";
 import { WorkspaceChanges } from "./workspace-changes";
 
 // ChangesPanel is the rail's diff tab: what changed, and what can be done about it.
 export function ChangesPanel({
 	changes,
+	diff,
 	discarding,
 	note,
+	onClose,
 	onDiscard,
 	onPush,
 	onSelect,
@@ -17,8 +21,10 @@ export function ChangesPanel({
 	suggestedMessage,
 }: {
 	changes?: ChangedFiles;
+	diff?: ReactNode;
 	discarding: boolean;
 	note: string;
+	onClose: () => void;
 	onDiscard: () => void;
 	onPush: (message: string) => void;
 	onSelect: (path: string) => void;
@@ -59,6 +65,23 @@ export function ChangesPanel({
 	return (
 		<div className="changes-panel">
 			<WorkspaceChanges files={files} onSelect={onSelect} selected={selected} />
+
+			{/* The file is read here rather than in the centre, so the terminal stays where it is
+			    and nothing has to be navigated away from to look at a change. The rail is narrow
+			    for a diff, which is what the drag handle on its edge is for. */}
+			{selected === undefined ? null : (
+				<div className="changes-diff">
+					<div className="changes-diff-head">
+						<span className="changes-diff-path">{selected}</span>
+						<IconButton
+							icon={X}
+							label="Close the file"
+							onClick={() => onClose()}
+						/>
+					</div>
+					{diff}
+				</div>
+			)}
 
 			<div className="changes-actions">
 				<input

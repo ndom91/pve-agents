@@ -590,9 +590,12 @@ dd {
    Three columns: navigation, the agent screen, and reference material. The
    centre takes the remaining space because the terminal is the thing being
    watched; the rail is fixed and narrow so it cannot squeeze it. */
+/* The last column is `auto` so the rail can set its own width. The handle lives on the rail, in a
+   route below this one, and having it reach up here to size a grid column it cannot see would be
+   the more complicated half of a simple feature. */
 .dashboard {
 	display: grid;
-	grid-template-columns: 260px minmax(0, 1fr) 260px;
+	grid-template-columns: 260px minmax(0, 1fr) auto;
 	height: 100vh;
 	overflow: hidden;
 }
@@ -802,9 +805,32 @@ dd {
 
 .dashboard-rail {
 	border-left: 1px solid #2c3428;
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
 	overflow-y: auto;
 	padding: 24px 16px;
+	/* The resizer is positioned against this. */
+	position: relative;
+	width: 260px;
+}
+
+/* Sits on the border itself, wider than the line so it can be grabbed. Reaching a one-pixel target
+   with a mouse is a test, not an interface. */
+.rail-resizer {
+	bottom: 0;
+	cursor: col-resize;
+	left: -4px;
+	position: absolute;
+	top: 0;
+	width: 8px;
+	z-index: 2;
+}
+
+.rail-resizer:hover,
+.rail-resizer:focus-visible {
+	background: #7fa06a;
+	outline: none;
 }
 
 .dashboard-rail dl {
@@ -1167,11 +1193,45 @@ dd {
 	color: #d6e2cf;
 }
 
+/* Three bands: the tree, the file being read, and the actions. The middle one takes what is left
+   and scrolls, so the list stays reachable and the buttons stay put however long the diff is. */
 .changes-panel {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 16px;
 	min-height: 0;
+}
+
+.changes-diff {
+	border: 1px solid #2c3428;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	overflow: auto;
+}
+
+.changes-diff-head {
+	align-items: center;
+	background: #10140f;
+	border-bottom: 1px solid #2c3428;
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+	padding: 6px 6px 6px 10px;
+	/* Stays put while the diff scrolls under it, so the name of what is being read is always on
+	   screen. It is the only thing saying which file this is. */
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.changes-diff-path {
+	color: #d6e2cf;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	overflow-wrap: anywhere;
 }
 
 /* A height rather than a max, because the tree virtualises against its host element's box: with
@@ -1215,6 +1275,13 @@ dd {
 	min-height: 0;
 }
 
+/* The list matters less once a file is open, so it gives most of its room to the diff and keeps
+   just enough to move between files without scrolling the panel. */
+.changes-panel:has(.changes-diff) .changes-tree {
+	flex: 0 0 auto;
+	height: 150px;
+}
+
 .changes-actions {
 	display: flex;
 	flex-direction: column;
@@ -1232,40 +1299,3 @@ dd {
 	width: 100%;
 }
 
-/* Returning to the terminal, and the name of the file that replaced it. Both matter: without the
-   path it is not obvious which of several selected files is on screen. */
-.centre-switch {
-	align-items: center;
-	border-bottom: 1px solid #2c3428;
-	display: flex;
-	gap: 12px;
-	margin-bottom: 12px;
-}
-
-.centre-switch-path {
-	color: #a9b8a2;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
-	overflow-wrap: anywhere;
-}
-
-/* Its own class rather than borrowing .rail-tab, which it was doing only because the two happened
-   to look alike. It is a way back, not a tab, and it sits in the centre rather than the rail. */
-.centre-back {
-	background: none;
-	border: 1px solid #2c3428;
-	border-radius: 6px;
-	color: #8a9a83;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
-	letter-spacing: 0.08em;
-	padding: 6px 10px;
-	text-transform: uppercase;
-	white-space: nowrap;
-}
-
-.centre-back:hover {
-	background: #161b14;
-	border-color: #7b8b71;
-	color: #d6e2cf;
-}
