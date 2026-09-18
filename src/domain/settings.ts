@@ -15,7 +15,10 @@ export const controllerSettingsSchema = z.object({
 	// Off by default. Reaping destroys real containers without being asked, so it should be
 	// switched on deliberately rather than inherited from a default.
 	reapingEnabled: z.boolean().default(false),
-	reapIdleMinutes: z.coerce.number().int().min(5).max(10_080).default(60),
+	// Three hours by default. An hour sounded generous and is not: a human reading a diff, thinking
+	// about an answer, or simply at lunch leaves an agent idle for longer than that routinely, and
+	// the cost of reaping too eagerly is a container someone was still using.
+	reapIdleMinutes: z.coerce.number().int().min(5).max(10_080).default(180),
 	reapMaxAgeHours: z.coerce.number().int().min(1).max(720).default(24),
 	// How long a failed workspace keeps its container. The grace period exists so there is time to
 	// log in and see what went wrong: reaping immediately would destroy the only copy of the

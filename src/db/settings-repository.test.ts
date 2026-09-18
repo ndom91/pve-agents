@@ -22,7 +22,7 @@ describe("controllerSettings", () => {
 		// Off, because reaping removes real containers without being asked.
 		expect(controllerSettings(database())).toEqual({
 			reapFailedAfterHours: 6,
-			reapIdleMinutes: 60,
+			reapIdleMinutes: 180,
 			reapMaxAgeHours: 24,
 			reapingEnabled: false,
 		});
@@ -35,7 +35,7 @@ describe("controllerSettings", () => {
 			"INSERT INTO controller_settings (key, value, updated_at) VALUES (?, ?, ?)",
 		).run("reapIdleMinutes", "not-a-number", "2026-01-01T00:00:00Z");
 
-		expect(controllerSettings(db).reapIdleMinutes).toBe(60);
+		expect(controllerSettings(db).reapIdleMinutes).toBe(180);
 	});
 });
 
@@ -74,7 +74,7 @@ describe("updateControllerSettings", () => {
 		const refused = updateControllerSettings(db, { reapIdleMinutes: 0 });
 
 		expect(refused.kind).toBe("invalid");
-		expect(controllerSettings(db).reapIdleMinutes).toBe(60);
+		expect(controllerSettings(db).reapIdleMinutes).toBe(180);
 	});
 
 	it("cannot be talked past one field at a time", () => {
