@@ -360,9 +360,27 @@ dd {
 	margin-top: 12px;
 }
 
+/* One height across the row, so an icon button and a word button line up rather than the arrows
+   sitting a few pixels short of everything beside them. */
 .detail-keys button {
+	align-items: center;
+	display: inline-flex;
 	font-family: "SF Mono", "Roboto Mono", monospace;
+	height: 34px;
+	justify-content: center;
 	min-width: 56px;
+	padding-block: 0;
+}
+
+.detail-keys .icon-button {
+	height: 34px;
+	width: 56px;
+}
+
+/* Dimmed rather than removed when the agent is not waiting. The row keeps its space so answering a
+   dialog does not move the prompt and the timeline out from under the pointer. */
+.detail-keys button:disabled {
+	opacity: 0.35;
 }
 
 .detail-prompt {

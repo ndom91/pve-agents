@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
+import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
@@ -26,7 +28,17 @@ export const Route = createFileRoute("/_dashboard/workspaces/$workspaceId")({
 
 // ANSWER_KEYS are the presses offered when an agent is waiting at a dialog. The adapter holds the
 // real allow-list; these are the ones worth a button.
-const ANSWER_KEYS = ["1", "2", "3", "up", "down", "enter", "esc"];
+const ANSWER_KEYS = ["1", "2", "3", "up", "down", "enter", "esc"] as const;
+
+// ARROWS get an icon instead of a word, because a direction is what they mean.
+const ARROWS: Record<string, typeof ArrowUp> = { down: ArrowDown, up: ArrowUp };
+
+// RESOLVES are the presses that actually end a dialog.
+//
+// Navigation does not: up and down move the selection and the agent is still waiting afterwards.
+// Predicting that it had gone back to work made the controls vanish from under the cursor and
+// reappear a moment later, which is the worst possible moment for the page to move.
+const RESOLVES = new Set(["1", "2", "3", "enter", "esc"]);
 
 function WorkspaceDetail() {
 	const { workspaceId } = Route.useParams();
@@ -87,9 +99,10 @@ function WorkspaceDetail() {
 	const answer = useMutation({
 		mutationFn: (key: string) =>
 			sendWorkspaceKeys({ data: { id: workspaceId, key } }),
-		// Answering a dialog is what unblocks an agent, so this is the one place predicting away
-		// "blocked" is honest.
-		onMutate: () => predict({ activity: "active" }),
+		// Only for a press that ends the dialog. A prediction here is a claim that the agent has
+		// gone back to work, which is not true of moving a selection.
+		onMutate: (key) =>
+			RESOLVES.has(key) ? predict({ activity: "active" }) : undefined,
 		onError: async (_error, _key, rollback) => {
 			rollback?.();
 			setNote("could not reach the agent");
@@ -206,21 +219,34 @@ function WorkspaceDetail() {
 							</p>
 						)}
 
-						{/* Offered only while the agent is actually waiting, so they cannot be
-						    fired at a working agent by accident. */}
-						{!blocked ? null : (
-							<div className="detail-keys">
-								{ANSWER_KEYS.map((key) => (
+						{/* Always present, disabled unless the agent is waiting. Rendering it only
+						    while blocked meant the row appeared and disappeared underneath the
+						    pointer, shifting the prompt and the timeline with it. Disabled still
+						    stops a key reaching a working agent by accident, and the controls are
+						    visible before they are needed rather than only once they are. */}
+						<div className="detail-keys">
+							{ANSWER_KEYS.map((key) => {
+								const Arrow = ARROWS[key];
+
+								return Arrow === undefined ? (
 									<Button
-										disabled={busy}
+										disabled={busy || !blocked}
 										key={key}
 										onClick={() => answer.mutate(key)}
 									>
 										{key}
 									</Button>
-								))}
-							</div>
-						)}
+								) : (
+									<IconButton
+										disabled={busy || !blocked}
+										icon={Arrow}
+										key={key}
+										label={key === "up" ? "Move up" : "Move down"}
+										onClick={() => answer.mutate(key)}
+									/>
+								);
+							})}
+						</div>
 
 						<form
 							className="detail-prompt"
