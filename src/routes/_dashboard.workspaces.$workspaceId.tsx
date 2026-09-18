@@ -4,15 +4,26 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
+import { ChangesPanel } from "../components/changes-panel";
+import { FileDiff } from "../components/file-diff";
 import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
+import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
-import { paneQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
+import {
+	changesQuery,
+	fileDiffQuery,
+	paneQuery,
+	workspaceKeys,
+	workspaceQuery,
+} from "../lib/queries";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
 import { useWorkspaceStream } from "../lib/use-workspace-stream";
 import {
+	discardWorkspaceChanges,
 	promptWorkspaceAgent,
+	pushWorkspaceChanges,
 	sendWorkspaceKeys,
 } from "../server/agent.functions";
 import {
@@ -46,10 +57,19 @@ function WorkspaceDetail() {
 	const { data: workspace } = useQuery(workspaceQuery(workspaceId));
 	const [prompt, setPrompt] = useState("");
 	const [note, setNote] = useState("");
+	const [tab, setTab] = useState<RailTab>("details");
+	const [file, setFile] = useState<string | undefined>(undefined);
 
 	const ready = workspace?.status === "ready";
 	const blocked = workspace?.activity === "blocked";
 	const { data: pane } = useQuery(paneQuery(workspaceId, ready));
+
+	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
+	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
+	const { data: changes } = useQuery(
+		changesQuery(workspaceId, ready && tab === "diff"),
+	);
+	const { data: sides } = useQuery(fileDiffQuery(workspaceId, file));
 	// Pushes the screen and the observed activity straight into the cache while the page is open.
 	useWorkspaceStream(workspaceId, ready);
 
@@ -113,6 +133,46 @@ function WorkspaceDetail() {
 			}
 			setNote(result.kind === "unavailable" ? result.reason : "");
 			await refresh();
+		},
+	});
+
+	// Refreshing the change list after either action is what closes the loop: the tree, the
+	// unsaved-work badge and the timeline all describe the same tree, and leaving any of them
+	// showing the state from before would make a workspace look held after its work was saved.
+	const settle = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: workspaceKeys.changes(workspaceId),
+			}),
+			refresh(),
+		]);
+	};
+
+	const push = useMutation({
+		mutationFn: (message: string) =>
+			pushWorkspaceChanges({ data: { id: workspaceId, message } }),
+		onError: () => setNote("could not reach the workspace"),
+		onSuccess: async (result) => {
+			setNote(
+				result.kind === "done"
+					? `Pushed to ${result.branch}.`
+					: result.kind === "nothing"
+						? "Nothing to push: everything here is already on a remote."
+						: result.message,
+			);
+			await settle();
+		},
+	});
+
+	const discard = useMutation({
+		mutationFn: () => discardWorkspaceChanges({ data: { id: workspaceId } }),
+		onError: () => setNote("could not reach the workspace"),
+		onSuccess: async (result) => {
+			// The file whose diff was on screen may no longer exist, and a stale diff of a file
+			// that was just thrown away is the most misleading thing this page could show.
+			setFile(undefined);
+			setNote(result.kind === "failed" ? result.message : "Discarded.");
+			await settle();
 		},
 	});
 
@@ -189,8 +249,8 @@ function WorkspaceDetail() {
 						<h2>Holding unsaved work</h2>
 						<p>
 							The workspace has uncommitted or unpushed changes, so it will not
-							be destroyed automatically. Commit and push from the agent, or
-							destroy it deliberately once you are done with it.
+							be destroyed automatically. Open the Diff tab to see what changed
+							and to push or discard it.
 						</p>
 					</section>
 				)}
@@ -209,7 +269,26 @@ function WorkspaceDetail() {
 
 				{!ready ? null : (
 					<section className="centre-screen">
-						{pane?.kind === "screen" ? (
+						{/* A diff needs the width, and the rail does not have it. Selecting a file
+						    in the tree therefore takes over the centre, with the terminal one
+						    click away: the terminal is what you watch while an agent works, and
+						    the diff is what you read once it has stopped. */}
+						{file === undefined ? null : (
+							<div className="centre-switch">
+								<button
+									className="rail-tab"
+									onClick={() => setFile(undefined)}
+									type="button"
+								>
+									Back to the terminal
+								</button>
+								<span className="centre-switch-path">{file}</span>
+							</div>
+						)}
+
+						{file !== undefined ? (
+							<FileDiff path={file} sides={sides} />
+						) : pane?.kind === "screen" ? (
 							<AgentScreen screen={pane.text} />
 						) : (
 							<p className="detail-note">
@@ -295,7 +374,42 @@ function WorkspaceDetail() {
 				</section>
 			</main>
 
-			<WorkspaceRail workspace={workspace} />
+			<WorkspaceRail
+				changes={
+					!ready ? undefined : (
+						<ChangesPanel
+							changes={changes}
+							discarding={discard.isPending}
+							note={note}
+							onDiscard={() => discard.mutate()}
+							onPush={(message) => push.mutate(message)}
+							onSelect={setFile}
+							pushing={push.isPending}
+							selected={file}
+							suggestedMessage={suggestedMessage(workspace.purpose)}
+						/>
+					)
+				}
+				onTab={setTab}
+				tab={tab}
+				workspace={workspace}
+			/>
 		</>
 	);
+}
+
+// suggestedMessage turns why the workspace exists into a commit message worth keeping.
+//
+// The purpose is the one sentence that already describes what the agent was asked to do, so it is
+// a better default than an empty box or a generic "agent changes". Still editable: it says what
+// was asked for rather than what was done.
+function suggestedMessage(purpose?: string): string {
+	const text = purpose?.trim() ?? "";
+	if (text === "") {
+		return "Agent changes";
+	}
+
+	// Commit summaries are read in fixed-width lists, so a purpose running to a paragraph is cut
+	// rather than allowed to set the width of every log that ever shows it.
+	return text.length > 72 ? `${text.slice(0, 69)}...` : text;
 }

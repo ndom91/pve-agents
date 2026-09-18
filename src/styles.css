@@ -1070,3 +1070,81 @@ dd {
 	margin: 0;
 	padding: 8px 10px;
 }
+
+/* The rail's two halves. Placement is reference material; the diff is the workspace's output. */
+.rail-tabs {
+	border-bottom: 1px solid #2c3428;
+	display: flex;
+	gap: 4px;
+	margin-bottom: 16px;
+}
+
+.rail-tab {
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: #6d7a67;
+	cursor: pointer;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	padding: 0 2px 8px;
+	text-transform: uppercase;
+}
+
+.rail-tab:hover {
+	color: #a9b8a2;
+}
+
+.rail-tab[aria-selected="true"] {
+	border-bottom-color: #7fa06a;
+	color: #d6e2cf;
+}
+
+.changes-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-height: 0;
+}
+
+/* A height rather than a max, because the tree virtualises against its host element's box: with
+   nothing to measure it renders one row and lets the rest go unreachable. */
+.changes-tree {
+	font-size: 12px;
+	height: 320px;
+	min-height: 0;
+}
+
+.changes-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.changes-actions input {
+	background: #161a15;
+	border: 1px solid #2c3428;
+	border-radius: 6px;
+	color: #e6e9df;
+	font-size: 13px;
+	min-height: var(--control-height);
+	padding: 0 10px;
+	width: 100%;
+}
+
+/* Returning to the terminal, and the name of the file that replaced it. Both matter: without the
+   path it is not obvious which of several selected files is on screen. */
+.centre-switch {
+	align-items: center;
+	border-bottom: 1px solid #2c3428;
+	display: flex;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.centre-switch-path {
+	color: #a9b8a2;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}

@@ -91,6 +91,31 @@ Reaping is the only path that can lose something irreversibly, so it declines in
 The cost is that a stray untracked file keeps a container alive indefinitely. The UI marks those
 workspaces, because the trade is only acceptable if it is visible.
 
+## Seeing and keeping the work
+
+The detail page's rail has two tabs. **Details** is placement. **Diff** is a tree of what the agent
+changed, and selecting a file shows it in the centre where there is width for it.
+
+Read as two file contents rather than as a patch. `git diff` says nothing at all about an untracked
+file, and an agent creating one is both the commonest change and the one that most often holds a
+workspace back from reaping, so a patch-shaped answer would have shown that case as nothing.
+
+Two things can be done with it:
+
+- **Push** commits everything and sends it to `herdr/<hostname>`, never the checked-out ref.
+  Unreviewed agent output must not reach `main` because somebody clicked quickly, and a side branch
+  is what makes the button safe enough to need no confirmation. A confirmation people learn to
+  dismiss protects nothing.
+- **Discard** resets the working tree, behind a confirmation naming the files it will destroy and
+  armed against that exact set. Commits survive it, so a workspace holding unpushed commits stays
+  held afterwards. Destroying commits is not something a button should do.
+
+Both re-read the tree afterwards, so the reaping protection releases at once rather than at the next
+pass, and both count as interaction.
+
+This is also what closes the loop the protection opened. Before it, a held workspace was held until
+somebody opened a terminal.
+
 ## Freshness
 
 Three reads at three cadences, which is a ratio rather than three arbitrary numbers:
@@ -141,4 +166,9 @@ the entire reason they moved.
   orphaned, and a timer would then purge the fleet. It is a scan and a click.
 - **A terminal emulator.** `--source visible` returns a rendered viewport, not a byte stream, so
   xterm.js would be the wrong shape until there is real keystroke input.
-- **Frontend tests.** A real gap rather than a decision, and the next thing worth closing.
+- **Opening a pull request.** The GitHub App has the permission, but a PR wants a title and a body
+  that would have to be invented or demanded, and a branch is enough to review from.
+- **Editing files from the browser.** `@pierre/diffs` would support it. It is a different feature.
+- **Tests for the server functions.** The four change endpoints share one `agentTarget` guard with
+  the three that came before, so the gap is a harness rather than a rule: no `.functions.ts` module
+  in this repository has one, and building the first is worth doing deliberately.

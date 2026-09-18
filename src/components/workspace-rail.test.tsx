@@ -44,4 +44,37 @@ describe("WorkspaceRail", () => {
 
 		expect(container.querySelectorAll("dd")).toHaveLength(0);
 	});
+
+	it("offers no diff tab for a workspace that has nothing to show in one", () => {
+		// A workspace still provisioning has no changes to list, and a tab that answers nothing is
+		// worse than no tab.
+		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
+
+		expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
+	});
+
+	it("shows the placement until the diff tab is chosen, and then the diff", () => {
+		const { rerender } = render(
+			<WorkspaceRail
+				changes={<p>the changes</p>}
+				tab="details"
+				workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
+			/>,
+		);
+
+		expect(screen.getByText("10.0.3.110")).toBeDefined();
+		expect(screen.queryByText("the changes")).toBeNull();
+
+		rerender(
+			<WorkspaceRail
+				changes={<p>the changes</p>}
+				tab="diff"
+				workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
+			/>,
+		);
+
+		expect(screen.getByText("the changes")).toBeDefined();
+		// The placement goes rather than being pushed below the fold: both want the full column.
+		expect(screen.queryByText("10.0.3.110")).toBeNull();
+	});
 });

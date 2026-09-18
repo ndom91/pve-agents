@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { workspacePane } from "../server/agent.functions";
+import {
+	workspaceChanges,
+	workspaceFileDiff,
+	workspacePane,
+} from "../server/agent.functions";
 import { workspaceSettings } from "../server/settings.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
 
@@ -16,9 +20,18 @@ const FLEET_REFRESH_MS = 2_500;
 // container, so this only bounds how stale a first paint may be.
 const SCREEN_STALE_MS = 5_000;
 
+// CHANGES_REFRESH_MS is how often the list of changed files is re-read while it is on screen.
+//
+// Far slower than the fleet poll because each one is an SSH connection and a `git status`, and a
+// diff moves when the agent finishes a turn rather than continuously. Only runs while the tab is
+// actually open.
+const CHANGES_REFRESH_MS = 15_000;
+
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
+	changes: (id: string) => ["workspace", id, "changes"] as const,
 	detail: (id: string) => ["workspace", id] as const,
+	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
 	pane: (id: string) => ["workspace", id, "pane"] as const,
 	settings: () => ["settings"] as const,
@@ -80,6 +93,33 @@ export function paneQuery(id: string, ready: boolean) {
 		queryKey: workspaceKeys.pane(id),
 		refetchInterval: false,
 		staleTime: SCREEN_STALE_MS,
+	});
+}
+
+// changesQuery holds what the agent has done to the checkout.
+//
+// Gated on the tab being open rather than merely on the workspace being ready: every fetch is an
+// SSH connection, and polling one for a panel nobody is looking at would put a connection per
+// workspace per fifteen seconds on the controller for no one's benefit.
+export function changesQuery(id: string, open: boolean) {
+	return queryOptions({
+		enabled: open,
+		queryFn: () => workspaceChanges({ data: { id } }),
+		queryKey: workspaceKeys.changes(id),
+		refetchInterval: open ? CHANGES_REFRESH_MS : false,
+	});
+}
+
+// fileDiffQuery holds one file as it was and as it is.
+//
+// Fetched only once a file is selected, and never refetched on an interval: a file is read to be
+// read, and having it change under the reader mid-scroll would be worse than it being a minute old.
+export function fileDiffQuery(id: string, path?: string) {
+	return queryOptions({
+		enabled: path !== undefined,
+		queryFn: () => workspaceFileDiff({ data: { id, path: path ?? "" } }),
+		queryKey: workspaceKeys.file(id, path ?? ""),
+		refetchInterval: false,
 	});
 }
 
