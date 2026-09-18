@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
+	recordWorkspaceActivity,
 	recordWorkspaceInteraction,
 	workspaceDetail,
 } from "../../../../db/workspace-repository";
@@ -10,6 +11,7 @@ import {
 	controllerRuntimeConfig,
 } from "../../../../server/controller";
 import { herdrAgentName } from "../../../../services/herdr";
+import { mapActivity } from "../../../../services/workspace-activity";
 import {
 	type WorkspaceSnapshot,
 	watchWorkspace,
@@ -88,6 +90,22 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/stream")({
 					},
 					start(controller) {
 						const send = (snapshot: WorkspaceSnapshot) => {
+							// Written to the database, not only pushed to this connection.
+							//
+							// The detail query refetches the record every couple of seconds, so a
+							// value that lived only in the browser cache was overwritten almost
+							// immediately by whatever the thirty-second observer had last stored.
+							// The controls for answering a dialog are gated on this, which meant
+							// they appeared for a second at a time or not at all: the agent was
+							// blocked and the page had no way to say so.
+							//
+							// Writing it here makes the database the single source, fresh to about
+							// two seconds while a page is open, and the sidebar benefits too.
+							recordWorkspaceActivity(controllerDatabase(), {
+								activity: mapActivity(snapshot.activity),
+								id: params.workspaceId,
+							});
+
 							// An agent seen working is the finest-grained evidence available: this
 							// reads every couple of seconds, against thirty for the scheduler, so
 							// a turn the observer would miss entirely still moves the idle clock.

@@ -80,11 +80,14 @@ async function readActivity(
 
 // mapActivity translates Herdr's lifecycle states into the four the controller reports.
 //
+// Exported because the stream observes the same states far more often than this pass does, and a
+// second copy of this mapping is a way for the two to disagree about what "done" means.
+//
 // "idle" and "done" merge because both mean the agent is ready for input; they differ only in
 // whether the server has seen the completion, which is a display concern of Herdr's own clients.
 // "unknown" is passed through rather than flattened into idle: Herdr defines it as an agent it
 // cannot classify, which is not evidence that anything has finished.
-function mapActivity(status: string): WorkspaceActivity {
+export function mapActivity(status: string): WorkspaceActivity {
 	switch (status) {
 		case "working":
 			return "active";
