@@ -1164,11 +1164,78 @@ dd {
 }
 
 /* The rail's two halves. Placement is reference material; the diff is the workspace's output. */
+/* Scrolls sideways rather than wrapping. Wrapping would change the rail's height as files are
+   opened, moving everything below it every time. */
 .rail-tabs {
 	border-bottom: 1px solid #2c3428;
 	display: flex;
+	flex: 0 0 auto;
 	gap: 4px;
 	margin-bottom: 16px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.rail-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+/* One file's tab: its name, and the cross that closes it. */
+.rail-file {
+	align-items: center;
+	border-bottom: 2px solid transparent;
+	display: flex;
+	flex: 0 0 auto;
+	gap: 2px;
+	padding-right: 2px;
+}
+
+.rail-file.is-active {
+	border-bottom-color: #7fa06a;
+}
+
+.rail-file .rail-tab {
+	border-bottom: none;
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-transform: none;
+	white-space: nowrap;
+}
+
+/* Hidden until the tab is hovered or open, which is the one somebody is most likely to want rid
+   of. Always visible would put a row of crosses beside every name. Visibility rather than display,
+   so the tab does not change width when it appears and shove its neighbours along. */
+.rail-file-close {
+	align-items: center;
+	background: none;
+	border: none;
+	border-radius: 3px;
+	color: #6d7a67;
+	display: inline-flex;
+	padding: 2px;
+	visibility: hidden;
+}
+
+.rail-file:hover .rail-file-close,
+.rail-file.is-active .rail-file-close,
+.rail-file-close:focus-visible {
+	visibility: visible;
+}
+
+.rail-file-close:hover {
+	background: #2c3428;
+	color: #d6e2cf;
+}
+
+/* The tab's contents. Takes what the tab strip and the actions leave, and scrolls, so a long diff
+   never pushes the commit controls off the bottom of the rail. */
+.rail-body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	overflow: auto;
 }
 
 .rail-tab {
@@ -1191,47 +1258,6 @@ dd {
 .rail-tab[aria-selected="true"] {
 	border-bottom-color: #7fa06a;
 	color: #d6e2cf;
-}
-
-/* Three bands: the tree, the file being read, and the actions. The middle one takes what is left
-   and scrolls, so the list stays reachable and the buttons stay put however long the diff is. */
-.changes-panel {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	gap: 16px;
-	min-height: 0;
-}
-
-.changes-diff {
-	border: 1px solid #2c3428;
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	min-height: 0;
-	overflow: auto;
-}
-
-.changes-diff-head {
-	align-items: center;
-	background: #10140f;
-	border-bottom: 1px solid #2c3428;
-	display: flex;
-	gap: 8px;
-	justify-content: space-between;
-	padding: 6px 6px 6px 10px;
-	/* Stays put while the diff scrolls under it, so the name of what is being read is always on
-	   screen. It is the only thing saying which file this is. */
-	position: sticky;
-	top: 0;
-	z-index: 1;
-}
-
-.changes-diff-path {
-	color: #d6e2cf;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
-	overflow-wrap: anywhere;
 }
 
 /* A height rather than a max, because the tree virtualises against its host element's box: with
@@ -1270,22 +1296,24 @@ dd {
 	--trees-ignored-dark: #4a5545;
 	--trees-ignored-light: #4a5545;
 
+	/* Fills its tab. The tree virtualises against its host's box, so this has to resolve to a real
+	   height: flex inside .rail-body gives it one. With nothing to measure it draws a single row
+	   and puts the rest out of reach. */
+	flex: 1 1 auto;
 	font-size: 12px;
-	height: 320px;
-	min-height: 0;
+	min-height: 120px;
 }
 
-/* The list matters less once a file is open, so it gives most of its room to the diff and keeps
-   just enough to move between files without scrolling the panel. */
-.changes-panel:has(.changes-diff) .changes-tree {
-	flex: 0 0 auto;
-	height: 150px;
-}
-
+/* Below the tabs rather than inside one, and always in the same place, because these act on the
+   workspace and not on whichever file is open. */
 .changes-actions {
+	border-top: 1px solid #2c3428;
 	display: flex;
+	flex: 0 0 auto;
 	flex-direction: column;
 	gap: 8px;
+	margin-top: 16px;
+	padding-top: 16px;
 }
 
 .changes-actions input {

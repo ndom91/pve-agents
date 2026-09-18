@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
+import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
 import { FileDiff } from "../components/file-diff";
 import { IconButton } from "../components/icon-button";
@@ -57,8 +58,11 @@ function WorkspaceDetail() {
 	const { data: workspace } = useQuery(workspaceQuery(workspaceId));
 	const [prompt, setPrompt] = useState("");
 	const [note, setNote] = useState("");
-	const [tab, setTab] = useState<RailTab>("details");
-	const [file, setFile] = useState<string | undefined>(undefined);
+	const [tab, setTab] = useState<RailTab>({ kind: "details" });
+	// Every file opened from the change list, in the order they were opened, one tab each.
+	const [open, setOpen] = useState<string[]>([]);
+
+	const file = tab.kind === "file" ? tab.path : undefined;
 
 	const ready = workspace?.status === "ready";
 	const blocked = workspace?.activity === "blocked";
@@ -66,10 +70,29 @@ function WorkspaceDetail() {
 
 	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
 	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
+	// A file tab counts, because the actions below it act on the whole list.
 	const { data: changes } = useQuery(
-		changesQuery(workspaceId, ready && tab === "diff"),
+		changesQuery(workspaceId, ready && tab.kind !== "details"),
 	);
 	const { data: sides } = useQuery(fileDiffQuery(workspaceId, file));
+
+	function openFile(path: string): void {
+		// Opening a file already open focuses its tab rather than adding a second one.
+		setOpen((current) =>
+			current.includes(path) ? current : [...current, path],
+		);
+		setTab({ kind: "file", path });
+	}
+
+	function closeFile(path: string): void {
+		setOpen((current) => current.filter((candidate) => candidate !== path));
+		// Falls back to the list the file was opened from, which is where you would go next.
+		setTab((current) =>
+			current.kind === "file" && current.path === path
+				? { kind: "diff" }
+				: current,
+		);
+	}
 	// Pushes the screen and the observed activity straight into the cache while the page is open.
 	useWorkspaceStream(workspaceId, ready);
 
@@ -170,7 +193,8 @@ function WorkspaceDetail() {
 		onSuccess: async (result) => {
 			// The file whose diff was on screen may no longer exist, and a stale diff of a file
 			// that was just thrown away is the most misleading thing this page could show.
-			setFile(undefined);
+			setOpen([]);
+			setTab({ kind: "diff" });
 			setNote(result.kind === "failed" ? result.message : "Discarded.");
 			await settle();
 		},
@@ -356,27 +380,35 @@ function WorkspaceDetail() {
 			</main>
 
 			<WorkspaceRail
-				changes={
-					!ready ? undefined : (
-						<ChangesPanel
-							changes={changes}
-							diff={
-								file === undefined ? undefined : (
-									<FileDiff path={file} sides={sides} />
-								)
-							}
+				actions={
+					!ready || changes?.kind !== "changes" ? undefined : (
+						<ChangesActions
 							discarding={discard.isPending}
+							files={changes.files}
 							note={note}
-							onClose={() => setFile(undefined)}
 							onDiscard={() => discard.mutate()}
 							onPush={(message) => push.mutate(message)}
-							onSelect={setFile}
 							pushing={push.isPending}
-							selected={file}
 							suggestedMessage={suggestedMessage(workspace.purpose)}
 						/>
 					)
 				}
+				changes={
+					!ready ? undefined : (
+						<ChangesPanel
+							changes={changes}
+							onSelect={openFile}
+							selected={file}
+						/>
+					)
+				}
+				file={
+					file === undefined ? undefined : (
+						<FileDiff path={file} sides={sides} />
+					)
+				}
+				files={open}
+				onClose={closeFile}
 				onTab={setTab}
 				tab={tab}
 				workspace={workspace}
