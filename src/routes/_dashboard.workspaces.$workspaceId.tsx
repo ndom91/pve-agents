@@ -171,6 +171,17 @@ function WorkspaceDetail() {
 					</section>
 				)}
 
+				{workspace.unsavedWork !== true ? null : (
+					<section className="detail-kept">
+						<h2>Holding unsaved work</h2>
+						<p>
+							The workspace has uncommitted or unpushed changes, so it will not
+							be destroyed automatically. Commit and push from the agent, or
+							destroy it deliberately once you are done with it.
+						</p>
+					</section>
+				)}
+
 				{workspace.errorMessage === undefined ? null : (
 					<section className="detail-error">
 						<h2>{workspace.errorCode ?? "error"}</h2>

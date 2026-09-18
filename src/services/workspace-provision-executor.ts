@@ -20,6 +20,7 @@ import {
 	workspaceRequest,
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
+import { AGENT_CWD } from "../domain/workspace-layout";
 import { claudeAwaitingInput, prepareClaudeWorkspace } from "./claude-agent";
 import { type GitHubAppCredentials, installationToken } from "./github-app";
 import {
@@ -58,12 +59,6 @@ import {
 	type WorkspaceOperationRun,
 	workspaceNode,
 } from "./workspace-task";
-
-// AGENT_CWD is where the agent runs inside the workspace.
-//
-// Created during bootstrap and filled by the checkout step, so the agent's first pane opens in a
-// working copy rather than an empty directory.
-const AGENT_CWD = "/workspace/repo";
 
 // workspaceSsh builds the connection to a workspace, or nothing when no key is configured.
 function workspaceSsh(

@@ -718,7 +718,9 @@ export function workspaceRequest(
 export type ReapableWorkspace = {
 	activity: WorkspaceActivity;
 	createdAt: string;
+	hostname: string;
 	id: string;
+	ip?: string;
 	lastActivityAt?: string;
 };
 
@@ -730,7 +732,7 @@ export type ReapableWorkspace = {
 export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
 	const rows = db
 		.prepare(
-			`SELECT w.id, w.activity, w.created_at, w.last_activity_at
+			`SELECT w.id, w.activity, w.created_at, w.last_activity_at, w.hostname, w.ip
 			 FROM workspaces w
 			 WHERE w.status = 'ready' AND w.desired_state = 'present'
 				AND NOT EXISTS (
@@ -741,7 +743,9 @@ export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
 		.all() as {
 		activity: WorkspaceActivity;
 		created_at: string;
+		hostname: string;
 		id: string;
+		ip: string | null;
 		last_activity_at: string | null;
 	}[];
 
@@ -749,8 +753,12 @@ export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
 		const workspace: ReapableWorkspace = {
 			activity: row.activity,
 			createdAt: row.created_at,
+			hostname: row.hostname,
 			id: row.id,
 		};
+		if (row.ip !== null) {
+			workspace.ip = row.ip;
+		}
 		if (row.last_activity_at !== null) {
 			workspace.lastActivityAt = row.last_activity_at;
 		}
@@ -763,7 +771,9 @@ export function reapableWorkspaces(db: Database.Database): ReapableWorkspace[] {
 export type FailedWorkspace = {
 	createdAt: string;
 	errorOccurredAt?: string;
+	hostname: string;
 	id: string;
+	ip?: string;
 	vmid: number;
 };
 
@@ -776,7 +786,7 @@ export function reapableFailedWorkspaces(
 ): FailedWorkspace[] {
 	const rows = db
 		.prepare(
-			`SELECT w.id, w.vmid, w.created_at, w.error_occurred_at
+			`SELECT w.id, w.vmid, w.created_at, w.error_occurred_at, w.hostname, w.ip
 			 FROM workspaces w
 			 WHERE w.status = 'failed' AND w.vmid IS NOT NULL
 				AND NOT EXISTS (
@@ -787,18 +797,24 @@ export function reapableFailedWorkspaces(
 		.all() as {
 		created_at: string;
 		error_occurred_at: string | null;
+		hostname: string;
 		id: string;
+		ip: string | null;
 		vmid: number;
 	}[];
 
 	return rows.map((row) => {
 		const workspace: FailedWorkspace = {
 			createdAt: row.created_at,
+			hostname: row.hostname,
 			id: row.id,
 			vmid: row.vmid,
 		};
 		if (row.error_occurred_at !== null) {
 			workspace.errorOccurredAt = row.error_occurred_at;
+		}
+		if (row.ip !== null) {
+			workspace.ip = row.ip;
 		}
 
 		return workspace;
@@ -815,6 +831,26 @@ export function liveWorkspaceIDs(db: Database.Database): Set<string> {
 		.all() as { id: string }[];
 
 	return new Set(rows.map((row) => row.id));
+}
+
+// recordUnsavedWork stores whether a workspace still holds work nobody has kept.
+//
+// Persisted rather than checked on demand so the UI can mark a workspace being held without
+// opening its own connection to it, and so the reaper can tell a workspace it has already
+// explained from one it has not.
+//
+// Null means never checked, which is not the same as checked and clean.
+export function recordUnsavedWork(
+	db: Database.Database,
+	id: string,
+	unsaved: boolean,
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		"UPDATE workspaces SET unsaved_work = ?, updated_at = ? WHERE id = ?",
+	).run(unsaved ? 1 : 0, nowText, id);
 }
 
 // recordWorkspaceNote appends a timeline entry for something a person did.
@@ -1241,6 +1277,7 @@ export type WorkspaceDetail = Workspace & {
 	lastActivityAt?: string;
 	node?: string;
 	provisionPhase?: string;
+	unsavedWork?: boolean;
 	vmid?: number;
 };
 
@@ -1254,7 +1291,7 @@ export function workspaceDetail(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
 				herdr_session, created_at, updated_at, current_step, node, vmid, ip,
 				herdr_workspace_id, herdr_pane_id, provision_phase, error_code, error_message,
-				last_activity_at, activity_observed_at
+				last_activity_at, activity_observed_at, unsaved_work
 			 FROM workspaces WHERE id = ?`,
 		)
 		.get(id) as
@@ -1277,6 +1314,11 @@ export function workspaceDetail(
 		provisionPhase: row.provision_phase,
 		vmid: row.vmid,
 	};
+	// A flag rather than a value: 1 means the last check found work, 0 means it found none, and
+	// null means it has never been checked, which the page should not present as either.
+	if (row.unsaved_work !== null) {
+		detail.unsavedWork = row.unsaved_work === 1;
+	}
 
 	// Null columns are left off rather than carried as nulls, so the page can ask whether a field
 	// is there instead of whether it is there and also not null.

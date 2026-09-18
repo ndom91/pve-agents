@@ -1,13 +1,39 @@
 import type Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { controllerConfig } from "../config/controller-config";
 import { openDatabase } from "../db/database";
 import { updateControllerSettings } from "../db/settings-repository";
 import {
 	createWorkspace,
 	recordWorkspaceInteraction,
 } from "../db/workspace-repository";
+import type { SshResult, SshRunner } from "./ssh";
 import { reapWorkspaces } from "./workspace-reaper";
+
+// config gives the reaper somewhere to connect from. Without a key path it cannot check a tree at
+// all, which is a different code path from checking and finding nothing.
+function config() {
+	return controllerConfig({
+		WORKSPACE_SSH_KEY_PATH: "/tmp/test-controller-key",
+	});
+}
+
+// Exit 0 from the check script: nothing uncommitted, nothing unpushed.
+const clean: SshRunner = async (): Promise<SshResult> => ({
+	code: 0,
+	kind: "ran",
+	stderr: "",
+	stdout: "",
+});
+
+// Exit 10: the tree holds work that would die with the container.
+const unsaved: SshRunner = async (): Promise<SshResult> => ({
+	code: 10,
+	kind: "ran",
+	stderr: "",
+	stdout: "",
+});
 
 const NOW = new Date("2026-01-01T12:00:00Z");
 
@@ -27,7 +53,9 @@ describe("reapWorkspaces", () => {
 		const db = database();
 		ready(db, { activity: "idle", createdAt: "2026-01-01T00:00:00Z" });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 		expect(queuedDestroys(db)).toBe(0);
 	});
 
@@ -43,7 +71,9 @@ describe("reapWorkspaces", () => {
 		});
 		enable(db, { reapIdleMinutes: 60 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 1 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 1,
+		});
 		expect(lastNote(db, id)).toContain("without ever doing any work");
 		expect(queuedDestroys(db)).toBe(1);
 	});
@@ -58,7 +88,9 @@ describe("reapWorkspaces", () => {
 		enable(db, { reapIdleMinutes: 60 });
 
 		// Twelve hours old but working ten minutes ago, so not idle.
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("does not reap a workspace that was prompted recently", async () => {
@@ -77,7 +109,9 @@ describe("reapWorkspaces", () => {
 		// An operator prompts it. Nothing observes the agent working, because the turn is short.
 		recordWorkspaceInteraction(db, id, new Date("2026-01-01T11:46:00Z"));
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("never idle-reaps an agent that is working", async () => {
@@ -89,7 +123,9 @@ describe("reapWorkspaces", () => {
 		});
 		enable(db, { reapIdleMinutes: 60, reapMaxAgeHours: 720 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("exempts a blocked agent from both rules", async () => {
@@ -103,7 +139,9 @@ describe("reapWorkspaces", () => {
 		});
 		enable(db, { reapIdleMinutes: 5, reapMaxAgeHours: 1 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("reaps an old workspace even when it is not idle", async () => {
@@ -115,7 +153,9 @@ describe("reapWorkspaces", () => {
 		});
 		enable(db, { reapIdleMinutes: 60, reapMaxAgeHours: 6 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 1 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 1,
+		});
 		expect(lastNote(db, id)).toContain("maximum age");
 	});
 
@@ -129,7 +169,126 @@ describe("reapWorkspaces", () => {
 		db.prepare("UPDATE workspaces SET status = 'booting' WHERE id = ?").run(id);
 		enable(db, { reapIdleMinutes: 5 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
+	});
+
+	it("keeps a workspace holding work nobody saved", async () => {
+		// The only path in the system that loses something irreversibly. A container can be
+		// rebuilt and a clone re-cloned; a diff that existed only on that disk cannot. An agent
+		// briefed to write a file and not to push produces exactly this.
+		const db = database();
+		const id = ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T00:00:00Z",
+			lastActivityAt: "2026-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		expect(await reapWorkspaces(db, config(), NOW, unsaved)).toEqual({
+			reaped: 0,
+		});
+		expect(keptNote(db, id)).toContain("uncommitted or unpushed");
+	});
+
+	it("keeps it past the maximum age too, not only the idle limit", async () => {
+		// Exempting from idle alone would just postpone the loss to the hard cap, which is worse
+		// than not protecting it: it looks like protection and still destroys the work, later and
+		// with less chance of anyone being around.
+		const db = database();
+		ready(db, {
+			activity: "idle",
+			createdAt: "2025-01-01T00:00:00Z",
+			lastActivityAt: "2025-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 5, reapMaxAgeHours: 1 });
+
+		expect(await reapWorkspaces(db, config(), NOW, unsaved)).toEqual({
+			reaped: 0,
+		});
+	});
+
+	it("still reaps a workspace with nothing left on it", async () => {
+		// Otherwise the protection would quietly disable reaping altogether.
+		const db = database();
+		ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T00:00:00Z",
+			lastActivityAt: "2026-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 1,
+		});
+	});
+
+	it("does not destroy a workspace it could not inspect", async () => {
+		// Refusing to act on missing evidence, the same instinct as the orphan scan reporting a
+		// container it could not read rather than assuming it was unowned.
+		const db = database();
+		const id = ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T00:00:00Z",
+			lastActivityAt: "2026-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		expect(
+			await reapWorkspaces(db, config(), NOW, async () => ({
+				kind: "refused",
+			})),
+		).toEqual({ reaped: 0 });
+		expect(keptNote(db, id)).toContain("could not check");
+	});
+
+	it("explains itself once, not on every pass", async () => {
+		// A held workspace is reconsidered every few seconds, and a repeated reason would bury the
+		// history it exists to explain.
+		const db = database();
+		const id = ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T00:00:00Z",
+			lastActivityAt: "2026-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		await reapWorkspaces(db, config(), NOW, unsaved);
+		await reapWorkspaces(db, config(), NOW, unsaved);
+		await reapWorkspaces(db, config(), NOW, unsaved);
+
+		expect(
+			(
+				db
+					.prepare(
+						"SELECT count(*) c FROM workspace_events WHERE workspace_id = ? AND event_type = 'workspace.kept'",
+					)
+					.get(id) as { c: number }
+			).c,
+		).toBe(1);
+	});
+
+	it("marks the workspace so the exemption is visible", async () => {
+		// A workspace kept forever by a stray file is only an acceptable trade if someone can see
+		// that it is being kept.
+		const db = database();
+		const id = ready(db, {
+			activity: "idle",
+			createdAt: "2026-01-01T00:00:00Z",
+			lastActivityAt: "2026-01-01T00:00:00Z",
+		});
+		enable(db, { reapIdleMinutes: 60 });
+
+		await reapWorkspaces(db, config(), NOW, unsaved);
+
+		expect(
+			(
+				db
+					.prepare("SELECT unsaved_work FROM workspaces WHERE id = ?")
+					.get(id) as { unsaved_work: number | null }
+			).unsaved_work,
+		).toBe(1);
 	});
 
 	it("holds a failed workspace through its grace period", async () => {
@@ -139,7 +298,9 @@ describe("reapWorkspaces", () => {
 		failed(db, { errorAt: "2026-01-01T09:00:00Z", vmid: 400 });
 		enable(db, {});
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("reaps a failed workspace once the grace period is past", async () => {
@@ -147,7 +308,9 @@ describe("reapWorkspaces", () => {
 		const id = failed(db, { errorAt: "2026-01-01T02:00:00Z", vmid: 400 });
 		enable(db, {});
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 1 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 1,
+		});
 		expect(lastNote(db, id)).toContain("grace period");
 	});
 
@@ -158,7 +321,9 @@ describe("reapWorkspaces", () => {
 		failed(db, { errorAt: "2025-01-01T00:00:00Z", vmid: null });
 		enable(db, {});
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 	});
 
 	it("does not queue a second destroy for one already being torn down", async () => {
@@ -166,8 +331,12 @@ describe("reapWorkspaces", () => {
 		ready(db, { activity: "idle", createdAt: "2025-01-01T00:00:00Z" });
 		enable(db, { reapIdleMinutes: 5 });
 
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 1 });
-		expect(reapWorkspaces(db, NOW)).toEqual({ reaped: 0 });
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 1,
+		});
+		expect(await reapWorkspaces(db, config(), NOW, clean)).toEqual({
+			reaped: 0,
+		});
 		expect(queuedDestroys(db)).toBe(1);
 	});
 });
@@ -203,9 +372,12 @@ function ready(
 
 	// createWorkspace queues a provision, which would otherwise make every workspace look busy.
 	db.prepare("UPDATE workspace_operations SET status = 'completed'").run();
+	// An address, because the reaper connects to a workspace before destroying it. Without one it
+	// takes the "nothing to look at" path and the check never runs.
 	db.prepare(
 		`UPDATE workspaces
-		 SET status = 'ready', activity = ?, created_at = ?, last_activity_at = ?
+		 SET status = 'ready', ip = '10.0.3.100', activity = ?, created_at = ?,
+			last_activity_at = ?
 		 WHERE id = ?`,
 	).run(
 		input.activity,
@@ -234,11 +406,24 @@ function failed(
 	db.prepare("UPDATE workspace_operations SET status = 'completed'").run();
 	db.prepare(
 		`UPDATE workspaces
-		 SET status = 'failed', vmid = ?, error_occurred_at = ?, error_code = 'clone_task_failed'
+		 SET status = 'failed', vmid = ?, ip = '10.0.3.100', error_occurred_at = ?,
+			error_code = 'clone_task_failed'
 		 WHERE id = ?`,
 	).run(input.vmid, input.errorAt, created.workspace.id);
 
 	return created.workspace.id;
+}
+
+function keptNote(db: Database.Database, id: string): string {
+	return (
+		db
+			.prepare(
+				`SELECT message FROM workspace_events
+				 WHERE workspace_id = ? AND event_type = 'workspace.kept'
+				 ORDER BY id DESC LIMIT 1`,
+			)
+			.get(id) as { message: string }
+	).message;
 }
 
 function queuedDestroys(db: Database.Database): number {

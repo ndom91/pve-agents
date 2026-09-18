@@ -70,7 +70,8 @@ async function sweep(
 	// on a stale reading is how a working agent gets destroyed.
 	await observeWorkspaceActivity(db, config);
 	await refreshWorkspaceCredentials(db, config);
-	reapWorkspaces(db);
+	// Awaited: it opens a connection to any workspace it is about to destroy, to check first.
+	await reapWorkspaces(db, config);
 }
 
 // OPERATIONS_PER_TICK bounds how much lifecycle work one pass will do.

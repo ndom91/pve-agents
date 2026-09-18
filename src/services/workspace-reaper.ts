@@ -1,15 +1,23 @@
 import type Database from "better-sqlite3";
 
+import type { ControllerConfig } from "../config/controller-config";
 import { controllerSettings } from "../db/settings-repository";
 import {
 	reapableFailedWorkspaces,
 	reapableWorkspaces,
+	recordUnsavedWork,
 	recordWorkspaceNote,
 	requestWorkspaceOperation,
 } from "../db/workspace-repository";
+import { AGENT_CWD } from "../domain/workspace-layout";
+import { runSsh, type SshRunner } from "./ssh";
+import { workspaceUnsavedWork } from "./workspace-git";
 
 // ReapReason is which rule decided a workspace had outlived its usefulness.
 type ReapReason = { message: string; rule: "idle" | "max-age" };
+
+// Candidate is what the safety check needs, shared by both kinds of reapable workspace.
+type Candidate = { hostname: string; id: string; ip?: string };
 
 // reapWorkspaces destroys workspaces that have outlived their usefulness.
 //
@@ -18,10 +26,12 @@ type ReapReason = { message: string; rule: "idle" | "max-age" };
 // containers directly would be a second destroy implementation with none of those properties.
 //
 // Off unless switched on, because this removes real containers without being asked.
-export function reapWorkspaces(
+export async function reapWorkspaces(
 	db: Database.Database,
+	config: ControllerConfig,
 	now: Date = new Date(),
-): { reaped: number } {
+	ssh: SshRunner = runSsh,
+): Promise<{ reaped: number }> {
 	const settings = controllerSettings(db);
 	if (!settings.reapingEnabled) {
 		return { reaped: 0 };
@@ -39,6 +49,9 @@ export function reapWorkspaces(
 
 		const reason = expiredReason(workspace, settings, now);
 		if (reason === undefined) {
+			continue;
+		}
+		if (await heldBack(db, config, workspace, now, ssh)) {
 			continue;
 		}
 
@@ -63,6 +76,9 @@ export function reapWorkspaces(
 		if (heldHours < settings.reapFailedAfterHours) {
 			continue;
 		}
+		if (await heldBack(db, config, workspace, now, ssh)) {
+			continue;
+		}
 
 		recordWorkspaceNote(
 			db,
@@ -76,6 +92,79 @@ export function reapWorkspaces(
 	}
 
 	return { reaped };
+}
+
+// heldBack decides whether an expired workspace must be kept anyway.
+//
+// This is the only path in the system that loses something irreversibly. A container is
+// reconstructible and a clone re-cloneable; a diff that existed only on that disk is not. So the
+// tree is inspected before anything is queued, and anything short of a confident "nothing here" is
+// a reason to keep it.
+//
+// Checked only for a workspace already due to be destroyed, so it costs one connection at the
+// moment of reaping rather than a poll across the fleet.
+async function heldBack(
+	db: Database.Database,
+	config: ControllerConfig,
+	workspace: Candidate,
+	now: Date,
+	ssh: SshRunner,
+): Promise<boolean> {
+	const keyPath = config.WORKSPACE_SSH_KEY_PATH;
+	// Nothing to look at. A workspace that never got an address never got a checkout either, so
+	// there is nothing on it to protect.
+	if (keyPath === undefined || workspace.ip === undefined) {
+		return false;
+	}
+
+	const unsaved = await workspaceUnsavedWork(
+		{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
+		AGENT_CWD,
+		ssh,
+	);
+	if (unsaved.kind === "clean") {
+		recordUnsavedWork(db, workspace.id, false, now);
+
+		return false;
+	}
+	if (unsaved.kind === "unsaved") {
+		recordUnsavedWork(db, workspace.id, true, now);
+	}
+
+	noteOnce(
+		db,
+		workspace.id,
+		unsaved.kind === "unsaved"
+			? "kept rather than destroyed: uncommitted or unpushed changes in the workspace"
+			: `kept rather than destroyed: could not check for unsaved work (${unsaved.message})`,
+		now,
+	);
+
+	return true;
+}
+
+// noteOnce appends a timeline entry only when it differs from the last one.
+//
+// A held workspace is reconsidered on every pass, so without this the reason would repeat every
+// few seconds and bury the history it exists to explain. Same reasoning as noteWorkspaceIssue,
+// which cannot be used here because it wants an operation lease and this is not operation work.
+function noteOnce(
+	db: Database.Database,
+	id: string,
+	message: string,
+	now: Date,
+): void {
+	const latest = db
+		.prepare(
+			`SELECT event_type, message FROM workspace_events
+			 WHERE workspace_id = ? ORDER BY id DESC LIMIT 1`,
+		)
+		.get(id) as { event_type: string; message: string } | undefined;
+	if (latest?.event_type === "workspace.kept" && latest.message === message) {
+		return;
+	}
+
+	recordWorkspaceNote(db, id, "workspace.kept", message, now);
 }
 
 // expiredReason decides whether a workspace has run past one of the two limits.

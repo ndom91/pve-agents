@@ -1024,3 +1024,20 @@ dd {
 ::-webkit-scrollbar-corner {
 	background: transparent;
 }
+
+/* A workspace exempt from reaping because it holds work. Stated rather than implied: the exemption
+   keeps a container alive indefinitely, which is only an acceptable trade if it is visible. */
+.detail-kept {
+	border: 1px solid #5a7fa8;
+	margin-top: 24px;
+	padding: 12px 16px;
+}
+
+.detail-kept h2 {
+	color: #8fb4d9;
+	margin: 0 0 6px;
+}
+
+.detail-kept p {
+	margin: 0;
+}

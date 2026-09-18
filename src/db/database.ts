@@ -142,6 +142,12 @@ const migrations = [
 			);
 		`,
 	},
+	{
+		version: 12,
+		sql: `
+			ALTER TABLE workspaces ADD COLUMN unsaved_work INTEGER;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.
