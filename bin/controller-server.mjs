@@ -207,23 +207,47 @@ async function main() {
 		console.log(`controller listening on http://${host}:${port}`);
 	});
 
+	const abort = new AbortController();
+
+	// Registered whether or not the scheduler runs. Previously these were installed only alongside
+	// the worker, so a controller without one had no handler at all and every other shutdown path
+	// depended on Node's default.
+	for (const signal of ["SIGINT", "SIGTERM"]) {
+		process.once(signal, () => shutdown(server, abort));
+	}
+
 	// Gated on the validated value, not the raw variable: WORKER_ENABLED=1 should be a startup
 	// error rather than a scheduler that silently never runs.
 	if (workerEnabled) {
 		const { startScheduler } = await import("../dist/cli/scheduler.js");
-		const abort = new AbortController();
-		for (const signal of ["SIGINT", "SIGTERM"]) {
-			process.once(signal, () => {
-				abort.abort();
-				server.close();
-			});
-		}
-
 		startScheduler(abort.signal).catch((error) => {
 			console.error("scheduler stopped", error);
 			process.exitCode = 1;
 		});
 	}
+}
+
+// SHUTDOWN_GRACE_MS bounds how long a tidy exit is allowed to take before it stops being tidy.
+const SHUTDOWN_GRACE_MS = 5_000;
+
+// shutdown stops the controller without waiting for streams that never end.
+//
+// `server.close` refuses new connections and then waits for the open ones to finish. A server-sent
+// events stream does not finish: that is the entire point of it. So one open page was enough to
+// hold the process through systemd's ninety-second stop timeout and into a SIGKILL, every deploy.
+// closeAllConnections is what actually ends them.
+//
+// The timer is the honest admission that this may still miss something. Unreferenced, so it does
+// not itself become the last thing keeping the process alive.
+function shutdown(server, abort) {
+	abort.abort();
+	server.close();
+	server.closeAllConnections?.();
+
+	setTimeout(() => {
+		console.error("controller did not exit cleanly, forcing");
+		process.exit(0);
+	}, SHUTDOWN_GRACE_MS).unref();
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

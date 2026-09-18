@@ -1213,6 +1213,10 @@ dd {
 	border-radius: 3px;
 	color: #6d7a67;
 	display: inline-flex;
+	/* The tab beside it reserves 8px below its text for the underline. Centring against that taller
+	   box put the cross half of it lower than the name it belongs to, so it takes the same offset
+	   and the two sit on one line. */
+	margin-bottom: 8px;
 	padding: 2px;
 	visibility: hidden;
 }

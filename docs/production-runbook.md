@@ -179,13 +179,14 @@ the router went on to 1.170 and still declared a peer range of `">=1.43.2"`. It 
 router no longer had, hydration threw, and the whole UI was an error box. **Treat a wide peer range
 as no guarantee at all.**
 
-### The slow stop
+### Shutdown
 
-The controller does not exit on `SIGTERM`. systemd waits 90 seconds and then `SIGKILL`s it, so
-every deploy pauses for a minute and a half at `==> stopping`. That is expected, not a hang.
+The controller stops in well under a second, with pages open. It used to take the full 90 seconds
+and end in a `SIGKILL`, because `server.close()` waits for open connections to finish and a
+server-sent events stream never finishes. `closeAllConnections()` is what ends them. The watcher
+poll and the stream keepalive are unreferenced timers, so a background loop is never the last thing
+holding the process alive.
 
-Starting a second deploy during that window prints `Job for pve-herdr-agents.service canceled` and
-leaves the unit in `deactivating`. Wait for `systemctl is-active` to settle, then run it again.
-
-Worth fixing properly: nothing closes the SSE watchers or the scheduler interval on shutdown, so
-the event loop never drains.
+A five-second fallback calls `process.exit` if something still does. If you see
+`controller did not exit cleanly, forcing` in the journal, something new is holding the event loop
+and is worth finding rather than living with.

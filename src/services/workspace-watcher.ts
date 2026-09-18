@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import type { HerdrTarget } from "./herdr";
 import { herdrAgentStatus, readHerdrAgent } from "./herdr";
 import { runSsh, type SshRunner } from "./ssh";
@@ -149,7 +151,12 @@ function start(
 				}
 			}
 
-			await new Promise((resolve) => setTimeout(resolve, intervalMs));
+			// ref: false so this timer does not hold the process open.
+			//
+			// A background poll is not a reason to keep Node alive. With a referenced timer, every
+			// open page's watcher kept the event loop running through a shutdown, and systemd
+			// waited its full ninety seconds and then killed the controller.
+			await sleep(intervalMs, undefined, { ref: false });
 		}
 	};
 

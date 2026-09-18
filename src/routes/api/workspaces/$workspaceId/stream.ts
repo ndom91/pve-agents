@@ -144,6 +144,9 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/stream")({
 								clearInterval(keepalive);
 							}
 						}, KEEPALIVE_MS);
+						// Unreferenced for the same reason the watcher's poll is: a heartbeat on an
+						// idle stream must not be what keeps the process alive through a shutdown.
+						keepalive.unref?.();
 
 						// Fires when the client disconnects, which is the ordinary way a stream
 						// ends: a closed tab or a navigation.
