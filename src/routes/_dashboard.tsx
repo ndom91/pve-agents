@@ -9,7 +9,7 @@ import { LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 
 import { IconButton } from "../components/icon-button";
-import { WorkspaceBadges } from "../components/workspace-badges";
+import { SidebarEntry } from "../components/sidebar-entry";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
 import { sessionState } from "../server/session.functions";
@@ -59,9 +59,7 @@ function Dashboard() {
 	return (
 		<div className="dashboard">
 			<aside className="dashboard-sidebar">
-				<div className="sidebar-head">
-					<p className="eyebrow">PVE / HERDR</p>
-				</div>
+				<p className="eyebrow">PVE / HERDR</p>
 
 				<nav>
 					<p className="sidebar-label">Workspaces</p>
@@ -70,25 +68,7 @@ function Dashboard() {
 					) : (
 						<ul className="sidebar-list">
 							{live.map((workspace) => (
-								<li key={workspace.id}>
-									<Link
-										activeProps={{ className: "sidebar-entry is-active" }}
-										className="sidebar-entry"
-										params={{ workspaceId: workspace.id }}
-										to="/workspaces/$workspaceId"
-									>
-										<span className="sidebar-name">{workspace.hostname}</span>
-										<span className="sidebar-repo">
-											{shortRepository(workspace.repository)}
-										</span>
-										<span className="sidebar-badges">
-											<WorkspaceBadges
-												activity={workspace.activity}
-												status={workspace.status}
-											/>
-										</span>
-									</Link>
-								</li>
+								<SidebarEntry key={workspace.id} workspace={workspace} />
 							))}
 						</ul>
 					)}
@@ -100,19 +80,11 @@ function Dashboard() {
 							</summary>
 							<ul className="sidebar-list">
 								{destroyed.map((workspace) => (
-									<li key={workspace.id}>
-										<Link
-											activeProps={{ className: "sidebar-entry is-active" }}
-											className="sidebar-entry"
-											params={{ workspaceId: workspace.id }}
-											to="/workspaces/$workspaceId"
-										>
-											<span className="sidebar-name">{workspace.hostname}</span>
-											<span className="sidebar-repo">
-												{shortRepository(workspace.repository)}
-											</span>
-										</Link>
-									</li>
+									<SidebarEntry
+										key={workspace.id}
+										showBadges={false}
+										workspace={workspace}
+									/>
 								))}
 							</ul>
 						</details>
@@ -147,9 +119,4 @@ function Dashboard() {
 			<Outlet />
 		</div>
 	);
-}
-
-// shortRepository drops the host, which is the same for every workspace and so carries nothing.
-function shortRepository(repository: string): string {
-	return repository.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
 }

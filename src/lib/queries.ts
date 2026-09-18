@@ -2,7 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { workspacePane } from "../server/agent.functions";
 import { workspaceSettings } from "../server/settings.functions";
-import { controllerStatus } from "../server/status.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
 
 // Cadences live together rather than beside whichever component happened to need one, because the
@@ -12,9 +11,10 @@ import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
 // FLEET_REFRESH_MS is half the worker interval, so a step lands on screen within about one tick.
 const FLEET_REFRESH_MS = 2_500;
 
-// SCREEN_REFRESH_MS is slower on purpose. A terminal that changed a second ago will still have
-// changed in five, and each read costs a connection to the container.
-const SCREEN_REFRESH_MS = 5_000;
+// SCREEN_STALE_MS is how long a fetched screen is trusted before a remount would fetch again.
+// Not a polling cadence: the stream pushes updates, and each fetch costs an SSH connection to the
+// container, so this only bounds how stale a first paint may be.
+const SCREEN_STALE_MS = 5_000;
 
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
@@ -22,7 +22,6 @@ export const workspaceKeys = {
 	list: () => ["workspaces"] as const,
 	pane: (id: string) => ["workspace", id, "pane"] as const,
 	settings: () => ["settings"] as const,
-	status: () => ["status"] as const,
 };
 
 // fleetQuery is the workspace list the sidebar navigates by.
@@ -50,15 +49,6 @@ function watchable(workspaces?: { status: string }[]): boolean {
 		(workspace) =>
 			workspace.status !== "destroyed" && workspace.status !== "failed",
 	);
-}
-
-export function statusQuery() {
-	return queryOptions({
-		queryFn: () => controllerStatus(),
-		queryKey: workspaceKeys.status(),
-		refetchInterval: FLEET_REFRESH_MS,
-		refetchIntervalInBackground: false,
-	});
 }
 
 // workspaceQuery is one workspace's record and timeline.
@@ -89,7 +79,7 @@ export function paneQuery(id: string, ready: boolean) {
 		queryFn: () => workspacePane({ data: { id } }),
 		queryKey: workspaceKeys.pane(id),
 		refetchInterval: false,
-		staleTime: SCREEN_REFRESH_MS,
+		staleTime: SCREEN_STALE_MS,
 	});
 }
 

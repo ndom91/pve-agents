@@ -4,8 +4,10 @@ import { useState } from "react";
 import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
 import { WorkspaceBadges } from "../components/workspace-badges";
+import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { paneQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
+import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
 import { useWorkspaceStream } from "../lib/use-workspace-stream";
 import {
 	promptWorkspaceAgent,
@@ -39,25 +41,7 @@ function WorkspaceDetail() {
 	// Pushes the screen and the observed activity straight into the cache while the page is open.
 	useWorkspaceStream(workspaceId, ready);
 
-	// predict shows the result of an action before the server has confirmed it, and hands back a
-	// rollback. Every optimistic mutation uses it, so none of them can forget to restore the
-	// snapshot when the prediction turns out wrong.
-	async function predict(patch: Record<string, unknown>) {
-		await queryClient.cancelQueries({
-			queryKey: workspaceKeys.detail(workspaceId),
-		});
-		const previous = queryClient.getQueryData(
-			workspaceKeys.detail(workspaceId),
-		);
-		queryClient.setQueryData(
-			workspaceKeys.detail(workspaceId),
-			(current: Record<string, unknown> | undefined) =>
-				current === undefined ? current : { ...current, ...patch },
-		);
-
-		return () =>
-			queryClient.setQueryData(workspaceKeys.detail(workspaceId), previous);
-	}
+	const predict = useOptimisticWorkspace(workspaceId);
 
 	// Every operator action refreshes the same two keys, so the timeline shows what was just done
 	// without waiting for the next poll.
@@ -77,14 +61,14 @@ function WorkspaceDetail() {
 		// that needs a person, which is worse than a badge that lags.
 		onMutate: () => (blocked ? undefined : predict({ activity: "active" })),
 		onError: async (_error, _text, rollback) => {
-			(await rollback)?.();
+			rollback?.();
 			setNote("could not reach the agent");
 		},
 		onSuccess: async (result, _text, rollback) => {
 			// Accepted-but-refused still has to put the prediction back: the agent is not working,
 			// it is waiting.
 			if (result.kind !== "sent") {
-				(await rollback)?.();
+				rollback?.();
 				setNote(
 					result.kind === "blocked"
 						? "The agent is waiting for input. Answer it first."
@@ -107,12 +91,12 @@ function WorkspaceDetail() {
 		// "blocked" is honest.
 		onMutate: () => predict({ activity: "active" }),
 		onError: async (_error, _key, rollback) => {
-			(await rollback)?.();
+			rollback?.();
 			setNote("could not reach the agent");
 		},
 		onSuccess: async (result, _key, rollback) => {
 			if (result.kind !== "sent") {
-				(await rollback)?.();
+				rollback?.();
 			}
 			setNote(result.kind === "unavailable" ? result.reason : "");
 			await refresh();
@@ -127,7 +111,7 @@ function WorkspaceDetail() {
 				errorMessage: undefined,
 				status: "provisioning",
 			}),
-		onError: async (_error, _input, rollback) => (await rollback)?.(),
+		onError: (_error, _input, rollback) => rollback?.(),
 		onSuccess: refresh,
 	});
 
@@ -135,7 +119,7 @@ function WorkspaceDetail() {
 		mutationFn: () => destroyWorkspaceRequest({ data: { id: workspaceId } }),
 		onMutate: () =>
 			predict({ desiredState: "destroyed", status: "destroying" }),
-		onError: async (_error, _input, rollback) => (await rollback)?.(),
+		onError: (_error, _input, rollback) => rollback?.(),
 		onSuccess: refresh,
 	});
 
@@ -274,40 +258,7 @@ function WorkspaceDetail() {
 				</section>
 			</main>
 
-			<aside className="dashboard-rail">
-				<p className="sidebar-label">Placement</p>
-				<dl>
-					<Fact label="Repository" value={workspace.repository} />
-					<Fact label="Ref" value={workspace.ref} />
-					<Fact label="Node" value={workspace.node} />
-					<Fact label="VMID" value={workspace.vmid?.toString()} />
-					<Fact label="Address" value={workspace.ip} />
-					<Fact label="Phase" value={workspace.provisionPhase} />
-					<Fact label="Step" value={workspace.currentStep} />
-					<Fact label="Herdr session" value={workspace.herdrSession} />
-					<Fact label="Herdr workspace" value={workspace.herdrWorkspaceId} />
-					<Fact label="Herdr pane" value={workspace.herdrPaneId} />
-					<Fact label="Created" value={workspace.createdAt?.slice(0, 19)} />
-					<Fact
-						label="Last active"
-						value={workspace.lastActivityAt?.slice(0, 19)}
-					/>
-				</dl>
-			</aside>
+			<WorkspaceRail workspace={workspace} />
 		</>
-	);
-}
-
-// Fact renders one label and value, and nothing at all when there is no value yet.
-function Fact({ label, value }: { label: string; value?: string }) {
-	if (value === undefined || value === "") {
-		return null;
-	}
-
-	return (
-		<div>
-			<dt>{label}</dt>
-			<dd>{value}</dd>
-		</div>
 	);
 }
