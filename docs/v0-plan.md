@@ -1,5 +1,12 @@
 # v0 Plan
 
+> **Historical.** This plan was written before the system was built and has been executed. It is
+> kept because it records the reasoning at the time, not because it describes what exists. Several
+> things here were abandoned on contact with reality, most notably the organiser agent and the
+> split between a read-only web UI and an interactive Herdr client.
+>
+> For the system as built, read `architecture.md`.
+
 ## Success Criterion
 
 From one API call, create an isolated repository environment on Proxmox and make it ready for an agent to start working. The user accesses the always-on organiser through the controller's Herdr session.

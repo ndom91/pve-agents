@@ -34,7 +34,7 @@ After=network.target
 Type=simple
 User=pve-herdr-agents
 WorkingDirectory=/opt/pve-herdr-agents
-EnvironmentFile=/etc/pve-herdr-agents/controller.env
+EnvironmentFile=/opt/pve-herdr-agents/.env
 ExecStart=/usr/bin/pnpm start
 Restart=on-failure
 RestartSec=5
@@ -43,7 +43,9 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/etc/pve-herdr-agents/controller.env` and ensure the service account owns that directory. Set `CONTROLLER_HOST` and `CONTROLLER_PORT` there; the listener defaults to `127.0.0.1:3000`.
+Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/opt/pve-herdr-agents/.env`, owned by the service account and `0640`. One file, not two: a second copy under `/etc` existed briefly and was removed, because two sources of configuration is one more than can be kept in agreement.
+
+`NODE_EXTRA_CA_CERTS` is the one setting that cannot live there. Node reads it before `--env-file` is processed, so the systemd unit sets it directly and `bin/controller-node.sh` exports it for commands run by hand. Set `CONTROLLER_HOST` and `CONTROLLER_PORT` there; the listener defaults to `127.0.0.1:3000`.
 
 ## Operation
 
@@ -54,3 +56,74 @@ Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/etc/pve-herdr-a
 5. A destroy request cancels any outstanding provision operation for that workspace, so teardown cannot race a clone.
 6. A destroy that halts leaves the workspace in `destroying` with `error_code` set and `error_retryable=0`. `destroy_ownership_mismatch` means a container did not carry this controller's ownership marker and was deliberately left untouched; investigate by hand before retrying.
 7. Do not set `PROVISIONING_ENABLED=true` until the Proxmox template, pool, network, token permissions, and ownership-marker workflow have been verified against disposable infrastructure.
+
+
+## Repository access
+
+The controller clones as a GitHub App, not with a personal token. Create the App with **Contents:
+read and write** and **Pull requests: read and write**, no webhook, installable on your account
+only. Generate a private key, copy it to the controller at `0600` owned by the service account, and
+set `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, and `GITHUB_APP_PRIVATE_KEY_PATH`.
+
+The installation id is the number at the end of the URL after installing.
+
+These are distinct from `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, which are the OAuth app
+operators sign in with. Different credential, different purpose, easy to confuse.
+
+Tokens are minted per workspace, scoped to that one repository, and last an hour. A request naming
+a repository the App cannot see is refused immediately rather than failing at checkout, because
+minting a scoped token is itself the access check.
+
+## Agent credentials
+
+`WORKSPACE_CLAUDE_OAUTH_TOKEN` comes from `claude setup-token`, which needs a browser and a Claude
+subscription. It is not an API key. Rotating it is an edit and a restart; nothing is baked into the
+template, so no clone carries it.
+
+## VMID range
+
+Set `PROXMOX_VMID_MIN` to keep disposable workspaces in their own band, away from hand-built
+guests. Proxmox has no "next free id at or above N", so the controller probes candidates with
+`/cluster/nextid?vmid=N`, which is cluster-wide even under a pool-scoped token. The scan is bounded
+to 128 candidates above the floor.
+
+## Reaping
+
+Off until switched on, and configured from the **settings page** rather than the environment: these
+are read on every pass, so a change applies without a restart.
+
+An idle timeout, a maximum age, and a grace period for failed workspaces. Three things are exempt
+from destruction — a blocked agent, a workspace holding uncommitted or unpushed work, and one the
+controller cannot inspect — so a container can be kept alive indefinitely by any of them. The UI
+marks those, and the timeline records why each reap was declined.
+
+## Orphaned containers
+
+The settings page has a scan for containers this controller created and no longer has a record of.
+It runs only when asked. **Nothing about orphans runs on a timer**, because a restored or lost
+database makes every live workspace look orphaned and anything automatic would then destroy the
+fleet. Destroying one re-verifies the ownership marker server-side first.
+
+## Reverse proxy
+
+The detail page streams over server-sent events, and Caddy buffers by default in two places. The
+proxy needs `flush_interval -1`, and the stream path must be excluded from compression:
+
+```caddyfile
+reverse_proxy 127.0.0.1:3000 {
+	flush_interval -1
+}
+
+@compressible not path /api/workspaces/*/stream
+encode @compressible gzip
+```
+
+`encode` rejects `not` in a response matcher, which is why the exclusion is a named request matcher
+on the path. This works perfectly against the port directly and fails only behind the proxy, so
+test at the real hostname.
+
+## Deploying an update
+
+`pnpm prune --prod` is run after building. A later `pnpm install --frozen-lockfile` then reports
+"Already up to date" and does **not** restore devDependencies, so the next build fails on a missing
+Vite. Remove `node_modules` before reinstalling.

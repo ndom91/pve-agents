@@ -1,5 +1,12 @@
 # Implementation Plan
 
+> **Historical.** This plan was written before the system was built and has been executed. It is
+> kept because it records the reasoning at the time, not because it describes what exists. Several
+> things here were abandoned on contact with reality, most notably the organiser agent and the
+> split between a read-only web UI and an interactive Herdr client.
+>
+> For the system as built, read `architecture.md`.
+
 ## Initial Deployment
 
 Deploy the controller on a trusted, always-on homelab host that can reach Proxmox and the private workspace network. It runs two separate processes under one service account:

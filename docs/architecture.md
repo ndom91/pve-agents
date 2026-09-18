@@ -1,126 +1,144 @@
 # Architecture
 
-## Goal
+Describes the system as built. Where an earlier intention was abandoned, the reason is stated
+rather than the intention quietly removed.
 
-Build a small orchestration system where a task receives its own disposable development computer. A workspace is backed by a Proxmox LXC container, contains one repository checkout, can run multiple coding agents, and appears in the user's normal Herdr interface.
+## What a workspace is
 
-The user-facing abstraction is a `workspace`. The 1:1 mapping between a workspace and an LXC container is an implementation detail.
+A request for work, not a request for a container.
 
-## System Boundaries
+You supply a repository, a ref, and a purpose. The controller builds a disposable Proxmox LXC,
+checks the repository out into it, starts a Claude Code agent inside a Herdr session, and gives
+that agent the purpose verbatim. The container is an implementation detail of that.
 
-The system has three planes.
+One agent per workspace. An earlier plan had several; nothing needed them, and one agent per
+container keeps the ownership, credential, and teardown stories simple.
 
-### Provisioning Plane
+## The interface, and a reversal
 
-The workspace controller owns infrastructure lifecycle:
+The original architecture said the web UI should provide "fleet-level visibility" and "should not
+attempt to reproduce interactive terminal sessions", with interactive work happening in a Herdr
+client.
 
-- Clone and configure a prepared Proxmox LXC template.
-- Start, inspect, stop, and destroy containers.
-- Discover workspace network addresses.
-- Bootstrap credentials and repository contents.
-- Reconcile partially completed operations after a crash.
-- Register the controller-host organiser session as a normal remote Herdr machine.
-- Optionally register disposable workspaces on individual client machines later.
+**That is no longer true, deliberately.** The detail page streams the agent's terminal, sends
+prompts, and answers permission dialogs. The reversal happened because the controller already had
+to read the agent's screen to know whether it was usable, and once a browser can see the screen,
+requiring a second tool to type into it is friction rather than separation.
 
-The controller holds a restricted Proxmox API token. Organiser agents never receive Proxmox credentials.
+Herdr remains the source of truth for terminal state inside a workspace. The web UI is now the
+primary way a person interacts with it.
 
-### Agent Control Plane
+## Planes
 
-Herdr remains the source of truth for terminal layout and live agent state inside each workspace.
+**Provisioning.** The controller owns the infrastructure lifecycle: clone, boot, address, reach,
+bootstrap, check out, destroy. It holds a pool-scoped Proxmox token. Nothing else does.
 
-The controller or organiser uses Herdr operations to:
+**Agent control.** Herdr 0.9.0 scopes its CLI and socket API to one server, so all agent operations
+run the Herdr CLI on the target workspace over SSH. There is no remote Herdr API.
 
-- Create the repository workspace and panes.
-- Start named coding agents.
-- Prompt and follow up with agents.
-- Read agent state and terminal output.
-- Wait for idle, done, or blocked states.
+**Human interface.** A dashboard: a sidebar of workspaces, a live terminal, a prompt, and the
+placement facts.
 
-Herdr 0.9.0 scopes its CLI and socket API to one server. Remote automation therefore executes the Herdr CLI on the target workspace over SSH.
+## Provisioning
 
-### Human Interface
-
-Herdr remains the primary terminal and session interface. A web application may provide infrastructure and fleet-level visibility, but should not attempt to reproduce interactive terminal sessions.
-
-The desired division is:
-
-```text
-Provisioning and fleet overview: user/organiser -> workspace controller
-Agent orchestration:             organiser -> remote Herdr server
-Interactive agent sessions:      user -> Herdr
-```
-
-## Deployment Topology
-
-The controller does not fundamentally need to run on the user's Mac. A self-hosted deployment is preferable for availability and multi-client access. The controller host also owns the always-on organiser Herdr session:
+A single durable operation advances one phase per pass, resuming from the database rather than
+from memory, so a controller that stops mid-clone picks up where it left off.
 
 ```text
-Homelab server
-└── Workspace controller
-    ├── Web UI and HTTP API
-    ├── SQLite/Postgres state
-    ├── Proxmox adapter
-    ├── SSH/bootstrap adapter
-    ├── Herdr remote-control adapter
-    ├── Event/reconciliation worker
-    └── Herdr server, session: controller
-        └── organiser agent
-
-User Mac
-└── Normal Herdr client
-    └── saved machine: Agent Controller
+requested → clone-submitted → clone-confirmed → start-submitted → booted
+          → addressed → reachable → bootstrapped → checked-out
+          → session-started → herdr-registered → agent-started → briefed
 ```
 
-The user adds the controller once through the normal supported Herdr interface:
+`ready` means briefed and working, not merely built.
 
-```bash
-herdr machine add controller --label "Agent Controller" --remote-session controller
-```
+Each phase is one Proxmox call or one SSH round trip. Several are less obvious than they look and
+`docs/herdr-integration.md` records why.
 
-This makes the organiser session available from the user's normal local Herdr client. The Mac is also eligible to be another remote machine registered by the controller, subject to deliberate SSH authorization.
+## Ownership
 
-Herdr 0.9.0 machine federation is client-owned and non-recursive. The controller's own saved LXC machines are not automatically flattened into the Mac's sidebar when the Mac adds `controller`. The initial human UX is therefore the controller workspace and organiser, not direct terminal views for every LXC.
+Every container carries a marker in its LXC description: the software name, the controller's id,
+the workspace id, and an ownership token, written atomically during the clone.
 
-An optional later bridge can register individual disposable LXCs in the Mac's local Herdr catalog. That restores direct workspace access in the Mac sidebar, but is not required to prove controller provisioning, agent orchestration, or the controller-host Herdr session.
+**That description is the only thing that authorises destruction.** Pool membership, hostname and
+tags are discovery aids. Nothing is deleted without re-reading the marker immediately beforehand —
+including an orphan the operator clicked, because a VMID arriving in a form is a request rather
+than authorisation.
 
-## Hosted Controller Responsibilities
+## The scheduler
 
-- Expose the workspace and agent API.
-- Serve the fleet overview UI.
-- Persist desired and observed workspace state.
-- Perform Proxmox lifecycle operations.
-- Reach workspace LXCs over SSH.
-- Invoke the remote Herdr CLI for agent operations.
-- Aggregate Herdr snapshots and events for overview purposes.
+One loop, four passes in order, each awaited so they cannot overlap:
 
-## Workspace Topology
+1. **Operations** — drains several queued lifecycle steps, bounded by count and elapsed time.
+   Claimed by when an operation is next due, not when it was created; ordering by creation starved
+   every request behind the first.
+2. **Activity** — reads what each ready agent is doing, at most every 30 seconds.
+3. **Credentials** — replaces git credentials before their hour is up.
+4. **Reaping** — destroys workspaces that have outlived their usefulness, if switched on.
 
-One LXC normally corresponds to one repository and task, not one agent:
+Activity runs before reaping deliberately: reaping decides on the activity it records.
 
-```text
-agent-7f2a
-└── /workspace/repo
-    ├── investigator-backend
-    ├── investigator-frontend
-    └── implementer
-```
+## What the controller refuses to destroy
 
-The remote Herdr server uses a named session such as `agents`. It contains one primary Herdr workspace rooted at `/workspace/repo`, with one or more panes and agents.
+Reaping is the only path that can lose something irreversibly, so it declines in three cases:
 
-## Controller Design
+- **A blocked agent**, which is waiting for a person. Exempt from both the idle limit and the
+  maximum age.
+- **Unsaved work** — uncommitted changes, or commits never pushed. Also exempt from both, because
+  exempting from idle alone would only postpone the loss to the cap.
+- **A workspace it cannot inspect.** "Could not tell" is not "nothing to lose".
 
-Use desired-state reconciliation rather than a long synchronous provisioning request.
+The cost is that a stray untracked file keeps a container alive indefinitely. The UI marks those
+workspaces, because the trade is only acceptable if it is visible.
 
-`POST /workspaces` persists intent and returns `202 Accepted`. A worker advances the workspace through idempotent steps. On restart, the controller observes Proxmox and Herdr state and continues from the last confirmed step.
+## Freshness
 
-For v0, one controller instance with SQLite is sufficient. The data model should permit moving to Postgres and multiple workers later without introducing a scheduler now.
+Three reads at three cadences, which is a ratio rather than three arbitrary numbers:
 
-## Non-Goals For v0
+- The fleet list polls the database every 2.5s while anything can still change.
+- The activity pass reads each ready agent every 30s.
+- An open detail page streams its workspace over server-sent events, reading every 2s.
 
-- Autoscaling or placement across multiple Proxmox nodes.
-- Kubernetes.
-- A competing terminal/session UI.
-- Automatic idle cleanup.
-- Full-container archives as the primary persistence format.
-- A general-purpose remote command execution platform.
-- Per-client automatic registration of disposable LXCs.
+The stream **writes what it observes to the database**, so the record everything else reads is
+fresh to about two seconds while a page is open. It previously pushed only to the browser, where
+the 2.5s database poll overwrote it with a 30-second-old value, and the controls for answering a
+dialog — gated on that value — were unusable as a result.
+
+Server-sent events rather than a socket: every write is request-and-answer and already works as a
+server function. A socket becomes right when there is keystroke-level input to stream upward.
+
+## Credentials
+
+| What | Where it lives | Reaches a workspace as |
+|---|---|---|
+| Proxmox API token | `.env` | never leaves the controller |
+| GitHub App key | file on disk, `0600` | a repo-scoped token, renewed hourly |
+| Claude subscription token | `.env` | a file the pane's shell sources |
+
+Both workspace credentials arrive **on stdin**, never as arguments, so neither appears in the
+process list. Git reads its credential from a store rather than a URL, because git repeats the
+remote it was using in its errors and those reach the timeline the UI renders.
+
+`ssh` does not preserve argument boundaries — it joins the command and the remote shell re-splits
+it — so everything sent is quoted before it leaves.
+
+## Configuration versus policy
+
+`.env` holds what the controller **is**: its Proxmox token, its GitHub App, where its key lives.
+Changing those is a deployment change and a restart is the natural moment.
+
+The database holds what it **does**: whether reaping is on and its thresholds. Those get tuned
+against a running fleet, so they are read on every pass and take effect without a restart. That is
+the entire reason they moved.
+
+## Deliberately not built
+
+- **An organiser agent**, and registering the controller as a Herdr machine. The web UI made both
+  unnecessary.
+- **A database backup.** Judged low value: the containers outlive the database and the orphan scan
+  finds them, so what is lost is history rather than access.
+- **Automatic orphan destruction.** A restored or lost database makes every live workspace look
+  orphaned, and a timer would then purge the fleet. It is a scan and a click.
+- **A terminal emulator.** `--source visible` returns a rendered viewport, not a byte stream, so
+  xterm.js would be the wrong shape until there is real keystroke input.
+- **Frontend tests.** A real gap rather than a decision, and the next thing worth closing.
