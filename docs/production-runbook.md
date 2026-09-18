@@ -147,15 +147,37 @@ from that point on, or the very next line is `pnpm: command not found`.
 **`rsync --delete`, over the whole tree.** Syncing a list of paths leaves behind files deleted or
 renamed in the repository. A stale module that still resolves is an hour of debugging.
 
-**`chown -R root:pve-herdr-agents`.** `rsync -a` preserves the *developer machine's* uid, so
-without this the controller's code ends up owned by a numeric uid that means nothing on the box.
-The service user must be able to read its code and must not own it.
+**`rsync --no-owner --no-group`.** Plain `-a` carries the *developer machine's* uid across, so the
+controller's code ends up owned by a number that means nothing there. The `chown` at the end used
+to be what corrected this, which meant every deploy fought itself and a failure between the two
+steps left the wrong answer in place. Not sending ownership removes the race; the `chown` stays as
+the thing that states the intended result rather than repairs an unintended one.
+
+**`chown -R root:pve-herdr-agents`.** The service user must be able to read its code and must not
+own it.
 
 **Migrate before starting, not after.** The controller applies migrations lazily, on the first
 request that touches the database. Skip this and it reports itself healthy on the old schema and
 surfaces the failure as a broken request rather than a failed deploy.
 
 **Stop the service before syncing.** Otherwise the tree is replaced under a running process.
+
+### Open the site afterwards
+
+`check`, `typecheck`, `test` and `build` do not load a page. All four have passed against a build
+whose client bundle threw during hydration and rendered nothing but an error box. The script cannot
+catch this; a person has to look. Anything touching `src/router.tsx`, routing or SSR especially.
+
+### Dependencies are pinned exactly
+
+Because the deploy deletes `node_modules` every time, a floating version specifier means a deploy
+can install something other than what last worked, with nothing in the diff to show for it.
+
+`@tanstack/react-router` and `@tanstack/react-start` were once `"latest"`. A fresh install
+eventually paired them with `@tanstack/react-router-with-query`, which had stopped at 1.130 while
+the router went on to 1.170 and still declared a peer range of `">=1.43.2"`. It called an API the
+router no longer had, hydration threw, and the whole UI was an error box. **Treat a wide peer range
+as no guarantee at all.**
 
 ### The slow stop
 

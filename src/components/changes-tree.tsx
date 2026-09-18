@@ -3,7 +3,7 @@ import {
 	useFileTree,
 	useFileTreeSelection,
 } from "@pierre/trees/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { ChangedFile } from "../services/workspace-changes";
 
@@ -48,14 +48,28 @@ export default function ChangesTree({
 
 	const chosen = useFileTreeSelection(model);
 
+	// What was last reported upward. The page and the tree each hold a version of "which file", and
+	// without somewhere to record what has already been passed between them they echo: clearing the
+	// page's selection left the row still selected here, the effect below saw a file the page did
+	// not have, and reported it again. That is why "back to the terminal" appeared to do nothing —
+	// it worked, and the tree immediately undid it.
+	const reported = useRef<string | undefined>(undefined);
+
+	// Tree to page.
 	useEffect(() => {
 		// Directories are selectable and have no diff to show. Reporting one would blank the pane
 		// the reader was looking at, so only a path that is genuinely a changed file counts.
 		const path = chosen.find((candidate) => paths.includes(candidate));
-		if (path !== undefined && path !== selected) {
+		if (path !== undefined && path !== reported.current) {
+			reported.current = path;
 			onSelect(path);
 		}
-	}, [chosen, onSelect, paths, selected]);
+	}, [chosen, onSelect, paths]);
+
+	// Clearing the selection from here is not possible: the public model exposes getSelectedPaths
+	// and no setter, and the write methods belong to a controller it does not hand out. The wrapper
+	// remounts this component instead, which is why `selected` is not read after the first render.
+	void selected;
 
 	return <FileTree className="changes-tree" model={model} />;
 }

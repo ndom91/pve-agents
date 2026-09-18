@@ -276,7 +276,7 @@ function WorkspaceDetail() {
 						{file === undefined ? null : (
 							<div className="centre-switch">
 								<button
-									className="rail-tab"
+									className="centre-back"
 									onClick={() => setFile(undefined)}
 									type="button"
 								>

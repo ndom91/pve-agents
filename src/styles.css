@@ -120,30 +120,37 @@ input:focus {
 	grid-column: span 2;
 }
 
+/* Deliberately almost nothing.
+ *
+ * The filled green appearance used to live on the bare `button` selector, so every control that
+ * was not meant to look like a primary button had to opt out of it by hand. Three did, each
+ * discovered as a bug: the icon button flashed solid green on hover, and both the rail tabs and
+ * the back-to-terminal control turned pale-on-pale and unreadable. Appearance belongs to the
+ * classes below, so a new button starts plain instead of starting wrong. */
 button {
-	background: #b5cda9;
-	border: 0;
-	color: #172016;
 	cursor: pointer;
-	font-weight: 700;
-	justify-self: start;
-	padding: 11px 16px;
-}
-
-button:hover:not(:disabled) {
-	background: #d0e4c5;
 }
 
 /* Every text control, so the same button cannot read as mono in one place and body text in
    another depending on which selector reached it first. */
 .button {
+	background: #b5cda9;
+	border: 0;
+	color: #172016;
+	font-weight: 700;
+	justify-self: start;
+	padding: 11px 16px;
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: 12px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
-button:disabled {
+.button:hover:not(:disabled) {
+	background: #d0e4c5;
+}
+
+.button:disabled {
 	cursor: wait;
 	opacity: 0.6;
 }
@@ -910,8 +917,6 @@ dd {
 	width: 32px;
 }
 
-/* background is restated because the base button:hover fills with the accent colour, and without
-   it an icon button flashed solid green while the anchor beside it did not. */
 .icon-button:hover:not(:disabled) {
 	background: #161b14;
 	border-color: #7b8b71;
@@ -1153,7 +1158,8 @@ dd {
 }
 
 .rail-tab:hover {
-	color: #a9b8a2;
+	border-bottom-color: #4a5545;
+	color: #d6e2cf;
 }
 
 .rail-tab[aria-selected="true"] {
@@ -1169,8 +1175,41 @@ dd {
 }
 
 /* A height rather than a max, because the tree virtualises against its host element's box: with
-   nothing to measure it renders one row and lets the rest go unreachable. */
+   nothing to measure it renders one row and lets the rest go unreachable.
+ *
+ * The tree renders into shadow DOM, so none of the rules in this file reach inside it. Custom
+ * properties do inherit across that boundary, which is the whole of the theming story: set them on
+ * the host and the component picks them up. Out of the box it arrives light-on-blue, which next to
+ * this palette looks like a screenshot from another application. */
 .changes-tree {
+	--trees-bg-override: transparent;
+	--trees-bg-muted-override: #161b14;
+	--trees-fg-override: #d6e2cf;
+	--trees-fg-muted-override: #8a9a83;
+	--trees-accent-override: #7fa06a;
+	--trees-border-color-override: #2c3428;
+	--trees-indent-guide-bg-override: #2c3428;
+	--trees-input-bg-override: #161a15;
+	--trees-theme-list-hover-bg: #161b14;
+	--trees-font-family-override: "SF Mono", "Roboto Mono", monospace;
+	--trees-font-size-override: 12px;
+
+	/* The status badges. Green for work that arrived, red for work that went, amber for work that
+	   changed, and grey for what git is ignoring. Both halves of each pair are set because the
+	   component picks one by theme and this application only has the dark one. */
+	--trees-added-dark: #7fa06a;
+	--trees-added-light: #7fa06a;
+	--trees-untracked-dark: #7fa06a;
+	--trees-untracked-light: #7fa06a;
+	--trees-modified-dark: #c8b45f;
+	--trees-modified-light: #c8b45f;
+	--trees-deleted-dark: #c97f6a;
+	--trees-deleted-light: #c97f6a;
+	--trees-renamed-dark: #8a9a83;
+	--trees-renamed-light: #8a9a83;
+	--trees-ignored-dark: #4a5545;
+	--trees-ignored-light: #4a5545;
+
 	font-size: 12px;
 	height: 320px;
 	min-height: 0;
@@ -1208,4 +1247,25 @@ dd {
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: 12px;
 	overflow-wrap: anywhere;
+}
+
+/* Its own class rather than borrowing .rail-tab, which it was doing only because the two happened
+   to look alike. It is a way back, not a tab, and it sits in the centre rather than the rail. */
+.centre-back {
+	background: none;
+	border: 1px solid #2c3428;
+	border-radius: 6px;
+	color: #8a9a83;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	padding: 6px 10px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.centre-back:hover {
+	background: #161b14;
+	border-color: #7b8b71;
+	color: #d6e2cf;
 }
