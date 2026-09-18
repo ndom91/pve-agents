@@ -39,11 +39,14 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.4.5",
 		"@tanstack/router-cli": "^1.167.36",
+		"@testing-library/react": "^16.3.3",
+		"@testing-library/user-event": "^14.6.7",
 		"@types/better-sqlite3": "^9.6.0",
 		"@types/node": "^22.10.2",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^6.0.1",
+		"happy-dom": "^20.14.5",
 		"typescript": "^6.0.2",
 		"vite": "^8.0.0",
 		"vitest": "^5.0.0"
