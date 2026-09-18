@@ -5,13 +5,14 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
-import { LogOut, Settings } from "lucide-react";
+import { Bell, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 
 import { IconButton } from "../components/icon-button";
 import { SidebarEntry } from "../components/sidebar-entry";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
+import { useBlockedAlerts } from "../lib/use-blocked-alerts";
 import { sessionState } from "../server/session.functions";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -35,6 +36,10 @@ const DESTROYED_SHOWN = 15;
 
 function Dashboard() {
 	const { data: workspaces = [] } = useQuery(fleetQuery());
+	// A blocked workspace is exempt from reaping, so it waits until a person ends it. This is what
+	// makes that person aware there is something to end.
+	const { blocked, permission, requestPermission } =
+		useBlockedAlerts(workspaces);
 	const [signingOut, setSigningOut] = useState(false);
 
 	async function signOut() {
@@ -60,6 +65,14 @@ function Dashboard() {
 		<div className="dashboard">
 			<aside className="dashboard-sidebar">
 				<p className="eyebrow">PVE / HERDR</p>
+
+				{blocked.length === 0 ? null : (
+					<p className="sidebar-waiting">
+						{blocked.length === 1
+							? "1 agent is waiting"
+							: `${blocked.length} agents are waiting`}
+					</p>
+				)}
 
 				<nav>
 					<p className="sidebar-label">Workspaces</p>
@@ -106,6 +119,16 @@ function Dashboard() {
 						>
 							<Settings aria-hidden size={16} strokeWidth={1.75} />
 						</Link>
+						{/* Offered only while it would do something. Browsers require a gesture to
+						    ask, so this is a button rather than a prompt on load, and it disappears
+						    once answered either way. */}
+						{permission !== "prompt" ? null : (
+							<IconButton
+								icon={Bell}
+								label="Notify me when an agent is waiting"
+								onClick={requestPermission}
+							/>
+						)}
 						<IconButton
 							disabled={signingOut}
 							icon={LogOut}

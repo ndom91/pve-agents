@@ -1059,3 +1059,14 @@ dd {
 .detail-kept p {
 	margin: 0;
 }
+
+/* A waiting agent holds its container until someone answers it, so the count sits above the list
+   rather than only on the row you would have to scroll to find. */
+.sidebar-waiting {
+	background: #2a2213;
+	border-left: 2px solid #b08a4a;
+	color: #e0b36a;
+	font-size: 12px;
+	margin: 0;
+	padding: 8px 10px;
+}
