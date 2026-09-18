@@ -124,6 +124,46 @@ test at the real hostname.
 
 ## Deploying an update
 
-`pnpm prune --prod` is run after building. A later `pnpm install --frozen-lockfile` then reports
-"Already up to date" and does **not** restore devDependencies, so the next build fails on a missing
-Vite. Remove `node_modules` before reinstalling.
+```sh
+./bin/deploy.sh              # deploy
+./bin/deploy.sh --dry-run    # show what would be sent and removed, change nothing
+```
+
+**Use the script rather than the steps.** This procedure has been reconstructed from memory more
+than once, and each reconstruction dropped a different step. None of the omissions failed loudly;
+they were found later, by someone wondering why the box was in a state nobody had chosen.
+
+Overridable with `DEPLOY_HOST` and `DEPLOY_ROOT`, which is also how you would deploy a second one.
+
+### The steps that look optional and are not
+
+**`rm -rf node_modules` before installing.** The deploy ends with `pnpm prune --prod`. A later
+`pnpm install --frozen-lockfile` then reports "Already up to date" and does **not** restore
+devDependencies, so the next build fails on a missing Vite.
+
+**Removing `node_modules` also removes pnpm's shims**, so use `corepack pnpm` rather than `pnpm`
+from that point on, or the very next line is `pnpm: command not found`.
+
+**`rsync --delete`, over the whole tree.** Syncing a list of paths leaves behind files deleted or
+renamed in the repository. A stale module that still resolves is an hour of debugging.
+
+**`chown -R root:pve-herdr-agents`.** `rsync -a` preserves the *developer machine's* uid, so
+without this the controller's code ends up owned by a numeric uid that means nothing on the box.
+The service user must be able to read its code and must not own it.
+
+**Migrate before starting, not after.** The controller applies migrations lazily, on the first
+request that touches the database. Skip this and it reports itself healthy on the old schema and
+surfaces the failure as a broken request rather than a failed deploy.
+
+**Stop the service before syncing.** Otherwise the tree is replaced under a running process.
+
+### The slow stop
+
+The controller does not exit on `SIGTERM`. systemd waits 90 seconds and then `SIGKILL`s it, so
+every deploy pauses for a minute and a half at `==> stopping`. That is expected, not a hang.
+
+Starting a second deploy during that window prints `Job for pve-herdr-agents.service canceled` and
+leaves the unit in `deactivating`. Wait for `systemctl is-active` to settle, then run it again.
+
+Worth fixing properly: nothing closes the SSE watchers or the scheduler interval on shutdown, so
+the event loop never drains.

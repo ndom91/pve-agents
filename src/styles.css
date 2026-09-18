@@ -304,19 +304,43 @@ dd {
 	background: #10140f;
 	border: 1px solid #2c3428;
 	font-family: "SF Mono", "Roboto Mono", monospace;
+	/* Everything inside .centre-screen that is not the screen: the answer-key row, the prompt form
+	   below it, the gaps between them, and this element's own padding and border.
+
+	   All three are fixed-height, which is what makes a constant workable here. Get it too small
+	   and the screen is quietly shortened to fit and its last lines disappear, which is why the
+	   overflow below is `auto` rather than `hidden`: if this number ever stops being true, the
+	   result should be a scrollbar someone notices, not output that silently goes missing. */
+	--screen-reserved: 260px;
+
+	/* The smaller of the two fits: whichever axis runs out first decides the size. Fitting width
+	   alone left a tall screen clipped by the column, and fitting height alone let a wide one
+	   overflow sideways. */
 	font-size: clamp(
-		8px,
-		calc(100cqi / (var(--screen-cols, 100) * var(--screen-char))),
+		7px,
+		min(
+			calc(100cqw / (var(--screen-cols, 100) * var(--screen-char))),
+			calc(
+				(100cqh - var(--screen-reserved)) /
+					(var(--screen-rows, 24) * var(--screen-line))
+			)
+		),
 		13px
 	);
-	height: calc(var(--screen-rows, 24) * var(--screen-line) * 1em + 24px);
+	/* 24px of padding, plus 2px for rounding: the font size is fractional, so forty line boxes
+	   round up to about a pixel more than forty times one line, and a single pixel is enough to
+	   raise a scrollbar on a box that fits. */
+	height: calc(var(--screen-rows, 24) * var(--screen-line) * 1em + 26px);
 	line-height: var(--screen-line);
 	margin: 0;
-	/* Vertical is hidden because the height is exact by construction. Horizontal stays automatic:
-	   it appears only if the character-width estimate is off or the clamp floor was reached, which
-	   is better than silently clipping a column of output. */
-	overflow-x: auto;
-	overflow-y: hidden;
+	/* Never shrunk by the flex layout. The font size above is what fits this box to its space;
+	   letting flex shorten it as well meant the height said forty rows while the box held
+	   thirty-seven, and the missing three were simply not drawn. */
+	flex: none;
+
+	/* Both automatic, so a wrong estimate shows up as a scrollbar rather than as output that
+	   quietly is not there. Neither should appear in normal use. */
+	overflow: auto;
 	padding: 12px;
 	white-space: pre;
 }
@@ -753,9 +777,9 @@ dd {
 }
 
 .centre-screen {
-	/* The unit the screen's font size is computed against, so the grid is fitted to the column it
-	   actually has rather than to the window. */
-	container-type: inline-size;
+	/* Both axes, because the screen is fitted to the box in both. `size` rather than `inline-size`
+	   needs a definite height, which the flex rule below gives it. */
+	container-type: size;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -816,6 +840,30 @@ dd {
 
 	.dashboard-main-fixed {
 		overflow: visible;
+	}
+
+	/* Below this the column grows with its content and the page scrolls, so nothing has a definite
+	   height any more. The screen is fitted to width alone here: asking for a share of a height
+	   that does not exist resolves to nothing and pins the font to its smallest allowed size. */
+	.centre-screen {
+		container-type: inline-size;
+	}
+
+	.detail-screen {
+		font-size: clamp(
+			7px,
+			calc(100cqw / (var(--screen-cols, 100) * var(--screen-char))),
+			13px
+		);
+	}
+
+	.dashboard-main-fixed .centre-screen,
+	.dashboard-main-fixed .centre-timeline {
+		flex: 0 0 auto;
+	}
+
+	.dashboard-main-fixed .detail-timeline {
+		overflow-y: visible;
 	}
 
 	.dashboard-rail {
@@ -994,20 +1042,36 @@ dd {
    The screen and the timeline each scroll themselves, so the column never
    does. Without this the page grew with the transcript and the prompt walked
    off the bottom of the window, which is the one control you always want. */
-/* One scrollbar, on the column, rather than one per section.
+/* The column does not scroll. The timeline does.
 
-   This used to divide the window height between the screen and the timeline, each with its own
-   scroll. That gave the terminal a share of the viewport instead of the size it actually is, which
-   is what put a scrollbar on a pane with no scrollback behind it to reach. Now every section takes
-   its natural height and the column scrolls if they do not all fit. */
+   Everything else here is either fixed (the prompt, the answer keys) or sized to fit (the screen),
+   so the only section with more content than space is the history, and it is the one that gets a
+   scrollbar. Letting the column scroll instead pushed the terminal off the top of the window,
+   which is the one thing on the page that should always be in view. */
 .dashboard-main-fixed {
-	overflow-y: auto;
+	overflow: hidden;
 	padding-bottom: 24px;
 }
 
-.dashboard-main-fixed .centre-screen,
+/* Takes the space the fixed sections leave. Its font size is then computed against that space, so
+   the grid fits it exactly rather than overflowing and being clipped. */
+.dashboard-main-fixed .centre-screen {
+	flex: 1 1 0;
+	min-height: 0;
+}
+
+/* A fixed slice of the column rather than a share of it, so the terminal's size does not change
+   every time a workspace records another event. */
 .dashboard-main-fixed .centre-timeline {
-	flex: 0 0 auto;
+	display: flex;
+	flex: 0 0 210px;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.dashboard-main-fixed .detail-timeline {
+	min-height: 0;
+	overflow-y: auto;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────────
