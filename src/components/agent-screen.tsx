@@ -46,12 +46,42 @@ export function parseScreen(screen: string): ScreenSpan[] {
 	);
 }
 
+// screenSize measures the terminal grid the agent drew on.
+//
+// Measured from the parsed text rather than the raw string: the escape sequences carrying colour
+// occupy no columns on a terminal, and counting them would report a screen half as wide again as
+// the one a person is looking at.
+export function screenSize(spans: ScreenSpan[]): {
+	cols: number;
+	rows: number;
+} {
+	const lines = spans
+		.map((span) => span.text)
+		.join("")
+		.split("\n");
+
+	return {
+		cols: lines.reduce((widest, line) => Math.max(widest, line.length), 1),
+		rows: Math.max(lines.length, 1),
+	};
+}
+
 // AgentScreen renders what the agent has on screen, with the colour it drew.
+//
+// The pane is a fixed grid, not a document: Herdr renders a viewport of a particular number of rows
+// and columns, and there is no scrollback behind it because Claude Code draws on the alternate
+// screen. So the box is sized to that grid rather than given a share of the window, which is what
+// put a scrollbar on a screen that has nothing above or below it to scroll to. The measurements go
+// out as custom properties and the stylesheet turns them into a size.
 export function AgentScreen({ screen }: { screen: string }): ReactNode {
 	const spans = parseScreen(screen);
+	const { cols, rows } = screenSize(spans);
 
 	return (
-		<pre className="detail-screen">
+		<pre
+			className="detail-screen"
+			style={{ "--screen-cols": cols, "--screen-rows": rows } as CSSProperties}
+		>
 			{spans.map((span, index) => (
 				// A terminal screen is a positional list, replaced wholesale on every update and
 				// never reordered, so position is the identity. There is nothing else to key on:

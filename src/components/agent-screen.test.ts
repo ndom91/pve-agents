@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseScreen } from "./agent-screen";
+import { parseScreen, screenSize } from "./agent-screen";
 
 // ESC spelled out rather than embedded, so the fixtures stay readable in a diff and cannot be
 // mangled by an editor that strips control characters.
@@ -56,5 +56,31 @@ describe("parseScreen", () => {
 		const spans = parseScreen(`${ESC}[2Jcleared`);
 
 		expect(spans.map((span) => span.text).join("")).not.toContain("[2J");
+	});
+});
+
+describe("screenSize", () => {
+	it("measures the grid the agent actually drew on", () => {
+		const size = screenSize(parseScreen("abc\nde\nfghij"));
+
+		expect(size).toEqual({ cols: 5, rows: 3 });
+	});
+
+	it("does not count colour as width", () => {
+		// The measurement decides how small the font has to be for the screen to fit. Counting the
+		// escape sequences would report a screen half as wide again as the one on the page, and
+		// shrink the text to fit columns that are not there.
+		const coloured = parseScreen(`${ESC}[31mred${ESC}[0m`);
+
+		expect(screenSize(coloured).cols).toBe(3);
+	});
+
+	it("never reports an empty screen as no size at all", () => {
+		// Zero rows would collapse the box to its padding, and zero columns divides by nothing when
+		// the stylesheet works out the font size.
+		const size = screenSize(parseScreen(""));
+
+		expect(size.cols).toBeGreaterThan(0);
+		expect(size.rows).toBeGreaterThan(0);
 	});
 });

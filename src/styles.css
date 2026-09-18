@@ -288,14 +288,35 @@ dd {
 	margin: 0;
 }
 
+/* The agent's screen is a fixed grid rather than a document. Herdr renders a viewport of a set
+   number of rows and columns, and Claude Code draws on the alternate screen, so there is no
+   scrollback behind it: a scrollbar here can only ever hide part of the one thing worth seeing.
+
+   So the box is sized from the grid the component measured instead of from the window. The height
+   is exactly the rows it has, and the font shrinks just enough for the columns to fit the space
+   available, which is what removes both scrollbars rather than trading one for the other. */
 .detail-screen {
+	--screen-line: 1.4;
+	/* Monospace advance width is close to 0.6em; 0.62 leaves a little room rather than
+	   overflowing by a character on a round number of columns. */
+	--screen-char: 0.62;
+
 	background: #10140f;
 	border: 1px solid #2c3428;
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
-	line-height: 1.4;
+	font-size: clamp(
+		8px,
+		calc(100cqi / (var(--screen-cols, 100) * var(--screen-char))),
+		13px
+	);
+	height: calc(var(--screen-rows, 24) * var(--screen-line) * 1em + 24px);
+	line-height: var(--screen-line);
 	margin: 0;
+	/* Vertical is hidden because the height is exact by construction. Horizontal stays automatic:
+	   it appears only if the character-width estimate is off or the clamp floor was reached, which
+	   is better than silently clipping a column of output. */
 	overflow-x: auto;
+	overflow-y: hidden;
 	padding: 12px;
 	white-space: pre;
 }
@@ -732,13 +753,12 @@ dd {
 }
 
 .centre-screen {
+	/* The unit the screen's font size is computed against, so the grid is fitted to the column it
+	   actually has rather than to the window. */
+	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-}
-
-.centre-screen .detail-screen {
-	overflow: auto;
 }
 
 .centre-timeline h2 {
@@ -796,15 +816,6 @@ dd {
 
 	.dashboard-main-fixed {
 		overflow: visible;
-	}
-
-	.dashboard-main-fixed .centre-screen,
-	.dashboard-main-fixed .centre-timeline {
-		flex: 0 0 auto;
-	}
-
-	.dashboard-main-fixed .detail-screen {
-		max-height: 60vh;
 	}
 
 	.dashboard-rail {
@@ -983,34 +994,20 @@ dd {
    The screen and the timeline each scroll themselves, so the column never
    does. Without this the page grew with the transcript and the prompt walked
    off the bottom of the window, which is the one control you always want. */
+/* One scrollbar, on the column, rather than one per section.
+
+   This used to divide the window height between the screen and the timeline, each with its own
+   scroll. That gave the terminal a share of the viewport instead of the size it actually is, which
+   is what put a scrollbar on a pane with no scrollback behind it to reach. Now every section takes
+   its natural height and the column scrolls if they do not all fit. */
 .dashboard-main-fixed {
-	overflow: hidden;
+	overflow-y: auto;
 	padding-bottom: 24px;
 }
 
-/* Three to one: the terminal is what is being watched, the timeline is a reference. Both are
-   flex-basis zero so they divide the leftover space rather than their content deciding it. */
-.dashboard-main-fixed .centre-screen {
-	flex: 3 1 0;
-	min-height: 0;
-}
-
-.dashboard-main-fixed .detail-screen {
-	flex: 1 1 auto;
-	min-height: 0;
-}
-
+.dashboard-main-fixed .centre-screen,
 .dashboard-main-fixed .centre-timeline {
-	display: flex;
-	flex: 1 1 0;
-	flex-direction: column;
-	min-height: 0;
-}
-
-/* Takes the whole column when there is no screen, which is every workspace still building. */
-.dashboard-main-fixed .detail-timeline {
-	min-height: 0;
-	overflow-y: auto;
+	flex: 0 0 auto;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────────
