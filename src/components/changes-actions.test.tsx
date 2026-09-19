@@ -121,6 +121,17 @@ describe("ChangesActions", () => {
 		expect(screen.getByDisplayValue("Add a thing")).toBeDefined();
 	});
 
+	it("labels the message field, which arrives pre-filled", () => {
+		// A placeholder is only read when a field is empty, and this one is pre-filled with the
+		// workspace's purpose. Queried by its label rather than its placeholder, so the assertion
+		// fails if the label is removed or stops being associated with the input.
+		render(actions({ suggestedMessage: "Add a thing" }));
+
+		expect(
+			(screen.getByLabelText(/commit message/i) as HTMLInputElement).value,
+		).toBe("Add a thing");
+	});
+
 	it("refuses to push an empty commit message", async () => {
 		const onPush = vi.fn();
 		render(actions({ onPush, suggestedMessage: "   " }));

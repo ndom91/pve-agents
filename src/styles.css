@@ -1320,6 +1320,13 @@ dd {
 	padding-top: 16px;
 }
 
+/* Narrower than the labels on the request form, because the rail is narrower and these sit against
+   the rail's own 10px terms rather than against a full-width form. */
+.changes-message {
+	font-size: 10px;
+	gap: 6px;
+}
+
 .changes-actions input {
 	background: #161a15;
 	border: 1px solid #2c3428;

@@ -51,12 +51,18 @@ export function ChangesActions({
 
 	return (
 		<div className="changes-actions">
-			<input
-				disabled={pushing}
-				onChange={(event) => setMessage(event.target.value)}
-				placeholder="Commit message"
-				value={message}
-			/>
+			{/* Labelled rather than relying on the placeholder, because the field arrives pre-filled
+			    with the workspace's purpose and a placeholder is only ever read when a field is
+			    empty. It explained itself to nobody who had not already emptied it. */}
+			<label className="changes-message">
+				<span>Commit message</span>
+				<input
+					disabled={pushing}
+					onChange={(event) => setMessage(event.target.value)}
+					placeholder="Commit message"
+					value={message}
+				/>
+			</label>
 			<Button
 				disabled={pushing || message.trim() === ""}
 				onClick={() => onPush(message.trim())}
