@@ -12,6 +12,8 @@ import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
+import type { WorkspaceOutcome } from "../domain/workspace-outcome";
+import { workspaceOutcome } from "../domain/workspace-outcome";
 import {
 	changesQuery,
 	fileDiffQuery,
@@ -65,6 +67,9 @@ function WorkspaceDetail() {
 	const file = tab.kind === "file" ? tab.path : undefined;
 
 	const ready = workspace?.status === "ready";
+	// Nothing can be done to it any more: no terminal, no prompt, no diff to push or discard.
+	const finished =
+		workspace?.status === "destroyed" || workspace?.status === "failed";
 	const blocked = workspace?.activity === "blocked";
 	const { data: pane } = useQuery(paneQuery(workspaceId, ready));
 
@@ -268,7 +273,15 @@ function WorkspaceDetail() {
 					</section>
 				)}
 
-				{workspace.unsavedWork !== true ? null : (
+				{/* What became of the work, once the container is gone.
+				    Derived from the timeline rather than stored: the push already writes the
+				    branch there, and a second copy is a second thing to keep true. */}
+				{!finished ? null : <Outcome workspace={workspace} />}
+
+				{/* Only while the workspace still exists. On a destroyed one this used to say it
+				    "will not be destroyed automatically" and to open a Diff tab that is not there,
+				    which is advice about a container nobody can act on any more. */}
+				{workspace.unsavedWork !== true || finished ? null : (
 					<section className="detail-kept">
 						<h2>Holding unsaved work</h2>
 						<p>
@@ -432,4 +445,61 @@ function suggestedMessage(purpose?: string): string {
 	// Commit summaries are read in fixed-width lists, so a purpose running to a paragraph is cut
 	// rather than allowed to set the width of every log that ever shows it.
 	return text.length > 72 ? `${text.slice(0, 69)}...` : text;
+}
+
+// Outcome says where a finished workspace's work went, in one line.
+//
+// The container is gone and the timeline is sixteen entries long; this is the one sentence
+// somebody scrolling back through a destroyed workspace actually wants.
+function Outcome({
+	workspace,
+}: {
+	workspace: Parameters<typeof workspaceOutcome>[0];
+}) {
+	const outcome = workspaceOutcome(workspace);
+	if (outcome.kind === "nothing") {
+		return null;
+	}
+
+	return (
+		<section
+			className={
+				outcome.kind === "lost" ? "detail-kept detail-lost" : "detail-kept"
+			}
+		>
+			<h2>{HEADINGS[outcome.kind]}</h2>
+			<p>{body(outcome)}</p>
+		</section>
+	);
+}
+
+const HEADINGS: Record<WorkspaceOutcome["kind"], string> = {
+	discarded: "Changes discarded",
+	lost: "Ended holding unsaved work",
+	nothing: "",
+	pushed: "Work pushed",
+};
+
+function body(outcome: WorkspaceOutcome) {
+	if (outcome.kind === "pushed") {
+		return (
+			<>
+				The agent's work is on{" "}
+				{outcome.url === undefined ? (
+					<code>{outcome.branch}</code>
+				) : (
+					<a href={outcome.url} rel="noreferrer" target="_blank">
+						{outcome.branch}
+					</a>
+				)}
+				, not on the branch the workspace was cloned from. The container is
+				gone; the work is not.
+			</>
+		);
+	}
+	if (outcome.kind === "discarded") {
+		return "Everything in the working tree was deliberately thrown away before this workspace ended.";
+	}
+
+	return "This workspace was last seen holding uncommitted or unpushed changes. Its container has been deleted, so that work is gone.";
 }

@@ -1579,3 +1579,30 @@ dd {
 .home-form .button {
 	align-self: start;
 }
+
+/* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
+   where something is gone and nobody can get it back. */
+.detail-lost {
+	border-color: var(--danger);
+}
+
+.detail-lost h2 {
+	color: var(--danger-fg);
+}
+
+.detail-kept a {
+	color: var(--accent-fill);
+}
+
+.detail-kept code {
+	color: var(--fg-bright);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+}
+
+/* With no terminal — a workspace that never came up, or one whose container is gone — the timeline
+   is the only content there is, and a 210px slice of the column left the rest of the page empty
+   below it. The fixed height exists to stop the history pushing the terminal about; with no
+   terminal there is nothing to protect. */
+.dashboard-main-fixed:not(:has(.centre-screen)) .centre-timeline {
+	flex: 1 1 auto;
+}
