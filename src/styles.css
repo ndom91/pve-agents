@@ -1392,3 +1392,190 @@ dd {
 	width: 100%;
 }
 
+
+/* The landing page.
+ *
+ * It was a request form centred in an empty viewport, and the sidebar was the only view of the
+ * fleet. The form is still here and still the point on an empty controller, but it is no longer
+ * the only thing the page says. */
+.dashboard-home {
+	display: flex;
+	flex-direction: column;
+	gap: 40px;
+	margin: 0 auto;
+	max-width: 900px;
+	overflow-y: auto;
+	padding: 32px 28px 64px;
+	width: 100%;
+}
+
+.home-head {
+	align-items: end;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	justify-content: space-between;
+	padding-bottom: 20px;
+}
+
+.home-head h1 {
+	margin: 0;
+}
+
+/* Reuses the rail's term-and-value shape, so the controller's own facts read the same way as a
+   workspace's do. */
+.home-status {
+	display: flex;
+	gap: 28px;
+}
+
+.home-health dt {
+	color: var(--fg-dim);
+	font-size: var(--text-xs);
+	letter-spacing: 0.08em;
+	margin-bottom: 4px;
+	text-transform: uppercase;
+}
+
+.home-health dd {
+	color: var(--fg-bright);
+	font-size: var(--text-lg);
+}
+
+/* Off is the state worth noticing: a controller that will not act on what you are about to ask it
+   for. Coloured rather than merely dimmer, because dimmer reads as less important. */
+.home-health.is-off dd {
+	color: var(--warn-fg);
+}
+
+.home-fleet h2,
+.home-request h2 {
+	align-items: baseline;
+	color: var(--fg-muted);
+	display: flex;
+	font-size: var(--text-sm);
+	gap: 8px;
+	letter-spacing: 0.08em;
+	margin: 0 0 16px;
+	text-transform: uppercase;
+}
+
+.home-count {
+	color: var(--fg-dim);
+}
+
+.fleet-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.fleet-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	color: inherit;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	text-decoration: none;
+}
+
+.fleet-card:hover {
+	border-color: var(--line);
+}
+
+/* The purpose leads and is allowed two lines. A workspace is a request for work, and this is the
+   only field that says which request. */
+.fleet-purpose {
+	color: var(--fg-bright);
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	font-size: var(--text-lg);
+	line-height: 1.4;
+	margin: 0;
+	overflow: hidden;
+}
+
+.fleet-meta {
+	color: var(--fg-dim);
+	display: flex;
+	flex-wrap: wrap;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-xs);
+	gap: 8px;
+}
+
+.fleet-host {
+	color: var(--fg-muted);
+}
+
+.fleet-badges {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.fleet-badges .status,
+.fleet-badges .activity {
+	font-size: var(--text-xs);
+	padding: 3px 6px;
+}
+
+.fleet-flag {
+	border: 1px solid var(--warn);
+	color: var(--warn-fg);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-xs);
+	letter-spacing: 0.08em;
+	padding: 3px 6px;
+	text-transform: uppercase;
+}
+
+.fleet-age {
+	color: var(--fg-dim);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-xs);
+	margin-left: auto;
+}
+
+/* One column, because the request form is read top to bottom rather than scanned. The two-column
+   grid the bare `form` rule imposes is for the wider panels elsewhere. */
+.home-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin: 0;
+	max-width: 520px;
+}
+
+.home-purpose small {
+	color: var(--fg-dim);
+	font-size: var(--text-xs);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.home-form textarea {
+	background: var(--surface);
+	border: 1px solid var(--border-dim);
+	color: var(--fg);
+	font-family: inherit;
+	padding: 11px 12px;
+	resize: vertical;
+}
+
+.home-form textarea:focus {
+	border-color: var(--accent-fill);
+	outline: 2px solid var(--accent-ring);
+	outline-offset: 2px;
+}
+
+/* The .button rule uses justify-self, which does nothing in a flex column, so the submit button
+   stretched the full width of the form. */
+.home-form .button {
+	align-self: start;
+}

@@ -6,6 +6,7 @@ import {
 	workspacePane,
 } from "../server/agent.functions";
 import { workspaceSettings } from "../server/settings.functions";
+import { controllerStatus } from "../server/status.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
 
 // Cadences live together rather than beside whichever component happened to need one, because the
@@ -35,6 +36,7 @@ export const workspaceKeys = {
 	list: () => ["workspaces"] as const,
 	pane: (id: string) => ["workspace", id, "pane"] as const,
 	settings: () => ["settings"] as const,
+	status: () => ["controller-status"] as const,
 };
 
 // fleetQuery is the workspace list the sidebar navigates by.
@@ -120,6 +122,21 @@ export function fileDiffQuery(id: string, path?: string) {
 		queryFn: () => workspaceFileDiff({ data: { id, path: path ?? "" } }),
 		queryKey: workspaceKeys.file(id, path ?? ""),
 		refetchInterval: false,
+	});
+}
+
+// statusQuery holds whether the controller will act on anything at all.
+//
+// Refreshed on the same cadence as the fleet while work is in flight, because the two answer one
+// question between them: the fleet says what exists, this says whether it is being advanced. A
+// controller with its worker off looks identical to a busy one from the fleet list alone.
+export function statusQuery() {
+	return queryOptions({
+		queryFn: () => controllerStatus(),
+		queryKey: workspaceKeys.status(),
+		refetchInterval: (query) =>
+			(query.state.data?.activeOperations ?? 0) > 0 ? FLEET_REFRESH_MS : false,
+		refetchIntervalInBackground: false,
 	});
 }
 
