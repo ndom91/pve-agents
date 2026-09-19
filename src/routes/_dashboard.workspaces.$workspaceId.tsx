@@ -385,11 +385,6 @@ function WorkspaceDetail() {
 						{note === "" ? null : <p className="detail-note">{note}</p>}
 					</section>
 				)}
-
-				<section className="centre-timeline">
-					<h2>Timeline</h2>
-					<WorkspaceTimeline events={workspace.events} />
-				</section>
 			</main>
 
 			<WorkspaceRail
@@ -425,6 +420,11 @@ function WorkspaceDetail() {
 				onClose={closeFile}
 				onTab={setTab}
 				tab={tab}
+				timeline={
+					<div className="rail-timeline">
+						<WorkspaceTimeline events={workspace.events} />
+					</div>
+				}
 				workspace={workspace}
 			/>
 		</>

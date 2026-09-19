@@ -137,4 +137,46 @@ describe("WorkspaceRail", () => {
 			expect(screen.getByText("the actions")).toBeDefined();
 		}
 	});
+
+	it("offers a timeline tab even for a workspace with no diff", () => {
+		// A workspace that failed before it ever had a checkout still has a history, and that is
+		// exactly when somebody goes looking for one. Tabs appear for the timeline alone.
+		render(
+			<WorkspaceRail
+				tab={{ kind: "timeline" }}
+				timeline={<p>the history</p>}
+				workspace={{}}
+			/>,
+		);
+
+		expect(screen.getByRole("tab", { name: "Timeline" })).toBeDefined();
+		expect(screen.getByText("the history")).toBeDefined();
+	});
+
+	it("offers no diff tab when there is nothing to inspect", () => {
+		// A destroyed container cannot be read, so the tab would answer nothing.
+		render(
+			<WorkspaceRail
+				tab={{ kind: "timeline" }}
+				timeline={<p>the history</p>}
+				workspace={{}}
+			/>,
+		);
+
+		expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
+	});
+
+	it("shows one tab's content at a time", () => {
+		render(
+			<WorkspaceRail
+				changes={<p>the list</p>}
+				tab={{ kind: "timeline" }}
+				timeline={<p>the history</p>}
+				workspace={{}}
+			/>,
+		);
+
+		expect(screen.getByText("the history")).toBeDefined();
+		expect(screen.queryByText("the list")).toBeNull();
+	});
 });

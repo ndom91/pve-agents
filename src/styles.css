@@ -859,14 +859,6 @@ dd {
 	gap: 12px;
 }
 
-.centre-timeline h2 {
-	color: var(--fg-muted);
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	margin: 0 0 12px;
-	text-transform: uppercase;
-}
-
 .dashboard-rail {
 	border-left: 1px solid var(--border);
 	display: flex;
@@ -955,11 +947,7 @@ dd {
 	}
 
 	.dashboard-main-fixed .centre-screen,
-	.dashboard-main-fixed .centre-timeline {
-		flex: 0 0 auto;
-	}
-
-	.dashboard-main-fixed .detail-timeline {
+		.dashboard-main-fixed .detail-timeline {
 		overflow-y: visible;
 	}
 
@@ -1157,14 +1145,7 @@ dd {
 
 /* A fixed slice of the column rather than a share of it, so the terminal's size does not change
    every time a workspace records another event. */
-.dashboard-main-fixed .centre-timeline {
-	display: flex;
-	flex: 0 0 210px;
-	flex-direction: column;
-	min-height: 0;
-}
-
-.dashboard-main-fixed .detail-timeline {
+.dashboard-main-fixed .dashboard-main-fixed .detail-timeline {
 	min-height: 0;
 	overflow-y: auto;
 }
@@ -1609,10 +1590,24 @@ dd {
 	font-family: "SF Mono", "Roboto Mono", monospace;
 }
 
-/* With no terminal — a workspace that never came up, or one whose container is gone — the timeline
-   is the only content there is, and a 210px slice of the column left the rest of the page empty
-   below it. The fixed height exists to stop the history pushing the terminal about; with no
-   terminal there is nothing to protect. */
-.dashboard-main-fixed:not(:has(.centre-screen)) .centre-timeline {
-	flex: 1 1 auto;
+
+/* The timeline in its tab. It was a section in the centre, sharing the column with the terminal;
+   it is reference material, read when something has gone wrong, which is what the rail is for. */
+.rail-timeline {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* Narrower than the centre was, so the fixed-width type column that kept the old layout aligned
+   would now push every message off the edge. It wraps under its timestamp instead. */
+.rail-timeline .detail-timeline li {
+	flex-direction: column;
+	font-size: var(--text-xs);
+	gap: 2px;
+}
+
+.rail-timeline .log-type {
+	min-width: 0;
 }

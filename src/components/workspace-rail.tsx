@@ -29,7 +29,8 @@ type RailWorkspace = {
 export type RailTab =
 	| { kind: "details" }
 	| { kind: "diff" }
-	| { kind: "file"; path: string };
+	| { kind: "file"; path: string }
+	| { kind: "timeline" };
 
 // sameTab compares two tabs, which is otherwise a three-way check at every call site.
 export function sameTab(left: RailTab, right: RailTab): boolean {
@@ -58,6 +59,7 @@ export function WorkspaceRail({
 	onClose,
 	onTab,
 	tab = { kind: "details" },
+	timeline,
 	workspace,
 }: {
 	actions?: ReactNode;
@@ -67,6 +69,7 @@ export function WorkspaceRail({
 	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab?: RailTab;
+	timeline?: ReactNode;
 	workspace: RailWorkspace;
 }): ReactNode {
 	const { setWidth, width } = useRailWidth();
@@ -75,12 +78,28 @@ export function WorkspaceRail({
 	// reach across routes to the layout that owns the columns. The grid's last column is `auto`.
 	const sized = { width: `${width}px` };
 
-	if (changes !== undefined && tab.kind !== "details") {
+	// Tabs appear once there is anything beyond placement to show. The timeline alone is enough:
+	// a workspace that failed before it ever had a diff still has a history worth reading, and
+	// that is exactly when somebody goes looking for one.
+	const tabbed = changes ?? timeline;
+
+	if (tabbed !== undefined && tab.kind !== "details") {
 		return (
 			<aside className="dashboard-rail" style={sized}>
 				<RailResizer onResize={setWidth} width={width} />
-				<Tabs files={files} onClose={onClose} onTab={onTab} tab={tab} />
-				<div className="rail-body">{tab.kind === "file" ? file : changes}</div>
+				<Tabs
+					changes={changes}
+					files={files}
+					onClose={onClose}
+					onTab={onTab}
+					tab={tab}
+					timeline={timeline}
+				/>
+				<div className="rail-body">
+					{tab.kind === "file" ? file : null}
+					{tab.kind === "diff" ? changes : null}
+					{tab.kind === "timeline" ? timeline : null}
+				</div>
 				{actions}
 			</aside>
 		);
@@ -89,10 +108,17 @@ export function WorkspaceRail({
 	return (
 		<aside className="dashboard-rail" style={sized}>
 			<RailResizer onResize={setWidth} width={width} />
-			{changes === undefined ? (
+			{tabbed === undefined ? (
 				<p className="sidebar-label">Placement</p>
 			) : (
-				<Tabs files={files} onClose={onClose} onTab={onTab} tab={tab} />
+				<Tabs
+					changes={changes}
+					files={files}
+					onClose={onClose}
+					onTab={onTab}
+					tab={tab}
+					timeline={timeline}
+				/>
 			)}
 			<dl>
 				<Fact label="Repository" value={workspace.repository} />
@@ -117,19 +143,30 @@ export function WorkspaceRail({
 
 // Tabs switches the rail between placement, the change list, and any file opened from it.
 function Tabs({
+	changes,
 	files,
 	onClose,
 	onTab,
 	tab,
+	timeline,
 }: {
+	changes?: ReactNode;
 	files: string[];
 	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab: RailTab;
+	timeline?: ReactNode;
 }) {
+	// Diff only for a workspace that has one. A destroyed container cannot be inspected, and a tab
+	// that answers nothing is worse than an absent one.
 	const fixed: { label: string; value: RailTab }[] = [
 		{ label: "Details", value: { kind: "details" } },
-		{ label: "Diff", value: { kind: "diff" } },
+		...(changes === undefined
+			? []
+			: [{ label: "Diff", value: { kind: "diff" } as RailTab }]),
+		...(timeline === undefined
+			? []
+			: [{ label: "Timeline", value: { kind: "timeline" } as RailTab }]),
 	];
 
 	return (

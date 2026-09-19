@@ -1,6 +1,6 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 
-import { RAIL_MIN } from "../lib/use-rail-width";
+import { RAIL_DEFAULT, RAIL_MIN } from "../lib/use-rail-width";
 
 // KEYBOARD_STEP is how far one arrow press moves the edge. Large enough to get somewhere without
 // holding the key for a minute, small enough to land where you meant.
@@ -56,7 +56,7 @@ export function RailResizer({
 			aria-valuemin={RAIL_MIN}
 			aria-valuenow={Math.round(width)}
 			className="rail-resizer"
-			onDoubleClick={() => onResize(RAIL_MIN)}
+			onDoubleClick={() => onResize(RAIL_DEFAULT)}
 			onKeyDown={(event) => {
 				if (event.key === "ArrowLeft") {
 					event.preventDefault();

@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 // they exist to show start wrapping mid-address.
 export const RAIL_MIN = 260;
 
+// RAIL_DEFAULT is what it opens at, which is not the same question as how narrow it may be dragged.
+//
+// These were one number, so the rail always opened at its narrowest and the first thing anybody did
+// with a diff was widen it. Wide enough to read one without dragging; a stored width still wins.
+export const RAIL_DEFAULT = 380;
+
 // CENTRE_MIN is what the rail must leave behind. The terminal is the thing being watched, and a
 // rail dragged over the top of it would be a worse view of both.
 const CENTRE_MIN = 420;
@@ -19,7 +25,7 @@ export function useRailWidth(): {
 	setWidth: (width: number) => void;
 	width: number;
 } {
-	const [width, setStored] = useState(RAIL_MIN);
+	const [width, setStored] = useState(RAIL_DEFAULT);
 
 	// Read after mount rather than during render. localStorage does not exist on the server, and a
 	// width restored during render would disagree with the markup the server sent.
