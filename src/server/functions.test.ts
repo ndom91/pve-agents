@@ -49,6 +49,20 @@ describe("server function guards", () => {
 		}
 	}
 
+	for (const file of functionModules()) {
+		const source = readFileSync(join(SERVER_DIR, file), "utf8");
+
+		for (const [name, chain] of serverFunctions(source)) {
+			// Both directions, because each is a different mistake. A handler that reads `data`
+			// without a validator takes whatever the network sent, unchecked and mistyped as the
+			// shape it expected. A validator on a handler that ignores `data` is a schema nobody
+			// applies, which reads like a guarantee and is not one.
+			it(`${file}: ${name} validates its input exactly when it has some`, () => {
+				expect(chain.includes(".validator(")).toBe(readsData(chain));
+			});
+		}
+	}
+
 	it("covers every server function module in the directory", () => {
 		// The scan is only worth anything if it finds the files. A rename that silently matched
 		// nothing would leave every assertion above passing against an empty list.
@@ -95,15 +109,26 @@ function functionModules(): string[] {
 		.sort();
 }
 
-// serverFunctions pulls each definition out of a module's source, from its name to its handler.
+// serverFunctions pulls each definition out of a module's source, from its name through the line
+// its handler opens on.
 //
-// Non-greedy to the first `.handler(`, which is what keeps one definition from swallowing the next.
+// Non-greedy to the first `.handler(`, which is what keeps one definition from swallowing the
+// next. The rest of that line is included because the handler's own arguments are what say whether
+// the function takes input at all.
 function serverFunctions(source: string): [string, string][] {
 	return [
 		...source.matchAll(
-			/export const (\w+) = createServerFn\([\s\S]*?\.handler\(/g,
+			/export const (\w+) = createServerFn\([\s\S]*?\.handler\([^\n]*/g,
 		),
 	].map((match) => [match[1] ?? "", match[0]]);
+}
+
+// readsData reports whether a definition's handler takes the validated input.
+//
+// The handler line only, not the whole chain: every definition with a validator mentions `data` in
+// the schema it declares, so looking at all of it would answer its own question.
+function readsData(chain: string): boolean {
+	return (chain.split(".handler(").pop() ?? "").includes("data");
 }
 
 // declaredMethods reads the method off each imported server function.

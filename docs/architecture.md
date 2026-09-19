@@ -176,6 +176,9 @@ the entire reason they moved.
 - **Editing files from the browser.** `@pierre/diffs` would support it. It is a different feature.
 - **Tests that call a server function.** A server function reads its options from an
   AsyncLocalStorage the Start runtime owns, and the callable a test imports is the client-side RPC
-  stub, so one cannot be invoked from a test at all. Its two properties are checked the ways that
-  remain instead: the method off the stub, and the operator guard out of the source. What is left
-  is the validator on each, which nothing observes.
+  stub, so one cannot be invoked from a test at all. Its three properties are checked the ways that
+  remain: the method off the stub, and the operator guard and the validator out of the source.
+  What that cannot reach is whether a schema is the *right* schema — only that input is validated
+  exactly when there is input. The one schema rule that would matter if it were wrong, refusing a
+  path that climbs out of the checkout, is enforced in `workspace-changes.ts` and tested there,
+  which is the right place for it: it protects every caller rather than one endpoint.
