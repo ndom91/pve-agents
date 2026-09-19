@@ -148,6 +148,22 @@ const migrations = [
 			ALTER TABLE workspaces ADD COLUMN unsaved_work INTEGER;
 		`,
 	},
+	{
+		// Herdr is gone, and these three columns were the whole of what it left in the schema: the
+		// session its server ran under, and the workspace and pane ids of the terminal the agent
+		// was a TUI in. Nothing reads them now, and a column nothing reads is a question the next
+		// person has to answer before they can be sure.
+		//
+		// Dropped rather than left null. What is lost is the pane a destroyed container's agent
+		// used to live in, which cannot be reached, restarted, or reasoned about now that the
+		// software that owned it is not installed.
+		version: 13,
+		sql: `
+			ALTER TABLE workspaces DROP COLUMN herdr_pane_id;
+			ALTER TABLE workspaces DROP COLUMN herdr_workspace_id;
+			ALTER TABLE workspaces DROP COLUMN herdr_session;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

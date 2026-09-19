@@ -22,8 +22,6 @@ import {
 	pushWorkspaceWork,
 	readWorkspaceChanges,
 	readWorkspaceFile,
-	readWorkspacePane,
-	sendAgentKeys,
 	sendAgentPrompt,
 } from "./agent-operations";
 
@@ -54,12 +52,10 @@ afterEach(() => {
 // Every operator-driven operation, so the guard cannot be forgotten on the next one added. The
 // list is the point: a new one missing from it is exactly what this file exists to catch.
 const operations = [
-	{ name: "readWorkspacePane", run: (id: string) => readWorkspacePane(id) },
 	{
 		name: "sendAgentPrompt",
 		run: (id: string) => sendAgentPrompt(id, "do a thing"),
 	},
-	{ name: "sendAgentKeys", run: (id: string) => sendAgentKeys(id, "enter") },
 	{
 		name: "readWorkspaceChanges",
 		run: (id: string) => readWorkspaceChanges(id),
@@ -125,7 +121,6 @@ function refusal(result: unknown): string {
 // queued leaves one workspace in the state a request starts in.
 function queued(database: Database.Database): string {
 	const created = createWorkspace(database, {
-		herdrSession: "agents",
 		idempotencyKey: `queued-${Math.random()}`,
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

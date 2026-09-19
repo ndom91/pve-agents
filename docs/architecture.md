@@ -8,35 +8,46 @@ rather than the intention quietly removed.
 A request for work, not a request for a container.
 
 You supply a repository, a ref, and a purpose. The controller builds a disposable Proxmox LXC,
-checks the repository out into it, starts a Claude Code agent inside a Herdr session, and gives
-that agent the purpose verbatim. The container is an implementation detail of that.
+checks the repository out into it, starts a Claude Code agent inside it, and gives that agent the
+purpose verbatim. The container is an implementation detail of that.
 
 One agent per workspace. An earlier plan had several; nothing needed them, and one agent per
 container keeps the ownership, credential, and teardown stories simple.
 
-## The interface, and a reversal
+## The interface, and two reversals
 
 The original architecture said the web UI should provide "fleet-level visibility" and "should not
 attempt to reproduce interactive terminal sessions", with interactive work happening in a Herdr
-client.
-
-**That is no longer true, deliberately.** The detail page streams the agent's terminal, sends
-prompts, and answers permission dialogs. The reversal happened because the controller already had
-to read the agent's screen to know whether it was usable, and once a browser can see the screen,
+client. **The first reversal** made the detail page the primary interface: the controller already
+had to read the agent's screen to know whether it was usable, and once a browser can see a screen,
 requiring a second tool to type into it is friction rather than separation.
 
-Herdr remains the source of truth for terminal state inside a workspace. The web UI is now the
-primary way a person interacts with it.
+**The second reversal removed the screen.** The agent ran as a TUI in a Herdr pane; the controller
+read a rendered viewport every two seconds, inferred what the agent was doing from a status string,
+and answered permission dialogs by typing `1` into the pane. That was the only mechanism available
+to something reading a pane from outside.
+
+There is a real one. Under the Agent SDK's `query()`, a tool call that no rule resolves falls
+through to a **`canUseTool` callback** — async, so it can wait for a person, and able to deny with
+a message the model reads and works around. Conversation history arrives as typed SDK messages.
+
+So the centre column is a conversation rather than a terminal emulator, and approving a tool is a
+decision with a visible subject rather than a keystroke aimed at a box of text.
+
+**Herdr is gone.** Its pane was the only thing it was still providing, and the Terminal tab was
+already a plain `ssh -tt` rather than a Herdr session. `docs/herdr-integration.md` records what it
+taught us and why it left.
 
 ## Planes
 
 **Provisioning.** The controller owns the infrastructure lifecycle: clone, boot, address, reach,
 bootstrap, check out, destroy. It holds a pool-scoped Proxmox token. Nothing else does.
 
-**Agent control.** Herdr 0.9.0 scopes its CLI and socket API to one server, so all agent operations
-run the Herdr CLI on the target workspace over SSH. There is no remote Herdr API.
+**Agent control.** A runner process inside each workspace holds one Claude Code Agent SDK session
+open and listens on a unix socket. The controller reaches it with `ssh -- nc -U`. See "The agent
+runner" below.
 
-**Human interface.** A dashboard: a sidebar of workspaces, the agent's live screen with a prompt
+**Human interface.** A dashboard: a sidebar of workspaces, the agent's conversation with a prompt
 below it, and a tabbed rail holding placement, the diff, the timeline and a shell.
 
 ## Provisioning
@@ -47,13 +58,17 @@ from memory, so a controller that stops mid-clone picks up where it left off.
 ```text
 requested → clone-submitted → clone-confirmed → start-submitted → booted
           → addressed → reachable → bootstrapped → checked-out
-          → session-started → herdr-registered → agent-started → briefed
+          → runner-started → briefed
 ```
+
+Three phases became one when Herdr went. Starting a server, creating a workspace in it, and
+starting an agent in a pane were three round trips with three distinct failure vocabularies
+(`agent_name_taken`, `agent_not_ready`, `agent_prompt_stalled`) and a first-run wizard check on the
+end. A process either listens on its socket or it does not.
 
 `ready` means briefed and working, not merely built.
 
-Each phase is one Proxmox call or one SSH round trip. Several are less obvious than they look and
-`docs/herdr-integration.md` records why.
+Each phase is one Proxmox call or one SSH round trip.
 
 ## Ownership
 
@@ -134,19 +149,54 @@ pass, and both count as interaction.
 This is also what closes the loop the protection opened. Before it, a held workspace was held until
 somebody opened a terminal.
 
+## The agent runner
+
+A detached node process inside each workspace, holding one Agent SDK `query()` open for the life of
+the container and listening on a unix socket.
+
+**Reached over SSH with `nc -U`, not on a port.** A TCP listener would put an unauthenticated
+"drive this agent" endpoint on the workspace network and need its own authentication to close
+again. A socket reached over ssh inherits the key that already gates everything else.
+
+**Detached, not held by the controller.** A deploy restarts the controller, and an agent whose
+session lived in the controller's memory would lose its turn every time somebody shipped a change.
+`setsid` is what makes that true; the credentials are sourced explicitly in the same script,
+because `~/.config/agent-env` is hooked into `.bashrc` and a detached non-interactive process never
+reads it. Without that line the runner starts, listens, accepts prompts, and answers every one with
+"Not logged in".
+
+**Shipped by the controller, with only the SDK in the template.** The logic changes often and a
+template rebuild is a VMID swap; the dependency changes rarely and weighs about 245 MB. Containers
+are linked clones of one ZFS snapshot, so the template pays that once for the whole fleet. The
+runner finds the SDK through a `node_modules` symlink to the global root — `NODE_PATH` is a
+CommonJS mechanism and node's ESM resolver ignores it.
+
+**Attaching replays.** The snapshot carries the whole transcript and every parked approval, because
+a controller that restarts leaves approvals waiting inside a runner that is still alive, and a
+reader that only subscribed would show an idle agent that is actually waiting for an answer.
+
+**The transcript is not mirrored into the database.** It is replayed on attach. The cost, stated:
+destroying a workspace destroys its transcript. That was already true of the screen, and the
+timeline still records prompts, pushes and discards, so the record of what was *decided* survives.
+
+**Permissions default to `auto`** — a second model reviewing each action rather than a person —
+and the mode is configurable. Confirmed working on the subscription token. When auto mode is not
+available to a session, Claude Code silently runs Manual instead, which degrades safely here
+because every call then reaches the approval UI.
+
 ## A shell in the workspace
 
 The rail's **Terminal** tab opens an interactive shell in the container, over a WebSocket on the
 controller's own http server.
 
-This was previously listed as deliberately not built, on the grounds that `--source visible`
-returns a rendered viewport rather than a byte stream, so a terminal emulator would be the wrong
-shape "until there is real keystroke input". There is now real keystroke input, so the condition
-the note set has been met rather than ignored.
+This was previously listed as deliberately not built, on the grounds that a rendered viewport is
+not a byte stream, so a terminal emulator would be the wrong shape "until there is real keystroke
+input". There is now real keystroke input, so the condition the note set has been met rather than
+ignored.
 
-**A fresh session, not the agent's pane.** Reading what an agent is doing and typing into the
-session it is working in are different things, and only the first is safe to offer beside a "run
-git log" prompt. The centre column still shows the agent's own screen.
+**A shell of its own, not the agent's session.** Poking about with `git log` must not put
+keystrokes into a session an agent is working in. The centre column is the agent's conversation;
+this is a separate login.
 
 **`ssh -tt` rather than a pty library.** The remote side allocates the tty, so there is no native
 module to build and nothing new on the workspace template. The cost is that the channel carries no
@@ -204,7 +254,7 @@ the entire reason they moved.
 ## Deliberately not built
 
 - **An organiser agent**, and registering the controller as a Herdr machine. The web UI made both
-  unnecessary.
+  unnecessary, and then Herdr itself went.
 - **A database backup.** Judged low value: the containers outlive the database and the orphan scan
   finds them, so what is lost is history rather than access.
 - **Automatic orphan destruction.** A restored or lost database makes every live workspace look

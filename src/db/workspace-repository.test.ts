@@ -572,6 +572,7 @@ describe("openDatabase", () => {
 			{ version: 10 },
 			{ version: 11 },
 			{ version: 12 },
+			{ version: 13 },
 		]);
 	});
 });
@@ -615,7 +616,6 @@ function database() {
 
 function input(idempotencyKey: string) {
 	return {
-		herdrSession: "agents",
 		idempotencyKey,
 		purpose: "Investigate round-robin race condition",
 		repository: "https://github.com/plainhq/plain.git",

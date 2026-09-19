@@ -1,10 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import {
-	workspaceChanges,
-	workspaceFileDiff,
-	workspacePane,
-} from "../server/agent.functions";
+import { workspaceChanges, workspaceFileDiff } from "../server/agent.functions";
 import { workspaceSettings } from "../server/settings.functions";
 import { controllerStatus } from "../server/status.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
@@ -15,11 +11,6 @@ import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
 //
 // FLEET_REFRESH_MS is half the worker interval, so a step lands on screen within about one tick.
 const FLEET_REFRESH_MS = 2_500;
-
-// SCREEN_STALE_MS is how long a fetched screen is trusted before a remount would fetch again.
-// Not a polling cadence: the stream pushes updates, and each fetch costs an SSH connection to the
-// container, so this only bounds how stale a first paint may be.
-const SCREEN_STALE_MS = 5_000;
 
 // CHANGES_REFRESH_MS is how often the list of changed files is re-read while it is on screen.
 //
@@ -34,7 +25,6 @@ export const workspaceKeys = {
 	detail: (id: string) => ["workspace", id] as const,
 	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
-	pane: (id: string) => ["workspace", id, "pane"] as const,
 	settings: () => ["settings"] as const,
 	status: () => ["controller-status"] as const,
 };
@@ -80,22 +70,6 @@ export function workspaceQuery(id: string) {
 // settled marks a workspace nothing further happens to, so its page stops asking.
 function settled(status?: string): boolean {
 	return status === "destroyed" || status === "failed";
-}
-
-// paneQuery holds the agent's screen.
-//
-// Fetched once for a first paint, then fed by the event stream rather than polled: a fixed
-// interval is either too slow to catch a turn or too expensive to run all day, which is the
-// problem the stream exists to solve. The initial fetch stays so the page has something before
-// the stream's first message.
-export function paneQuery(id: string, ready: boolean) {
-	return queryOptions({
-		enabled: ready,
-		queryFn: () => workspacePane({ data: { id } }),
-		queryKey: workspaceKeys.pane(id),
-		refetchInterval: false,
-		staleTime: SCREEN_STALE_MS,
-	});
 }
 
 // changesQuery holds what the agent has done to the checkout.

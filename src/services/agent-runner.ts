@@ -208,51 +208,87 @@ export function framer(
 	};
 }
 
-// PROMPT_TIMEOUT_MS bounds a one-shot prompt.
+// EXCHANGE_SCRIPT sends what arrives on stdin and takes the first line of the answer.
 //
-// Long enough for two ssh handshakes on a container that has just booted, short enough that a
-// provisioning pass holding a lease does not sit on it. A timeout is retried by the next pass.
-const PROMPT_TIMEOUT_MS = 20_000;
+// The message goes in on stdin rather than as an argument, which is this codebase's standing rule
+// and matters more than usual here: a prompt is operator text that may contain anything at all.
+//
+// `head -1` closes the pipe as soon as the answer arrives and nc exits on the broken pipe, so this
+// costs a round trip rather than a timeout.
+const EXCHANGE_SCRIPT = `nc -U "$1" | head -1`;
 
-// promptRunner delivers one prompt and disconnects.
+// exchange sends messages to a runner and reads its reply.
 //
-// For the briefing, which happens once and has no reader. Confirmation is a real round trip rather
-// than a hopeful write: the attach snapshot proves the channel works, and the status change proves
-// the runner took the prompt. Writing and closing immediately would report success for a prompt
-// that never reached a generator, and the workspace would be marked ready having been told nothing.
-export function promptRunner(
+// The reply is always a snapshot, and the trick is that it is asked for *after* the message it is
+// confirming. The runner handles lines in the order they arrive, so a snapshot that comes back
+// after a prompt already reflects that prompt. One round trip, and a real confirmation rather than
+// a hopeful write.
+async function exchange(
+	target: SshTarget,
+	messages: unknown[],
+	ssh: SshRunner,
+): Promise<Record<string, unknown> | undefined> {
+	const payload = `${[...messages, { type: "attach" }]
+		.map((message) => JSON.stringify(message))
+		.join("\n")}\n`;
+
+	const result = await ssh(
+		target,
+		["sh", "-c", EXCHANGE_SCRIPT, "sh", RUNNER_SOCKET],
+		payload,
+	);
+	if (result.kind !== "ran" || result.code !== 0) {
+		return undefined;
+	}
+
+	try {
+		return JSON.parse(result.stdout.trim()) as Record<string, unknown>;
+	} catch {
+		return undefined;
+	}
+}
+
+// promptRunner delivers one prompt and confirms the runner took it.
+//
+// Used for the briefing and for every prompt typed into the page. Confirmed rather than assumed:
+// writing and closing would report success for a prompt that never reached a generator, and the
+// workspace would be marked ready having been told nothing.
+export async function promptRunner(
 	target: SshTarget,
 	text: string,
+	ssh: SshRunner,
 ): Promise<"failed" | "sent"> {
-	return new Promise((resolve) => {
-		let settled = false;
-		const finish = (result: "failed" | "sent") => {
-			if (!settled) {
-				settled = true;
-				clearTimeout(timer);
-				runner.close();
-				resolve(result);
-			}
-		};
+	const snapshot = await exchange(target, [{ text, type: "prompt" }], ssh);
 
-		const runner = attachRunner(target, {
-			onClose: () => finish("failed"),
-			onEvent: (event) => {
-				const value = event as { status?: string; type?: string };
-				if (value.type === "snapshot") {
-					runner.send({ text, type: "prompt" });
+	// "working" is the proof. A runner that took a prompt is working on it by the time it answers
+	// the attach behind it.
+	return snapshot?.status === "working" ? "sent" : "failed";
+}
 
-					return;
-				}
-				if (value.type === "status" && value.status === "working") {
-					finish("sent");
-				}
-			},
-		});
+// decideRunner allows or denies one tool call the agent is suspended on.
+//
+// Confirmed by the request no longer being pending in the snapshot that follows it. An operator who
+// clicked Allow and saw nothing happen otherwise has no way to tell a lost write from a slow agent.
+export async function decideRunner(
+	target: SshTarget,
+	id: string,
+	behavior: "allow" | "deny",
+	ssh: SshRunner,
+): Promise<"failed" | "sent"> {
+	const snapshot = await exchange(
+		target,
+		[{ behavior, id, type: "decide" }],
+		ssh,
+	);
+	if (snapshot === undefined) {
+		return "failed";
+	}
 
-		const timer = setTimeout(() => finish("failed"), PROMPT_TIMEOUT_MS);
-		runner.send({ type: "attach" });
-	});
+	const pending = Array.isArray(snapshot.approvals)
+		? (snapshot.approvals as { id?: string }[])
+		: [];
+
+	return pending.some((approval) => approval.id === id) ? "failed" : "sent";
 }
 
 // STATUS_SCRIPT asks the runner for a snapshot and takes the first line of the answer.
@@ -297,48 +333,6 @@ export async function runnerStatus(
 		snapshot.status === "working"
 		? snapshot.status
 		: "unknown";
-}
-
-// decideRunner allows or denies one tool call the agent is suspended on.
-//
-// Confirmed by the runner's own broadcast rather than by a hopeful write. The runner tells every
-// attached client when a request is resolved, so a "resolved" naming this id is proof the promise
-// was settled — and an operator who clicked Allow and saw nothing happen has no way to tell a lost
-// write from a slow agent.
-export function decideRunner(
-	target: SshTarget,
-	id: string,
-	behavior: "allow" | "deny",
-): Promise<"failed" | "sent"> {
-	return new Promise((resolve) => {
-		let settled = false;
-		const finish = (result: "failed" | "sent") => {
-			if (!settled) {
-				settled = true;
-				clearTimeout(timer);
-				runner.close();
-				resolve(result);
-			}
-		};
-
-		const runner = attachRunner(target, {
-			onClose: () => finish("failed"),
-			onEvent: (event) => {
-				const value = event as { id?: string; type?: string };
-				if (value.type === "snapshot") {
-					runner.send({ behavior, id, type: "decide" });
-
-					return;
-				}
-				if (value.type === "resolved" && value.id === id) {
-					finish("sent");
-				}
-			},
-		});
-
-		const timer = setTimeout(() => finish("failed"), PROMPT_TIMEOUT_MS);
-		runner.send({ type: "attach" });
-	});
 }
 
 // RunnerAttachment is a live connection to one workspace's runner.

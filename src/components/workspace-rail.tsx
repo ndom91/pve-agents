@@ -8,9 +8,6 @@ import { RailResizer } from "./rail-resizer";
 type RailWorkspace = {
 	createdAt?: string;
 	currentStep?: string;
-	herdrPaneId?: string;
-	herdrSession?: string;
-	herdrWorkspaceId?: string;
 	ip?: string;
 	lastActivityAt?: string;
 	node?: string;
@@ -142,9 +139,6 @@ export function WorkspaceRail({
 				<Fact label="Address" value={workspace.ip} />
 				<Fact label="Phase" value={workspace.provisionPhase} />
 				<Fact label="Step" value={workspace.currentStep} />
-				<Fact label="Herdr session" value={workspace.herdrSession} />
-				<Fact label="Herdr workspace" value={workspace.herdrWorkspaceId} />
-				<Fact label="Herdr pane" value={workspace.herdrPaneId} />
 				<Fact label="Created" value={workspace.createdAt?.slice(0, 19)} />
 				<Fact
 					label="Last active"

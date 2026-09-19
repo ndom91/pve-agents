@@ -361,7 +361,6 @@ function ready(
 	},
 ): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: `ready-${Math.random()}`,
 		repository: "github.com/ndom91/open-plan-annotator",
 		ref: "main",
@@ -394,7 +393,6 @@ function failed(
 	input: { errorAt: string; vmid: number | null },
 ): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: `failed-${Math.random()}`,
 		repository: "github.com/ndom91/open-plan-annotator",
 		ref: "main",

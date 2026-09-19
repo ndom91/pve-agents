@@ -7,7 +7,6 @@ import {
 } from "../db/workspace-repository";
 import type { WorkspaceActivity } from "../domain/workspace";
 import { runnerStatus } from "./agent-runner";
-import { herdrAgentName, herdrAgentStatus } from "./herdr";
 import { runSsh, type SshRunner } from "./ssh";
 
 // ACTIVITY_BATCH bounds how many workspaces one pass will contact.
@@ -35,11 +34,7 @@ export async function observeWorkspaceActivity(
 	const staleBefore = new Date(
 		now.getTime() - config.WORKSPACE_ACTIVITY_INTERVAL_SECONDS * 1_000,
 	).toISOString();
-	const workspaces = staleWorkspaceActivity(
-		db,
-		staleBefore,
-		ACTIVITY_BATCH,
-	).filter((workspace) => herdrAgentName(workspace.hostname) !== undefined);
+	const workspaces = staleWorkspaceActivity(db, staleBefore, ACTIVITY_BATCH);
 
 	// Concurrently, because these are independent network round trips and the slowest one would
 	// otherwise set the pace for all of them. The batch size is the bound.
@@ -58,49 +53,34 @@ export async function observeWorkspaceActivity(
 }
 
 // readActivity asks one workspace's agent what state it is in.
+//
+// Asserted rather than inferred. This used to map Herdr's classification of a rendered dialog;
+// "blocked" now means a callback inside the SDK is genuinely suspended waiting for a person. The
+// reaper's refusal to destroy a blocked agent rests on it, so the difference is worth more than it
+// looks.
 async function readActivity(
 	config: ControllerConfig,
 	keyPath: string,
 	workspace: { hostname: string; ip: string },
 	ssh: SshRunner,
 ): Promise<WorkspaceActivity> {
-	if (config.WORKSPACE_AGENT_RUNNER === "sdk") {
-		// Asserted rather than inferred. Under Herdr, "blocked" was Herdr's classification of a
-		// rendered dialog; here it means a callback is genuinely suspended waiting for a person.
-		// The reaper's refusal to destroy a blocked agent rests on this, so the difference is
-		// worth more than it looks.
-		return mapActivity(
-			await runnerStatus(
-				{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
-				ssh,
-			),
-		);
-	}
-
-	const state = await herdrAgentStatus(
-		{
-			session: config.WORKSPACE_HERDR_SESSION,
-			ssh: { address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
-		},
-		workspace.hostname,
-		ssh,
+	return mapActivity(
+		await runnerStatus(
+			{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
+			ssh,
+		),
 	);
-
-	// A workspace whose Herdr server has died reads as unknown and nothing else happens. No
-	// timeline entry: this runs every half minute forever, and a broken workspace would bury its
-	// own history under identical rows.
-	return state.kind === "failed" ? "unknown" : mapActivity(state.status);
 }
 
-// mapActivity translates Herdr's lifecycle states into the four the controller reports.
+// mapActivity translates a runner's status into the four states the controller reports.
 //
-// Exported because the stream observes the same states far more often than this pass does, and a
-// second copy of this mapping is a way for the two to disagree about what "done" means.
+// Exported because the agent stream observes the same states far more often than this pass does,
+// and a second copy of this mapping is a way for the two to disagree.
 //
-// "idle" and "done" merge because both mean the agent is ready for input; they differ only in
-// whether the server has seen the completion, which is a display concern of Herdr's own clients.
-// "unknown" is passed through rather than flattened into idle: Herdr defines it as an agent it
-// cannot classify, which is not evidence that anything has finished.
+// "done" is still accepted alongside "idle" because Herdr used to report both and a database
+// restored from that era can hold either; they meant the same thing. "unknown" is passed through
+// rather than flattened into idle, which is the rule the reaper depends on: a status nobody could
+// read is not evidence that anything finished.
 export function mapActivity(status: string): WorkspaceActivity {
 	switch (status) {
 		case "working":

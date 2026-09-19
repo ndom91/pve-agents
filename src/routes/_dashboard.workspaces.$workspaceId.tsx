@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { AgentChat } from "../components/agent-chat";
-import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
-import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
@@ -15,21 +12,14 @@ import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
-import {
-	changesQuery,
-	paneQuery,
-	workspaceKeys,
-	workspaceQuery,
-} from "../lib/queries";
+import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
 import { useAgentStream } from "../lib/use-agent-stream";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
-import { useWorkspaceStream } from "../lib/use-workspace-stream";
 import {
 	answerWorkspaceApproval,
 	discardWorkspaceChanges,
 	promptWorkspaceAgent,
 	pushWorkspaceChanges,
-	sendWorkspaceKeys,
 } from "../server/agent.functions";
 import {
 	destroyWorkspaceRequest,
@@ -41,20 +31,6 @@ export const Route = createFileRoute("/_dashboard/workspaces/$workspaceId")({
 	loader: ({ context, params }) =>
 		context.queryClient.ensureQueryData(workspaceQuery(params.workspaceId)),
 });
-
-// ANSWER_KEYS are the presses offered when an agent is waiting at a dialog. The adapter holds the
-// real allow-list; these are the ones worth a button.
-const ANSWER_KEYS = ["1", "2", "3", "up", "down", "enter", "esc"] as const;
-
-// ARROWS get an icon instead of a word, because a direction is what they mean.
-const ARROWS: Record<string, typeof ArrowUp> = { down: ArrowDown, up: ArrowUp };
-
-// RESOLVES are the presses that actually end a dialog.
-//
-// Navigation does not: up and down move the selection and the agent is still waiting afterwards.
-// Predicting that it had gone back to work made the controls vanish from under the cursor and
-// reappear a moment later, which is the worst possible moment for the page to move.
-const RESOLVES = new Set(["1", "2", "3", "enter", "esc"]);
 
 function WorkspaceDetail() {
 	const { workspaceId } = Route.useParams();
@@ -73,18 +49,7 @@ function WorkspaceDetail() {
 		workspace?.status === "destroyed" || workspace?.status === "failed";
 	const blocked = workspace?.activity === "blocked";
 
-	// Which control plane this workspace was built on, read off the record rather than off the
-	// controller's current setting. A workspace keeps the plane it was provisioned with for its
-	// whole life, and the setting can change under it; asking the config would make an old
-	// workspace's page rearrange itself the moment somebody flipped a switch.
-	//
-	// A Herdr pane id is the marker because only one of the two ever has one.
-	const runnerBacked = ready && workspace?.herdrPaneId === undefined;
-
-	const { data: pane } = useQuery(
-		paneQuery(workspaceId, ready && !runnerBacked),
-	);
-	const agent = useAgentStream(workspaceId, runnerBacked);
+	const agent = useAgentStream(workspaceId, ready);
 
 	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
 	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
@@ -94,10 +59,6 @@ function WorkspaceDetail() {
 	const { data: changes } = useQuery(
 		changesQuery(workspaceId, ready && tab.kind !== "details"),
 	);
-
-	// Pushes the screen and the observed activity straight into the cache while the page is open.
-	// Only for the workspaces that have a screen: the other stream is the runner's.
-	useWorkspaceStream(workspaceId, ready && !runnerBacked);
 
 	const predict = useOptimisticWorkspace(workspaceId);
 
@@ -138,26 +99,6 @@ function WorkspaceDetail() {
 
 			setPrompt("");
 			setNote("");
-			await refresh();
-		},
-	});
-
-	const answer = useMutation({
-		mutationFn: (key: string) =>
-			sendWorkspaceKeys({ data: { id: workspaceId, key } }),
-		// Only for a press that ends the dialog. A prediction here is a claim that the agent has
-		// gone back to work, which is not true of moving a selection.
-		onMutate: (key) =>
-			RESOLVES.has(key) ? predict({ activity: "active" }) : undefined,
-		onError: async (_error, _key, rollback) => {
-			rollback?.();
-			setNote("could not reach the agent");
-		},
-		onSuccess: async (result, _key, rollback) => {
-			if (result.kind !== "sent") {
-				rollback?.();
-			}
-			setNote(result.kind === "unavailable" ? result.reason : "");
 			await refresh();
 		},
 	});
@@ -246,7 +187,7 @@ function WorkspaceDetail() {
 		return <main className="dashboard-main">Loading.</main>;
 	}
 
-	const busy = send.isPending || answer.isPending;
+	const busy = send.isPending || decide.isPending;
 
 	// Shared by the button and the keyboard shortcut, so the two cannot diverge on what counts as
 	// an empty prompt.
@@ -323,60 +264,16 @@ function WorkspaceDetail() {
 
 				{!ready ? null : (
 					<section className="centre-screen">
-						{runnerBacked ? (
-							<AgentChat
-								approvals={agent.approvals}
-								busy={busy}
-								link={agent.link}
-								messages={agent.messages}
-								onDecide={(approvalId, behavior) =>
-									decide.mutate({ approvalId, behavior })
-								}
-								permissionMode={agent.permissionMode}
-							/>
-						) : (
-							<>
-								{pane?.kind === "screen" ? (
-									<AgentScreen screen={pane.text} />
-								) : (
-									<p className="detail-note">
-										{pane?.kind === "unavailable"
-											? pane.reason
-											: "Reading the agent screen."}
-									</p>
-								)}
-
-								{/* Always present, disabled unless the agent is waiting. Rendering
-								    it only while blocked meant the row appeared and disappeared
-								    underneath the pointer, shifting the prompt and the timeline
-								    with it. Disabled still stops a key reaching a working agent by
-								    accident, and the controls are visible before they are needed
-								    rather than only once they are. */}
-								<div className="detail-keys">
-									{ANSWER_KEYS.map((key) => {
-										const Arrow = ARROWS[key];
-
-										return Arrow === undefined ? (
-											<Button
-												disabled={busy || !blocked}
-												key={key}
-												onClick={() => answer.mutate(key)}
-											>
-												{key}
-											</Button>
-										) : (
-											<IconButton
-												disabled={busy || !blocked}
-												icon={Arrow}
-												key={key}
-												label={key === "up" ? "Move up" : "Move down"}
-												onClick={() => answer.mutate(key)}
-											/>
-										);
-									})}
-								</div>
-							</>
-						)}
+						<AgentChat
+							approvals={agent.approvals}
+							busy={busy}
+							link={agent.link}
+							messages={agent.messages}
+							onDecide={(approvalId, behavior) =>
+								decide.mutate({ approvalId, behavior })
+							}
+							permissionMode={agent.permissionMode}
+						/>
 
 						<form
 							className="detail-prompt"

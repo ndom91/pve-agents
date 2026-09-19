@@ -4,7 +4,7 @@ A controller that turns a request for work into a disposable Proxmox LXC with a 
 already working in it.
 
 You give it a repository, a ref, and a purpose. It clones a golden template, boots the container,
-checks the repository out, starts a Claude Code agent inside a Herdr session, and hands it the
+checks the repository out, starts a Claude Code agent inside it, and hands it the
 purpose. The web UI then streams that agent's terminal, takes prompts, answers its permission
 dialogs, shows what it changed, and pushes or discards the result. When the workspace has outlived
 its usefulness, the controller destroys it — unless it is holding work nobody has kept.
@@ -20,7 +20,7 @@ subscription token, and it creates and destroys real containers.
 | [`docs/architecture.md`](docs/architecture.md) | The system as built, including where an earlier intention was abandoned and why. |
 | [`docs/production-runbook.md`](docs/production-runbook.md) | Deploying and operating it. |
 | [`docs/proxmox-lifecycle.md`](docs/proxmox-lifecycle.md) | Clone, boot, address, destroy, and reconcile. |
-| [`docs/herdr-integration.md`](docs/herdr-integration.md) | Herdr and Claude Code behaviour verified against real hardware. |
+| [`docs/herdr-integration.md`](docs/herdr-integration.md) | Why Herdr left, and the two lessons that outlived it. |
 | [`docs/security-and-networking.md`](docs/security-and-networking.md) | Network shape, credentials, and what is deliberately not trusted. |
 
 ## Running it locally

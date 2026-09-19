@@ -41,8 +41,3 @@ export function controllerDatabase() {
 
 	return current.database;
 }
-
-// controllerHerdrSession returns the configured remote workspace Herdr session name.
-export function controllerHerdrSession() {
-	return controllerRuntimeConfig().WORKSPACE_HERDR_SESSION;
-}

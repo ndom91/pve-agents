@@ -13,7 +13,7 @@ python, uv
 go, rust
 ripgrep, fd, jq
 codex, claude-code, opencode
-herdr 0.9.0
+@anthropic-ai/claude-agent-sdk
 openssh-server
 normal shell and build tooling
 ```
@@ -70,10 +70,9 @@ The controller should perform these idempotent steps:
 8. Verify SSH readiness.
 9. Inject runtime credentials and run bootstrap.
 10. Clone the requested repository and checkout the requested ref.
-11. Start or verify the named Herdr server.
-12. Create the Herdr workspace rooted at `/workspace/repo`.
-13. Start the agent in a pane and give it the purpose verbatim.
-14. Mark the workspace ready, which means briefed and working rather than merely built.
+11. Install the agent runner and wait for its socket to answer.
+12. Brief the agent with the request's purpose.
+13. Mark the workspace ready, which means briefed and working rather than merely built.
 
 Suggested clone parameters:
 
@@ -163,7 +162,7 @@ Do not use `destroy-unreferenced-disks`: it reaches past the container being del
 | No DHCP address | Keep booting failure explicit and retry bounded discovery. |
 | SSH unavailable | Retry with backoff; do not report ready. |
 | Repository clone failed | Remove temporary Git credentials and mark failed. |
-| Herdr setup failed | Keep the LXC and retry only the Herdr step. |
+| Agent runner did not come up | Keep the LXC and retry only the runner step. |
 | Agent failed to start or brief | Keep the LXC and retry only that step; the container is the only copy of whatever went wrong. |
 | Controller restarted | Resume from persisted desired state, UPID, and observed resources. |
 | Duplicate delete | Treat a Proxmox 404 as success. |

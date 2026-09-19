@@ -7,13 +7,11 @@ import {
 	pushWorkspaceWork,
 	readWorkspaceChanges,
 	readWorkspaceFile,
-	readWorkspacePane,
-	sendAgentKeys,
 	sendAgentPrompt,
 } from "./agent-operations";
 import { operatorMiddleware } from "./middleware";
 
-export type { AgentInput, WorkspacePane } from "./agent-operations";
+export type { AgentInput } from "./agent-operations";
 
 // Every server function here is a wrapper: validate, guard, and call an operation from
 // agent-operations.ts, which is where the work and the tests live.
@@ -27,21 +25,6 @@ export type { AgentInput, WorkspacePane } from "./agent-operations";
 // So: handlers stay one line, and nothing else is exported from this file. If a change here ever
 // grows past that, open the site and click something before believing it works.
 
-// workspacePane reads what a workspace's agent is showing right now.
-//
-// Unlike every other server function here this one opens an SSH connection per call, so it is
-// deliberately narrow: it answers only for a workspace that finished provisioning and recorded a
-// pane. Anything else is refused before a connection is attempted, which keeps a page refresh from
-// becoming a probe against half-built containers.
-//
-// The screen is the current viewport and nothing more. Claude Code draws on the terminal's
-// alternate screen, whose rows never enter Herdr's scrollback, so there is no history to offer and
-// asking for more lines would not produce any.
-export const workspacePane = createServerFn({ method: "GET" })
-	.middleware([operatorMiddleware])
-	.validator(z.object({ id: z.string().trim().min(1) }))
-	.handler(({ data }) => readWorkspacePane(data.id));
-
 // promptWorkspaceAgent submits an operator's prompt to a workspace's agent.
 export const promptWorkspaceAgent = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
@@ -52,14 +35,6 @@ export const promptWorkspaceAgent = createServerFn({ method: "POST" })
 		}),
 	)
 	.handler(({ data }) => sendAgentPrompt(data.id, data.text));
-
-// sendWorkspaceKeys answers a dialog the agent is waiting at.
-export const sendWorkspaceKeys = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({ id: z.string().trim().min(1), key: z.string().trim().min(1) }),
-	)
-	.handler(({ data }) => sendAgentKeys(data.id, data.key));
 
 // answerWorkspaceApproval allows or denies one tool call the agent is suspended on.
 //

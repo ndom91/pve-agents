@@ -203,13 +203,13 @@ describe("runWorkspaceOperations", () => {
 		);
 		expect(reachable).toEqual({ processed: 1, status: "ssh_ready" });
 
-		const workspace = herdrWorkspace();
+		const workspace = runnerWorkspace();
 		const step = async (at: number) =>
 			runWorkspaceOperations(
 				db,
 				config(),
 				async () => {
-					throw new Error("proxmox must not be contacted for herdr steps");
+					throw new Error("proxmox must not be contacted for agent steps");
 				},
 				new Date(POLLED_AT.getTime() + at),
 				workspace.ssh,
@@ -240,16 +240,8 @@ describe("runWorkspaceOperations", () => {
 			processed: 1,
 			status: "session_started",
 		});
-		expect(await step(480_000)).toEqual({
-			processed: 1,
-			status: "herdr_registered",
-		});
-		expect(await step(540_000)).toEqual({
-			processed: 1,
-			status: "agent_started",
-		});
 		// The workspace is only "ready" once it has been told what it was requested for.
-		expect(await step(600_000)).toEqual({
+		expect(await step(480_000)).toEqual({
 			processed: 1,
 			status: "workspace_ready",
 		});
@@ -271,20 +263,10 @@ describe("runWorkspaceOperations", () => {
 			"workspace.bootstrapped",
 			"workspace.checked_out",
 			"workspace.session_started",
-			"workspace.herdr_registered",
-			"workspace.agent_started",
 			"workspace.ready",
 		]);
 
 		expect(workspaceStatus(db, workspaceID)).toBe("ready");
-		// Recorded from herdr's response rather than derived, so a later step can address the pane.
-		expect(
-			db
-				.prepare(
-					"SELECT herdr_workspace_id, herdr_pane_id FROM workspaces WHERE id = ?",
-				)
-				.get(workspaceID),
-		).toEqual({ herdr_pane_id: "w1:p1", herdr_workspace_id: "w1" });
 
 		const settled = await runWorkspaceOperations(
 			db,
@@ -292,7 +274,7 @@ describe("runWorkspaceOperations", () => {
 			async () => {
 				throw new Error("proxmox must not be contacted again");
 			},
-			new Date(POLLED_AT.getTime() + 660_000),
+			new Date(POLLED_AT.getTime() + 540_000),
 			async () => {
 				throw new Error("ssh must not be attempted again");
 			},
@@ -314,8 +296,6 @@ describe("runWorkspaceOperations", () => {
 			"workspace.bootstrapped",
 			"workspace.checked_out",
 			"workspace.session_started",
-			"workspace.herdr_registered",
-			"workspace.agent_started",
 			"workspace.ready",
 		]);
 		expect(
@@ -327,115 +307,45 @@ describe("runWorkspaceOperations", () => {
 		).toEqual({ c: 1 });
 	});
 
-	it("refuses a workspace whose agent is stuck in its first-run wizard", async () => {
+	it("will not call a workspace ready while its runner is not answering", async () => {
+		// The rule that replaced the first-run wizard checks. Claude Code's TUI had three gates a
+		// controller had to recognise on a rendered screen; the SDK has none, so the only question
+		// left is whether a process is listening. A runner that launches and dies -- a missing
+		// dependency, a bad credential -- launches perfectly, so the launch cannot be the proof.
 		const db = database();
-		const workspaceID = await registered(db);
-
-		const result = await tick(
-			db,
-			async () => {
-				throw new Error("proxmox must not be contacted");
-			},
-			async (_target, args) => {
-				const command = args.join(" ");
-				const body = command.includes("agent read")
-					? "Let's get started.\n\nChoose the text style"
-					: command.includes("agent get")
-						? JSON.stringify({ result: { agent: { agent_status: "idle" } } })
-						: JSON.stringify({ result: { type: "agent_started" } });
-
-				return { code: 0, kind: "ran", stderr: "", stdout: body };
-			},
-		);
-
-		// Retrying cannot dismiss a wizard, and handing the workspace over would let its first
-		// prompt be typed into a menu. Both make this terminal rather than transient.
-		expect(result).toEqual({ processed: 1, status: "task_failed" });
-		expect(
-			db
-				.prepare("SELECT status, error_code FROM workspaces WHERE id = ?")
-				.get(workspaceID),
-		).toEqual({ error_code: "agent_awaiting_input", status: "failed" });
-	});
-
-	it("refuses a workspace whose agent is blocked on a dialog it does not recognise", async () => {
-		const db = database();
-		const workspaceID = await registered(db);
-
-		const result = await tick(
-			db,
-			async () => {
-				throw new Error("proxmox must not be contacted");
-			},
-			async (_target, args) => {
-				const command = args.join(" ");
-				const body = command.includes("agent read")
-					? "Some future prompt this controller has never seen"
-					: command.includes("agent get")
-						? JSON.stringify({ result: { agent: { agent_status: "blocked" } } })
-						: JSON.stringify({ result: { type: "agent_started" } });
-
-				return { code: 0, kind: "ran", stderr: "", stdout: body };
-			},
-		);
-
-		// The screen is unrecognised, so only herdr's own "blocked" catches it. That is the point
-		// of asking for the status as well as reading the pane.
-		expect(result).toEqual({ processed: 1, status: "task_failed" });
-		expect(
-			db
-				.prepare(
-					"SELECT error_code, error_message FROM workspaces WHERE id = ?",
-				)
-				.get(workspaceID),
-		).toEqual({
-			error_code: "agent_awaiting_input",
-			error_message:
-				"claude is waiting for input: Some future prompt this controller has never seen",
-		});
-	});
-
-	it("briefs the agent with the purpose it was requested for, verbatim", async () => {
-		const db = database();
-		await registered(db);
-		const workspace = herdrWorkspace();
+		const workspaceID = await addressed(db);
 		const proxmox = async () => {
 			throw new Error("proxmox must not be contacted");
 		};
 
-		await tick(db, proxmox, workspace.ssh); // -> agent-started
+		// A container where the runner never comes up: every liveness probe fails.
+		const dead: SshRunner = async (_target, args) => {
+			const command = args.join(" ");
 
-		let prompt: string[] = [];
-		await tick(db, proxmox, async (target, command, input) => {
-			if (command.join(" ").includes("agent prompt")) {
-				prompt = command;
-			}
+			return command.includes('net").connect')
+				? { code: 1, kind: "ran", stderr: "", stdout: "" }
+				: { code: 0, kind: "ran", stderr: "", stdout: "" };
+		};
 
-			return workspace.ssh(target, command, input);
-		});
+		await tick(db, proxmox, dead); // addressed -> reachable
+		await tick(db, proxmox, dead); // -> bootstrapped
+		await tick(db, github, dead); // -> checked-out
+		const waiting = await tick(db, proxmox, dead);
 
-		// Verbatim: wrapping it would hand the agent instructions nobody wrote.
-		expect(prompt).toContain("a stated purpose");
+		// Held, not failed: a runner can legitimately be slow to bind, and the operation deadline
+		// is what bounds the waiting. What must not happen is the workspace being handed over.
+		expect(waiting).toEqual({ processed: 1, status: "awaiting_session" });
+		expect(workspaceStatus(db, workspaceID)).not.toBe("ready");
 	});
 
 	it("reaches ready without a purpose, and says so", async () => {
+		// A workspace requested without one is ready and idle, waiting for somebody to tell it
+		// something from the page. The asserted outcome rather than a pass count: the number of
+		// passes this takes has changed with every phase added, and each time the failure landed
+		// somewhere that had nothing to do with the rule being checked.
 		const db = database();
-		const workspaceID = await registered(db, null);
-		const workspace = herdrWorkspace();
-		const proxmox = async () => {
-			throw new Error("proxmox must not be contacted");
-		};
+		const workspaceID = await provisioned(db, null);
 
-		await tick(db, proxmox, workspace.ssh); // -> agent-started
-		const briefed = await tick(db, proxmox, async (target, command, input) => {
-			if (command.join(" ").includes("agent prompt")) {
-				throw new Error("nothing to say, so nothing should be sent");
-			}
-
-			return workspace.ssh(target, command, input);
-		});
-
-		expect(briefed).toEqual({ processed: 1, status: "workspace_ready" });
 		expect(workspaceStatus(db, workspaceID)).toBe("ready");
 		expect(
 			db
@@ -444,6 +354,68 @@ describe("runWorkspaceOperations", () => {
 				)
 				.get(workspaceID),
 		).toEqual({ message: "workspace ready, awaiting instructions" });
+	});
+
+	it("will not call a workspace ready while its runner is not answering", async () => {
+		// The rule that replaced the first-run wizard checks. Claude Code's TUI had three gates a
+		// controller had to recognise on a rendered screen; the SDK has none, so the only question
+		// left is whether a process is listening. A runner that launches and dies -- a missing
+		// dependency, a bad credential -- launches perfectly, so the launch cannot be the proof.
+		const db = database();
+		const workspaceID = await addressed(db);
+		const proxmox = async () => {
+			throw new Error("proxmox must not be contacted");
+		};
+
+		// A container where the runner never comes up: every liveness probe fails.
+		const dead: SshRunner = async (_target, args) => {
+			const command = args.join(" ");
+
+			return command.includes('net").connect')
+				? { code: 1, kind: "ran", stderr: "", stdout: "" }
+				: { code: 0, kind: "ran", stderr: "", stdout: "" };
+		};
+
+		await tick(db, proxmox, dead); // addressed -> reachable
+		await tick(db, proxmox, dead); // -> bootstrapped
+		await tick(db, github, dead); // -> checked-out
+		const waiting = await tick(db, proxmox, dead);
+
+		// Held, not failed: a runner can legitimately be slow to bind, and the operation deadline
+		// is what bounds the waiting. What must not happen is the workspace being handed over.
+		expect(waiting).toEqual({ processed: 1, status: "awaiting_session" });
+		expect(workspaceStatus(db, workspaceID)).not.toBe("ready");
+	});
+
+	it("briefs the agent with the purpose it was requested for, verbatim", async () => {
+		const db = database();
+		const workspace = runnerWorkspace();
+
+		// Observed from inside the provision rather than after it. The briefing is a step of
+		// becoming ready, so there is no moment afterwards at which it is still about to happen.
+		let sent = "";
+		let argv = "";
+		await provisioned(
+			db,
+			"a stated purpose",
+			async (target, command, input) => {
+				if ((input ?? "").includes('"type":"prompt"')) {
+					sent = input ?? "";
+					argv = command.join(" ");
+				}
+
+				return workspace.ssh(target, command, input);
+			},
+		);
+
+		// Verbatim: wrapping it would hand the agent instructions nobody wrote.
+		expect(JSON.parse(sent.split("\n")[0] ?? "")).toEqual({
+			text: "a stated purpose",
+			type: "prompt",
+		});
+		// And on stdin, never in argv. A purpose is operator text that may contain anything, and
+		// arguments are visible in ps on the workspace for as long as the command runs.
+		expect(argv).not.toContain("a stated purpose");
 	});
 
 	it("clears a stale host key before first reaching a workspace", async () => {
@@ -1135,7 +1107,6 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		const db = database();
 		const destroying = await destroyable(db);
 		createWorkspace(db, {
-			herdrSession: "agents",
 			idempotencyKey: "request-b",
 			repository: "https://github.com/plainhq/other.git",
 			ref: "main",
@@ -1291,36 +1262,40 @@ async function addressed(db: Database.Database): Promise<string> {
 	return workspaceID;
 }
 
-// registered leaves a workspace with a herdr workspace created and an agent not yet started.
+// provisioned carries a workspace all the way from addressed to ready.
+//
+// It does not stop at a phase, because it cannot: advancing releases the operation with no delay,
+// so one drain continues into the next step and where it lands depends on which step last asked to
+// wait. A caller that wants to watch a particular step passes an ssh runner and observes it.
+//
 // purpose is nullable rather than optional: a default parameter also applies when undefined is
 // passed explicitly, so "no purpose" has to be a value the default cannot swallow.
-async function registered(
+async function provisioned(
 	db: Database.Database,
 	purpose: string | null = "a stated purpose",
+	ssh?: SshRunner,
 ): Promise<string> {
 	const workspaceID = await addressed(db);
 	db.prepare("UPDATE workspaces SET purpose = ? WHERE id = ?").run(
 		purpose,
 		workspaceID,
 	);
-	const proxmox = async () => {
-		throw new Error("proxmox must not be contacted");
-	};
-	const workspace = herdrWorkspace();
+	const workspace = runnerWorkspace();
+	const run = ssh ?? workspace.ssh;
 
-	// One pass per step, spelled out rather than counted, because the count changed silently every
-	// time a phase was added and the failure landed somewhere unrelated.
-	await tick(db, proxmox, async () => ({
-		code: 0,
-		kind: "ran",
-		stderr: "",
-		stdout: "",
-	})); // addressed -> reachable
-	await tick(db, proxmox, workspace.ssh); // -> bootstrapped
-	await tick(db, github, workspace.ssh); // -> checked-out, the only step reaching GitHub
-	await tick(db, proxmox, workspace.ssh); // launches the herdr server
-	await tick(db, proxmox, workspace.ssh); // -> session-started
-	await tick(db, proxmox, workspace.ssh); // -> herdr-registered
+	// Driven until it settles rather than by a counted number of passes.
+	//
+	// One pass drains as many steps as are due, and which ones are due depends on whether the step
+	// before it released with a delay. Counting passes here was wrong three separate times, and
+	// each time the failure surfaced in a test that had nothing to do with the change.
+	//
+	// github is offered on every pass because exactly one step reaches it and the rest never ask.
+	for (let pass = 0; pass < 12; pass += 1) {
+		if (workspaceStatus(db, workspaceID) === "ready") {
+			break;
+		}
+		await tick(db, github, run);
+	}
 
 	return workspaceID;
 }
@@ -1379,21 +1354,16 @@ const github: Fetcher = async (url) => {
 	throw new Error(`unexpected request: ${url}`);
 };
 
-// herdrWorkspace fakes a workspace container running herdr, routing on the command it is given.
+// runnerWorkspace fakes a workspace container running the agent runner, routing on the command.
 //
-// Stateful in one respect that matters: the server reports itself stopped until it is started, so
-// the two-pass launch-then-confirm sequence is exercised rather than assumed away.
-function herdrWorkspace() {
-	let running = false;
-	const created = JSON.stringify({
-		result: {
-			root_pane: { cwd: "/workspace/repo", pane_id: "w1:p1", tab_id: "w1:t1" },
-			tab: { tab_id: "w1:t1" },
-			workspace: { workspace_id: "w1" },
-		},
-	});
+// Stateful in the one respect that matters: the socket does not answer until the runner has been
+// started, so the launch-then-confirm sequence is exercised rather than assumed away. A runner is
+// backgrounded by the script that starts it, so the pass that launches one genuinely cannot also
+// know whether it survived.
+function runnerWorkspace() {
+	let listening = false;
 
-	const ssh: SshRunner = async (_target, args) => {
+	const ssh: SshRunner = async (_target, args, input) => {
 		const command = args.join(" ");
 		const stdout = (text: string): SshResult => ({
 			code: 0,
@@ -1402,6 +1372,10 @@ function herdrWorkspace() {
 			stdout: text,
 		});
 
+		// The reachability probe: the controller proves it can log in before anything else.
+		if (command === "true") {
+			return stdout("");
+		}
 		if (command.includes("hasCompletedOnboarding")) {
 			return stdout("");
 		}
@@ -1412,32 +1386,36 @@ function herdrWorkspace() {
 		) {
 			return stdout("");
 		}
+		// Checked before the liveness probe below, and the order is the point: the start script
+		// contains that probe too, as its own "already running?" guard. Matching the probe first
+		// meant the launch never happened and the runner never came up.
 		if (command.includes("setsid")) {
-			running = true;
+			listening = true;
 
+			return stdout("started\n");
+		}
+		// The liveness probe, which is a connect rather than a test for the file: a socket left
+		// behind by a runner that died is still a socket.
+		if (command.includes('net").connect')) {
+			return { code: listening ? 0 : 1, kind: "ran", stderr: "", stdout: "" };
+		}
+		if (command.includes("cat > ")) {
 			return stdout("");
 		}
-		if (command.endsWith("status")) {
+		// One exchange: whatever arrived on stdin, then a snapshot reflecting it. The runner reads
+		// lines in order, so a snapshot behind a prompt already shows the agent working, which is
+		// what makes the delivery confirmation real rather than hopeful.
+		if (command.includes("nc -U")) {
+			const sent = (input ?? "").includes('"type":"prompt"');
+
 			return stdout(
-				`server:\n  status: ${running ? "running" : "not running"}\n`,
+				`${JSON.stringify({
+					approvals: [],
+					messages: [],
+					status: sent ? "working" : "idle",
+					type: "snapshot",
+				})}\n`,
 			);
-		}
-		if (command.includes("workspace create")) {
-			return stdout(created);
-		}
-		if (command.includes("agent start")) {
-			return stdout(JSON.stringify({ result: { type: "agent_started" } }));
-		}
-		if (command.includes("agent get")) {
-			return stdout(
-				JSON.stringify({ result: { agent: { agent_status: "idle" } } }),
-			);
-		}
-		if (command.includes("agent prompt")) {
-			return stdout(JSON.stringify({ result: { type: "agent_prompted" } }));
-		}
-		if (command.includes("agent read")) {
-			return stdout("agent@agent-abcd:/workspace/repo$ claude\n>\n");
 		}
 
 		throw new Error(`unexpected ssh command: ${command}`);
@@ -1502,7 +1480,6 @@ async function submitted(db: Database.Database): Promise<string> {
 
 function workspace(db: Database.Database): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: "request-a",
 		repository: "https://github.com/plainhq/plain.git",
 		ref: "main",

@@ -15,7 +15,6 @@ import {
 
 // CreateWorkspaceInput is the validated request used to persist a workspace.
 export type CreateWorkspaceInput = {
-	herdrSession: string;
 	idempotencyKey: string;
 	purpose?: string;
 	repository: string;
@@ -28,7 +27,6 @@ export type Workspace = {
 	createdAt: string;
 	currentStep: string;
 	desiredState: WorkspaceTarget;
-	herdrSession: string;
 	hostname: string;
 	id: string;
 	purpose?: string;
@@ -102,8 +100,6 @@ export type WorkspaceTeardown = Omit<WorkspaceProvision, "phase"> & {
 
 // WorkspaceProvision is the private workspace data needed to submit one clone request.
 export type WorkspaceProvision = {
-	herdrPaneId?: string;
-	herdrWorkspaceId?: string;
 	hostname: string;
 	id: string;
 	ip?: string;
@@ -120,7 +116,6 @@ type WorkspaceRow = {
 	created_at: string;
 	current_step: string;
 	desired_state: WorkspaceTarget;
-	herdr_session: string;
 	hostname: string;
 	id: string;
 	purpose: string | null;
@@ -183,7 +178,6 @@ export function createWorkspace(
 			createdAt: now,
 			currentStep: "workspace persisted",
 			desiredState: "present",
-			herdrSession: input.herdrSession,
 			hostname: `agent-${id.slice(0, 4)}`,
 			id,
 			purpose: input.purpose,
@@ -196,8 +190,8 @@ export function createWorkspace(
 		db.prepare(
 			`INSERT INTO workspaces (
 				id, ownership_token, desired_state, status, activity, repository, ref, purpose,
-				hostname, herdr_session, created_at, updated_at, current_step
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				hostname, created_at, updated_at, current_step
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		).run(
 			workspace.id,
 			randomUUID(),
@@ -208,7 +202,6 @@ export function createWorkspace(
 			workspace.ref,
 			workspace.purpose,
 			workspace.hostname,
-			workspace.herdrSession,
 			workspace.createdAt,
 			workspace.updatedAt,
 			workspace.currentStep,
@@ -411,8 +404,6 @@ export function advanceWorkspaceProvision(
 	input: {
 		credentialAt?: string;
 		event?: { message: string; type: string };
-		herdrPaneId?: string;
-		herdrWorkspaceId?: string;
 		ip?: string;
 		phase: ProvisionPhase;
 		status?: WorkspaceStatus;
@@ -427,8 +418,6 @@ export function advanceWorkspaceProvision(
 			`UPDATE workspaces
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				provision_phase = ?, status = COALESCE(?, status), ip = COALESCE(?, ip),
-				herdr_workspace_id = COALESCE(?, herdr_workspace_id),
-				herdr_pane_id = COALESCE(?, herdr_pane_id),
 				git_credential_at = COALESCE(?, git_credential_at),
 				updated_at = ?
 			 WHERE id = ?`,
@@ -437,8 +426,6 @@ export function advanceWorkspaceProvision(
 			input.phase,
 			input.status ?? null,
 			input.ip ?? null,
-			input.herdrWorkspaceId ?? null,
-			input.herdrPaneId ?? null,
 			input.credentialAt ?? null,
 			nowText,
 			workspaceId,
@@ -1079,8 +1066,7 @@ function operationWorkspace(
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip,
-				w.herdr_pane_id, w.herdr_workspace_id
+				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
@@ -1092,8 +1078,6 @@ function operationWorkspace(
 				hostname: string;
 				id: string;
 				destroy_phase: DestroyPhase | null;
-				herdr_pane_id: string | null;
-				herdr_workspace_id: string | null;
 				ip: string | null;
 				provision_phase: ProvisionPhase | null;
 				node: string | null;
@@ -1123,12 +1107,6 @@ function operationWorkspace(
 	}
 	if (row.current_task_upid !== null) {
 		workspace.taskUPID = row.current_task_upid;
-	}
-	if (row.herdr_pane_id !== null) {
-		workspace.herdrPaneId = row.herdr_pane_id;
-	}
-	if (row.herdr_workspace_id !== null) {
-		workspace.herdrWorkspaceId = row.herdr_workspace_id;
 	}
 	if (row.ip !== null) {
 		workspace.ip = row.ip;
@@ -1250,7 +1228,7 @@ export function listWorkspaces(db: Database.Database): Workspace[] {
 	const rows = db
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
-				herdr_session, created_at, updated_at, current_step
+				created_at, updated_at, current_step
 			 FROM workspaces ORDER BY created_at DESC`,
 		)
 		.all() as WorkspaceRow[];
@@ -1271,8 +1249,6 @@ export type WorkspaceDetail = Workspace & {
 	activityObservedAt?: string;
 	errorCode?: string;
 	errorMessage?: string;
-	herdrPaneId?: string;
-	herdrWorkspaceId?: string;
 	ip?: string;
 	lastActivityAt?: string;
 	node?: string;
@@ -1289,8 +1265,8 @@ export function workspaceDetail(
 	const row = db
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
-				herdr_session, created_at, updated_at, current_step, node, vmid, ip,
-				herdr_workspace_id, herdr_pane_id, provision_phase, error_code, error_message,
+				created_at, updated_at, current_step, node, vmid, ip,
+				provision_phase, error_code, error_message,
 				last_activity_at, activity_observed_at, unsaved_work
 			 FROM workspaces WHERE id = ?`,
 		)
@@ -1306,8 +1282,6 @@ export function workspaceDetail(
 		activityObservedAt: row.activity_observed_at,
 		errorCode: row.error_code,
 		errorMessage: row.error_message,
-		herdrPaneId: row.herdr_pane_id,
-		herdrWorkspaceId: row.herdr_workspace_id,
 		ip: row.ip,
 		lastActivityAt: row.last_activity_at,
 		node: row.node,
@@ -1339,7 +1313,7 @@ export function workspaceById(
 	const row = db
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
-				herdr_session, created_at, updated_at, current_step
+				created_at, updated_at, current_step
 			 FROM workspaces WHERE id = ?`,
 		)
 		.get(id) as WorkspaceRow | undefined;
@@ -1357,7 +1331,6 @@ function workspaceFromRow(row: WorkspaceRow): Workspace {
 		createdAt: row.created_at,
 		currentStep: row.current_step,
 		desiredState: row.desired_state,
-		herdrSession: row.herdr_session,
 		hostname: row.hostname,
 		id: row.id,
 		repository: row.repository,

@@ -30,19 +30,8 @@ import {
 	runnerState,
 	startRunner,
 } from "./agent-runner";
-import { claudeAwaitingInput, prepareClaudeWorkspace } from "./claude-agent";
+import { prepareClaudeWorkspace } from "./claude-agent";
 import { type GitHubAppCredentials, installationToken } from "./github-app";
-import {
-	createHerdrWorkspace,
-	type HerdrTarget,
-	herdrAgentName,
-	herdrAgentStatus,
-	herdrServerState,
-	promptHerdrAgent,
-	readHerdrAgent,
-	startHerdrAgent,
-	startHerdrServer,
-} from "./herdr";
 import { containerAddress } from "./proxmox-address";
 import {
 	allocateProxmoxVMID,
@@ -83,28 +72,15 @@ function workspaceSsh(
 			};
 }
 
-// summarise picks the line of a pane most likely to tell an operator what it is asking.
+// summarise shortens a purpose to the one line a timeline entry can hold.
 //
-// Whole terminal snapshots are mostly banner art and blank rows, and the timeline shows one line.
-function summarise(pane: string): string {
-	const lines = pane
-		.split("\n")
-		.map((line) => line.trim())
-		.filter((line) => /[a-z]{4}/i.test(line));
+// The timeline is scanned rather than read, and a purpose can run to paragraphs. Taking the first
+// line rather than the first 120 characters, because a purpose that starts with a title says what
+// it is in that title and truncating mid-sentence says almost nothing.
+function summarise(purpose: string): string {
+	const first = purpose.split("\n")[0]?.trim() ?? "";
 
-	return lines.at(-1)?.slice(0, 160) ?? "no readable output";
-}
-
-// herdrTarget addresses the workspace's named Herdr server.
-function herdrTarget(
-	config: ControllerConfig,
-	workspace: WorkspaceProvision,
-): HerdrTarget | undefined {
-	const ssh = workspaceSsh(config, workspace);
-
-	return ssh === undefined
-		? undefined
-		: { session: config.WORKSPACE_HERDR_SESSION, ssh };
+	return first.length > 120 ? `${first.slice(0, 120)}...` : first;
 }
 
 // executeWorkspaceProvision advances one provision operation by exactly one durable step.
@@ -154,20 +130,9 @@ export async function executeWorkspaceProvision(
 				ssh,
 			);
 		case "checked-out":
-			// The fork between the two control planes. A workspace is disposable, so the two never
-			// have to be migrated between: one built under either setting keeps the phases it was
-			// built with, and an old one dies on its own.
-			return config.WORKSPACE_AGENT_RUNNER === "sdk"
-				? startWorkspaceRunner(db, config, lease, workspace, now, ssh)
-				: startHerdrSession(db, config, lease, workspace, now, ssh);
+			return startWorkspaceRunner(db, config, lease, workspace, now, ssh);
 		case "runner-started":
-			return briefRunnerAgent(db, config, lease, workspace, now);
-		case "session-started":
-			return registerHerdrWorkspace(db, config, lease, workspace, now, ssh);
-		case "herdr-registered":
-			return startWorkspaceAgent(db, config, lease, workspace, now, ssh);
-		case "agent-started":
-			return briefWorkspaceAgent(db, config, lease, workspace, now, ssh);
+			return briefRunnerAgent(db, config, lease, workspace, now, ssh);
 		case "briefed":
 			// Reached only by an operation that advanced and then lost its release, since the pass
 			// that sets this phase also completes.
@@ -342,7 +307,7 @@ async function bootstrapAgentHome(
 
 // checkoutWorkspaceRepository puts the requested repository into the workspace.
 //
-// Before the Herdr session rather than after, so the agent's pane opens in a populated repository
+// Before the runner rather than after, so the agent starts in a populated repository
 // instead of racing the clone.
 async function checkoutWorkspaceRepository(
 	db: Database.Database,
@@ -545,6 +510,7 @@ async function briefRunnerAgent(
 	lease: OperationLease,
 	workspace: WorkspaceProvision,
 	now: Date,
+	ssh: SshRunner,
 ): Promise<WorkspaceOperationRun> {
 	const request = workspaceRequest(db, workspace.id);
 	const purpose = request?.purpose?.trim();
@@ -572,7 +538,7 @@ async function briefRunnerAgent(
 		return { processed: 1, status: "workspace_ready" };
 	}
 
-	const prompted = await promptRunner(target, purpose);
+	const prompted = await promptRunner(target, purpose, ssh);
 	if (prompted === "failed") {
 		noteWorkspaceIssue(db, lease, "could not brief the agent", now);
 		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
@@ -617,345 +583,6 @@ function runnerSource(): string {
 	);
 
 	return cachedRunner;
-}
-
-// startHerdrSession brings up the named Herdr server the workspace's panes will live in.
-//
-// Starting and confirming are separate calls because launching is detached: the command returns
-// before the socket is listening, so only a later status check proves anything.
-async function startHerdrSession(
-	db: Database.Database,
-	config: ControllerConfig,
-	lease: OperationLease,
-	workspace: WorkspaceProvision,
-	now: Date,
-	ssh: SshRunner,
-): Promise<WorkspaceOperationRun> {
-	const target = herdrTarget(config, workspace);
-	if (target === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"ssh_key_missing",
-			"WORKSPACE_SSH_KEY_PATH is not configured",
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-
-	const state = await herdrServerState(target, ssh);
-	if (state.kind === "failed") {
-		noteWorkspaceIssue(db, lease, state.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_session" };
-	}
-	if (state.kind === "stopped") {
-		const started = await startHerdrServer(target, ssh);
-		if (started.kind === "failed") {
-			noteWorkspaceIssue(db, lease, started.message, now);
-		}
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_session" };
-	}
-
-	advanceWorkspaceProvision(
-		db,
-		lease,
-		{
-			event: {
-				message: `herdr session ${config.WORKSPACE_HERDR_SESSION} is running`,
-				type: "workspace.session_started",
-			},
-			phase: "session-started",
-			step: "herdr session running",
-		},
-		now,
-	);
-	releaseWorkspaceOperation(db, lease, 0, now);
-
-	return { processed: 1, status: "session_started" };
-}
-
-// registerHerdrWorkspace creates the Herdr workspace the agent will run in.
-//
-// Carries no credentials: the pane's shell picks those up from the file bootstrap wrote, so
-// nothing secret passes through a Herdr argument.
-async function registerHerdrWorkspace(
-	db: Database.Database,
-	config: ControllerConfig,
-	lease: OperationLease,
-	workspace: WorkspaceProvision,
-	now: Date,
-	ssh: SshRunner,
-): Promise<WorkspaceOperationRun> {
-	const target = herdrTarget(config, workspace);
-	if (target === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"ssh_key_missing",
-			"WORKSPACE_SSH_KEY_PATH is not configured",
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-
-	const created = await createHerdrWorkspace(
-		target,
-		{ cwd: AGENT_CWD, label: workspace.hostname },
-		ssh,
-	);
-	if (created.kind === "rejected") {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"herdr_workspace_rejected",
-			created.message,
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-	if (created.kind === "failed") {
-		noteWorkspaceIssue(db, lease, created.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
-	}
-
-	advanceWorkspaceProvision(
-		db,
-		lease,
-		{
-			event: {
-				message: `herdr workspace ${created.workspaceId} rooted at ${created.cwd}`,
-				type: "workspace.herdr_registered",
-			},
-			herdrPaneId: created.paneId,
-			herdrWorkspaceId: created.workspaceId,
-			phase: "herdr-registered",
-			status: "registering",
-			step: `herdr workspace ${created.workspaceId}`,
-		},
-		now,
-	);
-	releaseWorkspaceOperation(db, lease, 0, now);
-
-	return { processed: 1, status: "herdr_registered" };
-}
-
-// startWorkspaceAgent starts the coding agent and proves it is actually usable.
-//
-// The pane is read afterwards because Herdr cannot tell a working agent from one sitting in a
-// first-run wizard: both report "idle" and both exit 0. Only the screen distinguishes them.
-async function startWorkspaceAgent(
-	db: Database.Database,
-	config: ControllerConfig,
-	lease: OperationLease,
-	workspace: WorkspaceProvision,
-	now: Date,
-	ssh: SshRunner,
-): Promise<WorkspaceOperationRun> {
-	const target = herdrTarget(config, workspace);
-	if (target === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"ssh_key_missing",
-			"WORKSPACE_SSH_KEY_PATH is not configured",
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-
-	const name = herdrAgentName(workspace.hostname);
-	const paneId = workspace.herdrPaneId;
-	if (name === undefined || paneId === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_target_missing",
-			name === undefined
-				? `${workspace.hostname} is not a usable herdr agent name`
-				: "herdr pane was not recorded",
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-
-	const started = await startHerdrAgent(
-		target,
-		{ agentKind: config.WORKSPACE_AGENT_KIND, name, paneId },
-		ssh,
-	);
-	if (started.kind === "rejected") {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_start_rejected",
-			started.message,
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-	if (started.kind === "failed") {
-		noteWorkspaceIssue(db, lease, started.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
-	}
-
-	const state = await herdrAgentStatus(target, name, ssh);
-	if (state.kind === "failed") {
-		noteWorkspaceIssue(db, lease, state.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
-	}
-
-	const pane = await readHerdrAgent(target, name, ssh);
-	if (pane.kind === "failed") {
-		noteWorkspaceIssue(db, lease, pane.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
-	}
-
-	// Two signals, because each covers the other's blind spot. "blocked" catches any dialog,
-	// including ones this controller has never seen. The pane text catches the first-run gates
-	// Herdr reports as a perfectly ordinary idle agent.
-	if (state.status === "blocked" || claudeAwaitingInput(pane.text)) {
-		// No amount of retrying dismisses a dialog, and handing the workspace over would let its
-		// first prompt be typed into a menu.
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_awaiting_input",
-			`${config.WORKSPACE_AGENT_KIND} is waiting for input: ${summarise(pane.text)}`,
-			now,
-		);
-
-		return { processed: 1, status: "task_failed" };
-	}
-	if (started.kind === "not-ready" || state.status === "unknown") {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
-	}
-
-	advanceWorkspaceProvision(
-		db,
-		lease,
-		{
-			event: {
-				message: `${config.WORKSPACE_AGENT_KIND} running as ${name} in ${paneId}`,
-				type: "workspace.agent_started",
-			},
-			phase: "agent-started",
-			step: "agent running",
-		},
-		now,
-	);
-	releaseWorkspaceOperation(db, lease, 0, now);
-
-	return { processed: 1, status: "agent_started" };
-}
-
-// briefWorkspaceAgent tells the agent what the workspace was requested for.
-//
-// This is what makes "ready" mean working on it rather than merely built. The purpose is sent
-// verbatim: wrapping it in invented context would hand the agent instructions the operator never
-// wrote, and a terse prompt is better than a surprising one.
-async function briefWorkspaceAgent(
-	db: Database.Database,
-	config: ControllerConfig,
-	lease: OperationLease,
-	workspace: WorkspaceProvision,
-	now: Date,
-	ssh: SshRunner,
-): Promise<WorkspaceOperationRun> {
-	const request = workspaceRequest(db, workspace.id);
-	const purpose = request?.purpose?.trim();
-	const target = herdrTarget(config, workspace);
-	const name = herdrAgentName(workspace.hostname);
-
-	// Nothing to say. A workspace requested without a purpose is ready and idle, waiting for
-	// someone to tell it something from the UI.
-	if (
-		purpose === undefined ||
-		purpose === "" ||
-		target === undefined ||
-		name === undefined
-	) {
-		advanceWorkspaceProvision(
-			db,
-			lease,
-			{
-				event: {
-					message: "workspace ready, awaiting instructions",
-					type: "workspace.ready",
-				},
-				phase: "briefed",
-				status: "ready",
-				step: "ready",
-			},
-			now,
-		);
-		completeWorkspaceOperation(db, lease, now);
-
-		return { processed: 1, status: "workspace_ready" };
-	}
-
-	const prompted = await promptHerdrAgent(target, name, purpose, ssh);
-	// The briefing is work given to the agent, so it starts the idle clock. Otherwise a workspace
-	// that was briefed and answered quickly looks, to the reaper, like one that never did anything.
-	if (prompted.kind === "submitted") {
-		recordWorkspaceInteraction(db, workspace.id, now);
-	}
-	if (prompted.kind === "failed") {
-		noteWorkspaceIssue(db, lease, prompted.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
-	}
-	// Blocked before it was even briefed. Retrying cannot clear a dialog, and the workspace is
-	// usable: an operator answers it and prompts by hand. Better ready and waiting than failed.
-	if (prompted.kind === "blocked") {
-		noteWorkspaceIssue(
-			db,
-			lease,
-			"agent was waiting for input before it could be briefed",
-			now,
-		);
-	}
-
-	advanceWorkspaceProvision(
-		db,
-		lease,
-		{
-			event: {
-				message:
-					prompted.kind === "blocked"
-						? "workspace ready, agent waiting for input"
-						: `briefed: ${summarise(purpose)}`,
-				type: "workspace.ready",
-			},
-			phase: "briefed",
-			status: "ready",
-			step: "ready",
-		},
-		now,
-	);
-	completeWorkspaceOperation(db, lease, now);
-
-	return { processed: 1, status: "workspace_ready" };
 }
 
 // discoverAddress records where the workspace can be reached.

@@ -23,7 +23,7 @@ describe("mapActivity", () => {
 	// Exported and tested directly because the stream uses it too, several times more often than
 	// the observation pass does. A second copy of this mapping would be a way for the two to
 	// disagree about what "done" means.
-	it("maps every state Herdr reports", () => {
+	it("maps every status a runner reports", () => {
 		expect(mapActivity("working")).toBe("active");
 		expect(mapActivity("blocked")).toBe("blocked");
 		expect(mapActivity("idle")).toBe("idle");
@@ -41,13 +41,11 @@ describe("mapActivity", () => {
 });
 
 describe("observeWorkspaceActivity", () => {
-	it("maps every herdr state to the activity the fleet reports", async () => {
+	it("maps every runner status to the activity the fleet reports", async () => {
 		for (const [status, activity] of [
 			["working", "active"],
 			["blocked", "blocked"],
 			["idle", "idle"],
-			// Both mean ready for input; they differ only in whether the server saw the completion.
-			["done", "idle"],
 		] as const) {
 			const db = database();
 			const id = ready(db);
@@ -59,8 +57,8 @@ describe("observeWorkspaceActivity", () => {
 	});
 
 	it("does not flatten an unclassified agent into idle", async () => {
-		// Herdr defines "unknown" as an agent it cannot classify, which is not evidence that
-		// anything finished. Reporting it as idle would invent a fact.
+		// A status nobody could read is not evidence that anything finished. Reporting it as idle
+		// would invent a fact, and the reaper acts on idle.
 		const db = database();
 		const id = ready(db);
 
@@ -176,7 +174,6 @@ describe("observeWorkspaceActivity", () => {
 	it("ignores workspaces that are not ready", async () => {
 		const db = database();
 		createWorkspace(db, {
-			herdrSession: "agents",
 			idempotencyKey: "queued",
 			repository: "github.com/ndom91/sveltekasten",
 			ref: "main",
@@ -195,20 +192,19 @@ describe("observeWorkspaceActivity", () => {
 	});
 });
 
-// agent fakes a workspace whose herdr server reports one lifecycle state.
+// agent fakes a workspace whose runner reports one status.
 function agent(status: string): SshRunner {
 	return async (): Promise<SshResult> => ({
 		code: 0,
 		kind: "ran",
 		stderr: "",
-		stdout: JSON.stringify({ result: { agent: { agent_status: status } } }),
+		stdout: `${JSON.stringify({ approvals: [], messages: [], status, type: "snapshot" })}\n`,
 	});
 }
 
 // ready leaves one workspace looking like a finished provision.
 function ready(db: Database.Database): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: `ready-${Math.random()}`,
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

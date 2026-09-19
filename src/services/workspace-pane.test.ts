@@ -25,7 +25,6 @@ describe("workspaceDetail", () => {
 
 		expect(detail?.vmid).toBe(undefined);
 		expect(detail?.ip).toBe(undefined);
-		expect(detail?.herdrPaneId).toBe(undefined);
 		expect(detail?.status).toBe("requested");
 	});
 
@@ -36,20 +35,17 @@ describe("workspaceDetail", () => {
 		db.prepare(
 			`UPDATE workspaces
 			 SET status = 'ready', node = 'nas', vmid = 109, ip = '10.0.3.105',
-				herdr_workspace_id = 'w1', herdr_pane_id = 'w1:p1',
-				provision_phase = 'agent-started', error_code = 'agent_awaiting_input',
-				error_message = 'claude is waiting for input'
+				provision_phase = 'runner-started', error_code = 'agent_awaiting_input',
+				error_message = 'the agent runner did not answer'
 			 WHERE id = ?`,
 		).run(id);
 
 		expect(workspaceDetail(db, id)).toMatchObject({
 			errorCode: "agent_awaiting_input",
-			errorMessage: "claude is waiting for input",
-			herdrPaneId: "w1:p1",
-			herdrWorkspaceId: "w1",
+			errorMessage: "the agent runner did not answer",
 			ip: "10.0.3.105",
 			node: "nas",
-			provisionPhase: "agent-started",
+			provisionPhase: "runner-started",
 			status: "ready",
 			vmid: 109,
 		});
@@ -62,7 +58,6 @@ describe("workspaceDetail", () => {
 
 function workspace(db: Database.Database): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: "detail",
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

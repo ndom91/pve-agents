@@ -150,7 +150,6 @@ function minted() {
 
 function ready(db: Database.Database, credentialAt: string | null): string {
 	const created = createWorkspace(db, {
-		herdrSession: "agents",
 		idempotencyKey: `ready-${Math.random()}`,
 		repository: "github.com/ndom91/open-plan-annotator",
 		ref: "main",

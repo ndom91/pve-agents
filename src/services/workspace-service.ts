@@ -109,12 +109,10 @@ export async function checkWorkspaceRequest(
 // requestWorkspace persists validated workspace creation intent.
 export function requestWorkspace(
 	db: Database.Database,
-	herdrSession: string,
 	idempotencyKey: string,
 	request: WorkspaceRequest,
 ) {
 	return createWorkspace(db, {
-		herdrSession,
 		idempotencyKey,
 		purpose: request.purpose,
 		repository: request.repository,

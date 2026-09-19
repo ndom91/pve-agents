@@ -93,7 +93,6 @@ Unsafe template material includes:
 - GitHub access tokens or private deploy keys.
 - Model-provider API keys.
 - Claude, Codex, or GitHub login state.
-- Herdr client credentials.
 
 LXC cloning does not provide QEMU-style cloud-init, and Proxmox does not expose a general REST `pct exec` or `pct push`. The initial bootstrap channel must therefore be prepared in the template or supplied through a separately controlled Proxmox-host mechanism.
 
@@ -154,4 +153,4 @@ The web UI is the interactive path, so the controller holds more than a provisio
 - **The agent's screen is rendered as parsed spans, never as HTML.** An agent echoes file contents, diffs, and whatever a prompt told it to print. Handing that to an HTML converter would let any repository script the controller's own origin, where the operator's session cookie lives.
 - **`ssh` does not preserve argument boundaries.** It joins the command and the remote shell splits it again, so every argument is quoted before it leaves. Without that, a repository name or an agent prompt carrying a semicolon is remote code execution under the controller's key.
 
-A local Herdr bridge was specified here and never built. The web UI removed the reason for it: an operator watches and drives the agent in the browser rather than registering each workspace into their own Herdr sidebar.
+A local Herdr bridge was specified here and never built. The web UI removed the reason for it, and Herdr itself is no longer part of the system: an operator watches and drives the agent in the browser. See `docs/herdr-integration.md`.

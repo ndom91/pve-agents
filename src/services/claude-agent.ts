@@ -5,18 +5,6 @@ export type ClaudeBootstrap =
 	| { kind: "failed"; message: string }
 	| { kind: "prepared" };
 
-// WIZARDS are the interactive gates Claude Code puts in front of a first run.
-//
-// Matched explicitly because the machine-readable state does not always give them away: Herdr
-// reported the theme picker as agent_status "idle" with interactive_ready true, and `agent start`
-// exited 0. A controller trusting that alone would send its first prompt into a menu.
-const WIZARDS = [
-	/Choose the text style/i,
-	/Is this a project you created or one you trust/i,
-	/Let's get started/i,
-	/Select login method/i,
-];
-
 // AGENT_ENV is the file every pane's shell sources to find its credentials.
 const AGENT_ENV = "$HOME/.config/agent-env";
 
@@ -41,8 +29,14 @@ const SEED_SCRIPT = [
 // claudeSeed builds the settings that skip every first-run gate for one working directory.
 //
 // Two separate gates, found the hard way, one at a time. hasCompletedOnboarding skips the theme
-// picker. hasTrustDialogAccepted skips the "is this a folder you trust" prompt, which is per
-// directory and which Herdr reports as a blocked agent.
+// picker. hasTrustDialogAccepted skips the "is this a folder you trust" prompt, which is recorded
+// per directory.
+//
+// Kept after the TUI was retired, deliberately. Both gates belonged to the interactive client and
+// the SDK very probably asks neither — but "very probably" is not a thing to find out by having
+// every new workspace fail to start. It is one small file written once during bootstrap, and every
+// workspace verified so far was verified with it in place. Removing it is a change to make on
+// purpose, with a workspace provisioned without it to prove the point.
 export function claudeSeed(cwd: string): string {
 	return JSON.stringify({
 		hasCompletedOnboarding: true,
@@ -91,11 +85,6 @@ export async function prepareClaudeWorkspace(
 	}
 
 	return { kind: "prepared" };
-}
-
-// claudeAwaitingInput reports whether a pane is showing a first-run gate.
-export function claudeAwaitingInput(pane: string): boolean {
-	return WIZARDS.some((wizard) => wizard.test(pane));
 }
 
 function redact(value: string, token: string): string {

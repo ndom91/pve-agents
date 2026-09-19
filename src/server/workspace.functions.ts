@@ -9,11 +9,7 @@ import {
 	workspaceRequestSchema,
 	workspaceWithTimeline,
 } from "../services/workspace-service";
-import {
-	controllerDatabase,
-	controllerHerdrSession,
-	controllerRuntimeConfig,
-} from "./controller";
+import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 import { operatorMiddleware } from "./middleware";
 
 const createWorkspaceInput = z
@@ -37,7 +33,6 @@ export const createWorkspace = createServerFn({ method: "POST" })
 
 		const result = requestWorkspace(
 			controllerDatabase(),
-			controllerHerdrSession(),
 			data.idempotencyKey,
 			data,
 		);

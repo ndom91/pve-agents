@@ -4,7 +4,7 @@ export const DEFAULT_WORKSPACE_ACTIVITY = "unknown";
 // DEFAULT_WORKSPACE_STATUS is the initial observed lifecycle status for a new workspace.
 export const DEFAULT_WORKSPACE_STATUS = "requested";
 
-// WorkspaceActivity describes the latest aggregate activity reported by Herdr.
+// WorkspaceActivity describes the latest activity the workspace's agent runner reported.
 export type WorkspaceActivity = "active" | "blocked" | "idle" | "unknown";
 
 // WorkspaceStatus describes the controller-observed provisioning lifecycle.

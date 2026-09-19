@@ -83,7 +83,6 @@ const READ_ONLY = new Set([
 	"workspaceChanges",
 	"workspaceDetail",
 	"workspaceFileDiff",
-	"workspacePane",
 	"workspaceSettings",
 ]);
 
@@ -95,10 +94,11 @@ describe("server function methods", () => {
 	}
 
 	it("sees every server function the modules export", () => {
-		// Nineteen today, the newest being the one that answers a tool approval. The number is here
+		// Seventeen today. It was nineteen before Herdr went: reading a screen and sending a
+		// keystroke were two of them, and answering an approval replaced both. The number is here
 		// so that losing one to a bad import fails loudly rather than quietly shrinking what the
 		// loop above covers.
-		expect(declaredMethods().length).toBe(19);
+		expect(declaredMethods().length).toBe(17);
 	});
 });
 

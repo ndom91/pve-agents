@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireOperator } from "../../server/authorize";
 import {
 	controllerDatabase,
-	controllerHerdrSession,
 	controllerRuntimeConfig,
 } from "../../server/controller";
 import { invalidJson, json } from "../../server/http";
@@ -57,7 +56,6 @@ export const Route = createFileRoute("/api/workspaces")({
 
 				const result = requestWorkspace(
 					controllerDatabase(),
-					controllerHerdrSession(),
 					input.data.idempotencyKey,
 					input.data,
 				);
