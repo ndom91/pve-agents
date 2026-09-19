@@ -23,6 +23,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 				{
 					title: "Agent Compute Controller",
 				},
+				{
+					rel: "apple-touch-icon",
+					sizes: "180x180",
+					href: "/apple-touch-icon.png",
+				},
+				{
+					rel: "icon",
+					type: "image/svg",
+					href: "/icon0.svg",
+				},
+				{
+					rel: "icon",
+					type: "image/png",
+					sizes: "96x96",
+					href: "/icon1.png",
+				},
+				{ rel: "manifest", href: "/manifest.json", color: "#fffff" },
+				{ rel: "icon", href: "/favicon.ico" },
 			],
 			links: [
 				{
