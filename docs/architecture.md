@@ -174,7 +174,8 @@ the entire reason they moved.
 - **Opening a pull request.** The GitHub App has the permission, but a PR wants a title and a body
   that would have to be invented or demanded, and a branch is enough to review from.
 - **Editing files from the browser.** `@pierre/diffs` would support it. It is a different feature.
-- **Tests that call a server function.** The operations behind them are covered; the wrapper is
-  not. It cannot be: a server function reads its options from an AsyncLocalStorage the Start
-  runtime owns, and the callable a test imports is the client-side RPC stub. What goes untested is
-  a validator and a middleware line per function.
+- **Tests that call a server function.** A server function reads its options from an
+  AsyncLocalStorage the Start runtime owns, and the callable a test imports is the client-side RPC
+  stub, so one cannot be invoked from a test at all. Its two properties are checked the ways that
+  remain instead: the method off the stub, and the operator guard out of the source. What is left
+  is the validator on each, which nothing observes.
