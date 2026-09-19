@@ -9,6 +9,7 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**/src/**/*",
+			"**/runner/**/*",
 			"**/.vscode/**/*",
 			"**/index.html",
 			"**/vite.config.ts",
