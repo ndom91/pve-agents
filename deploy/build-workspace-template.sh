@@ -155,9 +155,16 @@ pct exec "$NEW_VMID" -- bash -eux -c "
 "
 
 log "installing coding agents for ${WORKSPACE_USER}"
+# The agent SDK is what the controller's runner imports. It goes in the template rather than being
+# installed per workspace because it carries its own Claude Code binary and weighs about 245 MB;
+# workspaces are linked clones of one ZFS snapshot, so the template pays that once for the fleet.
+#
+# The runner reaches it through a symlink to this global root, created at install time. NODE_PATH
+# does not work: it is a CommonJS mechanism and node's ESM resolver ignores it, and the runner is
+# an ES module.
 pct exec "$NEW_VMID" -- bash -eux -c "
 	export DEBIAN_FRONTEND=noninteractive
-	npm install -g @anthropic-ai/claude-code @openai/codex
+	npm install -g @anthropic-ai/claude-code @openai/codex @anthropic-ai/claude-agent-sdk
 "
 
 log "authorising the controller key"
@@ -219,6 +226,11 @@ pct exec "$NEW_VMID" -- bash -eu -c "
 			missing=\"\$missing \$tool(${WORKSPACE_USER}, non-login)\"
 	done
 	[ -s /home/${WORKSPACE_USER}/.ssh/authorized_keys ] || missing=\"\$missing authorized_keys\"
+	# Not a binary on PATH, so checked by the path the runner actually resolves it through: a
+	# symlink to this global root. Without this the template converts happily and every workspace
+	# built from it dies at runner start with ERR_MODULE_NOT_FOUND.
+	[ -d /usr/lib/node_modules/@anthropic-ai/claude-agent-sdk ] ||
+		missing=\"\$missing claude-agent-sdk(/usr/lib/node_modules)\"
 	if [ -n \"\$missing\" ]; then
 		echo \"missing:\$missing\" >&2
 		exit 1

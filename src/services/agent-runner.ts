@@ -25,17 +25,30 @@ const RUNNER_DIR = "/home/agent/.agent-runner";
 // directory only exists while a login session does, and this process outlives every session.
 const RUNNER_SOCKET = "/home/agent/.agent-runner.sock";
 
-// NODE_PATH points a script outside any package at the global install.
+// NODE_MODULES is where the template's global npm install puts the SDK.
 //
-// The SDK is installed into the template with `npm i -g`, which puts it in the global root rather
-// than anywhere node would find it from /home/agent. The package.json below makes the directory a
-// package; this makes the dependency resolvable from it.
+// Reached by a symlink rather than by NODE_PATH, which was the first attempt and does not work:
+// NODE_PATH is a CommonJS mechanism and node's ESM resolver ignores it entirely. The runner is an
+// ES module, so it got ERR_MODULE_NOT_FOUND with NODE_PATH set correctly and pointing at a
+// directory that genuinely contained the package. The ESM resolver walks up looking for
+// node_modules directories, and it follows a symlink, so that is what the install creates.
 const NODE_MODULES = "/usr/lib/node_modules";
 
 // RunnerInstall reports whether a workspace has a runner ready to be started.
 export type RunnerInstall =
 	| { kind: "failed"; message: string }
 	| { kind: "installed" };
+
+// RunnerLaunch is whether the start command was accepted.
+//
+// Deliberately not the same type as RunnerState, because it cannot answer the same question. The
+// script backgrounds the runner and exits, so it reports that a launch was issued and nothing
+// about whether the process survived its first second. A runner that dies immediately — a missing
+// dependency, a syntax error — launches perfectly.
+//
+// This type used to be RunnerState, and `startRunner` cheerfully returned "running" for a runner
+// whose log held ERR_MODULE_NOT_FOUND. Callers poll runnerState.
+export type RunnerLaunch = "failed" | "launched";
 
 // RunnerState is whether a runner is answering on its socket.
 export type RunnerState = "failed" | "running" | "stopped";
@@ -52,6 +65,9 @@ export type RunnerState = "failed" | "running" | "stopped";
 const INSTALL_SCRIPT = [
 	'mkdir -p "$1"',
 	'printf %s \'{"type":"module"}\' > "$1/package.json"',
+	// How the runner finds the SDK. See NODE_MODULES above for why this is a symlink and not an
+	// environment variable.
+	'ln -sfn "$2" "$1/node_modules"',
 	'cat > "$1/agent-runner.mjs"',
 ].join("\n");
 
@@ -75,7 +91,7 @@ const START_SCRIPT = [
 	"  exit 0",
 	"fi",
 	'. "$HOME/.config/agent-env"',
-	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" NODE_PATH="$5" \\',
+	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" \\',
 	'  setsid nohup node "$1/agent-runner.mjs" > "$1/runner.log" 2>&1 < /dev/null &',
 	"echo started",
 ].join("\n");
@@ -91,7 +107,7 @@ export async function installRunner(
 ): Promise<RunnerInstall> {
 	const result = await ssh(
 		target,
-		["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR],
+		["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR, NODE_MODULES],
 		source,
 	);
 	if (result.kind === "refused") {
@@ -110,16 +126,18 @@ export async function installRunner(
 	return { kind: "installed" };
 }
 
-// startRunner starts the runner if it is not already answering.
+// startRunner launches the runner if it is not already answering.
 //
 // Idempotent, because a provisioning pass that started a runner and then lost its lease has to be
 // able to run again. Starting a second one would leave two processes fighting over one socket and
 // two Claude sessions billing the same subscription.
+//
+// "launched" is not "running". Poll runnerState for that; see RunnerLaunch.
 export async function startRunner(
 	target: SshTarget,
 	permissionMode: string,
 	ssh: SshRunner,
-): Promise<RunnerState> {
+): Promise<RunnerLaunch> {
 	const result = await ssh(target, [
 		"sh",
 		"-c",
@@ -129,13 +147,12 @@ export async function startRunner(
 		RUNNER_SOCKET,
 		AGENT_CWD,
 		permissionMode,
-		NODE_MODULES,
 	]);
 	if (result.kind !== "ran") {
 		return "failed";
 	}
 
-	return result.code === 0 ? "running" : "failed";
+	return result.code === 0 ? "launched" : "failed";
 }
 
 // runnerState reports whether the socket answers.

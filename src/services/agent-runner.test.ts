@@ -143,6 +143,30 @@ describe("startRunner", () => {
 
 		expect(await startRunner(TARGET, "auto", ssh)).toBe("failed");
 	});
+
+	it("claims only that a launch was issued, never that one is running", async () => {
+		// The script backgrounds the runner and exits, so a runner that dies in its first second
+		// launches perfectly. This returned "running" for one whose log held ERR_MODULE_NOT_FOUND,
+		// and provisioning would have marked the workspace ready on the strength of it.
+		const { ssh } = recorder();
+
+		expect(await startRunner(TARGET, "auto", ssh)).toBe("launched");
+	});
+});
+
+describe("installRunner's module resolution", () => {
+	it("links the global install rather than setting NODE_PATH", async () => {
+		// NODE_PATH is a CommonJS mechanism and node's ESM resolver ignores it. The runner is an
+		// ES module, so the first attempt failed with ERR_MODULE_NOT_FOUND while NODE_PATH was set
+		// correctly and pointed at a directory that genuinely held the package.
+		const { calls, ssh } = recorder();
+
+		await installRunner(TARGET, "x", ssh);
+
+		const script = calls[0]?.command.join(" ") ?? "";
+		expect(script).toContain("ln -sfn");
+		expect(script).not.toContain("NODE_PATH");
+	});
 });
 
 describe("runnerState", () => {
