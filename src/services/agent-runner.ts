@@ -208,6 +208,97 @@ export function framer(
 	};
 }
 
+// PROMPT_TIMEOUT_MS bounds a one-shot prompt.
+//
+// Long enough for two ssh handshakes on a container that has just booted, short enough that a
+// provisioning pass holding a lease does not sit on it. A timeout is retried by the next pass.
+const PROMPT_TIMEOUT_MS = 20_000;
+
+// promptRunner delivers one prompt and disconnects.
+//
+// For the briefing, which happens once and has no reader. Confirmation is a real round trip rather
+// than a hopeful write: the attach snapshot proves the channel works, and the status change proves
+// the runner took the prompt. Writing and closing immediately would report success for a prompt
+// that never reached a generator, and the workspace would be marked ready having been told nothing.
+export function promptRunner(
+	target: SshTarget,
+	text: string,
+): Promise<"failed" | "sent"> {
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (result: "failed" | "sent") => {
+			if (!settled) {
+				settled = true;
+				clearTimeout(timer);
+				runner.close();
+				resolve(result);
+			}
+		};
+
+		const runner = attachRunner(target, {
+			onClose: () => finish("failed"),
+			onEvent: (event) => {
+				const value = event as { status?: string; type?: string };
+				if (value.type === "snapshot") {
+					runner.send({ text, type: "prompt" });
+
+					return;
+				}
+				if (value.type === "status" && value.status === "working") {
+					finish("sent");
+				}
+			},
+		});
+
+		const timer = setTimeout(() => finish("failed"), PROMPT_TIMEOUT_MS);
+		runner.send({ type: "attach" });
+	});
+}
+
+// STATUS_SCRIPT asks the runner for a snapshot and takes the first line of the answer.
+//
+// `head -1` rather than a netcat timeout: it closes the pipe as soon as the snapshot arrives, and
+// nc exits on the broken pipe. Waiting instead would add its delay to every workspace on every
+// observation pass, for a reply that has already been received.
+const STATUS_SCRIPT = `printf '{"type":"attach"}\\n' | nc -U "$1" | head -1`;
+
+// runnerStatus asks one runner what its agent is doing.
+//
+// One command over the ordinary SSH runner rather than a long-lived attachment, so the observation
+// pass stays injectable and a test never spawns a client. The snapshot already carries the status,
+// so this is a connect, a line, and a disconnect.
+//
+// "unknown" for anything that does not answer, and the word is load-bearing: the reaper refuses to
+// destroy a workspace it cannot inspect, so a failed reading must never be read as an idle one.
+export async function runnerStatus(
+	target: SshTarget,
+	ssh: SshRunner,
+): Promise<"blocked" | "idle" | "unknown" | "working"> {
+	const result = await ssh(target, [
+		"sh",
+		"-c",
+		STATUS_SCRIPT,
+		"sh",
+		RUNNER_SOCKET,
+	]);
+	if (result.kind !== "ran" || result.code !== 0) {
+		return "unknown";
+	}
+
+	let snapshot: { status?: unknown; type?: unknown };
+	try {
+		snapshot = JSON.parse(result.stdout.trim()) as typeof snapshot;
+	} catch {
+		return "unknown";
+	}
+
+	return snapshot.status === "blocked" ||
+		snapshot.status === "idle" ||
+		snapshot.status === "working"
+		? snapshot.status
+		: "unknown";
+}
+
 // RunnerAttachment is a live connection to one workspace's runner.
 export type RunnerAttachment = {
 	close: () => void;

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
@@ -21,6 +24,12 @@ import {
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
 import { AGENT_CWD } from "../domain/workspace-layout";
+import {
+	installRunner,
+	promptRunner,
+	runnerState,
+	startRunner,
+} from "./agent-runner";
 import { claudeAwaitingInput, prepareClaudeWorkspace } from "./claude-agent";
 import { type GitHubAppCredentials, installationToken } from "./github-app";
 import {
@@ -145,7 +154,14 @@ export async function executeWorkspaceProvision(
 				ssh,
 			);
 		case "checked-out":
-			return startHerdrSession(db, config, lease, workspace, now, ssh);
+			// The fork between the two control planes. A workspace is disposable, so the two never
+			// have to be migrated between: one built under either setting keeps the phases it was
+			// built with, and an old one dies on its own.
+			return config.WORKSPACE_AGENT_RUNNER === "sdk"
+				? startWorkspaceRunner(db, config, lease, workspace, now, ssh)
+				: startHerdrSession(db, config, lease, workspace, now, ssh);
+		case "runner-started":
+			return briefRunnerAgent(db, config, lease, workspace, now);
 		case "session-started":
 			return registerHerdrWorkspace(db, config, lease, workspace, now, ssh);
 		case "herdr-registered":
@@ -440,6 +456,167 @@ function githubAppCredentials(
 		privateKeyPath === undefined
 		? undefined
 		: { appId, installationId, privateKeyPath };
+}
+
+// startWorkspaceRunner installs the agent runner and waits for it to answer.
+//
+// Three Herdr phases collapse into this one. Starting a server, creating a workspace in it, and
+// starting an agent in a pane were three round trips with three distinct failure vocabularies
+// (`agent_name_taken`, `agent_not_ready`, `agent_prompt_stalled`) and a first-run wizard check on
+// the end. A process either listens on its socket or it does not.
+//
+// Installing on every pass rather than once: writing one file is cheaper than recording whether it
+// was written, and it means a controller deploy reaches a workspace whose runner died and is about
+// to be restarted.
+async function startWorkspaceRunner(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const target = workspaceSsh(config, workspace);
+	if (target === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"ssh_key_missing",
+			"WORKSPACE_SSH_KEY_PATH is not configured",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
+	// Asked first, so a pass that already has a working runner costs one round trip rather than an
+	// install and a launch.
+	if ((await runnerState(target, ssh)) !== "running") {
+		const installed = await installRunner(target, runnerSource(), ssh);
+		if (installed.kind === "failed") {
+			noteWorkspaceIssue(db, lease, installed.message, now);
+			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+			return { processed: 1, status: "awaiting_session" };
+		}
+
+		// "launched" is not "running": the start script backgrounds the process and exits, so a
+		// runner that dies on a missing dependency launches perfectly. The next pass asks the
+		// socket, which is the only thing that can answer.
+		const launched = await startRunner(
+			target,
+			config.WORKSPACE_PERMISSION_MODE,
+			ssh,
+		);
+		if (launched === "failed") {
+			noteWorkspaceIssue(db, lease, "could not launch the agent runner", now);
+		}
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_session" };
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `agent runner listening, permissions ${config.WORKSPACE_PERMISSION_MODE}`,
+				type: "workspace.session_started",
+			},
+			phase: "runner-started",
+			step: "agent runner running",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "session_started" };
+}
+
+// briefRunnerAgent tells a runner-backed agent what the workspace was requested for.
+//
+// The same intent as briefWorkspaceAgent and deliberately a separate function: the two share a
+// sentence of meaning and no code, because one sends over a socket and the other types into a
+// pane. Merging them would mean a branch inside every step.
+async function briefRunnerAgent(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+): Promise<WorkspaceOperationRun> {
+	const request = workspaceRequest(db, workspace.id);
+	const purpose = request?.purpose?.trim();
+	const target = workspaceSsh(config, workspace);
+
+	// Nothing to say. A workspace requested without a purpose is ready and idle, waiting for
+	// someone to tell it something from the UI.
+	if (purpose === undefined || purpose === "" || target === undefined) {
+		advanceWorkspaceProvision(
+			db,
+			lease,
+			{
+				event: {
+					message: "workspace ready, awaiting instructions",
+					type: "workspace.ready",
+				},
+				phase: "briefed",
+				status: "ready",
+				step: "ready",
+			},
+			now,
+		);
+		completeWorkspaceOperation(db, lease, now);
+
+		return { processed: 1, status: "workspace_ready" };
+	}
+
+	const prompted = await promptRunner(target, purpose);
+	if (prompted === "failed") {
+		noteWorkspaceIssue(db, lease, "could not brief the agent", now);
+		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+		return { processed: 1, status: "awaiting_agent" };
+	}
+
+	// The briefing is work given to the agent, so it starts the idle clock. Otherwise a workspace
+	// that was briefed and answered quickly looks, to the reaper, like one that never did anything.
+	recordWorkspaceInteraction(db, workspace.id, now);
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message: `briefed: ${summarise(purpose)}`,
+				type: "workspace.ready",
+			},
+			phase: "briefed",
+			status: "ready",
+			step: "ready",
+		},
+		now,
+	);
+	completeWorkspaceOperation(db, lease, now);
+
+	return { processed: 1, status: "workspace_ready" };
+}
+
+// runnerSource reads the runner this controller ships.
+//
+// From disk rather than bundled into the build, so the file sent to a container is the one beside
+// the running controller. A copy frozen at build time looks current and is the kind of thing that
+// costs an afternoon.
+//
+// Cached after the first read: this runs on every provisioning pass for every workspace.
+let cachedRunner: string | undefined;
+function runnerSource(): string {
+	cachedRunner ??= readFileSync(
+		join(process.cwd(), "runner", "agent-runner.mjs"),
+		"utf8",
+	);
+
+	return cachedRunner;
 }
 
 // startHerdrSession brings up the named Herdr server the workspace's panes will live in.

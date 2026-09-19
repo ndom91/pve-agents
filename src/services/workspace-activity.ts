@@ -6,6 +6,7 @@ import {
 	staleWorkspaceActivity,
 } from "../db/workspace-repository";
 import type { WorkspaceActivity } from "../domain/workspace";
+import { runnerStatus } from "./agent-runner";
 import { herdrAgentName, herdrAgentStatus } from "./herdr";
 import { runSsh, type SshRunner } from "./ssh";
 
@@ -63,6 +64,19 @@ async function readActivity(
 	workspace: { hostname: string; ip: string },
 	ssh: SshRunner,
 ): Promise<WorkspaceActivity> {
+	if (config.WORKSPACE_AGENT_RUNNER === "sdk") {
+		// Asserted rather than inferred. Under Herdr, "blocked" was Herdr's classification of a
+		// rendered dialog; here it means a callback is genuinely suspended waiting for a person.
+		// The reaper's refusal to destroy a blocked agent rests on this, so the difference is
+		// worth more than it looks.
+		return mapActivity(
+			await runnerStatus(
+				{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
+				ssh,
+			),
+		);
+	}
+
 	const state = await herdrAgentStatus(
 		{
 			session: config.WORKSPACE_HERDR_SESSION,

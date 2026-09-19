@@ -128,6 +128,51 @@ describe("observeWorkspaceActivity", () => {
 		expect(lastActivityOf(db, id)).toBe("2026-01-01T00:01:00.000Z");
 	});
 
+	it("reads a runner-backed workspace from its socket, not from a screen", async () => {
+		// The states line up one for one with Herdr's, which is why mapActivity is shared: the
+		// controller's vocabulary should not change just because the transport did.
+		for (const [status, activity] of [
+			["working", "active"],
+			["blocked", "blocked"],
+			["idle", "idle"],
+		] as const) {
+			const db = database();
+			const id = ready(db);
+
+			await observeWorkspaceActivity(
+				db,
+				runnerConfig(),
+				OBSERVED_AT,
+				snapshot(status),
+			);
+
+			expect(activityOf(db, id)).toBe(activity);
+		}
+	});
+
+	it("will not call a runner it could not read idle", async () => {
+		// The reaper destroys idle workspaces and refuses to destroy ones it cannot inspect, so
+		// reading a truncated or empty answer as idle is how work gets thrown away.
+		for (const stdout of ["", "not json", '{"type":"snapshot"}']) {
+			const db = database();
+			const id = ready(db);
+
+			await observeWorkspaceActivity(
+				db,
+				runnerConfig(),
+				OBSERVED_AT,
+				async () => ({
+					code: 0,
+					kind: "ran",
+					stderr: "",
+					stdout,
+				}),
+			);
+
+			expect(activityOf(db, id)).toBe("unknown");
+		}
+	});
+
 	it("ignores workspaces that are not ready", async () => {
 		const db = database();
 		createWorkspace(db, {
@@ -199,6 +244,24 @@ function config() {
 	return controllerConfig({
 		WORKSPACE_SSH_KEY_PATH: "/tmp/test-controller-key",
 	});
+}
+
+function runnerConfig() {
+	return controllerConfig({
+		WORKSPACE_AGENT_RUNNER: "sdk",
+		WORKSPACE_SSH_KEY_PATH: "/tmp/test-controller-key",
+	});
+}
+
+// snapshot answers as a runner would: one line of JSON carrying its current status.
+function snapshot(status: string): SshRunner {
+	return () =>
+		Promise.resolve<SshResult>({
+			code: 0,
+			kind: "ran",
+			stderr: "",
+			stdout: `${JSON.stringify({ approvals: [], messages: [], status, type: "snapshot" })}\n`,
+		});
 }
 
 function database(): Database.Database {

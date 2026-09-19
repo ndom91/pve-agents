@@ -36,6 +36,7 @@ export type ProvisionPhase =
 	| "clone-submitted"
 	| "herdr-registered"
 	| "reachable"
+	| "runner-started"
 	| "session-started"
 	| "start-submitted";
 

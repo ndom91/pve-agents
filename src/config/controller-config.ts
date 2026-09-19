@@ -62,6 +62,23 @@ const envSchema = z
 		// The coding agent started in the workspace's first pane. Must be a kind Herdr recognises,
 		// because Herdr refuses to start one it cannot detect afterwards.
 		WORKSPACE_AGENT_KIND: z.string().min(1).default("claude"),
+		// Which control plane a newly provisioned workspace gets.
+		//
+		// "sdk" runs the Agent SDK runner and talks to it over a socket. "herdr" runs Claude Code
+		// as a TUI in a Herdr pane and reads the rendered screen. The second is what this was
+		// built on and is being retired; the switch exists so both can be true at once while that
+		// happens, because a workspace is disposable and the two never have to be migrated between
+		// — an old one dies on its own.
+		WORKSPACE_AGENT_RUNNER: z.enum(["herdr", "sdk"]).default("herdr"),
+		// How much a workspace's agent may do without asking.
+		//
+		// "auto" is a second model reviewing each action rather than a person. Confirmed available
+		// on the subscription token. When it is not available for a session — an unsupported model,
+		// a settings file, a server-side decision — Claude Code silently runs Manual instead, which
+		// degrades safely here because every call then reaches the approval UI.
+		WORKSPACE_PERMISSION_MODE: z
+			.enum(["acceptEdits", "auto", "bypassPermissions", "default", "plan"])
+			.default("auto"),
 		// A long-lived OAuth token from `claude setup-token`, tied to a Claude subscription. Not an
 		// API key, and deliberately not required to start: a controller that only clones containers
 		// has no use for it. The agent step fails with a named reason when it is missing.
