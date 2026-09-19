@@ -174,6 +174,7 @@ the entire reason they moved.
 - **Opening a pull request.** The GitHub App has the permission, but a PR wants a title and a body
   that would have to be invented or demanded, and a branch is enough to review from.
 - **Editing files from the browser.** `@pierre/diffs` would support it. It is a different feature.
-- **Tests for the server functions.** The four change endpoints share one `agentTarget` guard with
-  the three that came before, so the gap is a harness rather than a rule: no `.functions.ts` module
-  in this repository has one, and building the first is worth doing deliberately.
+- **Tests that call a server function.** The operations behind them are covered; the wrapper is
+  not. It cannot be: a server function reads its options from an AsyncLocalStorage the Start
+  runtime owns, and the callable a test imports is the client-side RPC stub. What goes untested is
+  a validator and a middleware line per function.

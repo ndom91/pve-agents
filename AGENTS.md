@@ -36,6 +36,22 @@ time. Keep them exact, and treat a wide peer range as no guarantee at all: the p
 hydration declared `@tanstack/react-router: ">=1.43.2"` while being incompatible with everything
 past 1.130.
 
+## Server functions
+
+A `*.functions.ts` module exports server functions **and nothing else**. Each handler is one line
+that calls an operation in a plain module beside it, such as `agent-operations.ts`.
+
+**Exporting anything else from that file breaks the client build silently.** The route it belongs
+to renders from the server and then sits inert: no console error, no failed request, no hydration
+warning, every button dead. Anything exported beside a server function has to survive the plugin's
+client transform, and an ordinary function that touches SQLite or SSH cannot.
+
+Tests target the operations module. A server function itself cannot be called from a test: it
+reads its options from an AsyncLocalStorage the Start runtime owns, and the callable a test imports
+is the client-side RPC stub, because the transform that makes it a direct call only runs for the
+server build. Testing the operation is testing the work; the wrapper is a validator and a
+middleware line, visible in one screenful.
+
 ## Things this codebase has already learned
 
 **`ssh` does not preserve argv boundaries.** It joins the command and the remote shell splits it
