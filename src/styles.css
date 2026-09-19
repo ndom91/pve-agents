@@ -265,19 +265,6 @@ dd {
 /* Status and action travel together at the right edge. As separate children of a
    space-between row they drifted apart, so a row without a button put its badge where the
    button would have been. */
-/* Forced onto its own line under the row: full basis plus a later order, which needs the row to
-   wrap. */
-.log-type {
-	color: var(--fg-soft);
-	flex-shrink: 0;
-	min-width: 148px;
-}
-
-.log-problem span:last-child,
-.log-problem .log-type {
-	color: var(--danger-soft);
-}
-
 .activity {
 	border-color: var(--border-dim);
 	color: var(--fg-muted);
@@ -410,26 +397,6 @@ dd {
 	color: var(--fg-muted);
 	font-size: var(--text-md);
 	margin: 0 0 12px;
-}
-
-.detail-timeline {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	list-style: none;
-	margin: 0;
-	padding: 0;
-}
-
-.detail-timeline li {
-	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-md);
-	gap: 12px;
-}
-
-.detail-timeline time {
-	color: var(--line);
 }
 
 @media (max-width: 640px) {
@@ -1215,7 +1182,9 @@ dd {
 	border-bottom: 1px solid var(--border);
 	display: flex;
 	flex: 0 0 auto;
-	gap: 4px;
+	/* No gap. The separation comes from each tab's own padding, so the underline that marks the
+	   open one spans the whole tab rather than just its text. */
+	gap: 0;
 	margin-bottom: 16px;
 	overflow-x: auto;
 	scrollbar-width: none;
@@ -1241,6 +1210,7 @@ dd {
 
 .rail-file .rail-tab {
 	border-bottom: none;
+	padding-right: 4px;
 	max-width: 160px;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1287,6 +1257,8 @@ dd {
 	overflow: auto;
 }
 
+/* Roomy enough to read as separate tabs. They were 2px of padding and a 4px gap, which put eight
+   pixels between one label and the next and made four tabs read as one run of words. */
 .rail-tab {
 	background: none;
 	border: none;
@@ -1295,8 +1267,9 @@ dd {
 	cursor: pointer;
 	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
-	padding: 0 2px 8px;
+	padding: 0 12px 8px;
 	text-transform: uppercase;
+	white-space: nowrap;
 }
 
 .rail-tab:hover {
@@ -1600,18 +1573,6 @@ dd {
 	overflow-y: auto;
 }
 
-/* Narrower than the centre was, so the fixed-width type column that kept the old layout aligned
-   would now push every message off the edge. It wraps under its timestamp instead. */
-.rail-timeline .detail-timeline li {
-	flex-direction: column;
-	font-size: var(--text-xs);
-	gap: 2px;
-}
-
-.rail-timeline .log-type {
-	min-width: 0;
-}
-
 /* The shell, in its tab. The terminal sizes itself to whatever box it is given, so the box has to be a
    real one: a flex child with min-height 0 rather than a div that collapses to its content. */
 .terminal-view {
@@ -1626,3 +1587,106 @@ dd {
 	min-height: 240px;
 }
 
+
+/* A kept panel. The hidden ones stay mounted so the terminal's session survives a glance at
+   another tab; display:none is what keeps them out of the layout while they do. */
+.rail-panel {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.rail-panel[hidden] {
+	display: none;
+}
+
+/* The timeline.
+ *
+ * A marked rule down the left, each entry naming itself and its time on one line with the message
+ * under them. It was a two-column table whose fixed 148px type column left messages to wrap
+ * against an arbitrary edge; in a rail that edge was most of the width. */
+.detail-timeline {
+	display: flex;
+	flex-direction: column;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.timeline-entry {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: 9px 1fr;
+	padding-bottom: 14px;
+	position: relative;
+}
+
+/* The rule, drawn by each entry rather than the list, so it stops at the last one instead of
+   trailing off under empty space. */
+.timeline-entry:not(:last-child)::before {
+	background: var(--border);
+	bottom: 0;
+	content: "";
+	left: 4px;
+	position: absolute;
+	top: 12px;
+	width: 1px;
+}
+
+.timeline-mark {
+	background: var(--bg);
+	border: 1px solid var(--line);
+	border-radius: 50%;
+	height: 9px;
+	margin-top: 4px;
+	width: 9px;
+}
+
+.timeline-entry.is-problem .timeline-mark {
+	background: var(--danger);
+	border-color: var(--danger-fg);
+}
+
+.timeline-body {
+	min-width: 0;
+}
+
+.timeline-head {
+	align-items: baseline;
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+}
+
+.timeline-type {
+	color: var(--fg-bright);
+	font-size: var(--text-sm);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.timeline-entry.is-problem .timeline-type {
+	color: var(--danger-fg);
+}
+
+/* The time is the secondary fact here: you scan the names, and reach for a time once something
+   looks wrong. */
+.timeline-head time {
+	color: var(--fg-dim);
+	flex-shrink: 0;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-xs);
+}
+
+.timeline-message {
+	color: var(--fg-muted);
+	font-size: var(--text-md);
+	line-height: 1.45;
+	margin: 2px 0 0;
+	overflow-wrap: anywhere;
+}
+
+.timeline-entry.is-problem .timeline-message {
+	color: var(--danger-soft);
+}

@@ -65,13 +65,35 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 			});
 			socket.addEventListener("close", () => setState("closed"));
 
+			// Binary, so the server can tell a keystroke from a control message without a prefix
+			// somebody could type by accident.
 			terminal.onData((data: string) => {
 				if (socket.readyState === WebSocket.OPEN) {
-					socket.send(data);
+					socket.send(new TextEncoder().encode(data));
 				}
 			});
 
+			// Refit when the rail is dragged, and tell the shell what happened.
+			//
+			// Debounced because a drag is a hundred resize events and each one costs a short-lived
+			// ssh connection on the controller. The last size is the only one that matters.
+			let pending: ReturnType<typeof setTimeout> | undefined;
+			const observer = new ResizeObserver(() => {
+				clearTimeout(pending);
+				pending = setTimeout(() => {
+					fit.fit();
+					if (socket.readyState === WebSocket.OPEN) {
+						socket.send(
+							JSON.stringify({ cols: terminal.cols, rows: terminal.rows }),
+						);
+					}
+				}, 250);
+			});
+			observer.observe(element);
+
 			teardown = () => {
+				clearTimeout(pending);
+				observer.disconnect();
 				socket.close();
 				terminal.dispose();
 			};

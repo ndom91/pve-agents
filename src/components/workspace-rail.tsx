@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { useRailWidth } from "../lib/use-rail-width";
 import { RailResizer } from "./rail-resizer";
@@ -77,6 +77,21 @@ export function WorkspaceRail({
 }): ReactNode {
 	const { setWidth, width } = useRailWidth();
 
+	// Which panels have ever been opened. A panel stays mounted once it has been, and is hidden
+	// rather than unmounted when another tab is chosen.
+	//
+	// This exists for the terminal. Unmounting it closes its socket, which kills the shell, so
+	// glancing at the timeline mid-command and coming back landed you in a fresh session with your
+	// work gone. Nothing else here minds either way; the terminal is why the rule exists.
+	//
+	// Still mounted lazily: a panel nobody opens is never built, which is what keeps the terminal's
+	// WASM off a page that only wanted the placement facts.
+	const [opened, setOpened] = useState<string[]>([]);
+
+	useEffect(() => {
+		setOpened((seen) => (seen.includes(tab.kind) ? seen : [...seen, tab.kind]));
+	}, [tab.kind]);
+
 	// The rail sets its own width rather than the grid setting it, so the handle does not have to
 	// reach across routes to the layout that owns the columns. The grid's last column is `auto`.
 	const sized = { width: `${width}px` };
@@ -100,12 +115,30 @@ export function WorkspaceRail({
 					timeline={timeline}
 				/>
 				<div className="rail-body">
+					{/* The file panel is not kept: its content is the file the tab names, and a
+					    different file is a different panel. Only the terminal holds a session. */}
 					{tab.kind === "file" ? file : null}
-					{tab.kind === "diff" ? changes : null}
-					{tab.kind === "timeline" ? timeline : null}
-					{tab.kind === "terminal" ? terminal : null}
+					<Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
+						{changes}
+					</Panel>
+					<Panel
+						open={tab.kind === "timeline"}
+						seen={opened.includes("timeline")}
+					>
+						{timeline}
+					</Panel>
+					<Panel
+						open={tab.kind === "terminal"}
+						seen={opened.includes("terminal")}
+					>
+						{terminal}
+					</Panel>
 				</div>
-				{actions}
+				{/* Only where they make sense. They act on the whole change list rather than on
+				    one file, which is why they sit outside the tabs — but under a timeline or a
+				    shell they are a control with no visible subject, and they take height the
+				    terminal wants. */}
+				{tab.kind === "diff" || tab.kind === "file" ? actions : null}
 			</aside>
 		);
 	}
@@ -144,6 +177,30 @@ export function WorkspaceRail({
 				/>
 			</dl>
 		</aside>
+	);
+}
+
+// Panel keeps a tab's content alive once it has been opened, and out of the way when it has not.
+//
+// `hidden` rather than unmounting, because unmounting the terminal closes its socket and kills the
+// shell behind it.
+function Panel({
+	children,
+	open,
+	seen,
+}: {
+	children?: ReactNode;
+	open: boolean;
+	seen: boolean;
+}) {
+	if (!seen || children === undefined) {
+		return null;
+	}
+
+	return (
+		<div className="rail-panel" hidden={!open}>
+			{children}
+		</div>
 	);
 }
 
