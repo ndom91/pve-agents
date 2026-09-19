@@ -5,6 +5,7 @@ import {
 	workspaceDetail,
 } from "../db/workspace-repository";
 import { AGENT_CWD } from "../domain/workspace-layout";
+import { decideRunner, promptRunner } from "../services/agent-runner";
 import type { HerdrTarget } from "../services/herdr";
 import {
 	herdrAgentName,
@@ -12,7 +13,7 @@ import {
 	readHerdrAgent,
 	sendHerdrKeys,
 } from "../services/herdr";
-import { runSsh } from "../services/ssh";
+import { runSsh, type SshTarget } from "../services/ssh";
 import type {
 	ChangeAction,
 	ChangedFiles,
@@ -27,6 +28,106 @@ import {
 } from "../services/workspace-changes";
 import { workspaceUnsavedWork } from "../services/workspace-git";
 import { controllerDatabase, controllerRuntimeConfig } from "./controller";
+
+// sendRunnerPrompt gives a runner-backed agent its next turn.
+//
+// A connection per prompt rather than a held one. The page already holds an attachment for reading;
+// a second, shared, writable one would have to be kept alive across reloads and reconnections for
+// something that happens when a person types a paragraph.
+async function sendRunnerPrompt(id: string, text: string): Promise<AgentInput> {
+	const target = runnerTarget(id);
+	if (target.kind === "unavailable") {
+		return target;
+	}
+
+	if ((await promptRunner(target.ssh, text)) === "failed") {
+		return { kind: "unavailable", reason: "the agent runner did not answer" };
+	}
+
+	// Truncated: a prompt may run to thousands of characters and the timeline shows one line.
+	recordWorkspaceNote(
+		controllerDatabase(),
+		id,
+		"workspace.prompted",
+		text.length > 160 ? `${text.slice(0, 160)}...` : text,
+	);
+	recordWorkspaceInteraction(controllerDatabase(), id);
+
+	return { kind: "sent" };
+}
+
+// answerApproval allows or denies one tool call an agent is suspended on.
+//
+// The decision the whole refactor exists for. Under Herdr this was a keystroke aimed at a rendered
+// dialog, with no way to know which call it answered or whether it landed; here it names a request
+// the runner is genuinely holding a promise for.
+export async function answerApproval(
+	id: string,
+	approvalId: string,
+	behavior: "allow" | "deny",
+): Promise<AgentInput> {
+	const target = runnerTarget(id);
+	if (target.kind === "unavailable") {
+		return target;
+	}
+
+	if ((await decideRunner(target.ssh, approvalId, behavior)) === "failed") {
+		return { kind: "unavailable", reason: "the agent runner did not answer" };
+	}
+
+	recordWorkspaceNote(
+		controllerDatabase(),
+		id,
+		"workspace.answered",
+		behavior === "allow" ? "allowed a tool call" : "declined a tool call",
+	);
+	recordWorkspaceInteraction(controllerDatabase(), id);
+
+	return { kind: "sent" };
+}
+
+// RunnerTarget is a workspace whose runner can be reached, or why it cannot.
+type RunnerTarget =
+	| { kind: "ready"; ssh: SshTarget }
+	| { kind: "unavailable"; reason: string };
+
+// runnerTarget resolves a workspace to its runner, refusing anything half-built.
+//
+// The same three checks agentTarget makes and deliberately separate from it: that one resolves a
+// Herdr agent name, which a runner-backed workspace does not have and must not be refused for
+// lacking.
+function runnerTarget(id: string): RunnerTarget {
+	const config = controllerRuntimeConfig();
+	const workspace = workspaceDetail(controllerDatabase(), id);
+	if (workspace === undefined) {
+		return { kind: "unavailable", reason: "workspace not found" };
+	}
+	if (workspace.status !== "ready") {
+		return {
+			kind: "unavailable",
+			reason: `workspace is ${workspace.status}, not ready`,
+		};
+	}
+	// Separate from the status check for the reason recorded on agentTarget: a ready workspace with
+	// no address once reported "workspace is ready, not ready".
+	if (workspace.ip === undefined) {
+		return { kind: "unavailable", reason: "workspace has no address" };
+	}
+
+	const keyPath = config.WORKSPACE_SSH_KEY_PATH;
+	if (keyPath === undefined) {
+		return { kind: "unavailable", reason: "no agent to reach" };
+	}
+
+	return {
+		kind: "ready",
+		ssh: {
+			address: workspace.ip,
+			keyPath,
+			user: config.WORKSPACE_SSH_USER,
+		},
+	};
+}
 
 // WorkspacePane is the agent's screen, or the reason it could not be read.
 export type WorkspacePane =
@@ -114,6 +215,10 @@ export async function sendAgentPrompt(
 	id: string,
 	text: string,
 ): Promise<AgentInput> {
+	if (controllerRuntimeConfig().WORKSPACE_AGENT_RUNNER === "sdk") {
+		return await sendRunnerPrompt(id, text);
+	}
+
 	const agent = agentTarget(id);
 	if (agent.kind === "unavailable") {
 		return agent;

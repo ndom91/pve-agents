@@ -299,6 +299,48 @@ export async function runnerStatus(
 		: "unknown";
 }
 
+// decideRunner allows or denies one tool call the agent is suspended on.
+//
+// Confirmed by the runner's own broadcast rather than by a hopeful write. The runner tells every
+// attached client when a request is resolved, so a "resolved" naming this id is proof the promise
+// was settled — and an operator who clicked Allow and saw nothing happen has no way to tell a lost
+// write from a slow agent.
+export function decideRunner(
+	target: SshTarget,
+	id: string,
+	behavior: "allow" | "deny",
+): Promise<"failed" | "sent"> {
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (result: "failed" | "sent") => {
+			if (!settled) {
+				settled = true;
+				clearTimeout(timer);
+				runner.close();
+				resolve(result);
+			}
+		};
+
+		const runner = attachRunner(target, {
+			onClose: () => finish("failed"),
+			onEvent: (event) => {
+				const value = event as { id?: string; type?: string };
+				if (value.type === "snapshot") {
+					runner.send({ behavior, id, type: "decide" });
+
+					return;
+				}
+				if (value.type === "resolved" && value.id === id) {
+					finish("sent");
+				}
+			},
+		});
+
+		const timer = setTimeout(() => finish("failed"), PROMPT_TIMEOUT_MS);
+		runner.send({ type: "attach" });
+	});
+}
+
 // RunnerAttachment is a live connection to one workspace's runner.
 export type RunnerAttachment = {
 	close: () => void;

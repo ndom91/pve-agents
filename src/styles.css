@@ -826,6 +826,186 @@ dd {
 	gap: 12px;
 }
 
+/* The conversation, where the terminal used to be.
+ *
+ * Fills the centre column and scrolls inside itself rather than growing the page: the prompt box
+ * below it has to stay reachable no matter how long the agent has been working. */
+.agent-chat {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 0;
+}
+
+.chat-entries {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 10px;
+	list-style: none;
+	margin: 0;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 0 4px 0 0;
+}
+
+.chat-text {
+	line-height: 1.5;
+	margin: 0;
+	white-space: pre-wrap;
+	/* Long paths and urls are the commonest thing in an agent transcript and the commonest way a
+	   column gets pushed wider than its container. */
+	overflow-wrap: anywhere;
+}
+
+/* A prompt is set apart because it is the one thing in the transcript a person wrote. Without it
+   the page reads as one long monologue with no turns in it. */
+.chat-entry.is-prompt .chat-text {
+	border-left: 2px solid var(--accent);
+	color: var(--fg-bright);
+	padding-left: 10px;
+}
+
+.chat-entry.is-thought .chat-text,
+.chat-entry.is-thought .chat-fold {
+	color: var(--fg-muted);
+}
+
+.chat-ended {
+	color: var(--warn-fg);
+	font-size: var(--text-md);
+	margin: 0;
+}
+
+/* The disclosure. Deliberately the same shape as a row in the diff accordion, because they are the
+   same gesture and learning it twice is a cost for no benefit. */
+.chat-fold {
+	align-items: center;
+	background: none;
+	border: none;
+	color: var(--fg);
+	cursor: pointer;
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-md);
+	gap: 6px;
+	padding: 4px 0;
+	text-align: left;
+	width: 100%;
+}
+
+.chat-fold:hover:not(:disabled) {
+	color: var(--fg-bright);
+}
+
+/* A call with no output is still a row, because it happened and belongs in the order of events.
+   It is just not a control that does nothing when clicked. */
+.chat-fold:disabled {
+	cursor: default;
+}
+
+.chat-caret {
+	color: var(--fg-dim);
+	flex: none;
+	transition: transform 120ms ease;
+}
+
+.chat-fold[aria-expanded="true"] .chat-caret {
+	transform: rotate(90deg);
+}
+
+.chat-summary {
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chat-state {
+	color: var(--fg-dim);
+	flex: none;
+	font-size: var(--text-xs);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.chat-fold.is-error .chat-state {
+	color: var(--danger-fg);
+}
+
+.chat-fold.is-awaiting-approval .chat-state {
+	color: var(--warn-fg);
+}
+
+.chat-fold.is-ok .chat-state {
+	color: var(--fg-muted);
+}
+
+/* Capped, because one `cat` of a large file would otherwise be the whole page. Scrolls rather than
+   truncates: the end of a stack trace is usually the part worth reading. */
+.chat-output {
+	background: var(--bg-sunken);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	color: var(--fg-soft);
+	font-size: var(--text-md);
+	margin: 0 0 0 18px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 8px 10px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+/* The question the whole control plane exists to ask. Amber rather than red: it is a decision, not
+   a failure, and colouring it as an error makes "Allow" read as the wrong answer. */
+.chat-approval {
+	border: 1px solid var(--warn);
+	background: var(--warn-bg);
+	border-radius: 6px;
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+}
+
+.chat-approval-title {
+	color: var(--fg-bright);
+	font-weight: 600;
+	margin: 0;
+}
+
+.chat-approval-why {
+	color: var(--warn-fg);
+	font-size: var(--text-md);
+	margin: 0;
+}
+
+.chat-approval .chat-output {
+	margin-left: 0;
+	max-height: 160px;
+}
+
+.chat-approval-actions {
+	display: flex;
+	gap: 8px;
+}
+
+/* Declining is not the dangerous option -- the danger is on the other button -- so it is quiet
+   rather than red. A red Decline teaches people to click Allow to make the red thing go away. */
+.chat-decline {
+	background: transparent;
+	border: 1px solid var(--border-dim);
+	color: var(--fg-soft);
+}
+
+.chat-decline:hover:not(:disabled) {
+	background: var(--surface);
+	color: var(--fg-bright);
+}
+
 .dashboard-rail {
 	border-left: 1px solid var(--border);
 	display: flex;

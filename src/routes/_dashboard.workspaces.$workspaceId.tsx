@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
+import { AgentChat } from "../components/agent-chat";
 import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
@@ -20,9 +21,11 @@ import {
 	workspaceKeys,
 	workspaceQuery,
 } from "../lib/queries";
+import { useAgentStream } from "../lib/use-agent-stream";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
 import { useWorkspaceStream } from "../lib/use-workspace-stream";
 import {
+	answerWorkspaceApproval,
 	discardWorkspaceChanges,
 	promptWorkspaceAgent,
 	pushWorkspaceChanges,
@@ -69,7 +72,19 @@ function WorkspaceDetail() {
 	const finished =
 		workspace?.status === "destroyed" || workspace?.status === "failed";
 	const blocked = workspace?.activity === "blocked";
-	const { data: pane } = useQuery(paneQuery(workspaceId, ready));
+
+	// Which control plane this workspace was built on, read off the record rather than off the
+	// controller's current setting. A workspace keeps the plane it was provisioned with for its
+	// whole life, and the setting can change under it; asking the config would make an old
+	// workspace's page rearrange itself the moment somebody flipped a switch.
+	//
+	// A Herdr pane id is the marker because only one of the two ever has one.
+	const runnerBacked = ready && workspace?.herdrPaneId === undefined;
+
+	const { data: pane } = useQuery(
+		paneQuery(workspaceId, ready && !runnerBacked),
+	);
+	const agent = useAgentStream(workspaceId, runnerBacked);
 
 	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
 	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
@@ -81,7 +96,8 @@ function WorkspaceDetail() {
 	);
 
 	// Pushes the screen and the observed activity straight into the cache while the page is open.
-	useWorkspaceStream(workspaceId, ready);
+	// Only for the workspaces that have a screen: the other stream is the runner's.
+	useWorkspaceStream(workspaceId, ready && !runnerBacked);
 
 	const predict = useOptimisticWorkspace(workspaceId);
 
@@ -138,6 +154,26 @@ function WorkspaceDetail() {
 			setNote("could not reach the agent");
 		},
 		onSuccess: async (result, _key, rollback) => {
+			if (result.kind !== "sent") {
+				rollback?.();
+			}
+			setNote(result.kind === "unavailable" ? result.reason : "");
+			await refresh();
+		},
+	});
+
+	// The decision the runner is genuinely suspended on. Answering it releases a promise inside
+	// the SDK, which is why this predicts the agent back to work: allowed or declined, the turn
+	// resumes either way, because a denial goes to the model as a message it can act on.
+	const decide = useMutation({
+		mutationFn: (choice: { approvalId: string; behavior: "allow" | "deny" }) =>
+			answerWorkspaceApproval({ data: { ...choice, id: workspaceId } }),
+		onMutate: () => predict({ activity: "active" }),
+		onError: async (_error, _choice, rollback) => {
+			rollback?.();
+			setNote("could not reach the agent");
+		},
+		onSuccess: async (result, _choice, rollback) => {
 			if (result.kind !== "sent") {
 				rollback?.();
 			}
@@ -287,44 +323,60 @@ function WorkspaceDetail() {
 
 				{!ready ? null : (
 					<section className="centre-screen">
-						{pane?.kind === "screen" ? (
-							<AgentScreen screen={pane.text} />
+						{runnerBacked ? (
+							<AgentChat
+								approvals={agent.approvals}
+								busy={busy}
+								link={agent.link}
+								messages={agent.messages}
+								onDecide={(approvalId, behavior) =>
+									decide.mutate({ approvalId, behavior })
+								}
+								permissionMode={agent.permissionMode}
+							/>
 						) : (
-							<p className="detail-note">
-								{pane?.kind === "unavailable"
-									? pane.reason
-									: "Reading the agent screen."}
-							</p>
-						)}
-
-						{/* Always present, disabled unless the agent is waiting. Rendering it only
-						    while blocked meant the row appeared and disappeared underneath the
-						    pointer, shifting the prompt and the timeline with it. Disabled still
-						    stops a key reaching a working agent by accident, and the controls are
-						    visible before they are needed rather than only once they are. */}
-						<div className="detail-keys">
-							{ANSWER_KEYS.map((key) => {
-								const Arrow = ARROWS[key];
-
-								return Arrow === undefined ? (
-									<Button
-										disabled={busy || !blocked}
-										key={key}
-										onClick={() => answer.mutate(key)}
-									>
-										{key}
-									</Button>
+							<>
+								{pane?.kind === "screen" ? (
+									<AgentScreen screen={pane.text} />
 								) : (
-									<IconButton
-										disabled={busy || !blocked}
-										icon={Arrow}
-										key={key}
-										label={key === "up" ? "Move up" : "Move down"}
-										onClick={() => answer.mutate(key)}
-									/>
-								);
-							})}
-						</div>
+									<p className="detail-note">
+										{pane?.kind === "unavailable"
+											? pane.reason
+											: "Reading the agent screen."}
+									</p>
+								)}
+
+								{/* Always present, disabled unless the agent is waiting. Rendering
+								    it only while blocked meant the row appeared and disappeared
+								    underneath the pointer, shifting the prompt and the timeline
+								    with it. Disabled still stops a key reaching a working agent by
+								    accident, and the controls are visible before they are needed
+								    rather than only once they are. */}
+								<div className="detail-keys">
+									{ANSWER_KEYS.map((key) => {
+										const Arrow = ARROWS[key];
+
+										return Arrow === undefined ? (
+											<Button
+												disabled={busy || !blocked}
+												key={key}
+												onClick={() => answer.mutate(key)}
+											>
+												{key}
+											</Button>
+										) : (
+											<IconButton
+												disabled={busy || !blocked}
+												icon={Arrow}
+												key={key}
+												label={key === "up" ? "Move up" : "Move down"}
+												onClick={() => answer.mutate(key)}
+											/>
+										);
+									})}
+								</div>
+							</>
+						)}
 
 						<form
 							className="detail-prompt"

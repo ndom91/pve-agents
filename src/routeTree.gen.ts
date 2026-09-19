@@ -19,6 +19,7 @@ import { Route as DashboardWorkspacesWorkspaceIdRouteImport } from './routes/_da
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiInfrastructureProbeRouteImport } from './routes/api/infrastructure/probe'
 import { Route as ApiWorkspacesWorkspaceIdRouteImport } from './routes/api/workspaces/$workspaceId'
+import { Route as ApiWorkspacesWorkspaceIdAgentRouteImport } from './routes/api/workspaces/$workspaceId/agent'
 import { Route as ApiWorkspacesWorkspaceIdRetryRouteImport } from './routes/api/workspaces/$workspaceId/retry'
 import { Route as ApiWorkspacesWorkspaceIdStreamRouteImport } from './routes/api/workspaces/$workspaceId/stream'
 
@@ -73,6 +74,12 @@ const ApiWorkspacesWorkspaceIdRoute =
     path: '/$workspaceId',
     getParentRoute: () => ApiWorkspacesRoute,
   } as any)
+const ApiWorkspacesWorkspaceIdAgentRoute =
+  ApiWorkspacesWorkspaceIdAgentRouteImport.update({
+    id: '/agent',
+    path: '/agent',
+    getParentRoute: () => ApiWorkspacesWorkspaceIdRoute,
+  } as any)
 const ApiWorkspacesWorkspaceIdRetryRoute =
   ApiWorkspacesWorkspaceIdRetryRouteImport.update({
     id: '/retry',
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/agent': typeof ApiWorkspacesWorkspaceIdAgentRoute
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
   '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
@@ -109,6 +117,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/agent': typeof ApiWorkspacesWorkspaceIdAgentRoute
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
   '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
@@ -124,6 +133,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/infrastructure/probe': typeof ApiInfrastructureProbeRoute
   '/api/workspaces/$workspaceId': typeof ApiWorkspacesWorkspaceIdRouteWithChildren
+  '/api/workspaces/$workspaceId/agent': typeof ApiWorkspacesWorkspaceIdAgentRoute
   '/api/workspaces/$workspaceId/retry': typeof ApiWorkspacesWorkspaceIdRetryRoute
   '/api/workspaces/$workspaceId/stream': typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/agent'
     | '/api/workspaces/$workspaceId/retry'
     | '/api/workspaces/$workspaceId/stream'
   fileRoutesByTo: FileRoutesByTo
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/agent'
     | '/api/workspaces/$workspaceId/retry'
     | '/api/workspaces/$workspaceId/stream'
   id:
@@ -166,6 +178,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/infrastructure/probe'
     | '/api/workspaces/$workspaceId'
+    | '/api/workspaces/$workspaceId/agent'
     | '/api/workspaces/$workspaceId/retry'
     | '/api/workspaces/$workspaceId/stream'
   fileRoutesById: FileRoutesById
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWorkspacesWorkspaceIdRouteImport
       parentRoute: typeof ApiWorkspacesRoute
     }
+    '/api/workspaces/$workspaceId/agent': {
+      id: '/api/workspaces/$workspaceId/agent'
+      path: '/agent'
+      fullPath: '/api/workspaces/$workspaceId/agent'
+      preLoaderRoute: typeof ApiWorkspacesWorkspaceIdAgentRouteImport
+      parentRoute: typeof ApiWorkspacesWorkspaceIdRoute
+    }
     '/api/workspaces/$workspaceId/retry': {
       id: '/api/workspaces/$workspaceId/retry'
       path: '/retry'
@@ -285,12 +305,14 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface ApiWorkspacesWorkspaceIdRouteChildren {
+  ApiWorkspacesWorkspaceIdAgentRoute: typeof ApiWorkspacesWorkspaceIdAgentRoute
   ApiWorkspacesWorkspaceIdRetryRoute: typeof ApiWorkspacesWorkspaceIdRetryRoute
   ApiWorkspacesWorkspaceIdStreamRoute: typeof ApiWorkspacesWorkspaceIdStreamRoute
 }
 
 const ApiWorkspacesWorkspaceIdRouteChildren: ApiWorkspacesWorkspaceIdRouteChildren =
   {
+    ApiWorkspacesWorkspaceIdAgentRoute: ApiWorkspacesWorkspaceIdAgentRoute,
     ApiWorkspacesWorkspaceIdRetryRoute: ApiWorkspacesWorkspaceIdRetryRoute,
     ApiWorkspacesWorkspaceIdStreamRoute: ApiWorkspacesWorkspaceIdStreamRoute,
   }

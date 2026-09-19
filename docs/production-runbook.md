@@ -114,13 +114,18 @@ reverse_proxy 127.0.0.1:3000 {
 	flush_interval -1
 }
 
-@compressible not path /api/workspaces/*/stream
+@compressible not path /api/workspaces/*/stream /api/workspaces/*/agent
 encode @compressible gzip
 ```
 
 `encode` rejects `not` in a response matcher, which is why the exclusion is a named request matcher
 on the path. This works perfectly against the port directly and fails only behind the proxy, so
 test at the real hostname.
+
+**Every streaming path must be listed here, and the failure when one is not is silent.** The agent
+stream was added and forgotten: the request returned 200, the connection stayed open, and not one
+byte arrived, because gzip was buffering a stream that never fills a buffer. Nothing in any log
+said so. If a new stream appears to connect and never delivers, look here first.
 
 ## Deploying an update
 

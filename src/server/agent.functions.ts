@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
+	answerApproval,
 	discardWorkspaceWork,
 	pushWorkspaceWork,
 	readWorkspaceChanges,
@@ -59,6 +60,23 @@ export const sendWorkspaceKeys = createServerFn({ method: "POST" })
 		z.object({ id: z.string().trim().min(1), key: z.string().trim().min(1) }),
 	)
 	.handler(({ data }) => sendAgentKeys(data.id, data.key));
+
+// answerWorkspaceApproval allows or denies one tool call the agent is suspended on.
+//
+// The decision this whole control plane exists to make. It names the request rather than aiming a
+// keystroke at a dialog, so the answer cannot land on the wrong call or on no call at all.
+export const answerWorkspaceApproval = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(
+		z.object({
+			approvalId: z.string().trim().min(1).max(64),
+			behavior: z.enum(["allow", "deny"]),
+			id: z.string().trim().min(1),
+		}),
+	)
+	.handler(({ data }) =>
+		answerApproval(data.id, data.approvalId, data.behavior),
+	);
 
 // workspaceChanges lists what the agent has done to the checkout.
 //

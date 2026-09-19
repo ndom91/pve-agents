@@ -95,9 +95,10 @@ describe("server function methods", () => {
 	}
 
 	it("sees every server function the modules export", () => {
-		// Eighteen today. The number is here so that losing one to a bad import fails loudly
-		// rather than quietly shrinking what the loop above covers.
-		expect(declaredMethods().length).toBe(18);
+		// Nineteen today, the newest being the one that answers a tool approval. The number is here
+		// so that losing one to a bad import fails loudly rather than quietly shrinking what the
+		// loop above covers.
+		expect(declaredMethods().length).toBe(19);
 	});
 });
 

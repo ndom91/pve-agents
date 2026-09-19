@@ -172,7 +172,8 @@ function main() {
 		if (request.type === "prompt" && typeof request.text === "string") {
 			working = true;
 			announce();
-			turns.push({
+
+			const turn = {
 				message: { content: request.text, role: "user" },
 				// Stamped explicitly. An absent origin is treated as unattributed and fails closed
 				// at the SDK's strict isHuman() gates, so a prompt a person typed would be trusted
@@ -180,7 +181,15 @@ function main() {
 				origin: { kind: "human" },
 				parent_tool_use_id: null,
 				type: "user",
-			});
+			};
+
+			// Recorded and broadcast here, because `query()` does not yield back the turns it is
+			// fed. Without this the operator's own prompts are missing from the conversation: you
+			// type a question, it vanishes, and an answer appears with nothing above it. The runner
+			// is the one that knows what was sent, so it is the one that says so.
+			transcript.push(turn);
+			broadcast({ message: turn, type: "message" });
+			turns.push(turn);
 
 			return;
 		}
