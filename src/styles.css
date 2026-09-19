@@ -1611,3 +1611,18 @@ dd {
 .rail-timeline .log-type {
 	min-width: 0;
 }
+
+/* The shell, in its tab. The terminal sizes itself to whatever box it is given, so the box has to be a
+   real one: a flex child with min-height 0 rather than a div that collapses to its content. */
+.terminal-view {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.terminal-host {
+	flex: 1 1 auto;
+	min-height: 240px;
+}
+

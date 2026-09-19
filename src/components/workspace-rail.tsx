@@ -30,6 +30,7 @@ export type RailTab =
 	| { kind: "details" }
 	| { kind: "diff" }
 	| { kind: "file"; path: string }
+	| { kind: "terminal" }
 	| { kind: "timeline" };
 
 // sameTab compares two tabs, which is otherwise a three-way check at every call site.
@@ -59,6 +60,7 @@ export function WorkspaceRail({
 	onClose,
 	onTab,
 	tab = { kind: "details" },
+	terminal,
 	timeline,
 	workspace,
 }: {
@@ -69,6 +71,7 @@ export function WorkspaceRail({
 	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab?: RailTab;
+	terminal?: ReactNode;
 	timeline?: ReactNode;
 	workspace: RailWorkspace;
 }): ReactNode {
@@ -81,7 +84,7 @@ export function WorkspaceRail({
 	// Tabs appear once there is anything beyond placement to show. The timeline alone is enough:
 	// a workspace that failed before it ever had a diff still has a history worth reading, and
 	// that is exactly when somebody goes looking for one.
-	const tabbed = changes ?? timeline;
+	const tabbed = changes ?? timeline ?? terminal;
 
 	if (tabbed !== undefined && tab.kind !== "details") {
 		return (
@@ -93,12 +96,14 @@ export function WorkspaceRail({
 					onClose={onClose}
 					onTab={onTab}
 					tab={tab}
+					terminal={terminal}
 					timeline={timeline}
 				/>
 				<div className="rail-body">
 					{tab.kind === "file" ? file : null}
 					{tab.kind === "diff" ? changes : null}
 					{tab.kind === "timeline" ? timeline : null}
+					{tab.kind === "terminal" ? terminal : null}
 				</div>
 				{actions}
 			</aside>
@@ -117,6 +122,7 @@ export function WorkspaceRail({
 					onClose={onClose}
 					onTab={onTab}
 					tab={tab}
+					terminal={terminal}
 					timeline={timeline}
 				/>
 			)}
@@ -148,6 +154,7 @@ function Tabs({
 	onClose,
 	onTab,
 	tab,
+	terminal,
 	timeline,
 }: {
 	changes?: ReactNode;
@@ -155,6 +162,7 @@ function Tabs({
 	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab: RailTab;
+	terminal?: ReactNode;
 	timeline?: ReactNode;
 }) {
 	// Diff only for a workspace that has one. A destroyed container cannot be inspected, and a tab
@@ -167,6 +175,9 @@ function Tabs({
 		...(timeline === undefined
 			? []
 			: [{ label: "Timeline", value: { kind: "timeline" } as RailTab }]),
+		...(terminal === undefined
+			? []
+			: [{ label: "Terminal", value: { kind: "terminal" } as RailTab }]),
 	];
 
 	return (

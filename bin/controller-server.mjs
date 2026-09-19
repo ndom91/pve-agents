@@ -207,6 +207,11 @@ async function main() {
 		console.log(`controller listening on http://${host}:${port}`);
 	});
 
+	// Attached before the scheduler starts, so an upgrade arriving early has a handler waiting
+	// rather than being dropped.
+	const { attachTerminalSocket } = await import("../dist/cli/terminal.js");
+	attachTerminalSocket(server);
+
 	const abort = new AbortController();
 
 	// Registered whether or not the scheduler runs. Previously these were installed only alongside

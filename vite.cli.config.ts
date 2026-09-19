@@ -14,6 +14,7 @@ const config = defineConfig({
 				config: "src/cli/config.ts",
 				migrate: "src/cli/migrate.ts",
 				scheduler: "src/cli/scheduler.ts",
+				terminal: "src/cli/terminal.ts",
 				worker: "src/cli/worker.ts",
 			},
 			formats: ["es"],

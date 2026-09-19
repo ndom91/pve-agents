@@ -36,8 +36,8 @@ bootstrap, check out, destroy. It holds a pool-scoped Proxmox token. Nothing els
 **Agent control.** Herdr 0.9.0 scopes its CLI and socket API to one server, so all agent operations
 run the Herdr CLI on the target workspace over SSH. There is no remote Herdr API.
 
-**Human interface.** A dashboard: a sidebar of workspaces, a live terminal, a prompt, and the
-placement facts.
+**Human interface.** A dashboard: a sidebar of workspaces, the agent's live screen with a prompt
+below it, and a tabbed rail holding placement, the diff, the timeline and a shell.
 
 ## Provisioning
 
@@ -121,6 +121,33 @@ pass, and both count as interaction.
 This is also what closes the loop the protection opened. Before it, a held workspace was held until
 somebody opened a terminal.
 
+## A shell in the workspace
+
+The rail's **Terminal** tab opens an interactive shell in the container, over a WebSocket on the
+controller's own http server.
+
+This was previously listed as deliberately not built, on the grounds that `--source visible`
+returns a rendered viewport rather than a byte stream, so a terminal emulator would be the wrong
+shape "until there is real keystroke input". There is now real keystroke input, so the condition
+the note set has been met rather than ignored.
+
+**A fresh session, not the agent's pane.** Reading what an agent is doing and typing into the
+session it is working in are different things, and only the first is safe to offer beside a "run
+git log" prompt. The centre column still shows the agent's own screen.
+
+**`ssh -tt` rather than a pty library.** The remote side allocates the tty, so there is no native
+module to build and nothing new on the workspace template. The cost is that the channel carries no
+`SIGWINCH`: the size is set once, in the remote command before the shell starts, and a browser
+resize does not follow it. Sending it afterwards would type `stty` at the operator's own prompt.
+
+`TERM` is set explicitly, because ssh forwards whatever it finds locally and the controller runs as
+a service with none. Without it every paged command stops at "terminal is not fully functional".
+
+**Authentication is the operator session**, through the same `authorizeRequest` every other
+endpoint uses. That function allows everything when `CONTROLLER_AUTH_SECRET` is unset, so an
+unconfigured controller hands out a shell on the same terms it hands out every page. It is a shell
+rather than a page, which is the reason to set the secret.
+
 ## Freshness
 
 Three reads at three cadences, which is a ratio rather than three arbitrary numbers:
@@ -169,8 +196,6 @@ the entire reason they moved.
   finds them, so what is lost is history rather than access.
 - **Automatic orphan destruction.** A restored or lost database makes every live workspace look
   orphaned, and a timer would then purge the fleet. It is a scan and a click.
-- **A terminal emulator.** `--source visible` returns a rendered viewport, not a byte stream, so
-  xterm.js would be the wrong shape until there is real keystroke input.
 - **Opening a pull request.** The GitHub App has the permission, but a PR wants a title and a body
   that would have to be invented or demanded, and a branch is enough to review from.
 - **Editing files from the browser.** `@pierre/diffs` would support it. It is a different feature.

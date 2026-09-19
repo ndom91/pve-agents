@@ -11,6 +11,7 @@ import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
+import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
@@ -420,6 +421,7 @@ function WorkspaceDetail() {
 				onClose={closeFile}
 				onTab={setTab}
 				tab={tab}
+				terminal={<WorkspaceTerminal ready={ready} workspaceId={workspaceId} />}
 				timeline={
 					<div className="rail-timeline">
 						<WorkspaceTimeline events={workspace.events} />
