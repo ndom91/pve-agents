@@ -45,11 +45,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 					sizes: "96x96",
 					type: "image/png",
 				},
-				{
-					href: "/icon0.svg",
-					rel: "icon",
-					type: "image/svg+xml",
-				},
+				// public/icon0.svg is deliberately not referenced. It is 808KB, because it is a
+				// 1254px raster wrapped in an SVG rather than real vector art, and a browser
+				// offered an SVG icon tends to prefer it over every sized raster — so a 16px
+				// favicon would cost most of a megabyte on a cold load. It stays in public/ for
+				// use inside the app, where its size buys something.
+				//
 				// The file is apple-icon.png. The link pointed at apple-touch-icon.png, which is
 				// the conventional name and not the one in this repository, so it 404ed.
 				{
