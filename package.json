@@ -25,7 +25,6 @@
 	"dependencies": {
 		"@better-auth/api-key": "^1.7.4",
 		"@pierre/diffs": "^1.4.3",
-		"@pierre/trees": "1.0.0-beta.6",
 		"@tanstack/react-query": "^5.103.1",
 		"@tanstack/react-router": "1.170.38",
 		"@tanstack/react-router-ssr-query": "^1.167.3",

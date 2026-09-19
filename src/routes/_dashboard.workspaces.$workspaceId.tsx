@@ -6,7 +6,6 @@ import { AgentScreen } from "../components/agent-screen";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
-import { FileDiff } from "../components/file-diff";
 import { IconButton } from "../components/icon-button";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -17,7 +16,6 @@ import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
 import {
 	changesQuery,
-	fileDiffQuery,
 	paneQuery,
 	workspaceKeys,
 	workspaceQuery,
@@ -62,10 +60,9 @@ function WorkspaceDetail() {
 	const [prompt, setPrompt] = useState("");
 	const [note, setNote] = useState("");
 	const [tab, setTab] = useState<RailTab>({ kind: "details" });
-	// Every file opened from the change list, in the order they were opened, one tab each.
-	const [open, setOpen] = useState<string[]>([]);
-
-	const file = tab.kind === "file" ? tab.path : undefined;
+	// Bumped when work is discarded, and used as the change list's key so it remounts collapsed.
+	// A row left unfolded over a file that has just been thrown away is showing a diff of nothing.
+	const [discarded, setDiscarded] = useState(0);
 
 	const ready = workspace?.status === "ready";
 	// Nothing can be done to it any more: no terminal, no prompt, no diff to push or discard.
@@ -76,29 +73,13 @@ function WorkspaceDetail() {
 
 	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
 	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
-	// A file tab counts, because the actions below it act on the whole list.
+	//
+	// Any tab but Details counts. The actions sit under the diff, and the terminal and timeline are
+	// both places somebody goes to decide whether there is anything worth keeping.
 	const { data: changes } = useQuery(
 		changesQuery(workspaceId, ready && tab.kind !== "details"),
 	);
-	const { data: sides } = useQuery(fileDiffQuery(workspaceId, file));
 
-	function openFile(path: string): void {
-		// Opening a file already open focuses its tab rather than adding a second one.
-		setOpen((current) =>
-			current.includes(path) ? current : [...current, path],
-		);
-		setTab({ kind: "file", path });
-	}
-
-	function closeFile(path: string): void {
-		setOpen((current) => current.filter((candidate) => candidate !== path));
-		// Falls back to the list the file was opened from, which is where you would go next.
-		setTab((current) =>
-			current.kind === "file" && current.path === path
-				? { kind: "diff" }
-				: current,
-		);
-	}
 	// Pushes the screen and the observed activity straight into the cache while the page is open.
 	useWorkspaceStream(workspaceId, ready);
 
@@ -197,10 +178,9 @@ function WorkspaceDetail() {
 		mutationFn: () => discardWorkspaceChanges({ data: { id: workspaceId } }),
 		onError: () => setNote("could not reach the workspace"),
 		onSuccess: async (result) => {
-			// The file whose diff was on screen may no longer exist, and a stale diff of a file
-			// that was just thrown away is the most misleading thing this page could show.
-			setOpen([]);
-			setTab({ kind: "diff" });
+			// Any row left unfolded is showing a file that may no longer exist, and a stale diff of
+			// work that was just thrown away is the most misleading thing this page could show.
+			setDiscarded((count) => count + 1);
 			setNote(result.kind === "failed" ? result.message : "Discarded.");
 			await settle();
 		},
@@ -407,18 +387,11 @@ function WorkspaceDetail() {
 					!ready ? undefined : (
 						<ChangesPanel
 							changes={changes}
-							onSelect={openFile}
-							selected={file}
+							key={discarded}
+							workspaceId={workspaceId}
 						/>
 					)
 				}
-				file={
-					file === undefined ? undefined : (
-						<FileDiff path={file} sides={sides} />
-					)
-				}
-				files={open}
-				onClose={closeFile}
 				onTab={setTab}
 				tab={tab}
 				terminal={<WorkspaceTerminal ready={ready} workspaceId={workspaceId} />}

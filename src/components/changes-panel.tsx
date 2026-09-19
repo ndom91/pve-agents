@@ -1,20 +1,19 @@
 import type { ReactNode } from "react";
 
 import type { ChangedFiles } from "../services/workspace-changes";
-import { WorkspaceChanges } from "./workspace-changes";
+import { ChangesAccordion } from "./changes-accordion";
 
-// ChangesPanel is the list of what the agent changed.
+// ChangesPanel is what the agent changed, or why nobody could tell.
 //
-// Only the list. The diff for a file opens as its own tab, and the commit and discard controls sit
-// below the tabs, because they act on the workspace rather than on anything shown here.
+// The three answers that are not a list of files are handled here, so the accordion below only
+// ever deals with files. The commit and discard controls sit under the tabs rather than in here,
+// because they act on the workspace rather than on any one row.
 export function ChangesPanel({
 	changes,
-	onSelect,
-	selected,
+	workspaceId,
 }: {
 	changes?: ChangedFiles;
-	onSelect: (path: string) => void;
-	selected?: string;
+	workspaceId: string;
 }): ReactNode {
 	if (changes === undefined) {
 		return <p className="detail-note">Reading the workspace.</p>;
@@ -39,11 +38,5 @@ export function ChangesPanel({
 		);
 	}
 
-	return (
-		<WorkspaceChanges
-			files={changes.files}
-			onSelect={onSelect}
-			selected={selected}
-		/>
-	);
+	return <ChangesAccordion files={changes.files} workspaceId={workspaceId} />;
 }

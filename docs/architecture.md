@@ -93,10 +93,23 @@ workspaces, because the trade is only acceptable if it is visible.
 
 ## Seeing and keeping the work
 
-The detail page's rail is tabbed. **Details** is placement. **Diff** is a tree of what the agent
-changed. Opening a file from that tree gives it a **tab of its own**, closable, several at a time,
-so reading one change does not cost you the one you were reading before — and never costs you sight
-of the terminal, which is what an earlier version did.
+The detail page's rail is tabbed. **Details** is placement. **Diff** is every changed file as one
+page, each row collapsed, unfolding its diff in place.
+
+This shape arrived third. The first replaced the whole rail with the file you opened, so reading a
+change cost you sight of everything else. The second gave each opened file a **tab of its own**,
+which fixed that and cost a click, a tab switch and a sideways-scrolling tab strip per file. The
+accordion is what a change set actually is: one list, read top to bottom, opened where you care.
+
+Flat rather than a tree, which is why `@pierre/trees` is no longer a dependency. The set is what
+one agent touched, usually a handful of files, and a full path already says where each one lives.
+The tree also virtualised against its own host box and rendered into shadow DOM, so it could not
+host a diff underneath a row — the whole feature.
+
+Each row fetches when it is unfolded and unmounts when it is folded. A read is an SSH round trip,
+so fetching every file to show a page of shut rows would open a connection per changed file; and
+the diff renderer carries a syntax highlighter, so several left mounted and hidden is several
+highlight passes' worth of DOM behind rows nobody has open.
 
 The rail is draggable from its left edge, because a diff wants more width than a sidebar has, and
 the width is remembered. It is bounded so it cannot be pulled over the terminal.

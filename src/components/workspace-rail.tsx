@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { useRailWidth } from "../lib/use-rail-width";
@@ -23,41 +22,27 @@ type RailWorkspace = {
 
 // RailTab is what the rail is showing.
 //
-// A shape rather than a string, because one of the three carries a path and the other two do not.
-// Encoding a file as a reserved-prefixed string would work until a repository held a file called
-// "diff".
+// A shape rather than a string. It once had a member carrying a file path, which is why: encoding a
+// file as a reserved-prefixed string would have worked until a repository held a file called
+// "diff". Files now unfold inside the diff tab and no member carries anything, but the shape is
+// kept because widening it later is a type change rather than a parsing rule.
 export type RailTab =
 	| { kind: "details" }
 	| { kind: "diff" }
-	| { kind: "file"; path: string }
 	| { kind: "terminal" }
 	| { kind: "timeline" };
-
-// sameTab compares two tabs, which is otherwise a three-way check at every call site.
-export function sameTab(left: RailTab, right: RailTab): boolean {
-	if (left.kind !== right.kind) {
-		return false;
-	}
-
-	return left.kind !== "file" || left.path === (right as { path: string }).path;
-}
 
 // WorkspaceRail shows where a workspace lives, and what its agent has changed.
 //
 // Tabs rather than panels stacked, because they are read at different times and for different
 // reasons. Placement is reference material you reach for when something has gone wrong. The list of
-// changes is the actual output of the workspace. A file opened from that list gets a tab of its
-// own, so reading one change does not cost you the sight of another, and closing it is one click
-// rather than a navigation.
+// changes is the actual output of the workspace.
 //
 // The tabs appear only once there is something to show beyond placement. A workspace still
 // provisioning has no changes to list, and an empty tab would invite a click that answers nothing.
 export function WorkspaceRail({
 	actions,
 	changes,
-	file,
-	files = [],
-	onClose,
 	onTab,
 	tab = { kind: "details" },
 	terminal,
@@ -66,9 +51,6 @@ export function WorkspaceRail({
 }: {
 	actions?: ReactNode;
 	changes?: ReactNode;
-	file?: ReactNode;
-	files?: string[];
-	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab?: RailTab;
 	terminal?: ReactNode;
@@ -107,17 +89,12 @@ export function WorkspaceRail({
 				<RailResizer onResize={setWidth} width={width} />
 				<Tabs
 					changes={changes}
-					files={files}
-					onClose={onClose}
 					onTab={onTab}
 					tab={tab}
 					terminal={terminal}
 					timeline={timeline}
 				/>
 				<div className="rail-body">
-					{/* The file panel is not kept: its content is the file the tab names, and a
-					    different file is a different panel. Only the terminal holds a session. */}
-					{tab.kind === "file" ? file : null}
 					<Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
 						{changes}
 					</Panel>
@@ -138,7 +115,7 @@ export function WorkspaceRail({
 				    one file, which is why they sit outside the tabs — but under a timeline or a
 				    shell they are a control with no visible subject, and they take height the
 				    terminal wants. */}
-				{tab.kind === "diff" || tab.kind === "file" ? actions : null}
+				{tab.kind === "diff" ? actions : null}
 			</aside>
 		);
 	}
@@ -151,8 +128,6 @@ export function WorkspaceRail({
 			) : (
 				<Tabs
 					changes={changes}
-					files={files}
-					onClose={onClose}
 					onTab={onTab}
 					tab={tab}
 					terminal={terminal}
@@ -204,19 +179,15 @@ function Panel({
 	);
 }
 
-// Tabs switches the rail between placement, the change list, and any file opened from it.
+// Tabs switches the rail between placement, the change list, the timeline and the shell.
 function Tabs({
 	changes,
-	files,
-	onClose,
 	onTab,
 	tab,
 	terminal,
 	timeline,
 }: {
 	changes?: ReactNode;
-	files: string[];
-	onClose?: (path: string) => void;
 	onTab?: (tab: RailTab) => void;
 	tab: RailTab;
 	terminal?: ReactNode;
@@ -238,12 +209,12 @@ function Tabs({
 	];
 
 	return (
-		// Scrolls sideways rather than wrapping. Wrapping would change the rail's height as files
-		// are opened, moving everything below it.
+		// Scrolls sideways rather than wrapping, so the rail's height cannot change underneath the
+		// panel below it on a narrow rail.
 		<div className="rail-tabs" role="tablist">
 			{fixed.map(({ label, value }) => (
 				<button
-					aria-selected={sameTab(tab, value)}
+					aria-selected={tab.kind === value.kind}
 					className="rail-tab"
 					key={label}
 					onClick={() => onTab?.(value)}
@@ -253,54 +224,8 @@ function Tabs({
 					{label}
 				</button>
 			))}
-
-			{files.map((path) => {
-				const value: RailTab = { kind: "file", path };
-
-				return (
-					<span
-						className={
-							sameTab(tab, value) ? "rail-file is-active" : "rail-file"
-						}
-						key={path}
-					>
-						<button
-							aria-selected={sameTab(tab, value)}
-							className="rail-tab"
-							onClick={() => onTab?.(value)}
-							role="tab"
-							// The label is the file name; the path is what disambiguates two files
-							// with the same one, so it is the title.
-							title={path}
-							type="button"
-						>
-							{basename(path)}
-						</button>
-						{/* Shown on hover and while this tab is the one open, which is the tab
-						    somebody is most likely to want rid of. Always visible would put a row
-						    of crosses beside every name. */}
-						<button
-							aria-label={`Close ${path}`}
-							className="rail-file-close"
-							onClick={() => onClose?.(path)}
-							title={`Close ${path}`}
-							type="button"
-						>
-							<X aria-hidden size={12} strokeWidth={2} />
-						</button>
-					</span>
-				);
-			})}
 		</div>
 	);
-}
-
-// basename is the part of a path worth putting on a tab.
-//
-// The whole path would make every tab as wide as the rail. The full path stays as the title, and
-// two files sharing a name are told apart by hovering rather than by reading a truncated middle.
-function basename(path: string): string {
-	return path.slice(path.lastIndexOf("/") + 1);
 }
 
 // Fact renders one label and value, and nothing at all when there is no value yet.

@@ -1194,59 +1194,6 @@ dd {
 	display: none;
 }
 
-/* One file's tab: its name, and the cross that closes it. */
-.rail-file {
-	align-items: center;
-	border-bottom: 2px solid transparent;
-	display: flex;
-	flex: 0 0 auto;
-	gap: 2px;
-	padding-right: 2px;
-}
-
-.rail-file.is-active {
-	border-bottom-color: var(--accent);
-}
-
-.rail-file .rail-tab {
-	border-bottom: none;
-	padding-right: 4px;
-	max-width: 160px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	text-transform: none;
-	white-space: nowrap;
-}
-
-/* Hidden until the tab is hovered or open, which is the one somebody is most likely to want rid
-   of. Always visible would put a row of crosses beside every name. Visibility rather than display,
-   so the tab does not change width when it appears and shove its neighbours along. */
-.rail-file-close {
-	align-items: center;
-	background: none;
-	border: none;
-	border-radius: 3px;
-	color: var(--fg-dim);
-	display: inline-flex;
-	/* The tab beside it reserves 8px below its text for the underline. Centring against that taller
-	   box put the cross half of it lower than the name it belongs to, so it takes the same offset
-	   and the two sit on one line. */
-	margin-bottom: 8px;
-	padding: 2px;
-	visibility: hidden;
-}
-
-.rail-file:hover .rail-file-close,
-.rail-file.is-active .rail-file-close,
-.rail-file-close:focus-visible {
-	visibility: visible;
-}
-
-.rail-file-close:hover {
-	background: var(--border);
-	color: var(--fg-bright);
-}
-
 /* The tab's contents. Takes what the tab strip and the actions leave, and scrolls, so a long diff
    never pushes the commit controls off the bottom of the rail. */
 .rail-body {
@@ -1282,48 +1229,97 @@ dd {
 	color: var(--fg-bright);
 }
 
-/* A height rather than a max, because the tree virtualises against its host element's box: with
-   nothing to measure it renders one row and lets the rest go unreachable.
- *
- * The tree renders into shadow DOM, so none of the rules in this file reach inside it. Custom
- * properties do inherit across that boundary, which is the whole of the theming story: set them on
- * the host and the component picks them up. Out of the box it arrives light-on-blue, which next to
- * this palette looks like a screenshot from another application. */
-.changes-tree {
-	--trees-bg-override: transparent;
-	--trees-bg-muted-override: var(--surface);
-	--trees-fg-override: var(--fg-bright);
-	--trees-fg-muted-override: var(--fg-muted);
-	--trees-accent-override: var(--accent);
-	--trees-border-color-override: var(--border);
-	--trees-indent-guide-bg-override: var(--border);
-	--trees-input-bg-override: var(--surface);
-	--trees-theme-list-hover-bg: var(--surface);
-	--trees-font-family-override: "SF Mono", "Roboto Mono", monospace;
-	--trees-font-size-override: 12px;
+/* The change list: one row per file, and the diff that unfolds under it. */
+.changes-accordion {
+	display: flex;
+	flex-direction: column;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
 
-	/* The status badges. Green for work that arrived, red for work that went, amber for work that
-	   changed, and grey for what git is ignoring. Both halves of each pair are set because the
-	   component picks one by theme and this application only has the dark one. */
-	--trees-added-dark: var(--accent);
-	--trees-added-light: var(--accent);
-	--trees-untracked-dark: var(--accent);
-	--trees-untracked-light: var(--accent);
-	--trees-modified-dark: var(--status-modified);
-	--trees-modified-light: var(--status-modified);
-	--trees-deleted-dark: var(--status-deleted);
-	--trees-deleted-light: var(--status-deleted);
-	--trees-renamed-dark: var(--fg-muted);
-	--trees-renamed-light: var(--fg-muted);
-	--trees-ignored-dark: var(--border-dim);
-	--trees-ignored-light: var(--border-dim);
+.change-entry {
+	border-bottom: 1px solid var(--border-dim);
+}
 
-	/* Fills its tab. The tree virtualises against its host's box, so this has to resolve to a real
-	   height: flex inside .rail-body gives it one. With nothing to measure it draws a single row
-	   and puts the rest out of reach. */
-	flex: 1 1 auto;
+/* The row itself. Monospace because it is a path, and paths line up. */
+.change-row {
+	align-items: center;
+	background: none;
+	border: none;
+	color: var(--fg);
+	cursor: pointer;
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: var(--text-md);
-	min-height: 120px;
+	gap: 6px;
+	padding: 6px 4px;
+	text-align: left;
+	width: 100%;
+}
+
+.change-row:hover {
+	background: var(--surface);
+	color: var(--fg-bright);
+}
+
+/* Points right when shut and down when open, so the state is legible without reading the row. */
+.change-caret {
+	color: var(--fg-dim);
+	flex: none;
+	transition: transform 120ms ease;
+}
+
+.change-row[aria-expanded="true"] .change-caret {
+	transform: rotate(90deg);
+}
+
+/* Truncates from the left. The end of a path is the file name, which is the part worth keeping
+   when a deep path will not fit the rail. */
+.change-path {
+	direction: rtl;
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-align: left;
+	text-overflow: ellipsis;
+	unicode-bidi: plaintext;
+	white-space: nowrap;
+}
+
+/* The status, coloured rather than abbreviated: green for work that arrived, red for work that
+   went, amber for work that changed. */
+.change-status {
+	flex: none;
+	font-size: var(--text-xs);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.change-row.is-added .change-status,
+.change-row.is-untracked .change-status {
+	color: var(--accent);
+}
+
+.change-row.is-modified .change-status {
+	color: var(--status-modified);
+}
+
+.change-row.is-deleted .change-status {
+	color: var(--status-deleted);
+}
+
+.change-row.is-renamed .change-status {
+	color: var(--fg-muted);
+}
+
+/* Indented under its row so a long diff still reads as belonging to it, and capped in height so
+   one large file cannot push every other row off the bottom of the rail. */
+.change-diff {
+	border-left: 1px solid var(--border);
+	margin-left: 9px;
+	max-height: 60vh;
+	overflow: auto;
+	padding: 4px 0 8px 8px;
 }
 
 /* Below the tabs rather than inside one, and always in the same place, because these act on the
