@@ -38,6 +38,29 @@ describe("checkoutRepository", () => {
 		});
 	});
 
+	it("widens the fetch refspec so a pushed branch is observable", async () => {
+		// The clone is single-branch, which narrows the refspec to that branch alone. A branch
+		// pushed later then gets no remote-tracking ref, `git rev-parse @{u}` fails, and the commit
+		// counts as unpushed forever: the workspace reports work it has already pushed, and the
+		// reaper asks the same question and never lets it go.
+		const { commands } = await recorded(async (ssh) => {
+			await checkoutRepository(
+				TARGET,
+				{
+					cwd: "/workspace/repo",
+					ref: "main",
+					repository: REPOSITORY,
+					token: TOKEN,
+				},
+				ssh,
+			);
+		});
+
+		expect(commands.map((command) => command.join(" ")).join("\n")).toContain(
+			'config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"',
+		);
+	});
+
 	it("clones from a URL carrying no credentials", async () => {
 		const { commands } = await recorded(async (ssh) => {
 			await checkoutRepository(

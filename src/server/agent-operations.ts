@@ -182,7 +182,25 @@ export async function readWorkspaceChanges(id: string): Promise<ChangedFiles> {
 		return { kind: "failed", message: agent.reason };
 	}
 
-	return changedFiles(agent.target.ssh, AGENT_CWD, runSsh);
+	const changes = await changedFiles(agent.target.ssh, AGENT_CWD, runSsh);
+	// The flag behind the "holding unsaved work" banner, refreshed from a reading that was taken
+	// anyway. It encodes exactly what was just fetched — a dirty tree or a commit that is nowhere
+	// else — so recording it here costs nothing and stops the banner outliving the work it
+	// describes. Only ever updated on a push, a discard, or a reaping pass before this, so a
+	// workspace whose flag was set while something was briefly wrong kept claiming to hold work.
+	//
+	// A stale flag was never dangerous: the reaper re-reads the tree itself before destroying
+	// anything, so it errs towards keeping a workspace rather than losing one. It was only a lie
+	// on the page.
+	if (changes.kind === "changes") {
+		recordUnsavedWork(
+			controllerDatabase(),
+			id,
+			changes.files.length > 0 || changes.unpushed > 0,
+		);
+	}
+
+	return changes;
 }
 
 export async function readWorkspaceFile(
@@ -219,6 +237,12 @@ export async function pushWorkspaceWork(
 			"workspace.pushed",
 			`pushed to ${branch}`,
 		);
+	}
+	// Re-checked on "nothing" as well as on "done", because "nothing to push" is itself a reading
+	// of the tree and a fresher one than whatever is stored. Without this, a workspace whose flag
+	// was set while something was briefly wrong keeps claiming to hold work with no way to correct
+	// it short of waiting for a reaping pass to look.
+	if (pushed.kind !== "failed") {
 		await settleUnsavedWork(agent.target.ssh, id);
 	}
 

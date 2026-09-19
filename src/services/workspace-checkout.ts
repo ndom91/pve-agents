@@ -29,8 +29,18 @@ const CREDENTIAL_SCRIPT = [
 // phase was recorded. Cloning again into a populated directory would fail, and failing on a
 // repository that is already there is a worse answer than doing nothing.
 const CLONE_SCRIPT = [
-	'if [ -d "$1/.git" ]; then exit 0; fi',
-	'git clone --branch "$3" --single-branch "$2" "$1"',
+	'if [ ! -d "$1/.git" ]; then',
+	'git clone --branch "$3" --single-branch "$2" "$1" || exit 1',
+	"fi",
+	// A single-branch clone narrows the fetch refspec to that one branch, and a narrow refspec has
+	// a consequence a long way from here: a branch pushed later gets no remote-tracking ref, so
+	// `git rev-parse @{u}` fails and the commit counts as unpushed forever. The workspace then
+	// reports work it has already pushed, and the reaper, which asks the same question, never lets
+	// it go. Widening this costs nothing and is what makes a successful push observable.
+	//
+	// Outside the guard above, so a workspace cloned before this existed is repaired rather than
+	// skipped.
+	'git -C "$1" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"',
 ].join("\n");
 
 // IDENTITY_SCRIPT gives commits an author, since the agent will make them.
