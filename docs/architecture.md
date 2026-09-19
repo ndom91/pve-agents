@@ -93,8 +93,13 @@ workspaces, because the trade is only acceptable if it is visible.
 
 ## Seeing and keeping the work
 
-The detail page's rail has two tabs. **Details** is placement. **Diff** is a tree of what the agent
-changed, and selecting a file shows it in the centre where there is width for it.
+The detail page's rail is tabbed. **Details** is placement. **Diff** is a tree of what the agent
+changed. Opening a file from that tree gives it a **tab of its own**, closable, several at a time,
+so reading one change does not cost you the one you were reading before — and never costs you sight
+of the terminal, which is what an earlier version did.
+
+The rail is draggable from its left edge, because a diff wants more width than a sidebar has, and
+the width is remembered. It is bounded so it cannot be pulled over the terminal.
 
 Read as two file contents rather than as a patch. `git diff` says nothing at all about an untracked
 file, and an agent creating one is both the commonest change and the one that most often holds a

@@ -72,8 +72,8 @@ The controller should perform these idempotent steps:
 10. Clone the requested repository and checkout the requested ref.
 11. Start or verify the named Herdr server.
 12. Create the Herdr workspace rooted at `/workspace/repo`.
-13. Ask the user's local bridge to register the remote machine.
-14. Mark the workspace ready after both remote setup and required client registration succeed.
+13. Start the agent in a pane and give it the purpose verbatim.
+14. Mark the workspace ready, which means briefed and working rather than merely built.
 
 Suggested clone parameters:
 
@@ -85,7 +85,7 @@ pool=disposable-workspaces
 description=<ownership marker>
 ```
 
-Do not pass `storage` for linked clones. Keep the template and clones on one node for v0.
+Do not pass `storage` for linked clones. Keep the template and clones on one node.
 
 Linked clones should be tested on the actual storage backend before implementation assumes them. If reliability is poor, switch to full clones without changing the workspace API.
 
@@ -144,15 +144,14 @@ Deletion is idempotent:
 
 1. Persist `desiredState=destroyed` and status `destroying`.
 2. Reject new agent operations.
-3. Ask local bridges to remove the Herdr machine profile.
-4. Gracefully shut down the LXC with a bounded timeout.
-5. Force-stop it if necessary.
-6. Verify controller ownership from the LXC description.
-7. Delete with `purge=1` and wait for the task.
-8. Treat an already absent LXC as success.
-9. Mark the workspace destroyed.
+3. Gracefully shut down the LXC with a bounded timeout.
+4. Force-stop it if necessary.
+5. Verify controller ownership from the LXC description.
+6. Delete with `purge=1` and wait for the task.
+7. Treat an already absent LXC as success.
+8. Mark the workspace destroyed.
 
-Do not use `destroy-unreferenced-disks` for v0.
+Do not use `destroy-unreferenced-disks`: it reaches past the container being deleted, and the ownership marker only vouches for the container.
 
 ## Failure Handling
 
@@ -165,9 +164,9 @@ Do not use `destroy-unreferenced-disks` for v0.
 | SSH unavailable | Retry with backoff; do not report ready. |
 | Repository clone failed | Remove temporary Git credentials and mark failed. |
 | Herdr setup failed | Keep the LXC and retry only the Herdr step. |
-| Client registration failed | Keep remote Herdr running and report registration failure. |
+| Agent failed to start or brief | Keep the LXC and retry only that step; the container is the only copy of whatever went wrong. |
 | Controller restarted | Resume from persisted desired state, UPID, and observed resources. |
-| Duplicate delete | Treat missing Herdr profiles and Proxmox 404 as success. |
+| Duplicate delete | Treat a Proxmox 404 as success. |
 
 ## Reconciliation
 
@@ -178,10 +177,16 @@ On startup and periodically:
 - Query candidate/current VMIDs even when a UPID is missing.
 - Adopt resources only when all ownership markers match.
 - Compare the dedicated Proxmox pool with controller records.
-- Report unknown or orphaned resources without automatically deleting them in v0.
+- Report unknown or orphaned resources without automatically deleting them. Not a temporary
+  caution: a restored or lost database makes every live workspace look orphaned, and a timer would
+  then purge the fleet. It stays a scan and a click.
 - Continue pending destruction until the LXC is absent.
 
 ## Archive Direction
+
+> Mostly unbuilt. What exists is the first item: the UI commits everything and pushes it to a
+> branch of the workspace's own, and the reaper refuses to destroy a workspace holding work that
+> was never pushed. The rest is still the right shape for the cases that protection only postpones.
 
 Prefer source-control-native persistence:
 

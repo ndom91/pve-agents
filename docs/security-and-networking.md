@@ -2,7 +2,7 @@
 
 ## Network Recommendation
 
-Use a dedicated private agent VLAN or subnet for v0:
+Use a dedicated private agent VLAN or subnet:
 
 ```text
 Trusted workstation and controller
@@ -18,12 +18,12 @@ Agent VLAN / subnet
 
 Firewall policy should allow:
 
-- SSH into workspace LXCs only from authorized Herdr clients and the controller.
+- SSH into workspace LXCs from the controller only. Nothing else has a reason to.
 - Outbound DNS, Git hosting, package registries, and model-provider endpoints.
 - No unsolicited inbound internet traffic.
 - Access to internal services only when a task explicitly requires it.
 
-For v0, use the discovered IP directly in the Herdr SSH target. Herdr's machine label provides the friendly name. Internal DNS such as `agent-7f2a.agent.internal` can follow after DHCP and lifecycle behavior are proven.
+The discovered IP is used directly as the SSH target; the hostname `agent-<short id>` is the friendly name and exists for people rather than for resolution. Internal DNS such as `agent-7f2a.agent.internal` would be a convenience, not a fix for anything.
 
 ## Address Discovery
 
@@ -47,7 +47,7 @@ A Tailscale subnet router is a cleaner later option when client machines cannot 
 
 ## Proxmox Credentials
 
-Use a dedicated Proxmox user and privilege-separated API token. The controller stores the token; organiser agents and local Herdr bridges do not receive it.
+Use a dedicated Proxmox user and privilege-separated API token. **The controller holds it and nothing else does**: it never reaches a workspace, and no agent can ask for it.
 
 Suggested privileges:
 
@@ -97,13 +97,13 @@ Unsafe template material includes:
 
 LXC cloning does not provide QEMU-style cloud-init, and Proxmox does not expose a general REST `pct exec` or `pct push`. The initial bootstrap channel must therefore be prepared in the template or supplied through a separately controlled Proxmox-host mechanism.
 
-For v0, bake a dedicated controller public key for the non-root `agent` account. Keep its private key only on the hosted controller. Consider SSH certificates after the lifecycle is working.
+Bake a dedicated controller public key for the non-root `agent` account. Keep its private key only on the hosted controller. Consider SSH certificates after the lifecycle is working.
 
 ## SSH Host Verification
 
 Each cloned LXC must have unique SSH host keys. Never preserve the template's host private keys across clones.
 
-The pragmatic v0 policy is:
+The policy in use is:
 
 1. Obtain the LXC address and MAC from Proxmox.
 2. Confirm they belong to the expected workspace subnet and VMID.
@@ -115,38 +115,43 @@ This is trust-on-first-use and remains vulnerable to an attacker already positio
 
 ## Git Credentials
 
-Prefer GitHub App installation tokens:
+GitHub App installation tokens, minted per repository and lasting an hour.
 
-1. Validate the requested repository against allowed organizations or installations.
-2. Mint a short-lived token scoped to that repository.
-3. Clone over HTTPS using an ephemeral askpass helper.
-4. Set `origin` to a credential-free URL.
-5. Delete the helper and token immediately after cloning.
+1. Mint a token scoped to that repository alone.
+2. Store it with git's `credential.helper store`, written from **stdin** so it is never an argument and never appears in `ps` on the workspace.
+3. Clone over HTTPS from a credential-free URL and let git read the stored value itself.
+4. Replace the stored credential before the hour is up, for as long as the workspace lives.
+
+**The token is stored rather than used once and deleted**, which is a deliberate departure from the obvious design. The agent pushes later under its own steam, and a workspace outlives an installation token several times over. A refresh pass replaces it on a living workspace without touching its repository.
+
+Never put the token in the URL. git repeats the remote it was using in its error text, and that text reaches the workspace timeline the UI renders. Everything git prints is scrubbed of the token at the boundary too, because one of those paths will be missed eventually.
 
 Avoid forwarding the user's general SSH agent into an autonomous workspace. It grants broader signing and repository access than the task usually needs.
 
 ## Model Provider Credentials
 
-Provider authentication is likely the largest unavoidable v0 trade-off.
+Provider authentication is the largest unavoidable trade-off here, and the one that was settled least comfortably.
 
-Preferred order:
+**What is used: a Claude subscription OAuth token**, held in `.env` on the controller and written into each workspace as a file the agent pane's shell sources. It arrives over stdin, never as an argument. An API key was available and was deliberately not chosen.
+
+It is the fourth option on the list below, and it is chosen knowingly: this is a single-operator deployment, the token is reusable rather than task-scoped, and any workspace that gets it can spend against the subscription. The container being disposable is what bounds that, not the credential.
+
+Better, in order, if this ever stops being a single-operator tool:
 
 1. Short-lived, task-scoped provider credential.
 2. Controller-side credential broker that exchanges a workspace identity for limited access.
 3. Narrowly scoped API key injected as a mode `0600` file.
-4. Reusable copied CLI login state only for an explicit single-user prototype.
+4. Reusable login state, which is what is in use.
 
 Track which credential classes were injected, never their values. Remove credential files during destruction even though deleting the LXC also removes its filesystem.
 
-## Local Bridge Security
+## The controller's own exposure
 
-The local Herdr bridge should:
+The web UI is the interactive path, so the controller holds more than a provisioning service would.
 
-- Make an authenticated outbound connection to the controller.
-- Accept only machine-profile reconciliation messages.
-- Validate SSH targets against configured agent subnets or controller-signed workspace records.
-- Never execute arbitrary commands sent by the controller.
-- Never hold Proxmox or model-provider credentials.
-- Use the supported Herdr machine CLI rather than editing internal state files.
+- **It can reach every workspace over SSH** with a key that is on the controller and nowhere else. Anyone who reaches the controller reaches every live workspace.
+- **Auth is off unless `CONTROLLER_AUTH_SECRET` is set.** Without it there is no sign-in and no API key, and the only thing between the controller and a caller is the network it sits on.
+- **The agent's screen is rendered as parsed spans, never as HTML.** An agent echoes file contents, diffs, and whatever a prompt told it to print. Handing that to an HTML converter would let any repository script the controller's own origin, where the operator's session cookie lives.
+- **`ssh` does not preserve argument boundaries.** It joins the command and the remote shell splits it again, so every argument is quoted before it leaves. Without that, a repository name or an agent prompt carrying a semicolon is remote code execution under the controller's key.
 
-The bridge's authority is limited but meaningful: it can add SSH destinations to the user's Herdr interface. Device authorization and target validation are therefore required.
+A local Herdr bridge was specified here and never built. The web UI removed the reason for it: an operator watches and drives the agent in the browser rather than registering each workspace into their own Herdr sidebar.

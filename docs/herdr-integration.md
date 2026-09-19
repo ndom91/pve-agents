@@ -82,82 +82,6 @@ terminal's alternate screen, whose rows never enter Herdr's scrollback. The evid
 terminal title, which Claude sets from the conversation. Anything that needs an agent's output
 will have to have it written to a file.
 
-## Remote Machine Registration
-
-Register a prepared SSH machine with:
-
-```bash
-herdr machine add \
-  ssh://agent@10.50.0.27 \
-  --label "plain · round-robin bug" \
-  --remote-session agents
-```
-
-`machine add` verifies the remote binary and server, starts a compatible background server, and saves a local profile. An open Herdr client normally notices the profile within a second.
-
-Machine profiles contain an opaque profile ID, label, SSH target, optional remote session, and enabled state. Herdr does not store SSH passwords or private keys in the profile.
-
-List and remove profiles with:
-
-```bash
-herdr machine list --json
-herdr machine remove <profile-id>
-```
-
-Removing a profile disconnects and forgets the machine locally. It does not stop remote sessions or agents.
-
-## Registration Automation Constraint
-
-`herdr machine add` has no `--yes` flag. It can run without interaction only when:
-
-- SSH host trust is already established.
-- SSH authentication does not prompt.
-- A compatible Herdr binary is already installed remotely.
-- No incompatible running server requires approval to stop or restart.
-
-The LXC template should therefore contain a pinned compatible Herdr version. Closing stdin makes an unexpected prompt fail instead of hanging:
-
-```bash
-herdr machine add ... </dev/null
-```
-
-The official supported interface is the `herdr machine` CLI. Direct editing of Herdr's internal machine catalog is technically possible in 0.9.0 but is not a public API and would bypass setup checks, validation, and atomic writes. The prototype should not depend on its schema.
-
-## Controller As A Permanent Machine
-
-The controller host runs an always-on Herdr server with a named session such as `controller`. It hosts the organiser agent and controller operational panes.
-
-Each user adds that controller as a normal permanent saved machine from their own Herdr client:
-
-```bash
-herdr machine add controller \
-  --label "Agent Controller" \
-  --remote-session controller
-```
-
-This lets the local Herdr TUI display and interact with the organiser as though it were another local workspace. It is the recommended initial human-control path.
-
-## Federation Limitation
-
-Saved-machine profiles belong to the Herdr client that renders the UI. They are not server-owned session state, and machine connections are not recursive.
-
-If the controller's own Herdr client has registered workspace LXC `agent-7f2a`, adding only `controller` on the Mac does not cause `agent-7f2a` to appear in the Mac's sidebar. The Mac sees the controller server's own workspaces and agents, including the organiser, but not the controller client's machine catalog.
-
-This does not block v0. The organiser calls the controller API and the controller operates each workspace's remote Herdr server. Direct LXC terminal access from the Mac is a later enhancement.
-
-## Optional Client Registration Bridge
-
-If direct LXC workspaces in each user's local Herdr sidebar are required, add a small bridge on that client machine:
-
-```text
-bridge -> controller: authenticate and subscribe
-controller -> bridge: desired machine profile set
-bridge -> Herdr CLI: add/remove/rename profiles
-bridge -> controller: observed profile IDs and errors
-```
-
-The bridge reconciles desired state rather than blindly executing messages. It holds no Proxmox, GitHub, or model-provider credentials and is outside the initial controller critical path.
-
 ## Remote Server Startup
 
 A named session has no server until one is started. `herdr --session agents status` reports
@@ -216,7 +140,7 @@ model-provider credentials once that decision is made.
 
 ## Agent Operations
 
-The remote Herdr CLI supports the intended organiser operations:
+The remote Herdr CLI supports everything the controller needs:
 
 ```bash
 herdr --session agents agent start investigator-backend --kind codex --pane <pane-id>
@@ -288,7 +212,13 @@ Useful data comes from:
 - `events.subscribe` for long-lived updates from a remote helper.
 - `agent read` only when the user explicitly requests recent output.
 
-For v0, periodic polling over SSH is simpler than maintaining one event stream per LXC. The UI can show:
+Polling over SSH was chosen over `events.subscribe`, and still is: a reading that fails is just an
+old reading, whereas a dropped subscription is a page that silently stops updating. Three cadences
+rather than one — the fleet list every 2.5s from the database, every ready agent every 30s, and an
+open detail page every 2s over its own stream. The stream writes what it observes back to the
+database, so the record everything else reads is fresh to about two seconds while a page is open.
+
+What the UI shows:
 
 - Workspace provisioning and reachability state.
 - Repository and ref.
@@ -305,7 +235,9 @@ Do not stream or persist complete terminal contents by default. Herdr remains th
 - Selecting a remote machine in the TUI does not retarget CLI calls.
 - Remote control requires running Herdr's CLI on the remote host, currently over SSH.
 - Machine registration is local to each client installation.
-- Initial `machine add` setup has no explicit unattended flag.
 - Removing a saved machine does not stop its remote server.
 
-These gaps require adapters, but do not block the proposed experience.
+None of these block the controller, because it does not use saved machines at all: it runs the
+Herdr CLI on each workspace over SSH. The first of them is the reason why. Registering workspaces
+into an operator's own Herdr sidebar was the original plan and was dropped once the web UI could
+show the agent's screen directly.
