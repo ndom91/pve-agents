@@ -4,8 +4,62 @@
 	   resolved to nothing and the rules using it were dropped. */
 	--control-height: 42px;
 
-	background: #111411;
-	color: #e6e9df;
+	/* The palette, named for the job rather than the value.
+	 *
+	 * It was thirty-four unnamed hex literals, five of which were accidents: three input
+	 * backgrounds within three points of each other, two page backgrounds within two, three dim
+	 * borders within three. Those are collapsed. Everything else keeps its exact value and gains a
+	 * name, so this pass changes the vocabulary and almost no pixels.
+	 *
+	 * Greys are a real ramp rather than duplicates. Each step below is fifteen to twenty points
+	 * from its neighbours and does distinct work, which is why they are named rather than merged. */
+	--bg-sunken: #0b0f0a;
+	--bg: #111411;
+	--surface: #161b14;
+
+	--border: #2c3428;
+	--border-strong: #384036;
+	--border-dim: #4a5545;
+	--line: #7b8b71;
+
+	--fg: #e6e9df;
+	--fg-bright: #d6e2cf;
+	--fg-badge: #c4d1bd;
+	--fg-soft: #a9b8a2;
+	--fg-muted: #8a9a83;
+	--fg-dim: #6d7a67;
+
+	--accent: #7fa06a;
+	--accent-fill: #b5cda9;
+	--accent-fill-hover: #d0e4c5;
+	--accent-ink: #172016;
+	--accent-ring: #b5cda944;
+
+	--warn: #b08a4a;
+	--warn-fg: #e0b36a;
+	--warn-bg: #2a2213;
+	--danger: #8c4a4a;
+	--danger-fg: #e08a8a;
+	--danger-soft: #e0a2a2;
+	--danger-bright: #ffb4a8;
+	--info: #5a7fa8;
+	--info-fg: #8fb4d9;
+
+	--status-modified: #c8b45f;
+	--status-deleted: #c97f6a;
+
+	/* Five sizes and a display size, replacing eleven. 9px became 10, 14 became 13, and 17/20
+	   became 18; the display heading was clamp(36px, 6vw, 64px), written for a marketing page that
+	   no longer exists and the reason Settings read as a different application. */
+	--text-xs: 10px;
+	--text-sm: 11px;
+	--text-md: 12px;
+	--text-lg: 13px;
+	--text-xl: 18px;
+	--text-display: 24px;
+
+	background: var(--bg);
+	color: var(--fg);
 	font-family: "Avenir Next", "Helvetica Neue", sans-serif;
 }
 
@@ -33,14 +87,14 @@ input {
 .section-heading,
 .masthead {
 	align-items: start;
-	border-bottom: 1px solid #384036;
+	border-bottom: 1px solid var(--border-strong);
 	padding-bottom: 32px;
 }
 
 .eyebrow {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
+	font-size: var(--text-sm);
 	letter-spacing: 0.12em;
 	margin: 0 0 8px;
 }
@@ -52,7 +106,7 @@ p {
 }
 
 h1 {
-	font-size: clamp(36px, 6vw, 64px);
+	font-size: var(--text-display);
 	font-weight: 500;
 	letter-spacing: -0.05em;
 	line-height: 0.9;
@@ -60,7 +114,7 @@ h1 {
 }
 
 h2 {
-	font-size: 20px;
+	font-size: var(--text-xl);
 	font-weight: 600;
 	letter-spacing: -0.02em;
 	margin-bottom: 0;
@@ -68,10 +122,10 @@ h2 {
 
 .activity,
 .status {
-	border: 1px solid #7b8b71;
-	color: #c4d1bd;
+	border: 1px solid var(--line);
+	color: var(--fg-badge);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	margin: 0;
 	padding: 6px 8px;
@@ -80,7 +134,7 @@ h2 {
 
 .request-panel,
 .workspace-panel {
-	border-bottom: 1px solid #384036;
+	border-bottom: 1px solid var(--border-strong);
 	padding: 32px 0;
 }
 
@@ -92,27 +146,27 @@ form {
 }
 
 label {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 	display: grid;
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 11px;
+	font-size: var(--text-sm);
 	gap: 8px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 input {
-	background: #171b17;
-	border: 1px solid #4a5548;
+	background: var(--surface);
+	border: 1px solid var(--border-dim);
 	border-radius: 0;
-	color: #e6e9df;
+	color: var(--fg);
 	min-width: 0;
 	padding: 11px 12px;
 }
 
 input:focus {
-	border-color: #b5cda9;
-	outline: 2px solid #b5cda944;
+	border-color: var(--accent-fill);
+	outline: 2px solid var(--accent-ring);
 	outline-offset: 2px;
 }
 
@@ -134,20 +188,20 @@ button {
 /* Every text control, so the same button cannot read as mono in one place and body text in
    another depending on which selector reached it first. */
 .button {
-	background: #b5cda9;
+	background: var(--accent-fill);
 	border: 0;
-	color: #172016;
+	color: var(--accent-ink);
 	font-weight: 700;
 	justify-self: start;
 	padding: 11px 16px;
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
+	font-size: var(--text-md);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .button:hover:not(:disabled) {
-	background: #d0e4c5;
+	background: var(--accent-fill-hover);
 }
 
 .button:disabled {
@@ -156,7 +210,7 @@ button {
 }
 
 .error {
-	color: #ffb4a8;
+	color: var(--danger-bright);
 	margin: 16px 0 0;
 }
 
@@ -168,7 +222,7 @@ button {
 .empty,
 .workspace-purpose,
 dt {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 }
 
 .workspace-list {
@@ -194,7 +248,7 @@ dl > div {
 }
 
 dt {
-	font-size: 11px;
+	font-size: var(--text-sm);
 	margin-bottom: 4px;
 }
 
@@ -205,7 +259,7 @@ dd {
 }
 
 .status-requested {
-	border-color: #7b8b71;
+	border-color: var(--line);
 }
 
 /* Status and action travel together at the right edge. As separate children of a
@@ -214,29 +268,29 @@ dd {
 /* Forced onto its own line under the row: full basis plus a later order, which needs the row to
    wrap. */
 .log-type {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 	flex-shrink: 0;
 	min-width: 148px;
 }
 
 .log-problem span:last-child,
 .log-problem .log-type {
-	color: #e0a2a2;
+	color: var(--danger-soft);
 }
 
 .activity {
-	border-color: #4a5646;
-	color: #8a9a83;
+	border-color: var(--border-dim);
+	color: var(--fg-muted);
 }
 
 .activity-active {
-	border-color: #7b8b71;
-	color: #c4d1bd;
+	border-color: var(--line);
+	color: var(--fg-badge);
 }
 
 .activity-blocked {
-	border-color: #b08a4a;
-	color: #e0b36a;
+	border-color: var(--warn);
+	color: var(--warn-fg);
 }
 
 .detail {
@@ -250,25 +304,25 @@ dd {
 }
 
 .detail nav a {
-	color: #8a9a83;
-	font-size: 12px;
+	color: var(--fg-muted);
+	font-size: var(--text-md);
 	letter-spacing: 0.08em;
 	text-decoration: none;
 	text-transform: uppercase;
 }
 
 .detail nav a:hover {
-	color: #d6e2cf;
+	color: var(--fg-bright);
 }
 
 .detail h1 {
-	font-size: 20px;
+	font-size: var(--text-xl);
 	margin: 0 0 4px;
 }
 
 .detail h2 {
-	color: #8a9a83;
-	font-size: 11px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	margin: 32px 0 12px;
 	text-transform: uppercase;
@@ -281,13 +335,13 @@ dd {
 }
 
 .detail-error {
-	border: 1px solid #8c4a4a;
+	border: 1px solid var(--danger);
 	margin-top: 24px;
 	padding: 12px 16px;
 }
 
 .detail-error h2 {
-	color: #e08a8a;
+	color: var(--danger-fg);
 	margin: 0 0 6px;
 }
 
@@ -308,8 +362,8 @@ dd {
 	   overflowing by a character on a round number of columns. */
 	--screen-char: 0.62;
 
-	background: #10140f;
-	border: 1px solid #2c3428;
+	background: var(--bg);
+	border: 1px solid var(--border);
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	/* Everything inside .centre-screen that is not the screen: the answer-key row, the prompt form
 	   below it, the gaps between them, and this element's own padding and border.
@@ -353,8 +407,8 @@ dd {
 }
 
 .detail-note {
-	color: #8a9a83;
-	font-size: 12px;
+	color: var(--fg-muted);
+	font-size: var(--text-md);
 	margin: 0 0 12px;
 }
 
@@ -370,12 +424,12 @@ dd {
 .detail-timeline li {
 	display: flex;
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
+	font-size: var(--text-md);
 	gap: 12px;
 }
 
 .detail-timeline time {
-	color: #7b8b71;
+	color: var(--line);
 }
 
 @media (max-width: 640px) {
@@ -391,13 +445,13 @@ dd {
 
 /* Blocked is the one state that needs a person, so it gets a banner rather than a badge. */
 .detail-blocked {
-	border: 1px solid #b08a4a;
+	border: 1px solid var(--warn);
 	margin-top: 24px;
 	padding: 12px 16px;
 }
 
 .detail-blocked h2 {
-	color: #e0b36a;
+	color: var(--warn-fg);
 	margin: 0 0 6px;
 }
 
@@ -443,11 +497,11 @@ dd {
 }
 
 .detail-prompt textarea {
-	background: #10140f;
-	border: 1px solid #2c3428;
-	color: #d6e2cf;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	color: var(--fg-bright);
 	font-family: inherit;
-	font-size: 14px;
+	font-size: var(--text-lg);
 	padding: 10px;
 	/* Dragging the handle fought the fixed-height column: growing the field pushed the terminal
 	   and the timeline around rather than scrolling anything. */
@@ -456,7 +510,7 @@ dd {
 }
 
 .detail-prompt textarea:focus {
-	border-color: #7b8b71;
+	border-color: var(--line);
 	outline: none;
 }
 
@@ -480,15 +534,15 @@ dd {
 .prompt-send {
 	/* Equal on both axes. They were 10 and 12, which reads as a mistake rather than as intent. */
 	bottom: 10px;
-	font-size: 12px;
+	font-size: var(--text-md);
 	padding: 7px 14px;
 	position: absolute;
 	right: 10px;
 }
 
 .masthead-link {
-	color: #8a9a83;
-	font-size: 11px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	margin-left: auto;
 	margin-right: 16px;
@@ -497,7 +551,7 @@ dd {
 }
 
 .masthead-link:hover {
-	color: #d6e2cf;
+	color: var(--fg-bright);
 }
 
 .settings-form {
@@ -521,31 +575,31 @@ dd {
 }
 
 .settings-field span {
-	color: #7b8b71;
-	font-size: 11px;
+	color: var(--line);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .settings-field input {
-	background: #10140f;
-	border: 1px solid #2c3428;
-	color: #d6e2cf;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	padding: 8px 10px;
 	width: 140px;
 }
 
 .settings-field small {
-	color: #8a9a83;
+	color: var(--fg-muted);
 	line-height: 1.5;
 }
 
 /* The one consequence of the blocked exemption that is worth stating up front rather than being
    discovered as a container that never went away. */
 .settings-caveat {
-	border-left: 2px solid #b08a4a;
-	color: #a9b8a2;
+	border-left: 2px solid var(--warn);
+	color: var(--fg-soft);
 	line-height: 1.6;
 	margin: 0;
 	padding-left: 12px;
@@ -556,14 +610,14 @@ dd {
 }
 
 .settings-maintenance {
-	border-top: 1px solid #2c3428;
+	border-top: 1px solid var(--border);
 	margin-top: 40px;
 	max-width: 560px;
 	padding-top: 24px;
 }
 
 .settings-maintenance p {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 	line-height: 1.6;
 }
 
@@ -578,7 +632,7 @@ dd {
 
 .settings-orphans li {
 	align-items: center;
-	border: 1px solid #2c3428;
+	border: 1px solid var(--border);
 	display: flex;
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	gap: 16px;
@@ -606,7 +660,7 @@ dd {
 }
 
 .dashboard-sidebar {
-	border-right: 1px solid #2c3428;
+	border-right: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
@@ -624,28 +678,28 @@ dd {
 }
 
 .sidebar-head a {
-	color: #7b8b71;
-	font-size: 11px;
+	color: var(--line);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	text-decoration: none;
 	text-transform: uppercase;
 }
 
 .sidebar-head a:hover {
-	color: #d6e2cf;
+	color: var(--fg-bright);
 }
 
 .sidebar-label {
-	color: #7b8b71;
-	font-size: 11px;
+	color: var(--line);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	margin: 0 0 10px;
 	text-transform: uppercase;
 }
 
 .sidebar-empty {
-	color: #6d7a67;
-	font-size: 13px;
+	color: var(--fg-dim);
+	font-size: var(--text-lg);
 	margin: 0;
 }
 
@@ -668,23 +722,23 @@ dd {
 }
 
 .sidebar-entry:hover {
-	background: #161b14;
+	background: var(--surface);
 }
 
 .sidebar-entry.is-active {
-	background: #161b14;
-	border-left-color: #7b8b71;
+	background: var(--surface);
+	border-left-color: var(--line);
 }
 
 .sidebar-name {
-	color: #d6e2cf;
+	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 13px;
+	font-size: var(--text-lg);
 }
 
 .sidebar-repo {
-	color: #6d7a67;
-	font-size: 11px;
+	color: var(--fg-dim);
+	font-size: var(--text-sm);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -699,7 +753,7 @@ dd {
 /* Smaller here than on the detail page: in the sidebar they are a glance, not a statement. */
 .sidebar-badges .status,
 .sidebar-badges .activity {
-	font-size: 9px;
+	font-size: var(--text-xs);
 	padding: 2px 5px;
 }
 
@@ -708,15 +762,15 @@ dd {
 }
 
 .sidebar-destroyed summary {
-	color: #6d7a67;
+	color: var(--fg-dim);
 	cursor: pointer;
-	font-size: 11px;
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .sidebar-destroyed summary span {
-	color: #4a5646;
+	color: var(--border-dim);
 	margin-left: 8px;
 }
 
@@ -737,17 +791,17 @@ dd {
 }
 
 .sidebar-new {
-	border: 1px solid #4a5646;
-	color: #a9b8a2;
-	font-size: 12px;
+	border: 1px solid var(--border-dim);
+	color: var(--fg-soft);
+	font-size: var(--text-md);
 	padding: 8px 10px;
 	text-align: center;
 	text-decoration: none;
 }
 
 .sidebar-new:hover {
-	border-color: #7b8b71;
-	color: #d6e2cf;
+	border-color: var(--line);
+	color: var(--fg-bright);
 }
 
 
@@ -769,12 +823,12 @@ dd {
 }
 
 .centre-head h1 {
-	font-size: 18px;
+	font-size: var(--text-xl);
 	margin: 0 0 4px;
 }
 
 .centre-head p {
-	color: #8a9a83;
+	color: var(--fg-muted);
 	margin: 0;
 	max-width: 60ch;
 }
@@ -796,15 +850,15 @@ dd {
 }
 
 .centre-timeline h2 {
-	color: #8a9a83;
-	font-size: 11px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	margin: 0 0 12px;
 	text-transform: uppercase;
 }
 
 .dashboard-rail {
-	border-left: 1px solid #2c3428;
+	border-left: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
@@ -829,7 +883,7 @@ dd {
 
 .rail-resizer:hover,
 .rail-resizer:focus-visible {
-	background: #7fa06a;
+	background: var(--accent);
 	outline: none;
 }
 
@@ -841,16 +895,16 @@ dd {
 }
 
 .dashboard-rail dt {
-	color: #6d7a67;
-	font-size: 10px;
+	color: var(--fg-dim);
+	font-size: var(--text-xs);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .dashboard-rail dd {
-	color: #a9b8a2;
+	color: var(--fg-soft);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
+	font-size: var(--text-md);
 	margin: 0;
 	overflow-wrap: anywhere;
 	white-space: normal;
@@ -901,7 +955,7 @@ dd {
 
 	.dashboard-rail {
 		border-left: none;
-		border-top: 1px solid #2c3428;
+		border-top: 1px solid var(--border);
 		grid-column: 2;
 	}
 
@@ -916,7 +970,7 @@ dd {
 	}
 
 	.dashboard-sidebar {
-		border-bottom: 1px solid #2c3428;
+		border-bottom: 1px solid var(--border);
 		border-right: none;
 		height: auto;
 		overflow-y: visible;
@@ -933,8 +987,8 @@ dd {
 .icon-button {
 	align-items: center;
 	background: none;
-	border: 1px solid #2c3428;
-	color: #8a9a83;
+	border: 1px solid var(--border);
+	color: var(--fg-muted);
 	cursor: pointer;
 	display: inline-flex;
 	height: 32px;
@@ -944,9 +998,9 @@ dd {
 }
 
 .icon-button:hover:not(:disabled) {
-	background: #161b14;
-	border-color: #7b8b71;
-	color: #d6e2cf;
+	background: var(--surface);
+	border-color: var(--line);
+	color: var(--fg-bright);
 }
 
 .icon-button:disabled {
@@ -967,7 +1021,7 @@ dd {
 	box-sizing: border-box;
 	display: inline-flex;
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 12px;
+	font-size: var(--text-md);
 	height: var(--control-height);
 	letter-spacing: 0.08em;
 	padding-block: 0;
@@ -990,8 +1044,8 @@ dd {
 }
 
 .empty-card {
-	background: #10140f;
-	border: 1px solid #2c3428;
+	background: var(--bg);
+	border: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
 	gap: 18px;
@@ -1007,14 +1061,14 @@ dd {
 }
 
 .empty-card h1 {
-	font-size: 17px;
+	font-size: var(--text-xl);
 	margin: 0;
 }
 
 /* The description belongs with the thing it describes. It used to float at the far right of the
    content area, where it read as unrelated chrome. */
 .empty-card header p {
-	color: #8a9a83;
+	color: var(--fg-muted);
 	line-height: 1.5;
 	margin: 0;
 }
@@ -1026,8 +1080,8 @@ dd {
 }
 
 .empty-field span {
-	color: #7b8b71;
-	font-size: 11px;
+	color: var(--line);
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
@@ -1036,30 +1090,30 @@ dd {
    with: a repository path is long and a purpose is a paragraph. */
 .empty-field input,
 .empty-field textarea {
-	background: #0b0f0a;
-	border: 1px solid #2c3428;
+	background: var(--bg-sunken);
+	border: 1px solid var(--border);
 	box-sizing: border-box;
-	color: #d6e2cf;
+	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: 13px;
+	font-size: var(--text-lg);
 	padding: 9px 10px;
 	width: 100%;
 }
 
 .empty-field textarea {
 	font-family: inherit;
-	font-size: 14px;
+	font-size: var(--text-lg);
 	resize: none;
 }
 
 .empty-field input:focus,
 .empty-field textarea:focus {
-	border-color: #7b8b71;
+	border-color: var(--line);
 	outline: none;
 }
 
 .empty-field small {
-	color: #6d7a67;
+	color: var(--fg-dim);
 	line-height: 1.5;
 }
 
@@ -1109,7 +1163,7 @@ dd {
    Thin and the colour of a border, so a scrollable region is discoverable
    without a bright bar drawing the eye away from the terminal. */
 * {
-	scrollbar-color: #2c3428 transparent;
+	scrollbar-color: var(--border) transparent;
 	scrollbar-width: thin;
 }
 
@@ -1123,12 +1177,12 @@ dd {
 }
 
 ::-webkit-scrollbar-thumb {
-	background: #2c3428;
+	background: var(--border);
 	border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: #4a5646;
+	background: var(--border-dim);
 }
 
 ::-webkit-scrollbar-corner {
@@ -1138,13 +1192,13 @@ dd {
 /* A workspace exempt from reaping because it holds work. Stated rather than implied: the exemption
    keeps a container alive indefinitely, which is only an acceptable trade if it is visible. */
 .detail-kept {
-	border: 1px solid #5a7fa8;
+	border: 1px solid var(--info);
 	margin-top: 24px;
 	padding: 12px 16px;
 }
 
 .detail-kept h2 {
-	color: #8fb4d9;
+	color: var(--info-fg);
 	margin: 0 0 6px;
 }
 
@@ -1155,10 +1209,10 @@ dd {
 /* A waiting agent holds its container until someone answers it, so the count sits above the list
    rather than only on the row you would have to scroll to find. */
 .sidebar-waiting {
-	background: #2a2213;
-	border-left: 2px solid #b08a4a;
-	color: #e0b36a;
-	font-size: 12px;
+	background: var(--warn-bg);
+	border-left: 2px solid var(--warn);
+	color: var(--warn-fg);
+	font-size: var(--text-md);
 	margin: 0;
 	padding: 8px 10px;
 }
@@ -1167,7 +1221,7 @@ dd {
 /* Scrolls sideways rather than wrapping. Wrapping would change the rail's height as files are
    opened, moving everything below it every time. */
 .rail-tabs {
-	border-bottom: 1px solid #2c3428;
+	border-bottom: 1px solid var(--border);
 	display: flex;
 	flex: 0 0 auto;
 	gap: 4px;
@@ -1191,7 +1245,7 @@ dd {
 }
 
 .rail-file.is-active {
-	border-bottom-color: #7fa06a;
+	border-bottom-color: var(--accent);
 }
 
 .rail-file .rail-tab {
@@ -1211,7 +1265,7 @@ dd {
 	background: none;
 	border: none;
 	border-radius: 3px;
-	color: #6d7a67;
+	color: var(--fg-dim);
 	display: inline-flex;
 	/* The tab beside it reserves 8px below its text for the underline. Centring against that taller
 	   box put the cross half of it lower than the name it belongs to, so it takes the same offset
@@ -1228,8 +1282,8 @@ dd {
 }
 
 .rail-file-close:hover {
-	background: #2c3428;
-	color: #d6e2cf;
+	background: var(--border);
+	color: var(--fg-bright);
 }
 
 /* The tab's contents. Takes what the tab strip and the actions leave, and scrolls, so a long diff
@@ -1246,22 +1300,22 @@ dd {
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
-	color: #6d7a67;
+	color: var(--fg-dim);
 	cursor: pointer;
-	font-size: 11px;
+	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
 	padding: 0 2px 8px;
 	text-transform: uppercase;
 }
 
 .rail-tab:hover {
-	border-bottom-color: #4a5545;
-	color: #d6e2cf;
+	border-bottom-color: var(--border-dim);
+	color: var(--fg-bright);
 }
 
 .rail-tab[aria-selected="true"] {
-	border-bottom-color: #7fa06a;
-	color: #d6e2cf;
+	border-bottom-color: var(--accent);
+	color: var(--fg-bright);
 }
 
 /* A height rather than a max, because the tree virtualises against its host element's box: with
@@ -1273,45 +1327,45 @@ dd {
  * this palette looks like a screenshot from another application. */
 .changes-tree {
 	--trees-bg-override: transparent;
-	--trees-bg-muted-override: #161b14;
-	--trees-fg-override: #d6e2cf;
-	--trees-fg-muted-override: #8a9a83;
-	--trees-accent-override: #7fa06a;
-	--trees-border-color-override: #2c3428;
-	--trees-indent-guide-bg-override: #2c3428;
-	--trees-input-bg-override: #161a15;
-	--trees-theme-list-hover-bg: #161b14;
+	--trees-bg-muted-override: var(--surface);
+	--trees-fg-override: var(--fg-bright);
+	--trees-fg-muted-override: var(--fg-muted);
+	--trees-accent-override: var(--accent);
+	--trees-border-color-override: var(--border);
+	--trees-indent-guide-bg-override: var(--border);
+	--trees-input-bg-override: var(--surface);
+	--trees-theme-list-hover-bg: var(--surface);
 	--trees-font-family-override: "SF Mono", "Roboto Mono", monospace;
 	--trees-font-size-override: 12px;
 
 	/* The status badges. Green for work that arrived, red for work that went, amber for work that
 	   changed, and grey for what git is ignoring. Both halves of each pair are set because the
 	   component picks one by theme and this application only has the dark one. */
-	--trees-added-dark: #7fa06a;
-	--trees-added-light: #7fa06a;
-	--trees-untracked-dark: #7fa06a;
-	--trees-untracked-light: #7fa06a;
-	--trees-modified-dark: #c8b45f;
-	--trees-modified-light: #c8b45f;
-	--trees-deleted-dark: #c97f6a;
-	--trees-deleted-light: #c97f6a;
-	--trees-renamed-dark: #8a9a83;
-	--trees-renamed-light: #8a9a83;
-	--trees-ignored-dark: #4a5545;
-	--trees-ignored-light: #4a5545;
+	--trees-added-dark: var(--accent);
+	--trees-added-light: var(--accent);
+	--trees-untracked-dark: var(--accent);
+	--trees-untracked-light: var(--accent);
+	--trees-modified-dark: var(--status-modified);
+	--trees-modified-light: var(--status-modified);
+	--trees-deleted-dark: var(--status-deleted);
+	--trees-deleted-light: var(--status-deleted);
+	--trees-renamed-dark: var(--fg-muted);
+	--trees-renamed-light: var(--fg-muted);
+	--trees-ignored-dark: var(--border-dim);
+	--trees-ignored-light: var(--border-dim);
 
 	/* Fills its tab. The tree virtualises against its host's box, so this has to resolve to a real
 	   height: flex inside .rail-body gives it one. With nothing to measure it draws a single row
 	   and puts the rest out of reach. */
 	flex: 1 1 auto;
-	font-size: 12px;
+	font-size: var(--text-md);
 	min-height: 120px;
 }
 
 /* Below the tabs rather than inside one, and always in the same place, because these act on the
    workspace and not on whichever file is open. */
 .changes-actions {
-	border-top: 1px solid #2c3428;
+	border-top: 1px solid var(--border);
 	display: flex;
 	flex: 0 0 auto;
 	flex-direction: column;
@@ -1323,16 +1377,16 @@ dd {
 /* Narrower than the labels on the request form, because the rail is narrower and these sit against
    the rail's own 10px terms rather than against a full-width form. */
 .changes-message {
-	font-size: 10px;
+	font-size: var(--text-xs);
 	gap: 6px;
 }
 
 .changes-actions input {
-	background: #161a15;
-	border: 1px solid #2c3428;
+	background: var(--surface);
+	border: 1px solid var(--border);
 	border-radius: 6px;
-	color: #e6e9df;
-	font-size: 13px;
+	color: var(--fg);
+	font-size: var(--text-lg);
 	min-height: var(--control-height);
 	padding: 0 10px;
 	width: 100%;
