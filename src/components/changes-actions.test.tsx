@@ -19,6 +19,7 @@ function actions(props: Partial<Parameters<typeof ChangesActions>[0]> = {}) {
 			onPush={() => undefined}
 			pushing={false}
 			suggestedMessage="Add a thing"
+			unpushed={0}
 			{...props}
 		/>
 	);
@@ -27,9 +28,31 @@ function actions(props: Partial<Parameters<typeof ChangesActions>[0]> = {}) {
 describe("ChangesActions", () => {
 	it("offers nothing when there is nothing to act on", () => {
 		// A push button above an unchanged checkout is an invitation to an empty commit.
-		const { container } = render(actions({ files: [] }));
+		const { container } = render(actions({ files: [], unpushed: 0 }));
 
 		expect(container.textContent).toBe("");
+	});
+
+	it("still offers a push when the work is committed but unpushed", async () => {
+		// The dead end this panel exists to avoid. A push that fails leaves a clean tree and a
+		// commit that exists nowhere else; hiding the button there held the workspace with no way
+		// to act on it.
+		const onPush = vi.fn();
+		render(actions({ files: [], onPush, unpushed: 1 }));
+
+		await userEvent.click(
+			screen.getByRole("button", { name: /commit and push/i }),
+		);
+
+		expect(onPush).toHaveBeenCalled();
+	});
+
+	it("offers no discard when there is nothing in the tree to discard", () => {
+		// Discard resets the working tree. Against an unpushed commit it would do nothing, and a
+		// button that does nothing beside one that destroys work is worse than absent.
+		render(actions({ files: [], unpushed: 2 }));
+
+		expect(screen.queryByRole("button", { name: /discard/i })).toBeNull();
 	});
 
 	it("does not discard on the first click", async () => {

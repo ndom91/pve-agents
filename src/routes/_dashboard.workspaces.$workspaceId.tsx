@@ -386,6 +386,7 @@ function WorkspaceDetail() {
 							discarding={discard.isPending}
 							files={changes.files}
 							note={note}
+							unpushed={changes.unpushed}
 							onDiscard={() => discard.mutate()}
 							onPush={(message) => push.mutate(message)}
 							pushing={push.isPending}

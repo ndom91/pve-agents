@@ -16,6 +16,7 @@ export function ChangesActions({
 	onPush,
 	pushing,
 	suggestedMessage,
+	unpushed,
 }: {
 	discarding: boolean;
 	files: ChangedFile[];
@@ -24,6 +25,7 @@ export function ChangesActions({
 	onPush: (message: string) => void;
 	pushing: boolean;
 	suggestedMessage: string;
+	unpushed: number;
 }): ReactNode {
 	const [message, setMessage] = useState(suggestedMessage);
 
@@ -40,7 +42,10 @@ export function ChangesActions({
 	const [armedFor, setArmedFor] = useState<string | undefined>(undefined);
 	const armed = armedFor !== undefined && armedFor === listed;
 
-	if (count === 0) {
+	// Offered whenever there is anything to push, not only when the tree is dirty. A failed push
+	// leaves a clean tree and a commit that exists nowhere else, and hiding the button there left
+	// the workspace held with no way to act on it — the exact dead end this panel exists to avoid.
+	if (count === 0 && unpushed === 0) {
 		return null;
 	}
 
@@ -62,7 +67,7 @@ export function ChangesActions({
 				{pushing ? "Pushing" : "Commit and push"}
 			</Button>
 
-			{armed ? (
+			{count === 0 ? null : armed ? (
 				<Button disabled={discarding} onClick={onDiscard}>
 					{discarding
 						? "Discarding"

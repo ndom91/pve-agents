@@ -14,8 +14,14 @@ export type FileStatus =
 // ChangedFile is one entry in what the agent has done to the checkout.
 export type ChangedFile = { path: string; status: FileStatus };
 
+// ChangedFiles is what the agent has done, in both the places it can live.
+//
+// unpushed is counted as well as the working tree because a change can be committed and still be
+// only on that disk. A push that fails leaves exactly that state, and reporting the tree alone
+// said "the agent has not changed anything" about a workspace whose work was sitting one commit
+// deep, with no control offered to do anything about it.
 export type ChangedFiles =
-	| { files: ChangedFile[]; kind: "changes" }
+	| { files: ChangedFile[]; kind: "changes"; unpushed: number }
 	| { kind: "failed"; message: string };
 
 // FileSides is a file before and after, either side absent when it did not exist then.
@@ -56,6 +62,17 @@ const MAX_FILE_BYTES = 1_048_576;
 const STATUS = [
 	`cd "$1" || exit ${NO_DIR}`,
 	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+	// The count first, on its own line, because it is the only part that can be read that way: a
+	// path may contain a newline, which is the reason the file list is NUL-separated below.
+	//
+	// `HEAD --not --remotes` is "commits reachable from here and from no remote branch", which
+	// answers the question whether or not this branch has an upstream. A freshly created workspace
+	// branch has none.
+	//
+	// HEAD is named explicitly and that is not decoration: `--not --remotes` on its own leaves no
+	// positive ref to walk, so it counts zero however much is unpushed. It reported exactly that
+	// against a workspace holding a commit.
+	"git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0",
 	"git status --porcelain -z",
 ].join("\n");
 
@@ -125,7 +142,13 @@ export async function changedFiles(
 		return failure(result, cwd);
 	}
 
-	return { files: parseStatus(result.stdout), kind: "changes" };
+	const newline = result.stdout.indexOf("\n");
+
+	return {
+		files: parseStatus(result.stdout.slice(newline + 1)),
+		kind: "changes",
+		unpushed: Number.parseInt(result.stdout.slice(0, newline).trim(), 10) || 0,
+	};
 }
 
 // fileSides reads one file as it was and as it is.

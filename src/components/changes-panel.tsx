@@ -25,9 +25,16 @@ export function ChangesPanel({
 		return <p className="detail-note">{changes.message}</p>;
 	}
 	if (changes.files.length === 0) {
+		// A clean tree is not the same as no work. A push that failed leaves the change committed
+		// and only on that disk, and saying "nothing changed" about it is how somebody concludes
+		// there is nothing to rescue and destroys the workspace.
 		return (
 			<p className="detail-note">
-				The agent has not changed anything in the checkout.
+				{changes.unpushed > 0
+					? `Nothing uncommitted. ${changes.unpushed} ${
+							changes.unpushed === 1 ? "commit is" : "commits are"
+						} committed here and not pushed anywhere else.`
+					: "The agent has not changed anything in the checkout."}
 			</p>
 		);
 	}

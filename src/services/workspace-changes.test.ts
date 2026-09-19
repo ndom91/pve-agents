@@ -61,6 +61,7 @@ describe("changedFiles", () => {
 				{ path: "src/both.ts", status: "modified" },
 			],
 			kind: "changes",
+			unpushed: 0,
 		});
 	});
 
@@ -71,6 +72,7 @@ describe("changedFiles", () => {
 		expect(listed).toEqual({
 			files: [{ path: "src/gone.ts", status: "deleted" }],
 			kind: "changes",
+			unpushed: 0,
 		});
 	});
 
@@ -86,6 +88,7 @@ describe("changedFiles", () => {
 		expect(listed).toEqual({
 			files: [{ path: "src/new.ts", status: "renamed" }],
 			kind: "changes",
+			unpushed: 0,
 		});
 	});
 
@@ -101,6 +104,38 @@ describe("changedFiles", () => {
 		expect(listed).toEqual({
 			files: [{ path: "docs/release notes.md", status: "untracked" }],
 			kind: "changes",
+			unpushed: 0,
+		});
+	});
+
+	it("names HEAD when counting unpushed commits", async () => {
+		// `--not --remotes` without a positive ref has nothing to walk and counts zero however much
+		// is unpushed. It did, against a real workspace holding a commit, and the page then said
+		// the agent had changed nothing.
+		const { commands, ssh } = runs();
+		await changedFiles(TARGET, CWD, ssh);
+
+		expect(commands[0]?.join("\n")).toContain(
+			"git rev-list --count HEAD --not --remotes",
+		);
+	});
+
+	it("counts work that is committed and pushed nowhere", async () => {
+		// A clean tree is not the same as no work. Reporting only the tree said "nothing changed"
+		// about a workspace holding a commit that existed on one disk, and hid the control for
+		// doing anything about it.
+		const listed = await changedFiles(TARGET, CWD, status([], 2));
+
+		expect(listed).toEqual({ files: [], kind: "changes", unpushed: 2 });
+	});
+
+	it("reads the count and the files from the same reply", async () => {
+		const listed = await changedFiles(TARGET, CWD, status(["?? NOTES.md"], 3));
+
+		expect(listed).toEqual({
+			files: [{ path: "NOTES.md", status: "untracked" }],
+			kind: "changes",
+			unpushed: 3,
 		});
 	});
 
@@ -283,11 +318,13 @@ describe("workspaceBranch", () => {
 });
 
 // status fakes porcelain -z output, whose records are NUL-separated rather than newline-separated.
-function status(records: string[]): SshRunner {
+function status(records: string[], unpushed = 0): SshRunner {
 	return async (): Promise<SshResult> => ({
 		code: 0,
 		kind: "ran",
 		stderr: "",
-		stdout: `${records.join("\0")}\0`,
+		// The count on its own line first, then the NUL-separated file list, which is the shape the
+		// real script emits and the reason it is ordered that way: a path may contain a newline.
+		stdout: `${unpushed}\n${records.join("\0")}\0`,
 	});
 }
