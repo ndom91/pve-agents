@@ -778,10 +778,12 @@ dd {
 	margin-top: 8px;
 }
 
+/* One row: the new-workspace link takes what is left after the two tools. It was stacked, which
+   spent two rows of the sidebar on controls that fit in one. */
 .sidebar-foot {
+	align-items: center;
 	display: flex;
-	flex-direction: column;
-	gap: 10px;
+	gap: 8px;
 	margin-top: auto;
 }
 
@@ -790,13 +792,21 @@ dd {
 	gap: 8px;
 }
 
+/* Centres its own label and matches the icon buttons' 32px exactly, rather than landing within a
+   couple of pixels of them and reading as misaligned on a shared row. */
 .sidebar-new {
+	align-items: center;
 	border: 1px solid var(--border-dim);
 	color: var(--fg-soft);
+	display: flex;
+	flex: 1 1 auto;
 	font-size: var(--text-md);
-	padding: 8px 10px;
-	text-align: center;
+	height: 32px;
+	justify-content: center;
+	min-width: 0;
+	padding: 0 10px;
 	text-decoration: none;
+	white-space: nowrap;
 }
 
 .sidebar-new:hover {
