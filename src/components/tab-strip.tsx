@@ -67,14 +67,24 @@ export function TabStrip<T>({
 		}
 	}, []);
 
-	// The open tab changed, so travel. Also runs on mount, where there is nothing to travel from
-	// and the layout effect places the bar before the browser paints.
+	// Every tab's label, joined. The bar has to be re-placed when the *set* of tabs changes and not
+	// only when the open one does: a workspace gains its Diff tab the moment it has a checkout, and
+	// that tab is inserted second, shifting Timeline and Terminal to the right.
+	//
+	// Depending on `tabs` itself would re-run on every render, because the callers build the array
+	// inline. The labels are what actually decides where each tab sits. NUL as the separator so a
+	// label containing the separator cannot forge a different set.
+	const labels = tabs.map((tab) => tab.label).join("\0");
+
+	// The open tab or the set of tabs changed, so travel. Also runs on mount, where there is nothing
+	// to travel from and the layout effect places the bar before the browser paints.
 	const placed = useRef(false);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: `current` is the thing that moves it
+	// Both are triggers rather than values the body reads, which is what the rule objects to.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the open tab and the set of tabs are the two things that move the bar
 	useLayoutEffect(() => {
 		place(placed.current);
 		placed.current = true;
-	}, [current, place]);
+	}, [current, labels, place]);
 
 	useEffect(() => {
 		const strip = bar.current;
