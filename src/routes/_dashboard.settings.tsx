@@ -36,7 +36,7 @@ function Settings() {
 
 	return (
 		<main className="dashboard-main dashboard-main-wide">
-			<header>
+			<header className="settings-head">
 				<h1>Settings</h1>
 				<p className="workspace-purpose">
 					Saved to the controller database and read on every pass, so a change

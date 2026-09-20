@@ -443,11 +443,18 @@ dd {
 	right: 10px;
 }
 
+/* The title sits tight against its subtitle everywhere else, where the subtitle is a workspace's
+   purpose and the pair reads as one block. Here it is a sentence about the page and wants air. */
+.settings-head h1 {
+	margin-bottom: 7px;
+}
+
+/* No margin of their own. `.dashboard-main` is a flex column with a 24px gap, so anything a tab
+   adds here is added to that rather than instead of it. */
 .settings-form {
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
-	margin-top: 8px;
 	max-width: 560px;
 }
 
@@ -490,7 +497,6 @@ dd {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	margin-top: 8px;
 	max-width: 720px;
 }
 
@@ -574,11 +580,11 @@ dd {
 	padding-left: 12px;
 }
 
+/* The rule and the 40px above it separated this from the reaping form when both were on one page.
+   As a tab of its own it is the only thing on screen, and a line across the top of it divides
+   nothing. */
 .settings-maintenance {
-	border-top: 1px solid var(--border);
-	margin-top: 40px;
 	max-width: 560px;
-	padding-top: 24px;
 }
 
 .settings-maintenance p {
@@ -1716,6 +1722,12 @@ dd {
 
 .tabs::-webkit-scrollbar {
 	display: none;
+}
+
+/* The margin above is for the rail, whose panel follows immediately. `.dashboard-main` is a flex
+   column with its own 24px gap, so keeping it here put 40px between a tab and its contents. */
+.dashboard-main > .tabs {
+	margin-bottom: 0;
 }
 
 /* The tab's contents. Takes what the tab strip and the actions leave, and scrolls, so a long diff
