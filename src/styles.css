@@ -663,13 +663,19 @@ dd {
 
 
 .dashboard-main {
+	/* Named because the chat has to cancel it. A scrolling child inside a padded column puts its
+	   scrollbar wherever the padding ends, which leaves a strip of dead space between the bar and
+	   the rail; the chat bleeds out by exactly this much and pads itself back in. Keeping the two
+	   in one variable is what stops them drifting apart. */
+	--main-pad: 28px;
+
 	display: flex;
 	flex-direction: column;
 	gap: 24px;
 	min-height: 0;
 	min-width: 0;
 	overflow-y: auto;
-	padding: 24px 28px 48px;
+	padding: 24px var(--main-pad) 48px;
 }
 
 .centre-head {
@@ -718,16 +724,18 @@ dd {
 	min-height: 0;
 }
 
+/* Bled to the column's outer edge so the scrollbar sits against the rail rather than floating in
+   a strip of its own, then padded back by the same amount so the text does not move. */
 .chat-entries {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 10px;
 	list-style: none;
-	margin: 0;
+	margin: 0 calc(var(--main-pad) * -1) 0 0;
 	min-height: 0;
 	overflow-y: auto;
-	padding: 0 4px 0 0;
+	padding: 0 var(--main-pad) 0 0;
 }
 
 .chat-text {
