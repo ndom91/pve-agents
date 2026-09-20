@@ -54,6 +54,9 @@
 	--accent-fill-hover: #d0e4c5;
 	--accent-ink: #172016;
 	--accent-ring: #b5cda944;
+	/* A tint rather than a fill: it has to be findable from across a long transcript without
+	   becoming a panel in its own right. Grey at this weight read as a block of UI. */
+	--accent-wash: #7fa06a1a;
 
 	--warn: #b08a4a;
 	--warn-fg: #e0b36a;
@@ -782,7 +785,7 @@ dd {
  *
  * Ordered least to most specific: each rule below overrides the one above for the pair it names. */
 .chat-entry + .chat-entry {
-	margin-top: 3px;
+	margin-top: 7px;
 }
 
 .chat-entry.is-say + .chat-entry,
@@ -808,10 +811,9 @@ dd {
    the page reads as one long monologue with no turns in it.
  *
  * A block rather than a rule down the side: in a long conversation the eye finds a filled shape
- * from across the page, where a 2px line has to be looked for. The fill is the scrollbar's own
- * colour, which is as far from the page as anything here gets without becoming a panel. */
+ * from across the page, where a 2px line has to be looked for. */
 .chat-entry.is-prompt .chat-text {
-	background: var(--border);
+	background: var(--accent-wash);
 	border-left: 2px solid var(--accent);
 	color: var(--fg-bright);
 	padding: 9px 12px 9px 10px;
@@ -2007,25 +2009,32 @@ dd {
 /* The rule, drawn by each entry rather than the list, so it stops at the last one instead of
    trailing off under empty space.
  *
- * It overruns the entry by the dot's own `margin-top`. Stopping at the entry's edge left the line
- * short of the next dot by exactly those 4px, which read as a broken rule rather than as spacing. */
+ * It runs from the middle of one dot to the middle of the next, deliberately overshooting at both
+ * ends, and the dots are lifted above it so they cover the overshoot. Trying to land it exactly on
+ * each dot's edge instead gives you one of two bugs and no third option: short of the edge is a
+ * visibly broken rule, and level with it puts a line across the dot's outline. */
 .timeline-entry:not(:last-child)::before {
 	background: var(--border);
-	bottom: -4px;
+	bottom: -9px;
 	content: "";
 	left: 4px;
 	position: absolute;
-	top: 12px;
+	top: 8px;
 	width: 1px;
 }
 
+/* Positioned so it sits above the rule rather than beside it. Without this the previous entry's
+   line paints over this dot, because a positioned element's own `::before` paints after the
+   non-positioned content of everything that follows it. */
 .timeline-mark {
 	background: var(--bg);
 	border: 1px solid var(--line);
 	border-radius: 50%;
 	height: 9px;
 	margin-top: 4px;
+	position: relative;
 	width: 9px;
+	z-index: 1;
 }
 
 .timeline-entry.is-problem .timeline-mark {
