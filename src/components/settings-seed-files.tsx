@@ -12,6 +12,7 @@ import {
 } from "../domain/seed-file";
 import { languageOfPath } from "../lib/highlight";
 import { seedFileQuery, seedFilesQuery, workspaceKeys } from "../lib/queries";
+import { useOpenRows } from "../lib/use-open-rows";
 import {
 	deleteWorkspaceSeedFile,
 	saveWorkspaceSeedFile,
@@ -35,17 +36,7 @@ const ROOT_OPTIONS: Option<SeedRoot>[] = SEED_ROOTS.map((root) => ({
 // version had -- and with it the reason uploading and pasting were two different paths.
 export function SettingsSeedFiles(): ReactNode {
 	const { data: files = [] } = useQuery(seedFilesQuery());
-	// Which rows are unfolded. Several at once, like the diff accordion: comparing two seeded
-	// files is a real reason to be here.
-	const [open, setOpen] = useState<string[]>([]);
-
-	function toggle(id: string): void {
-		setOpen((current) =>
-			current.includes(id)
-				? current.filter((candidate) => candidate !== id)
-				: [...current, id],
-		);
-	}
+	const { isOpen, toggle } = useOpenRows();
 
 	return (
 		<section className="settings-seed">
@@ -65,12 +56,12 @@ export function SettingsSeedFiles(): ReactNode {
 						file={file}
 						key={file.id}
 						onToggle={() => toggle(file.id)}
-						open={open.includes(file.id)}
+						open={isOpen(file.id)}
 					/>
 				))}
 				<SeedRow
 					onToggle={() => toggle("new")}
-					open={open.includes("new")}
+					open={isOpen("new")}
 					// Closed again once saved, so the row is ready for the next one rather than
 					// still holding the last file's text.
 					onSaved={() => toggle("new")}

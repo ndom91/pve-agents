@@ -340,7 +340,11 @@ function Fact({
 	}
 
 	return (
-		<div className={wide ? "rail-fact rail-fact-wide" : "rail-fact"}>
+		<div
+			className={
+				wide ? "rail-fact reveals rail-fact-wide" : "rail-fact reveals"
+			}
+		>
 			<dt>{label}</dt>
 			<dd>
 				<span>{value}</span>
@@ -349,7 +353,7 @@ function Fact({
 				) : null}
 				{href === undefined ? null : (
 					<IconOutLink
-						className="fact-open"
+						className="fact-open is-inline on-hover"
 						href={href}
 						icon={ExternalLink}
 						label={`Open ${label.toLowerCase()} on GitHub`}

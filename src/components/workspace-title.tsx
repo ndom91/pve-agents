@@ -1,5 +1,5 @@
 import { Check, X } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { MAX_TITLE } from "../domain/workspace-title";
 import { IconButton } from "./icon-button";
@@ -24,7 +24,6 @@ export function WorkspaceTitle({
 }): ReactNode {
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState("");
-	const field = useRef<HTMLInputElement>(null);
 
 	function open(): void {
 		// The title, not the hostname. Opening the editor on a workspace with no title should offer
@@ -71,7 +70,6 @@ export function WorkspaceTitle({
 					}
 				}}
 				placeholder={hostname}
-				ref={field}
 				type="text"
 				value={draft}
 			/>

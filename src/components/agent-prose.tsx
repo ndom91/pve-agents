@@ -31,7 +31,7 @@ export function AgentProse({
 	text: string;
 }): ReactNode {
 	return (
-		<div className="agent-answer">
+		<div className="agent-answer reveals">
 			<div className={streaming ? "agent-prose is-streaming" : "agent-prose"}>
 				{/* While a block is still being written, the parser is told so. Markdown half way
 				    through is full of markers that are not yet markers — an unclosed fence, a
@@ -58,11 +58,13 @@ export function AgentProse({
 				    transcript with a time under every paragraph is a log rather than a
 				    conversation. */}
 				{streaming ? null : (
-					<span className="agent-answer-at">
-						<Timestamp iso={at} />
-					</span>
+					<>
+						<span className="agent-answer-at on-hover">
+							<Timestamp iso={at} />
+						</span>
+						<CopyButton label="Copy this answer" text={text} />
+					</>
 				)}
-				{streaming ? null : <CopyButton label="Copy this answer" text={text} />}
 			</div>
 		</div>
 	);

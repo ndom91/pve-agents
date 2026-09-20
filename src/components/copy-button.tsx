@@ -44,7 +44,7 @@ export function CopyButton({
 
 	return (
 		<IconButton
-			className="copy-button"
+			className="is-inline on-hover"
 			icon={Copy}
 			// The name changes with the state, so a screen reader is told the copy happened rather
 			// than being left with a button whose label never reacts.

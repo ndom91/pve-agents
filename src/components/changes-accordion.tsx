@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 
 import { fileDiffQuery } from "../lib/queries";
+import { useOpenRows } from "../lib/use-open-rows";
 import type { ChangedFile } from "../services/workspace-changes";
 import { FileDiff } from "./file-diff";
 
@@ -23,25 +24,14 @@ export function ChangesAccordion({
 	files: ChangedFile[];
 	workspaceId: string;
 }): ReactNode {
-	// Which rows are unfolded. Several at once is the point: comparing two files is the commonest
-	// reason to be here at all.
-	//
 	// Held here rather than by the page, and it survives switching to another tab and back, because
 	// the rail keeps an opened panel mounted rather than unmounting it.
-	const [open, setOpen] = useState<string[]>([]);
-
-	function toggle(path: string): void {
-		setOpen((current) =>
-			current.includes(path)
-				? current.filter((candidate) => candidate !== path)
-				: [...current, path],
-		);
-	}
+	const { isOpen, toggle } = useOpenRows();
 
 	return (
 		<ol className="changes-accordion">
 			{files.map((file) => {
-				const expanded = open.includes(file.path);
+				const expanded = isOpen(file.path);
 
 				return (
 					<li className="change-entry" key={file.path}>

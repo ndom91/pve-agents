@@ -931,24 +931,6 @@ dd {
 	overflow-y: auto;
 }
 
-.sidebar-head {
-	align-items: baseline;
-	display: flex;
-	justify-content: space-between;
-}
-
-.sidebar-head a {
-	color: var(--line);
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	text-decoration: none;
-	text-transform: uppercase;
-}
-
-.sidebar-head a:hover {
-	color: var(--fg-bright);
-}
-
 .sidebar-label {
 	color: var(--line);
 	font-size: var(--text-sm);
@@ -1540,13 +1522,6 @@ button.workspace-title:hover {
 	color: var(--fg-dim);
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: var(--text-xs);
-	opacity: 0;
-	transition: opacity 120ms ease;
-}
-
-.agent-answer:hover .agent-answer-at,
-.agent-answer:focus-within .agent-answer-at {
-	opacity: 1;
 }
 
 /* Size and presence only; the colours come from `.icon-button.is-tertiary`, which it also carries.
@@ -1557,20 +1532,6 @@ button.workspace-title:hover {
  * Qualified with `.icon-button` for the specificity, not the selector: that rule is several hundred
  * lines below, so at equal weight it won on source order and this came out full size in the wrong
  * colour. */
-.icon-button.copy-button {
-	border-radius: 4px;
-	color: var(--fg-dim);
-	height: 22px;
-	opacity: 0;
-	transition: opacity 120ms ease;
-	width: 24px;
-}
-
-.agent-answer:hover .copy-button,
-.copy-button:focus-visible {
-	opacity: 1;
-}
-
 /* What the agent said, as markdown.
  *
  * It was always writing markdown; the page was showing the asterisks. Spacing is tightened from the
@@ -1782,36 +1743,8 @@ button.workspace-title:hover {
 	margin: 0;
 }
 
-/* A fact's controls, revealed with the row they belong to.
- *
- * This is why the SSH row's copy button was invisible from the day it was added: `.copy-button`
- * hides itself and was only ever un-hidden by `.agent-answer:hover`, which is a chat selector. The
- * rail has no such ancestor, so the button was there, focusable, and never once seen.
- *
- * `focus-within` as well as hover, or the control cannot be reached from the keyboard at all. */
-.rail-fact .copy-button,
-.rail-fact .fact-open {
-	opacity: 0;
-	transition: opacity 120ms ease;
-}
-
-.rail-fact:hover .copy-button,
-.rail-fact:hover .fact-open,
-.rail-fact:focus-within .copy-button,
-.rail-fact:focus-within .fact-open {
-	opacity: 1;
-}
-
-/* Sized to sit inside a line of text rather than beside a paragraph, so a row keeps its height
-   whether it has controls or not. */
-/* The same box as the copy button beside it, to the pixel. Two controls in a row at 22px and 20px
-   look like one of them is broken rather than like a size choice. */
 .icon-button.fact-open {
-	border-radius: 4px;
-	color: var(--fg-dim);
 	flex: none;
-	height: 22px;
-	width: 24px;
 }
 
 /* Values with no natural stopping point — a repository url, an ssh command, a Proxmox UPID. In a
@@ -1932,6 +1865,36 @@ button.workspace-title:hover {
 	width: 32px;
 }
 
+/* A control that is there when wanted and out of the way otherwise: a copy button under an answer,
+   the links on a rail fact. One rule rather than the three near-copies it replaced, each of which
+   hid its own control and then named every ancestor that should bring it back.
+ *
+ * Two marker classes rather than a list of selectors, which is the lesson the focus ring taught. A
+ * fourth control in a revealing row now works without touching this file, where before it worked
+ * only if somebody remembered to add it to the list.
+ *
+ * `focus-within` as well as hover, or nothing here can be reached from a keyboard. That omission is
+ * exactly how the SSH row's copy button came to be rendered, focusable, and never once seen. */
+.on-hover {
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.reveals:hover .on-hover,
+.reveals:focus-within .on-hover {
+	opacity: 1;
+}
+
+/* Sized to sit inside a line of text rather than beside a paragraph, so a row keeps its height
+   whether it is showing controls or not. Shared, because the copy button and the open-in-GitHub
+   link sit side by side and two of these at different sizes read as one of them being broken. */
+.icon-button.is-inline {
+	border-radius: 4px;
+	color: var(--fg-dim);
+	height: 22px;
+	width: 24px;
+}
+
 .icon-button.is-secondary {
 	border-color: var(--border);
 }
@@ -1970,44 +1933,6 @@ button.workspace-title:hover {
 	padding-block: 0;
 	padding-inline: 16px;
 	text-transform: uppercase;
-}
-
-/* The empty state is the whole content area, so the card is centred in it rather than sitting in
-   the top-left corner of a mostly blank screen. */
-.empty-state {
-	align-items: center;
-	justify-content: center;
-	padding: 48px 28px;
-}
-
-.empty-card {
-	background: var(--bg);
-	border: 1px solid var(--border);
-	display: flex;
-	flex-direction: column;
-	gap: 18px;
-	max-width: 460px;
-	padding: 28px;
-	width: 100%;
-}
-
-.empty-card header {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.empty-card h1 {
-	font-size: var(--text-xl);
-	margin: 0;
-}
-
-/* The description belongs with the thing it describes. It used to float at the far right of the
-   content area, where it read as unrelated chrome. */
-.empty-card header p {
-	color: var(--fg-muted);
-	line-height: 1.5;
-	margin: 0;
 }
 
 .empty-field {
@@ -2052,12 +1977,6 @@ button.workspace-title:hover {
 .empty-field small {
 	color: var(--fg-dim);
 	line-height: 1.5;
-}
-
-.empty-card button[type="submit"] {
-	align-self: flex-start;
-	min-height: var(--control-height);
-	padding-inline: 18px;
 }
 
 /* ── Fixed-height detail layout ──────────────────────────────────────────────
