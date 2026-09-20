@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
+	readSeedFileContent,
 	removeSeedFile,
 	saveSeedFile,
 	seedFiles,
@@ -18,7 +19,20 @@ export const listSeedFiles = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.handler(() => seedFiles(controllerDatabase()));
 
-// saveWorkspaceSeedFile adds a file, or replaces whatever already claims its destination.
+// readSeedFile returns one file's body, for the editor about to show it.
+//
+// One at a time rather than folded into the list, which carries sizes and no bodies on purpose: a
+// list that fetched every body to render a number is what that decision avoids.
+export const readSeedFile = createServerFn({ method: "GET" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().min(1) }))
+	.handler(({ data }) => ({
+		// Absent rather than an error. A file removed in another tab while its editor was open is
+		// an ordinary race, not a failure worth taking the page down for.
+		content: readSeedFileContent(controllerDatabase(), data.id),
+	}));
+
+// saveWorkspaceSeedFile adds a file, updates one by id, or replaces whatever claims a destination.
 export const saveWorkspaceSeedFile = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
 	.validator(seedFileSchema)

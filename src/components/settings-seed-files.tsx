@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 
 import {
@@ -6,80 +7,36 @@ import {
 	readSeedPath,
 	resolveSeedPath,
 	SEED_ROOTS,
+	type SeedFile,
 	type SeedRoot,
 } from "../domain/seed-file";
-import { seedFilesQuery, workspaceKeys } from "../lib/queries";
+import { languageOfPath } from "../lib/highlight";
+import { seedFileQuery, seedFilesQuery, workspaceKeys } from "../lib/queries";
 import {
 	deleteWorkspaceSeedFile,
 	saveWorkspaceSeedFile,
 } from "../server/seed-files.functions";
 import { Button } from "./button";
+import { CodeEditor } from "./code-editor";
 
 // SettingsSeedFiles is what every new workspace is seeded with.
+//
+// A list of rows that unfold, the same gesture as the diff accordion, because the thing an operator
+// wants here is the same: see what is in one of several files without leaving the others. Adding a
+// file is that row with nothing in it, which is what removes the separate add-form the first
+// version had -- and with it the reason uploading and pasting were two different paths.
 export function SettingsSeedFiles(): ReactNode {
-	const queryClient = useQueryClient();
 	const { data: files = [] } = useQuery(seedFilesQuery());
-	const [root, setRoot] = useState<SeedRoot>("home");
-	const [path, setPath] = useState("");
-	const [content, setContent] = useState<string | undefined>(undefined);
-	const [note, setNote] = useState("");
-	const [busy, setBusy] = useState(false);
-	// Held so the input can be cleared after a save. A file input's value cannot be set from state,
-	// so this is the one place a ref is the mechanism rather than a shortcut.
-	const picker = useRef<HTMLInputElement>(null);
+	// Which rows are unfolded. Several at once, like the diff accordion: comparing two seeded
+	// files is a real reason to be here.
+	const [open, setOpen] = useState<string[]>([]);
 
-	const destination = readSeedPath(root, path);
-	const refresh = () =>
-		queryClient.invalidateQueries({ queryKey: workspaceKeys.seedFiles() });
-
-	// Read in the browser and posted as a string, so nothing here handles multipart. That is the
-	// reason the feature is text-only: a binary file would mean base64 on the wire and in the
-	// database, for a case nobody has asked for.
-	async function choose(file: File | undefined): Promise<void> {
-		setNote("");
-		if (file === undefined) {
-			setContent(undefined);
-
-			return;
-		}
-		if (file.size > MAX_SEED_BYTES) {
-			setContent(undefined);
-			setNote(`${file.name} is larger than ${MAX_SEED_BYTES / 1024} kB.`);
-
-			return;
-		}
-
-		setContent(await file.text());
-		// A destination the operator can accept rather than one they have to invent. Only when
-		// they have not already typed one.
-		if (path.trim() === "") {
-			setPath(file.name);
-		}
-	}
-
-	async function add(): Promise<void> {
-		if (content === undefined || destination.kind === "invalid") {
-			return;
-		}
-
-		setBusy(true);
-		setNote("");
-		try {
-			await saveWorkspaceSeedFile({
-				data: { content, path: destination.path, root },
-			});
-			await refresh();
-			setPath("");
-			setContent(undefined);
-			if (picker.current !== null) {
-				picker.current.value = "";
-			}
-			setNote("Saved. Applied to workspaces created from now on.");
-		} catch (cause) {
-			setNote(cause instanceof Error ? cause.message : "could not save");
-		} finally {
-			setBusy(false);
-		}
+	function toggle(id: string): void {
+		setOpen((current) =>
+			current.includes(id)
+				? current.filter((candidate) => candidate !== id)
+				: [...current, id],
+		);
 	}
 
 	return (
@@ -94,38 +51,164 @@ export function SettingsSeedFiles(): ReactNode {
 				arrives afterwards would not be read until the container was rebuilt.
 			</p>
 
-			{files.length === 0 ? (
-				<p className="detail-note">
-					No seed files. Workspaces get whatever their repository carries.
-				</p>
-			) : (
-				<ul className="seed-list">
-					{files.map((file) => (
-						<li key={file.id}>
-							<code>{resolveSeedPath(file.root, file.path)}</code>
-							<span>{Math.max(1, Math.round(file.bytes / 1024))} kB</span>
-							<Button
-								disabled={busy}
-								onClick={async () => {
-									setBusy(true);
-									setNote("");
-									try {
-										await deleteWorkspaceSeedFile({ data: { id: file.id } });
-										await refresh();
-									} finally {
-										setBusy(false);
-									}
-								}}
-								variant="tertiary"
-							>
-								Remove
-							</Button>
-						</li>
-					))}
-				</ul>
-			)}
+			<ol className="seed-list">
+				{files.map((file) => (
+					<SeedRow
+						file={file}
+						key={file.id}
+						onToggle={() => toggle(file.id)}
+						open={open.includes(file.id)}
+					/>
+				))}
+				<SeedRow
+					onToggle={() => toggle("new")}
+					open={open.includes("new")}
+					// Closed again once saved, so the row is ready for the next one rather than
+					// still holding the last file's text.
+					onSaved={() => toggle("new")}
+				/>
+			</ol>
+		</section>
+	);
+}
 
-			<div className="seed-add">
+// SeedRow is one file, or the row that makes a new one.
+//
+// The editor is mounted only while the row is open, which is what makes the body fetch lazy: a
+// page of twenty files costs twenty sizes until somebody opens one.
+function SeedRow({
+	file,
+	onSaved,
+	onToggle,
+	open,
+}: {
+	file?: SeedFile;
+	onSaved?: () => void;
+	onToggle: () => void;
+	open: boolean;
+}): ReactNode {
+	return (
+		<li className="seed-entry">
+			<button
+				aria-expanded={open}
+				className={file === undefined ? "seed-row is-new" : "seed-row"}
+				onClick={onToggle}
+				type="button"
+			>
+				<ChevronRight aria-hidden className="seed-caret" size={12} />
+				<span className="seed-path">
+					{file === undefined
+						? "Add a file"
+						: resolveSeedPath(file.root, file.path)}
+				</span>
+				{file === undefined ? null : (
+					<span className="seed-size">
+						{Math.max(1, Math.round(file.bytes / 1024))} kB
+					</span>
+				)}
+			</button>
+			{open ? <SeedForm file={file} onSaved={onSaved} /> : null}
+		</li>
+	);
+}
+
+// SeedForm edits one file: where it goes, and what is in it.
+function SeedForm({
+	file,
+	onSaved,
+}: {
+	file?: SeedFile;
+	onSaved?: () => void;
+}): ReactNode {
+	const queryClient = useQueryClient();
+	// Only for a file that exists. `enabled` rather than a branch, so the new-file row asks for
+	// nothing at all.
+	const { data: stored } = useQuery({
+		...seedFileQuery(file?.id ?? ""),
+		enabled: file !== undefined,
+	});
+
+	const [root, setRoot] = useState<SeedRoot>(file?.root ?? "home");
+	const [path, setPath] = useState(file?.path ?? "");
+	const [draft, setDraft] = useState<string | undefined>(undefined);
+	const [note, setNote] = useState("");
+	const [busy, setBusy] = useState(false);
+	// A file input cannot be driven from state, so clearing it after a load needs the node itself.
+	const picker = useRef<HTMLInputElement>(null);
+
+	// The stored body until something is typed. Not seeded into state on load, because state
+	// initialised from a query keeps whatever arrived first and the fetch resolves after the mount.
+	const content = draft ?? stored?.content ?? "";
+	const destination = readSeedPath(root, path);
+	const loading = file !== undefined && stored === undefined;
+
+	async function load(chosen: File | undefined): Promise<void> {
+		setNote("");
+		if (chosen === undefined) {
+			return;
+		}
+		if (chosen.size > MAX_SEED_BYTES) {
+			setNote(`${chosen.name} is larger than ${MAX_SEED_BYTES / 1024} kB.`);
+
+			return;
+		}
+
+		// Into the editor rather than straight to the server, so it can be read and corrected
+		// before it is saved. This is what makes a pasted file and a chosen one the same thing.
+		setDraft(await chosen.text());
+		if (path.trim() === "") {
+			setPath(chosen.name);
+		}
+		if (picker.current !== null) {
+			picker.current.value = "";
+		}
+	}
+
+	async function save(): Promise<void> {
+		if (destination.kind === "invalid") {
+			return;
+		}
+
+		setBusy(true);
+		setNote("");
+		try {
+			await saveWorkspaceSeedFile({
+				data: { content, id: file?.id, path: destination.path, root },
+			});
+			// Invalidating the list key also reaches every open row's body, because the row keys
+			// are nested under it.
+			await queryClient.invalidateQueries({
+				queryKey: workspaceKeys.seedFiles(),
+			});
+			setDraft(undefined);
+			onSaved?.();
+			setNote("Saved. Applied to workspaces created from now on.");
+		} catch (cause) {
+			setNote(cause instanceof Error ? cause.message : "could not save");
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function remove(): Promise<void> {
+		if (file === undefined) {
+			return;
+		}
+
+		setBusy(true);
+		try {
+			await deleteWorkspaceSeedFile({ data: { id: file.id } });
+			await queryClient.invalidateQueries({
+				queryKey: workspaceKeys.seedFiles(),
+			});
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<div className="seed-form">
+			<div className="seed-where">
 				<label className="settings-field">
 					<span>Root</span>
 					<select
@@ -140,7 +223,7 @@ export function SettingsSeedFiles(): ReactNode {
 					</select>
 				</label>
 
-				<label className="settings-field">
+				<label className="settings-field seed-destination">
 					<span>Destination</span>
 					<input
 						onChange={(event) => setPath(event.target.value)}
@@ -150,18 +233,32 @@ export function SettingsSeedFiles(): ReactNode {
 					/>
 				</label>
 
-				<label className="settings-field">
-					<span>File</span>
-					<input
-						onChange={(event) => void choose(event.target.files?.[0])}
-						ref={picker}
-						type="file"
-					/>
-				</label>
+				{/* A button over a hidden input, because the browser's own file control carries its
+				    own chrome and sat beside two fields that carry this application's. */}
+				<Button onClick={() => picker.current?.click()} variant="secondary">
+					Load a file
+				</Button>
+				<input
+					className="seed-picker"
+					onChange={(event) => void load(event.target.files?.[0])}
+					ref={picker}
+					type="file"
+				/>
 			</div>
 
-			{/* Where it lands, before saving rather than after a provision. $HOME is shown
-			    symbolically because the container is the only thing that can resolve it. */}
+			{loading ? (
+				<p className="detail-note">Reading the file.</p>
+			) : (
+				<CodeEditor
+					label={path === "" ? "New seed file" : path}
+					// From the destination, so a settings.json is JSON and a CLAUDE.md is markdown
+					// without anybody choosing a language.
+					lang={languageOfPath(path)}
+					onChange={setDraft}
+					value={content}
+				/>
+			)}
+
 			{path.trim() === "" ? null : (
 				<p className="detail-note">
 					{destination.kind === "invalid"
@@ -170,15 +267,24 @@ export function SettingsSeedFiles(): ReactNode {
 				</p>
 			)}
 
-			<Button
-				disabled={
-					busy || content === undefined || destination.kind === "invalid"
-				}
-				onClick={() => void add()}
-			>
-				{busy ? "Saving" : "Add file"}
-			</Button>
+			<div className="seed-actions">
+				<Button
+					disabled={busy || loading || destination.kind === "invalid"}
+					onClick={() => void save()}
+				>
+					{busy ? "Saving" : "Save"}
+				</Button>
+				{file === undefined ? null : (
+					<Button
+						disabled={busy}
+						onClick={() => void remove()}
+						variant="tertiary"
+					>
+						Remove
+					</Button>
+				)}
+			</div>
 			{note === "" ? null : <p className="detail-note">{note}</p>}
-		</section>
+		</div>
 	);
 }

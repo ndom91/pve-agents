@@ -493,6 +493,75 @@ dd {
 
 /* The seed-files tab. Its three controls are one row, because a root, a path and a file are one
    decision and stacking them reads as three unrelated fields. */
+/* The editor's two layers, and the single place their geometry is declared.
+ *
+ * Everything that affects where a glyph lands is set here and inherited, never set on the textarea
+ * and the backdrop separately. Set twice, they drift, and a caret that sits half a character off by
+ * line forty is the result. Changing any of these means changing it once. */
+.code-editor {
+	--editor-pad: 10px;
+	background: var(--bg-sunken);
+	border: 1px solid var(--border);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-md);
+	letter-spacing: normal;
+	line-height: 1.55;
+	position: relative;
+	tab-size: 2;
+}
+
+.code-editor-ink,
+.code-editor-input {
+	border: 0;
+	font: inherit;
+	letter-spacing: inherit;
+	line-height: inherit;
+	margin: 0;
+	/* Wrapping rather than a horizontal scrollbar: two layers that wrap identically stay aligned,
+	   and a config file has no lines worth scrolling sideways for. */
+	overflow-wrap: break-word;
+	padding: var(--editor-pad);
+	tab-size: inherit;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* The colours. Underneath, and out of the accessibility tree: the textarea over it already carries
+   the text and its label, so a screen reader reading this too would read the file twice. */
+.code-editor-ink {
+	height: 100%;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+	position: absolute;
+}
+
+/* The caret, the selection and every keystroke. Transparent text, because the colours belong to the
+   layer beneath; `caret-color` has to be restored by hand or the caret goes with it. */
+.code-editor-input {
+	background: none;
+	caret-color: var(--fg-bright);
+	color: transparent;
+	display: block;
+	min-height: 180px;
+	outline: none;
+	position: relative;
+	resize: vertical;
+	width: 100%;
+}
+
+.code-editor:focus-within {
+	border-color: var(--accent-fill);
+	outline: 2px solid var(--accent-ring);
+	outline-offset: 2px;
+}
+
+/* Dimmer than the same selection over ordinary text: it is drawn over the glyphs rather than behind
+   them, so at full strength it hides the thing being selected. */
+.code-editor-input::selection {
+	background: var(--accent-ring);
+}
+
 .settings-seed {
 	display: flex;
 	flex-direction: column;
@@ -504,70 +573,114 @@ dd {
 	margin: 0;
 }
 
-.seed-add {
+/* One file. A row that unfolds, the same shape as a row in the diff accordion, because it is the
+   same gesture and learning it twice is a cost for no benefit. */
+.seed-entry {
+	border-top: 1px solid var(--border);
+}
+
+.seed-entry:last-child {
+	border-bottom: 1px solid var(--border);
+}
+
+.seed-row {
+	align-items: center;
+	background: none;
+	border: none;
+	color: var(--fg-bright);
+	display: flex;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-md);
+	gap: 8px;
+	padding: 10px 0;
+	text-align: left;
+	width: 100%;
+}
+
+.seed-row:hover {
+	color: var(--fg);
+}
+
+/* Quieter than the files above it: adding one is available rather than the thing to do. */
+.seed-row.is-new {
+	color: var(--fg-muted);
+}
+
+.seed-caret {
+	color: var(--fg-dim);
+	flex: none;
+	transition: transform 120ms ease;
+}
+
+.seed-row[aria-expanded="true"] .seed-caret {
+	transform: rotate(90deg);
+}
+
+/* The path takes the room and the size does not, so a long destination does not push the size off
+   the end of the row. */
+.seed-path {
+	flex: 1 1 auto;
+	overflow-wrap: anywhere;
+}
+
+.seed-size {
+	color: var(--fg-dim);
+	flex: none;
+	font-size: var(--text-sm);
+}
+
+.seed-list {
+	display: flex;
+	flex-direction: column;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.seed-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 4px 0 16px 20px;
+}
+
+.seed-where {
 	align-items: end;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12px;
 }
 
-/* Wider than the numeric fields above, which are sized for three digits. A destination is a path
-   and the useful ones are longer than that. */
-.seed-add .settings-field input[type="text"] {
-	width: 260px;
+/* Takes the row, so a long destination is readable rather than scrolling inside a field sized for
+   the three-digit numbers on the reaping tab. */
+.seed-destination {
+	flex: 1 1 260px;
 }
 
-.seed-add select {
+.seed-where select,
+.seed-destination input[type="text"] {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	padding: 8px 10px;
+	width: 100%;
 }
 
-.seed-add input[type="file"] {
-	background: none;
-	border: none;
-	color: var(--fg-muted);
-	font-size: var(--text-md);
-	padding: 0;
+/* Hidden rather than absent: the Button beside it opens this, so the browser's own file control
+   never appears next to two fields wearing this application's. Not `display: none`, which would
+   stop it being clickable at all. */
+.seed-picker {
+	height: 0;
+	opacity: 0;
+	pointer-events: none;
+	position: absolute;
+	width: 0;
 }
 
-.seed-list {
+.seed-actions {
 	display: flex;
-	flex-direction: column;
-	gap: 0;
-	list-style: none;
-	margin: 0;
-	padding: 0;
-}
-
-.seed-list li {
-	align-items: center;
-	border-top: 1px solid var(--border);
-	display: flex;
-	gap: 12px;
-	padding: 8px 0;
-}
-
-/* The path takes the room and the size does not, so a long destination does not push the size and
-   the control off the end of the row. */
-.seed-list code {
-	color: var(--fg-bright);
-	flex: 1 1 auto;
-	font-size: var(--text-md);
-	overflow-wrap: anywhere;
-}
-
-.seed-list span {
-	color: var(--fg-dim);
-	flex: none;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-sm);
-}
-
-.seed-list .button {
-	flex: none;
+	gap: 8px;
 }
 
 /* The one consequence of the blocked exemption that is worth stating up front rather than being

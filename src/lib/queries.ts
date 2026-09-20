@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { workspaceChanges, workspaceFileDiff } from "../server/agent.functions";
-import { listSeedFiles } from "../server/seed-files.functions";
+import { listSeedFiles, readSeedFile } from "../server/seed-files.functions";
 import { workspaceSettings } from "../server/settings.functions";
 import { controllerStatus } from "../server/status.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
@@ -26,6 +26,7 @@ export const workspaceKeys = {
 	detail: (id: string) => ["workspace", id] as const,
 	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
+	seedFile: (id: string) => ["seed-files", id] as const,
 	seedFiles: () => ["seed-files"] as const,
 	settings: () => ["settings"] as const,
 	status: () => ["controller-status"] as const,
@@ -131,5 +132,16 @@ export function seedFilesQuery() {
 	return queryOptions({
 		queryFn: () => listSeedFiles(),
 		queryKey: workspaceKeys.seedFiles(),
+	});
+}
+
+// seedFileQuery is one file's body, fetched when its row is opened.
+//
+// Per row rather than with the list, so a page of twenty files costs twenty sizes and nothing else
+// until somebody opens one. The cache makes reopening free.
+export function seedFileQuery(id: string) {
+	return queryOptions({
+		queryFn: () => readSeedFile({ data: { id } }),
+		queryKey: workspaceKeys.seedFile(id),
 	});
 }

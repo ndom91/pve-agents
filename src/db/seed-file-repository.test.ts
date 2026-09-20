@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase } from "./database";
 import {
+	readSeedFileContent,
 	removeSeedFile,
 	saveSeedFile,
 	seedFileContents,
@@ -61,6 +62,58 @@ describe("saveSeedFile", () => {
 		expect(seedFiles(db)).toHaveLength(2);
 	});
 
+	it("moves a file when its destination is edited, rather than cloning it", () => {
+		// Renaming used to throw. The upsert keyed on (root, path), so a new destination looked
+		// like an insert, kept the caller's id, and collided with the row already holding it --
+		// which ON CONFLICT(root, path) does not catch.
+		const db = database();
+		const first = saveSeedFile(db, {
+			content: "a",
+			path: "CLADUE.md",
+			root: "repo",
+		});
+		const id = first.kind === "saved" ? first.file.id : "";
+
+		const moved = saveSeedFile(db, {
+			content: "a",
+			id,
+			path: "CLAUDE.md",
+			root: "repo",
+		});
+
+		expect(moved.kind).toBe("saved");
+		expect(seedFiles(db)).toHaveLength(1);
+		expect(seedFiles(db)[0]?.path).toBe("CLAUDE.md");
+	});
+
+	it("refuses to move a file onto a destination another file holds", () => {
+		// Overwriting the other file is the one outcome nobody could undo, so it is named instead.
+		const db = database();
+		const first = saveSeedFile(db, {
+			content: "a",
+			path: "one.md",
+			root: "repo",
+		});
+		saveSeedFile(db, { content: "b", path: "two.md", root: "repo" });
+
+		const clash = saveSeedFile(db, {
+			content: "a",
+			id: first.kind === "saved" ? first.file.id : "",
+			path: "two.md",
+			root: "repo",
+		});
+
+		expect(clash).toEqual({
+			kind: "invalid",
+			message: "another file already writes to two.md",
+		});
+		expect(
+			seedFileContents(db)
+				.map((f) => f.content)
+				.sort(),
+		).toEqual(["a", "b"]);
+	});
+
 	it("refuses a destination that steps outside its root", () => {
 		// Re-checked here rather than trusted from the route, because this is the last point
 		// before a destination becomes something a provisioner writes to.
@@ -80,6 +133,14 @@ describe("seedFiles", () => {
 		saveSeedFile(db, { content: "abcde", path: "CLAUDE.md", root: "repo" });
 
 		expect(seedFiles(db)[0]?.bytes).toBe(5);
+	});
+});
+
+describe("readSeedFileContent", () => {
+	it("answers nothing for a file that is not there", () => {
+		// A row removed in another tab while its editor was open. Throwing would take the page
+		// down for a file the operator had already decided to be rid of.
+		expect(readSeedFileContent(database(), "nothing")).toBeUndefined();
 	});
 });
 
