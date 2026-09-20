@@ -25,52 +25,64 @@ export function CodeEditor({
 	label,
 	lang,
 	onChange,
+	status,
 	value,
 }: {
 	label: string;
 	lang?: string;
 	onChange: (value: string) => void;
+	// A strip along the bottom, inside the same border, for what is true about the text rather than
+	// what is in it. An editor's status bar: attached to the thing it describes instead of floating
+	// underneath it as another paragraph.
+	status?: ReactNode;
 	value: string;
 }): ReactNode {
 	const backdrop = useRef<HTMLPreElement>(null);
 
 	return (
 		<div className="code-editor">
-			<pre aria-hidden className="code-editor-ink" ref={backdrop}>
-				<code>
-					{/* A trailing newline, so the backdrop keeps its last line when the text ends on
+			{/* The two layers share this box, and it is the one that scrolls. The status bar is
+			    outside it, so a backdrop pinned to `inset: 0` cannot cover it. */}
+			<div className="code-editor-body">
+				<pre aria-hidden className="code-editor-ink" ref={backdrop}>
+					<code>
+						{/* A trailing newline, so the backdrop keeps its last line when the text ends on
 					    one. Without it the highlighted layer is a line shorter than the textarea and
 					    the bottom of the file scrolls out of alignment. */}
-					{tokenise(`${value}\n`, lang).map((token, index) =>
-						token.className === undefined ? (
-							// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
-							<span key={index}>{token.value}</span>
-						) : (
-							// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
-							<span className={`th-token th-${token.className}`} key={index}>
-								{token.value}
-							</span>
-						),
-					)}
-				</code>
-			</pre>
-			<textarea
-				aria-label={label}
-				autoCapitalize="off"
-				autoCorrect="off"
-				className="code-editor-input"
-				onChange={(event) => onChange(event.target.value)}
-				// The two layers scroll as one. The textarea is the one with the scrollbar; the
-				// backdrop follows it and has none of its own.
-				onScroll={(event) => {
-					if (backdrop.current !== null) {
-						backdrop.current.scrollTop = event.currentTarget.scrollTop;
-						backdrop.current.scrollLeft = event.currentTarget.scrollLeft;
-					}
-				}}
-				spellCheck={false}
-				value={value}
-			/>
+						{tokenise(`${value}\n`, lang).map((token, index) =>
+							token.className === undefined ? (
+								// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+								<span key={index}>{token.value}</span>
+							) : (
+								// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+								<span className={`th-token th-${token.className}`} key={index}>
+									{token.value}
+								</span>
+							),
+						)}
+					</code>
+				</pre>
+				<textarea
+					aria-label={label}
+					autoCapitalize="off"
+					autoCorrect="off"
+					className="code-editor-input"
+					onChange={(event) => onChange(event.target.value)}
+					// The two layers scroll as one. The textarea is the one with the scrollbar; the
+					// backdrop follows it and has none of its own.
+					onScroll={(event) => {
+						if (backdrop.current !== null) {
+							backdrop.current.scrollTop = event.currentTarget.scrollTop;
+							backdrop.current.scrollLeft = event.currentTarget.scrollLeft;
+						}
+					}}
+					spellCheck={false}
+					value={value}
+				/>
+			</div>
+			{status === undefined ? null : (
+				<div className="code-editor-status">{status}</div>
+			)}
 		</div>
 	);
 }

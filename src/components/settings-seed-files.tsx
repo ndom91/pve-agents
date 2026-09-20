@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 
 import {
 	MAX_SEED_BYTES,
@@ -18,6 +18,14 @@ import {
 } from "../server/seed-files.functions";
 import { Button } from "./button";
 import { CodeEditor } from "./code-editor";
+import { type Option, Select } from "./select";
+
+// The label is the root's own name: "home", "repo" and "absolute" say what they mean and a prettier
+// caption would only be a second word for the same thing.
+const ROOT_OPTIONS: Option<SeedRoot>[] = SEED_ROOTS.map((root) => ({
+	label: root,
+	value: root,
+}));
 
 // SettingsSeedFiles is what every new workspace is seeded with.
 //
@@ -135,6 +143,7 @@ function SeedForm({
 	const [busy, setBusy] = useState(false);
 	// A file input cannot be driven from state, so clearing it after a load needs the node itself.
 	const picker = useRef<HTMLInputElement>(null);
+	const rootId = useId();
 
 	// The stored body until something is typed. Not seeded into state on load, because state
 	// initialised from a query keeps whatever arrived first and the fetch resolves after the mount.
@@ -209,19 +218,17 @@ function SeedForm({
 	return (
 		<div className="seed-form">
 			<div className="seed-where">
-				<label className="settings-field">
-					<span>Root</span>
-					<select
-						onChange={(event) => setRoot(event.target.value as SeedRoot)}
+				<div className="settings-field">
+					<label htmlFor={rootId}>
+						<span>Root</span>
+					</label>
+					<Select
+						id={rootId}
+						onChange={setRoot}
+						options={ROOT_OPTIONS}
 						value={root}
-					>
-						{SEED_ROOTS.map((option) => (
-							<option key={option} value={option}>
-								{option}
-							</option>
-						))}
-					</select>
-				</label>
+					/>
+				</div>
 
 				<label className="settings-field seed-destination">
 					<span>Destination</span>
@@ -236,7 +243,7 @@ function SeedForm({
 				{/* A button over a hidden input, because the browser's own file control carries its
 				    own chrome and sat beside two fields that carry this application's. */}
 				<Button onClick={() => picker.current?.click()} variant="secondary">
-					Load a file
+					Upload
 				</Button>
 				<input
 					className="seed-picker"
@@ -255,16 +262,22 @@ function SeedForm({
 					// without anybody choosing a language.
 					lang={languageOfPath(path)}
 					onChange={setDraft}
+					status={
+						<>
+							<span
+								className={
+									destination.kind === "valid" ? "is-path" : "is-wrong"
+								}
+							>
+								{destination.kind === "invalid"
+									? destination.message
+									: resolveSeedPath(root, destination.path)}
+							</span>
+							<span>{languageOfPath(path)}</span>
+						</>
+					}
 					value={content}
 				/>
-			)}
-
-			{path.trim() === "" ? null : (
-				<p className="detail-note">
-					{destination.kind === "invalid"
-						? destination.message
-						: `→ ${resolveSeedPath(root, destination.path)}`}
-				</p>
 			)}
 
 			<div className="seed-actions">
