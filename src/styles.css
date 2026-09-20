@@ -1539,13 +1539,19 @@ dd {
 	border-bottom: 1px solid var(--line-hairline);
 	display: flex;
 	flex-shrink: 0;
+	/* The row's own gap is what spaces the dividers, equally on both sides. */
+	gap: var(--space-6);
 	height: var(--metaband-h);
 	overflow: hidden;
 	padding: 0 var(--space-8);
 }
 
+/* Baseline, not centre. The key is 9.5px and the value 10.5px, and centring two different sizes
+   in the same row lines up their boxes rather than their text -- which put "nas" a pixel and a
+   half below "NODE". The mockup centres them and gets away with it; at these two sizes it is
+   visible, so this is the one place the normalised version is wrong. */
 .meta-band-item {
-	align-items: center;
+	align-items: baseline;
 	display: flex;
 	flex-shrink: 0;
 	gap: 6px;
@@ -1557,7 +1563,6 @@ dd {
 	background: var(--line-divider);
 	flex-shrink: 0;
 	height: 11px;
-	margin: 0 var(--space-6) 0 0;
 	width: 1px;
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Fragment } from "react";
 
 // MetaBand is the row of machine facts under a screen's title bar.
 //
@@ -25,15 +26,18 @@ export function MetaBand({
 	return (
 		<div className="meta-band">
 			{shown.map((fact, index) => (
-				<div className="meta-band-item" key={fact.key}>
-					{/* The divider belongs to the item that follows it, so the first item does not
-					    start with one and nothing has to know which item is last. */}
+				// The divider is a sibling of the items rather than a child of one, so the row's
+				// own gap sets the space either side of it. Nested, it could only ever be given a
+				// margin on one side, and it sat flush against the value before it.
+				<Fragment key={fact.key}>
 					{index === 0 ? null : (
 						<span aria-hidden="true" className="meta-band-sep" />
 					)}
-					<span className="meta-band-key">{fact.key}</span>
-					<span className="meta-band-val">{fact.value}</span>
-				</div>
+					<div className="meta-band-item">
+						<span className="meta-band-key">{fact.key}</span>
+						<span className="meta-band-val">{fact.value}</span>
+					</div>
+				</Fragment>
 			))}
 			<span className="meta-band-spacer" />
 			{tail === undefined ? null : (
