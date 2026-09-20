@@ -913,6 +913,89 @@ dd {
 /* The last column is `auto` so the rail can set its own width. The handle lives on the rail, in a
    route below this one, and having it reach up here to size a grid column it cannot see would be
    the more complicated half of a simple feature. */
+/* A label, a hairline to the edge, and optionally a count. STYLE.md calls this the application's
+ * main structural device, and every group in the sidebar, the rail and the home screen is one.
+ *
+ * The rule is an element rather than a border on the label, because it has to begin after the text
+ * and stop before whatever is on the right. A border would run under both. */
+.section-head {
+	align-items: center;
+	display: flex;
+	gap: 9px;
+}
+
+.section-head-label {
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	letter-spacing: var(--tracking-label);
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.section-head-rule {
+	background: var(--line-hairline);
+	flex-grow: 1;
+	height: 1px;
+}
+
+.section-head-count {
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+/* One workspace's state as a dot.
+ *
+ * The word that goes with it is inside, hidden from sight and not from a screen reader, which is
+ * how this satisfies "status is never colour-only" in a 236px column with no room to print
+ * "provisioning" beside a title that is already being clipped.
+ *
+ * The ring marks a container that is up right now -- running or waiting on somebody. A dot that is
+ * still being built, or is gone, does not get one. */
+.status-dot {
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	position: relative;
+	width: 5px;
+}
+
+.status-dot.is-live {
+	background: var(--green);
+	box-shadow: 0 0 0 3px var(--green-ring);
+}
+
+.status-dot.is-waiting {
+	background: var(--amber);
+	box-shadow: 0 0 0 3px var(--chip-amber-bg);
+}
+
+.status-dot.is-pending {
+	background: var(--amber);
+}
+
+.status-dot.is-error {
+	background: var(--red);
+}
+
+.status-dot.is-gone {
+	background: var(--text-decorative);
+}
+
+/* Present for a screen reader, absent from the layout. `clip-path` rather than `clip`, and a
+   non-zero size, because a 0x0 element is skipped by some readers entirely. */
+.visually-hidden {
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
 .dashboard {
 	display: grid;
 	grid-template-columns: var(--sidebar-w) minmax(0, 1fr) auto;
@@ -934,137 +1017,267 @@ dd {
 	border-right: 1px solid var(--line-hairline);
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
-	padding: 20px 16px;
+	/* No padding and no gap on the column itself. Every band inside it reaches the full width --
+	   the head's hairline, a selected row's fill, the foot's rule -- and a padded parent would
+	   inset all three by the same amount and turn them into floating cards. Each section brings
+	   its own padding instead. */
 	position: sticky;
 	top: 0;
 	height: 100vh;
 	overflow-y: auto;
 }
 
-.sidebar-label {
-	color: var(--line);
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	margin: 0 0 10px;
-	text-transform: uppercase;
+/* The window's own name, against the hairline that starts the column. 44px rather than the 48 of
+   the bars beside it: this is a wordmark, not a screen title, and matching their height would
+   claim it is the same kind of row. */
+.sidebar-head {
+	align-items: center;
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	gap: 9px;
+	height: 44px;
+	padding: 0 14px;
+}
+
+.sidebar-mark {
+	color: var(--sage);
+	flex-shrink: 0;
+}
+
+.sidebar-wordmark {
+	color: var(--text-wordmark);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+}
+
+.sidebar-nav {
+	display: flex;
+	flex-direction: column;
+}
+
+/* The head's own padding, so the rule inside it stops 14px from the edge while the rows below it
+   run all the way out. The second group sits two pixels further down than the first, which is the
+   difference between a heading that starts a column and one that interrupts it. */
+.sidebar-section .section-head {
+	padding: 14px 14px 7px;
+}
+
+.sidebar-section + .sidebar-section .section-head {
+	padding-top: 16px;
 }
 
 .sidebar-empty {
-	color: var(--fg-dim);
-	font-size: var(--text-lg);
+	color: var(--text-dim);
+	font-size: var(--text-body-sm);
 	margin: 0;
+	padding: 2px 14px 6px;
 }
 
 .sidebar-list {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 
+/* Two lines: what the work is, then which machine is doing it and for how long.
+ *
+ * Flush rather than a gap between rows. These are a list to run an eye down, and 4px of space
+ * around each one turned them into a stack of cards that each had to be read on its own. */
 .sidebar-entry {
-	border: 1px solid transparent;
-	border-left: 2px solid transparent;
-	display: grid;
-	gap: 2px;
-	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding: 9px 14px 10px;
+	position: relative;
 	text-decoration: none;
+	transition: background var(--dur-fast) var(--ease);
 }
 
 .sidebar-entry:hover {
-	background: var(--surface);
+	background: var(--surface-raised);
 }
 
 .sidebar-entry.is-active {
-	background: var(--surface);
-	border-left-color: var(--line);
+	background: var(--surface-select);
 }
 
-.sidebar-name {
-	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-lg);
+/* The 2px bar that marks the selected row, inset on the column's own edge rather than drawn as a
+   border. A border would move the text 2px right on selection; this sits over the fill and nothing
+   inside the row shifts. */
+.sidebar-entry.is-active::before {
+	background: var(--sage);
+	bottom: 0;
+	content: "";
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 2px;
 }
 
-.sidebar-repo {
-	color: var(--fg-dim);
-	font-size: var(--text-sm);
+.sidebar-entry-head {
+	align-items: center;
+	display: flex;
+	gap: 7px;
+	min-width: 0;
+}
+
+.sidebar-entry-title {
+	color: var(--text-primary);
+	flex-grow: 1;
+	font-size: var(--text-body-md);
+	font-weight: 500;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.sidebar-badges {
-	display: flex;
-	gap: 4px;
-	margin-top: 4px;
-}
-
-/* Smaller here than on the detail page: in the sidebar they are a glance, not a statement. */
-.sidebar-badges .status,
-.sidebar-badges .activity {
-	font-size: var(--text-xs);
-	padding: 2px 5px;
-}
-
-.sidebar-destroyed {
-	margin-top: 20px;
-}
-
-.sidebar-destroyed summary {
-	color: var(--fg-dim);
-	cursor: pointer;
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-.sidebar-destroyed summary span {
-	color: var(--border-dim);
-	margin-left: 8px;
-}
-
-.sidebar-destroyed .sidebar-list {
-	margin-top: 8px;
-}
-
-/* One row: the new-workspace link takes what is left after the two tools. It was stacked, which
-   spent two rows of the sidebar on controls that fit in one. */
-.sidebar-foot {
+/* Indented past the dot so it hangs under the title rather than under the state. Everything on
+   this line is an identifier, so all of it is mono. */
+.sidebar-entry-meta {
 	align-items: center;
 	display: flex;
-	gap: 8px;
+	gap: 7px;
+	min-width: 0;
+	padding-left: 12px;
+}
+
+.sidebar-entry-host {
+	color: var(--text-tertiary);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+}
+
+/* A 2px dot between two facts. Decoration, so it takes the decorative colour and is hidden from
+   the accessibility tree -- read aloud it would be a bullet between two words. */
+.sidebar-entry-tick {
+	background: var(--line-strong);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 2px;
+	width: 2px;
+}
+
+.sidebar-entry-repo {
+	color: var(--text-dim);
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sidebar-entry-age {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The archive, folded under its own head. `list-style: none` twice because Safari needs the
+   pseudo-element form and everything else needs the property. */
+.sidebar-archive-toggle {
+	align-items: center;
+	border-radius: var(--radius-md);
+	color: var(--text-dim);
+	cursor: pointer;
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-label-lg);
+	gap: 7px;
+	list-style: none;
+	margin: 0 8px;
+	padding: 6px;
+	transition: background var(--dur-fast) var(--ease);
+}
+
+.sidebar-archive-toggle::-webkit-details-marker {
+	display: none;
+}
+
+.sidebar-archive-toggle:hover {
+	background: var(--surface-raised);
+}
+
+.sidebar-archive-caret {
+	flex-shrink: 0;
+	transition: transform var(--dur-fast) var(--ease);
+}
+
+.sidebar-archive[open] .sidebar-archive-caret {
+	transform: rotate(90deg);
+}
+
+/* Amber, and a word. The one thing in this column that is asking for a person rather than
+   reporting on a machine. */
+.sidebar-waiting {
+	background: var(--chip-amber-bg);
+	border-left: 2px solid var(--amber);
+	color: var(--chip-amber-text);
+	font-family: var(--font-mono);
+	font-size: var(--text-label-lg);
+	margin: 0;
+	padding: 7px 12px;
+}
+
+/* One row: the new-workspace link takes what is left after the tools. */
+.sidebar-foot {
+	align-items: center;
+	border-top: 1px solid var(--line-hairline);
+	display: flex;
+	gap: 7px;
 	margin-top: auto;
+	padding: 10px;
 }
 
 .sidebar-tools {
 	display: flex;
-	gap: 8px;
+	gap: 7px;
 }
 
-/* Centres its own label and matches the icon buttons' 32px exactly, rather than landing within a
-   couple of pixels of them and reading as misaligned on a shared row. */
+/* A secondary button that happens to be a link. 30px is the standalone control height, and the
+   icon buttons beside it are pinned to the same number below rather than to their global 32 --
+   two heights within two pixels of each other on one row reads as one of them being wrong. */
 .sidebar-new {
 	align-items: center;
-	border: 1px solid var(--border-dim);
-	color: var(--fg-soft);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	color: var(--text-control);
 	display: flex;
 	flex: 1 1 auto;
-	font-size: var(--text-md);
-	height: 32px;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	gap: 7px;
+	height: var(--control-h-md);
 	justify-content: center;
+	letter-spacing: 0.1em;
 	min-width: 0;
 	padding: 0 10px;
 	text-decoration: none;
+	text-transform: uppercase;
+	transition: background var(--dur-fast) var(--ease);
 	white-space: nowrap;
 }
 
+.sidebar-tools .icon-button {
+	border-color: var(--line-border);
+	border-radius: var(--radius-md);
+	color: var(--text-muted);
+	height: var(--control-h-md);
+	width: var(--control-h-md);
+}
+
 .sidebar-new:hover {
-	border-color: var(--line);
-	color: var(--fg-bright);
+	background: var(--surface-raised);
 }
 
 

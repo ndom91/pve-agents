@@ -67,20 +67,43 @@ describe("SidebarEntry", () => {
 	});
 
 	it("shows the agent's state for a live workspace", async () => {
+		// The dot is the colour; this is the word behind it. It is deliberately not laid out --
+		// there is no room for it beside a title at this width -- but it has to be in the document,
+		// because a status carried by colour alone is a status half the readers do not get.
 		renderEntry({ workspace: WORKSPACE });
 
 		expect(await screen.findByText("blocked")).toBeDefined();
 	});
 
-	it("omits badges in the destroyed group", async () => {
-		// Every entry there says "destroyed", so the badge would be a column of identical words
-		// rather than information.
+	it("omits the state dot in the destroyed group", async () => {
+		// Every entry there is destroyed, so the dot would be a column of identical grey rather
+		// than information -- and its hidden word a column of identical noise.
 		renderEntry({
-			showBadges: false,
+			showState: false,
 			workspace: { ...WORKSPACE, activity: "unknown", status: "destroyed" },
 		});
 
 		await screen.findByRole("link");
 		expect(screen.queryByText("destroyed")).toBeNull();
+	});
+
+	it("does not print the hostname twice on an unnamed workspace", async () => {
+		// The title falls back to the container's name until the agent has named its own work. The
+		// meta line below carries that name too, so without this the row reads "agent-bd48" on
+		// both of its lines and the second one says nothing.
+		renderEntry({ workspace: WORKSPACE });
+
+		const link = await screen.findByRole("link");
+		expect(link.textContent?.match(/agent-bd48/g)).toHaveLength(1);
+	});
+
+	it("keeps the hostname beside the repository once the work has a title", async () => {
+		renderEntry({
+			workspace: { ...WORKSPACE, title: "List available MCP servers" },
+		});
+
+		const link = await screen.findByRole("link");
+		expect(link.textContent).toContain("List available MCP servers");
+		expect(link.textContent).toContain("agent-bd48");
 	});
 });

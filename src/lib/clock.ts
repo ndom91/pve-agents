@@ -35,6 +35,66 @@ export function formatTime(iso?: string, zone?: string): string | undefined {
 	return render(iso, TIME, zone);
 }
 
+// formatDuration renders a span the way this application has always rendered one: "31s" under a
+// minute, "9m 22s" above it.
+//
+// No hours tier on purpose. `took` in the rail has produced "74m 12s" for a long provision since it
+// was written, and a refresh of how the page looks is not the place to quietly start saying
+// "1h 14m" instead. Add the tier deliberately, or not at all.
+//
+// Nothing for a negative or non-finite span. Both mean the two timestamps cannot be trusted, and a
+// caller that renders no value at all is right more often than one that renders "0s".
+export function formatDuration(ms: number): string | undefined {
+	if (!Number.isFinite(ms) || ms < 0) {
+		return undefined;
+	}
+
+	const seconds = Math.round(ms / 1000);
+	if (seconds < 60) {
+		return `${seconds}s`;
+	}
+
+	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+// formatAge renders the same span in one unit, for a column that has room for three characters.
+//
+// The sidebar wants "how long has this been up" at a glance, next to a repository name that is
+// already being clipped. Rounding down rather than to nearest: a workspace in its fifty-ninth
+// minute reading "1h" claims a milestone it has not reached.
+export function formatAge(ms: number): string | undefined {
+	if (!Number.isFinite(ms) || ms < 0) {
+		return undefined;
+	}
+
+	const seconds = Math.floor(ms / 1000);
+	if (seconds < 60) {
+		return `${seconds}s`;
+	}
+	if (seconds < 3600) {
+		return `${Math.floor(seconds / 60)}m`;
+	}
+	if (seconds < 86400) {
+		return `${Math.floor(seconds / 3600)}h`;
+	}
+
+	return `${Math.floor(seconds / 86400)}d`;
+}
+
+// elapsedSince is the span between a stored timestamp and now, or nothing if it will not parse.
+export function elapsedSince(
+	iso?: string,
+	now = Date.now(),
+): number | undefined {
+	if (iso === undefined || iso === "") {
+		return undefined;
+	}
+
+	const at = Date.parse(iso);
+
+	return Number.isNaN(at) ? undefined : now - at;
+}
+
 // render is the shared half: parse, move to the zone, format.
 //
 // Nothing for a value that will not parse, rather than "Invalid Date". A `Fact` treats absence as

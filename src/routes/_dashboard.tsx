@@ -5,10 +5,12 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
-import { Bell, LogOut, Settings } from "lucide-react";
+import { Bell, ChevronRight, LogOut, Plus, Settings } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { IconButton, IconLink } from "../components/icon-button";
+import { SectionHead } from "../components/section-head";
 import { SidebarEntry } from "../components/sidebar-entry";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
@@ -64,7 +66,13 @@ function Dashboard() {
 	return (
 		<div className="dashboard">
 			<aside className="dashboard-sidebar">
-				<p className="eyebrow">PVE / AGENTS</p>
+				{/* The application's own name, on its own line, against the hairline that starts
+				    the column. It was an eyebrow floating above the first group, which read as a
+				    label belonging to that group rather than to the window. */}
+				<div className="sidebar-head">
+					<Mark />
+					<span className="sidebar-wordmark">PVE&middot;AGENTS</span>
+				</div>
 
 				{blocked.length === 0 ? null : (
 					<p className="sidebar-waiting">
@@ -74,39 +82,54 @@ function Dashboard() {
 					</p>
 				)}
 
-				<nav>
-					<p className="sidebar-label">Workspaces</p>
-					{live.length === 0 ? (
-						<p className="sidebar-empty">None running.</p>
-					) : (
-						<ul className="sidebar-list">
-							{live.map((workspace) => (
-								<SidebarEntry key={workspace.id} workspace={workspace} />
-							))}
-						</ul>
-					)}
-
-					{destroyed.length === 0 ? null : (
-						<details className="sidebar-destroyed">
-							<summary>
-								Destroyed<span>{destroyed.length}</span>
-							</summary>
+				<nav className="sidebar-nav">
+					<div className="sidebar-section">
+						<SectionHead count={live.length} label="Running" />
+						{live.length === 0 ? (
+							<p className="sidebar-empty">None running.</p>
+						) : (
 							<ul className="sidebar-list">
-								{destroyed.map((workspace) => (
-									<SidebarEntry
-										key={workspace.id}
-										showBadges={false}
-										workspace={workspace}
-									/>
+								{live.map((workspace) => (
+									<SidebarEntry key={workspace.id} workspace={workspace} />
 								))}
 							</ul>
-						</details>
+						)}
+					</div>
+
+					{destroyed.length === 0 ? null : (
+						<div className="sidebar-section">
+							{/* The head stays put and the list folds under it, rather than the head
+							    itself being the control. A count that only appears once you have
+							    opened the thing it counts is not much of a count. */}
+							<SectionHead count={destroyed.length} label="Destroyed" />
+							<details className="sidebar-archive">
+								<summary className="sidebar-archive-toggle">
+									<ChevronRight
+										aria-hidden="true"
+										className="sidebar-archive-caret"
+										size={9}
+										strokeWidth={1.3}
+									/>
+									<span>show archive</span>
+								</summary>
+								<ul className="sidebar-list">
+									{destroyed.map((workspace) => (
+										<SidebarEntry
+											key={workspace.id}
+											showState={false}
+											workspace={workspace}
+										/>
+									))}
+								</ul>
+							</details>
+						</div>
 					)}
 				</nav>
 
 				<div className="sidebar-foot">
 					<Link className="sidebar-new" to="/">
-						+ New workspace
+						<Plus aria-hidden="true" size={10} strokeWidth={1.3} />
+						<span>New workspace</span>
 					</Link>
 					<div className="sidebar-tools">
 						<IconLink icon={Settings} label="Settings" to="/settings" />
@@ -132,5 +155,45 @@ function Dashboard() {
 
 			<Outlet />
 		</div>
+	);
+}
+
+// Mark is the application's glyph: a bracket with a prompt caret and a cursor rule inside it.
+//
+// Inline stroke SVG at currentColor, per STYLE.md section 10 -- no icon font and no emoji. Copied
+// from the mockup rather than redrawn, so the one place it appears matches the reference exactly.
+function Mark(): ReactNode {
+	return (
+		<svg
+			aria-hidden="true"
+			className="sidebar-mark"
+			fill="none"
+			height="14"
+			viewBox="0 0 14 14"
+			width="14"
+		>
+			<rect
+				height="11.6"
+				rx="2"
+				stroke="currentColor"
+				strokeWidth="1.2"
+				width="11.6"
+				x="1.2"
+				y="1.2"
+			/>
+			<path
+				d="M4.6 5.2L6.9 7L4.6 8.8"
+				stroke="currentColor"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				strokeWidth="1.2"
+			/>
+			<path
+				d="M7.9 9.1H9.9"
+				stroke="currentColor"
+				strokeLinecap="round"
+				strokeWidth="1.2"
+			/>
+		</svg>
 	);
 }

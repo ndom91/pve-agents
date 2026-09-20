@@ -136,6 +136,7 @@
 	--font-sans: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
 
 	--text-label: 9.5px; /* uppercase mono section label */
+	--text-mono-xs: 10px; /* the sidebar's meta line, keyboard hints, tab labels */
 	--text-label-lg: 10.5px; /* uppercase mono tab / button label */
 	--text-mono-sm: 10.5px; /* dense mono values, log rows */
 	--text-mono: 11.5px; /* key/value mono values */
