@@ -1,3 +1,23 @@
+/* Geist Sans, self-hosted.
+ *
+ * One variable file rather than a weight per file: 70 kB covers 100 to 900, where the static set
+ * would be that much again for every weight used. Self-hosted rather than from a CDN because this
+ * controller is reachable on a LAN that may have no route out, and a page whose type arrives only
+ * when the internet does is a page that reads differently depending on the network.
+ *
+ * SIL Open Font License; the text is beside the file in public/fonts.
+ *
+ * `swap` rather than `block`: the fallback shows immediately and is replaced when the file lands.
+ * On a local network that is imperceptible, and it is the honest behaviour if this is ever served
+ * over something slower. */
+@font-face {
+	font-family: "Geist";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("/fonts/Geist-Variable.woff2") format("woff2-variations");
+}
+
 :root {
 	/* One height for every control that sits in a row with another. Lived on .workspace-actions
 	   until the dashboard removed that class, at which point every var() referring to it silently
@@ -57,6 +77,17 @@
 	--text-lg: 13px;
 	--text-xl: 18px;
 	--text-display: 24px;
+
+	/* The conversation's own face. Geist reads better at length than the interface font, which was
+	   chosen for labels and short values rather than for paragraphs of an agent's prose.
+	   Deliberately scoped to the chat rather than applied everywhere: the rest of the page is
+	   mostly short mono values and uppercase labels, where it would change a lot and improve
+	   little. */
+	--font-chat: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
+
+	/* A shade lighter than the default. At the size and line length of an answer, 400 sits heavy
+	   against this palette; 350 keeps the colour of the text closer to the rest of the page. */
+	--weight-chat: 350;
 
 	background: var(--bg);
 	color: var(--fg);
@@ -717,6 +748,8 @@ dd {
  * Fills the centre column and scrolls inside itself rather than growing the page: the prompt box
  * below it has to stay reachable no matter how long the agent has been working. */
 .agent-chat {
+	font-family: var(--font-chat);
+	font-weight: var(--weight-chat);
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
@@ -1025,7 +1058,7 @@ dd {
 .agent-prose h4 {
 	color: var(--fg-bright);
 	font-size: var(--text-lg);
-	font-weight: 600;
+	font-weight: 550;
 	letter-spacing: 0;
 	margin: 14px 0 6px;
 }
@@ -1041,7 +1074,7 @@ dd {
 
 .agent-prose strong {
 	color: var(--fg-bright);
-	font-weight: 600;
+	font-weight: 550;
 }
 
 .agent-prose a {
