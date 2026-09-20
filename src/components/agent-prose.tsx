@@ -2,6 +2,7 @@ import { Markdown } from "@tanstack/markdown/react";
 import type { ReactNode } from "react";
 
 import { CodeBlock } from "./code-block";
+import { CopyButton } from "./copy-button";
 
 // AgentProse renders what the agent said, as markdown.
 //
@@ -18,8 +19,16 @@ import { CodeBlock } from "./code-block";
 // Alpha, at 0.0.15, and pinned exactly. The surface used is one component wide.
 export function AgentProse({ text }: { text: string }): ReactNode {
 	return (
-		<div className="agent-prose">
-			<Markdown components={COMPONENTS}>{text}</Markdown>
+		<div className="agent-answer">
+			<div className="agent-prose">
+				<Markdown components={COMPONENTS}>{text}</Markdown>
+			</div>
+			{/* The markdown as the agent wrote it, not the rendered text. Somebody copying an answer
+			    is almost always moving it somewhere that understands markdown — a commit message, an
+			    issue, another prompt — and flattened prose has to be marked up again by hand. */}
+			<div className="agent-answer-actions">
+				<CopyButton label="Copy this answer" text={text} />
+			</div>
 		</div>
 	);
 }
