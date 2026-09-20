@@ -8,6 +8,43 @@ export type WorkspaceSeed =
 	| { failed: string; kind: "failed"; message: string }
 	| { kind: "seeded" };
 
+// MERGE_CLAUDE_JSON folds a seeded ~/.claude.json into the one already in the workspace.
+//
+// Written over rather than merged, this file would take the onboarding and trust-dialog flags
+// that `bootstrapAgentHome` wrote a step earlier, and the agent would stall on a first-run prompt
+// with nobody there to answer it.
+//
+// The merge is deep and the seeded side wins at the leaves, so adding mcpServers leaves projects
+// alone and adding one project leaves its siblings alone.
+//
+// Refuses rather than repairs. A file here that does not parse is either mid-write or something
+// nobody predicted, and overwriting it to get the provision moving is how the flags are lost --
+// which surfaces much later as an agent that never answers, rather than here as a step that
+// failed with a reason. Deliberately no single quotes anywhere: this is embedded in a
+// single-quoted shell word below.
+const MERGE_CLAUDE_JSON = [
+	'const fs = require("fs");',
+	"const file = process.argv[1];",
+	"let incoming;",
+	'try { incoming = JSON.parse(fs.readFileSync(0, "utf8")); }',
+	'catch (error) { console.error("seeded .claude.json is not valid JSON: " + error.message); process.exit(1); }',
+	"let existing = {};",
+	'try { existing = JSON.parse(fs.readFileSync(file, "utf8")); }',
+	'catch (error) { if (error.code !== "ENOENT") { console.error("the workspace .claude.json is not readable JSON: " + error.message); process.exit(1); } }',
+	"function merge(base, over) {",
+	'  if (over === null || typeof over !== "object" || Array.isArray(over)) { return over; }',
+	'  const under = (base === null || typeof base !== "object" || Array.isArray(base)) ? {} : base;',
+	"  const out = Object.assign({}, under);",
+	"  for (const key of Object.keys(over)) { out[key] = merge(under[key], over[key]); }",
+	"  return out;",
+	"}",
+	'fs.writeFileSync(file, JSON.stringify(merge(existing, incoming), null, 2) + "\\n", { mode: 0o600 });',
+	// chmod as well as mode: writeFileSync only applies mode when it creates the file, and this
+	// one already exists by the time seeding runs. Without this the merge silently inherits
+	// whatever the file had, and this is a file an operator may well put a token in.
+	"fs.chmodSync(file, 0o600);",
+].join("\n");
+
 // SEED_FILE_SCRIPT writes one file wherever its root says it belongs.
 //
 // The root is resolved here rather than on the controller because $HOME is not knowable from there,
@@ -18,6 +55,9 @@ export type WorkspaceSeed =
 // becomes two arguments and one containing a semicolon is remote code execution. The content goes
 // on stdin -- not because it is secret, but because arguments are visible in `ps` and a seeded file
 // is the one thing here an operator might reasonably put a credential in.
+//
+// The merge program above is fixed text for the same reason, and is the one branch that reads
+// stdin with something other than `cat`.
 const SEED_FILE_SCRIPT = [
 	'case "$1" in',
 	'  home) target="$HOME/$2" ;;',
@@ -26,7 +66,11 @@ const SEED_FILE_SCRIPT = [
 	"esac",
 	"umask 077",
 	'mkdir -p "$(dirname "$target")" || exit 1',
-	'cat > "$target"',
+	'if [ "$target" = "$HOME/.claude.json" ]; then',
+	`  node -e '${MERGE_CLAUDE_JSON}' "$target"`,
+	"else",
+	'  cat > "$target"',
+	"fi",
 ].join("\n");
 
 // seedWorkspace writes every operator-uploaded file into one workspace.

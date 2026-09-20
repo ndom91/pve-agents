@@ -48,6 +48,63 @@ export type SeedFile = {
 	updatedAt: string;
 };
 
+// CLAUDE_JSON is the one destination that is merged into rather than written over.
+//
+// The workspace writes this file itself, before seeding runs: `bootstrapAgentHome` puts the
+// onboarding and trust-dialog flags in it, which is what lets the agent start without a human to
+// answer two first-run prompts. A seeded copy landing on top of that would take those flags away
+// and the agent would stall on a question nobody is there to see.
+//
+// So an operator seeding it is read as "add this to what is already there". mcpServers is the
+// reason it exists: MCP configuration belongs in this file, and the alternative -- a .mcp.json in
+// the checkout -- is a file that eventually gets committed to somebody's repository.
+export const CLAUDE_JSON = ".claude.json";
+
+// mergesIntoExisting says whether a destination is merged rather than overwritten.
+export function mergesIntoExisting(root: SeedRoot, path: string): boolean {
+	return root === "home" && path.trim() === CLAUDE_JSON;
+}
+
+// readSeedContent checks the body, for the destinations where the body has to parse.
+//
+// Only the merged one. Everything else is bytes as far as this is concerned, and refusing to save
+// a shell script because it is not JSON would be a rule about the wrong thing.
+//
+// Checked here rather than in the container, because the container is a bad place to find out. A
+// provision that fails at the seeding step reports a workspace that could not be built; the
+// operator who typed the trailing comma is somewhere else by then.
+export function readSeedContent(
+	root: SeedRoot,
+	path: string,
+	content: string,
+): { kind: "invalid"; message: string } | { kind: "valid" } {
+	if (!mergesIntoExisting(root, path)) {
+		return { kind: "valid" };
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(content);
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : "unparseable";
+		return {
+			kind: "invalid",
+			message: `${CLAUDE_JSON} is not valid JSON: ${reason}`,
+		};
+	}
+
+	// An array or a string is valid JSON and cannot be merged into an object. Caught here so the
+	// failure names the shape rather than arriving as a merge that quietly replaced the file.
+	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+		return {
+			kind: "invalid",
+			message: `${CLAUDE_JSON} has to be a JSON object, so it can be merged into the one the workspace already has`,
+		};
+	}
+
+	return { kind: "valid" };
+}
+
 // readSeedPath checks one destination and says why it is refused rather than just that it is.
 //
 // Pure, and the only place the rule lives. The container resolves the path for real -- $HOME is not

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { readSeedPath, resolveSeedPath } from "./seed-file";
+import {
+	mergesIntoExisting,
+	readSeedContent,
+	readSeedPath,
+	resolveSeedPath,
+} from "./seed-file";
 
 describe("readSeedPath", () => {
 	it("refuses a path that steps outside the root it claims", () => {
@@ -55,5 +60,56 @@ describe("resolveSeedPath", () => {
 		expect(resolveSeedPath("absolute", "/etc/agent.conf")).toBe(
 			"/etc/agent.conf",
 		);
+	});
+});
+
+describe("readSeedContent", () => {
+	it("holds ~/.claude.json to being a JSON object", () => {
+		// It is merged into the file the workspace already wrote, and a string or an array cannot
+		// be merged into an object. Caught here so the failure names the shape.
+		expect(readSeedContent("home", ".claude.json", "[1, 2]").kind).toBe(
+			"invalid",
+		);
+		expect(readSeedContent("home", ".claude.json", '"hello"').kind).toBe(
+			"invalid",
+		);
+		expect(readSeedContent("home", ".claude.json", "null").kind).toBe(
+			"invalid",
+		);
+	});
+
+	it("names the parse error, because that is what the operator has to fix", () => {
+		const result = readSeedContent("home", ".claude.json", '{"a": 1,}');
+
+		expect(result.kind).toBe("invalid");
+		expect(result.kind === "invalid" && result.message).toContain(
+			"not valid JSON",
+		);
+	});
+
+	it("accepts an object", () => {
+		expect(
+			readSeedContent("home", ".claude.json", '{"mcpServers": {}}').kind,
+		).toBe("valid");
+	});
+
+	it("says nothing about any other destination", () => {
+		// Refusing to save a shell script because it is not JSON would be a rule about the wrong
+		// thing. Only the merged destination has to parse.
+		expect(readSeedContent("repo", "CLAUDE.md", "# not json").kind).toBe(
+			"valid",
+		);
+		expect(
+			readSeedContent("home", ".claude/settings.json", "not json").kind,
+		).toBe("valid");
+		expect(readSeedContent("absolute", "/etc/thing", "{{{").kind).toBe("valid");
+	});
+
+	it("only treats .claude.json at the home root as the merged one", () => {
+		// A file of the same name in the checkout is an ordinary file. The one the workspace
+		// wrote, and the only one worth protecting, lives in $HOME.
+		expect(mergesIntoExisting("home", ".claude.json")).toBe(true);
+		expect(mergesIntoExisting("repo", ".claude.json")).toBe(false);
+		expect(mergesIntoExisting("home", ".claude/settings.json")).toBe(false);
 	});
 });

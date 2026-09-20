@@ -107,3 +107,71 @@ describe("seedWorkspace", () => {
 		expect(calls).toHaveLength(0);
 	});
 });
+
+describe("seeding ~/.claude.json", () => {
+	// The script itself is asserted rather than its effect, because its effect happens inside a
+	// container. The behaviour it encodes -- merge, refuse a corrupt file, force the mode -- was
+	// checked against a real workspace by hand; what these hold is that the branch stays wired up
+	// and keeps using stdin.
+	function script(calls: { command: string[] }[]): string {
+		return calls[0]?.command[2] ?? "";
+	}
+
+	it("merges rather than overwriting, because the workspace wrote that file first", async () => {
+		// bootstrapAgentHome puts the onboarding and trust-dialog flags in ~/.claude.json a step
+		// before seeding runs. Writing over it takes them away and the agent stalls on a first-run
+		// prompt with nobody there to answer it.
+		const { calls, ssh } = recorder();
+
+		await seedWorkspace(
+			TARGET,
+			[
+				{
+					content: JSON.stringify({ mcpServers: {} }),
+					path: ".claude.json",
+					root: "home",
+				},
+			],
+			ssh,
+		);
+
+		const body = script(calls);
+		expect(body).toContain('if [ "$target" = "$HOME/.claude.json" ]');
+		expect(body).toContain("function merge(base, over)");
+		// Refuses rather than repairs: overwriting a file it cannot parse is how the flags are lost.
+		expect(body).toContain("is not readable JSON");
+		expect(body).toContain("chmodSync(file, 0o600)");
+	});
+
+	it("still sends the content on stdin on the merge branch", async () => {
+		// The merge reads fd 0 rather than an argument, for the same reason every other write
+		// does: arguments are visible in `ps`, and this is the file an MCP token goes in.
+		const { calls, ssh } = recorder();
+		const content = JSON.stringify({ mcpServers: { m: { url: "SECRET" } } });
+
+		await seedWorkspace(
+			TARGET,
+			[{ content, path: ".claude.json", root: "home" }],
+			ssh,
+		);
+
+		expect(calls[0]?.input).toBe(content);
+		expect(calls[0]?.command.join(" ")).not.toContain("SECRET");
+		expect(script(calls)).toContain("readFileSync(0,");
+	});
+
+	it("leaves every other destination on the plain write", async () => {
+		const { calls, ssh } = recorder();
+
+		await seedWorkspace(
+			TARGET,
+			[{ content: "{}", path: ".claude/settings.json", root: "home" }],
+			ssh,
+		);
+
+		// Same script either way -- the branch is chosen in the container, from the resolved
+		// target -- so what matters is that the path it was given is not the merged one.
+		expect(calls[0]?.command).toContain(".claude/settings.json");
+		expect(script(calls)).toContain('cat > "$target"');
+	});
+});

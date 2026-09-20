@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 
 import {
 	MAX_SEED_FILES,
+	readSeedContent,
 	readSeedPath,
 	type SeedFile,
 	type SeedFileInput,
@@ -102,6 +103,13 @@ export function saveSeedFile(
 	const destination = readSeedPath(input.root, input.path);
 	if (destination.kind === "invalid") {
 		return { kind: "invalid", message: destination.message };
+	}
+
+	// Checked against the normalised destination rather than the typed one, so " .claude.json"
+	// is held to the same rule as the path it will actually be written to.
+	const body = readSeedContent(input.root, destination.path, input.content);
+	if (body.kind === "invalid") {
+		return { kind: "invalid", message: body.message };
 	}
 
 	const holder = db
