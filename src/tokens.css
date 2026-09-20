@@ -27,13 +27,26 @@
 	--surface-hover: #1c211a; /* hover / pressed on a raised thing */
 	--surface-select: #171d15; /* selected row in a list */
 
+	/* The exception to the four. STYLE.md section 9 says not to add a fifth surface, and the
+	   mockups then use this one for exactly two things: the strip behind a diff hunk header, and
+	   an errored row in the tool-call log. Both are a band inside an already-bordered group rather
+	   than a panel, which is why it sits between well and sunk and is named for the job rather
+	   than given a number in the ramp. Do not reach for it as a general surface. */
+	--surface-strip: #12160f;
+
 	/* ── Lines ──────────────────────────────────────────────────────────
      Hairline separates things inside a group; border wraps a group;
      strong is focus only. */
 	--line-hairline: #1c221a;
 	--line-inner: #161b14; /* between rows inside one bordered group */
+	--line-divider: #232b21; /* the meta band's 11px ticks, and rules on a sunk surface */
 	--line-border: #2c3428;
 	--line-strong: #3b4636;
+
+	/* The same two jobs as hairline and border, one step brighter, for a group that already sits
+	   on a raised surface -- at which point the darker pair disappears into the fill. */
+	--line-raised: #1e241c;
+	--line-border-raised: #2f382c;
 
 	/* ── Ink ────────────────────────────────────────────────────────────
      muted is the floor for anything readable — 5.1:1 on --surface-base.
@@ -42,22 +55,42 @@
 	--text-primary: #e6e9df; /* titles, live values */
 	--text-body: #d6e2cf; /* prose, answers */
 	--text-secondary: #a9b8a2; /* meta values */
+	--text-tertiary: #8f9c88; /* subtitles beside a title: a purpose, a hostname */
 	--text-muted: #7d8b76; /* section labels, key names */
 	--text-dim: #6b7766; /* timestamps, counts, hints */
 	--text-faint: #5f6b5a; /* keyboard hints, disabled */
 	--text-decorative: #4e5a49; /* dots, rails, gutters — never words */
+
+	/* Below the readable floor, and the mockups use it anyway for one thing: the meta band's key.
+	   Section 6 of STYLE.md hardcodes this exact value there. It is a four-letter uppercase label
+	   sat directly beside the value it names, so the value carries the meaning if the label is
+	   hard to read -- which is the same argument section 7 makes for a dot paired with a word.
+	   Nowhere else. */
+	--text-metakey: #626e5d;
+
+	/* Ink that belongs to a specific fill rather than to the ramp. */
+	--text-control: #c9d6c2; /* label on a secondary (outlined) button */
+	--text-on-quiet: #dbe8d2; /* on --sage-quiet: the active segment */
+	--text-wordmark: #dbe4d3; /* the sidebar wordmark */
+	--text-error-name: #e0d3cf; /* the name of a tool call that failed */
 
 	/* ── Signal ─────────────────────────────────────────────────────────
      Sage = something you can do. Green = something that is true right
      now. They are not interchangeable: a destroy button is never sage. */
 	--sage: #b5cda9;
 	--sage-ink: #101410; /* text on a sage fill */
+	--sage-hover: #cfe0c4; /* sage lifted: a hovered link or primary fill */
 	--sage-quiet: #26301f; /* sage at rest — active segment, monogram */
+	--sage-wash: rgba(181, 205, 169, 0.14); /* sage as a tint, not a fill */
 	--green: #7fa06a; /* live, ready, healthy, additions */
+	/* The ring on a live dot, per section 5. A shadow rather than a second element, and the one
+	   thing allowed to animate -- a slow opacity pulse on this, never on the dot. */
+	--green-ring: rgba(127, 160, 106, 0.16);
 	--amber: #d4a85f; /* provisioning, waiting, high priority */
 	--red: #d98b7d; /* error, destroy, removals */
 	--red-ink: #e0a094; /* red text on a dark well */
 	--red-line: #4a2f29; /* destroy button border */
+	--red-line-strong: #5a4440; /* the same border, hovered or focused */
 	--red-well-line: #2a1f1c; /* border on an error well */
 
 	/* tinted chip fills — keep these exact, they are tuned for 4.5:1 */
@@ -73,6 +106,14 @@
 	--chip-neutral-bg: #1c211a;
 	--chip-neutral-line: #2c3428;
 	--chip-neutral-text: #a9b8a2;
+
+	/* Terminal ANSI, and the one sanctioned exception to the palette (STYLE.md section 6).
+	 *
+	 * Real shell output, recoloured to the brand greens, would be a lie about what the shell
+	 * printed: `ls` colours a directory blue because it is a directory. These are tokens rather
+	 * than literals so the exception is findable, not so that it is adjustable. */
+	--ansi-blue: #8fb0d6; /* directories */
+	--ansi-teal: #7fd3c8; /* symlinks */
 
 	/* diff row tints */
 	--diff-add-bg: rgba(127, 160, 106, 0.09);
