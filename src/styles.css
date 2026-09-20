@@ -289,8 +289,23 @@ input {
 	width: 100%;
 }
 
-/* One ring for every control that takes focus. Written once here rather than per control, which is
-   how the select came to have a different one. */
+/* One ring, for anything at all that takes focus.
+ *
+ * Deliberately the bare pseudo-class rather than a list of controls. It was a list, twice, and both
+ * times it was wrong the same way: a control nobody thought to add kept the platform's bright blue
+ * ring, which on this palette is the loudest thing on the page. The select had it, then every
+ * button did, then the sidebar's links and the destroyed-workspaces summary did. A list has to be
+ * remembered; this cannot be forgotten.
+ *
+ * To opt out, override it on the control -- `.rail-resizer` and the code editor's textarea both do,
+ * because each has something better to show focus with. */
+:focus-visible {
+	outline: 2px solid var(--accent-ring);
+	outline-offset: 2px;
+}
+
+/* A field lights its own border as well. Not folded into the rule above, because on a button that
+   would draw an outline around something deliberately given none. */
 .select:focus-visible,
 input:focus,
 textarea:focus-visible {
@@ -604,12 +619,20 @@ dd {
 	--editor-pad: 10px;
 	background: var(--bg-sunken);
 	border: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: var(--text-md);
 	letter-spacing: normal;
 	line-height: 1.55;
-	position: relative;
 	tab-size: 2;
+}
+
+/* The two text layers, stacked. Its own box rather than the outer one, so the backdrop's
+   `inset: 0` reaches the end of the text and not the end of the status bar. */
+.code-editor-body {
+	min-height: 0;
+	position: relative;
 }
 
 .code-editor-ink,
@@ -652,6 +675,12 @@ dd {
 	width: 100%;
 }
 
+/* The ring belongs to the whole editor, status bar included, so the textarea opts out of the global
+   one. Without this the box is ringed and the text area inside it is ringed again. */
+.code-editor-input:focus-visible {
+	outline: none;
+}
+
 .code-editor:focus-within {
 	border-color: var(--accent-fill);
 	outline: 2px solid var(--accent-ring);
@@ -662,6 +691,39 @@ dd {
    them, so at full strength it hides the thing being selected. */
 .code-editor-input::selection {
 	background: var(--accent-ring);
+}
+
+/* An editor's status bar: what is true about the text, along the bottom, inside the same border.
+ *
+ * Attached rather than a paragraph underneath, because a destination floating below the box reads
+ * as a caption for the whole form. Here it reads as a property of the file being edited, which is
+ * what it is. */
+.code-editor-status {
+	align-items: center;
+	background: var(--surface);
+	border-top: 1px solid var(--border);
+	color: var(--fg-muted);
+	display: flex;
+	flex: none;
+	font-size: var(--text-sm);
+	gap: 8px;
+	justify-content: space-between;
+	line-height: 1.4;
+	min-height: 26px;
+	padding: 4px var(--editor-pad);
+}
+
+/* The destination, which is the thing worth reading here. Bright rather than muted: it is the
+   answer to "where does this end up", and the row around it is the label. */
+.code-editor-status .is-path {
+	color: var(--fg-bright);
+	overflow-wrap: anywhere;
+}
+
+/* A destination that will not be saved. Red rather than muted, because this is the one state where
+   the bar is reporting a problem rather than a fact. */
+.code-editor-status .is-wrong {
+	color: var(--danger-soft);
 }
 
 .settings-seed {
@@ -1612,12 +1674,14 @@ dd {
 
 /* Sized to sit inside a line of text rather than beside a paragraph, so a row keeps its height
    whether it has controls or not. */
+/* The same box as the copy button beside it, to the pixel. Two controls in a row at 22px and 20px
+   look like one of them is broken rather than like a size choice. */
 .icon-button.fact-open {
 	border-radius: 4px;
 	color: var(--fg-dim);
 	flex: none;
-	height: 20px;
-	width: 22px;
+	height: 22px;
+	width: 24px;
 }
 
 /* Values with no natural stopping point — a repository url, an ssh command, a Proxmox UPID. In a
@@ -2587,8 +2651,16 @@ dd {
 .t-icon-swap {
 	position: relative;
 	display: inline-grid;
+	place-items: center;
 }
+/* `display: flex` so the cell is the glyph and nothing else.
+ *
+ * As an inline box each one picked up the line's leading, which made the wrapper 17px tall around a
+ * 14px icon. Its button centres the wrapper, so the icon inside it ended up 1.5px high -- enough to
+ * read as misaligned beside any icon that is not wrapped, and the reason the copy and open controls
+ * on a rail fact looked like two different sizes. */
 .t-icon-swap .t-icon {
+	display: flex;
 	grid-area: 1 / 1;
 	transition:
 		opacity var(--icon-swap-dur) var(--icon-swap-ease),
