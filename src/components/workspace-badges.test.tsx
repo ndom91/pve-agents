@@ -28,14 +28,29 @@ describe("WorkspaceBadges", () => {
 		expect(screen.queryByText("unknown")).toBeNull();
 	});
 
-	it("carries the state in a class, so styling can distinguish blocked", () => {
-		// blocked is the one activity that needs a person, and it is coloured differently for that
-		// reason rather than for decoration.
+	it("gives blocked its own tone, so it does not read as running normally", () => {
+		// blocked is the one activity that needs a person. It is amber and alone in it, while a
+		// ready workspace getting on with its work is green -- coloured for that reason rather than
+		// for decoration.
 		const { container } = render(
 			<WorkspaceBadges activity="blocked" status="ready" />,
 		);
 
-		expect(container.querySelector(".activity-blocked")).not.toBeNull();
-		expect(container.querySelector(".status-ready")).not.toBeNull();
+		expect(container.querySelectorAll(".chip.is-green")).toHaveLength(1);
+		expect(container.querySelectorAll(".chip.is-amber")).toHaveLength(1);
+	});
+
+	it("keeps a failed workspace red and a destroyed one quiet", () => {
+		// Failure is the one lifecycle state worth interrupting for. A destroyed workspace is not a
+		// problem, it is the resting state, so it takes the neutral fill rather than a warning one.
+		const { container: failed } = render(
+			<WorkspaceBadges activity="unknown" status="failed" />,
+		);
+		expect(failed.querySelector(".chip.is-red")).not.toBeNull();
+
+		const { container: gone } = render(
+			<WorkspaceBadges activity="unknown" status="destroyed" />,
+		);
+		expect(gone.querySelector(".chip.is-neutral")).not.toBeNull();
 	});
 });

@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { AgentChat } from "../components/agent-chat";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
+import { Elapsed } from "../components/elapsed";
+import { IconButton } from "../components/icon-button";
+import { MetaBand } from "../components/meta-band";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
@@ -27,6 +32,7 @@ import {
 	renameWorkspaceTitle,
 	retryWorkspaceRequest,
 } from "../server/workspace.functions";
+import { workspaceBranch } from "../services/workspace-changes";
 
 export const Route = createFileRoute("/_dashboard/workspaces/$workspaceId")({
 	component: WorkspaceDetail,
@@ -211,128 +217,166 @@ function WorkspaceDetail() {
 	return (
 		<>
 			<main className="dashboard-main dashboard-main-fixed">
-				<header className="centre-head">
-					<div>
-						<WorkspaceTitle
-							hostname={workspace.hostname}
-							onRename={(title) => rename.mutate(title)}
-							title={workspace.title}
+				{/* One 48px row: what this is, then what state it is in, then the one thing you
+				    can do to it. The title and the purpose used to stack on the left with the
+				    controls floating opposite, which spent two rows and left the purpose
+				    competing with the heading it explains. */}
+				<header className="screen-bar">
+					<WorkspaceTitle
+						hostname={workspace.hostname}
+						onRename={(title) => rename.mutate(title)}
+						title={workspace.title}
+					/>
+					<span aria-hidden="true" className="screen-bar-tick" />
+					<p className="screen-bar-purpose">
+						{workspace.purpose || "No purpose supplied"}
+					</p>
+					<WorkspaceBadges
+						activity={workspace.activity}
+						status={workspace.status}
+					/>
+					{/* Outlined in red, never the accent fill. It was the brightest thing on the
+					    page, which made the one irreversible action the most attractive. */}
+					{workspace.desiredState === "destroyed" ? null : (
+						<IconButton
+							className="screen-bar-destroy"
+							disabled={destroy.isPending}
+							icon={Trash2}
+							label={
+								destroy.isPending ? "Queueing destroy" : "Destroy workspace"
+							}
+							onClick={() => destroy.mutate()}
+							size={12}
+							strokeWidth={1.1}
+							// Tertiary because it brings its own border. The secondary variant
+							// sets a grey one, and a grey rule around a red glyph reads as a
+							// disabled control rather than a dangerous one.
+							variant="tertiary"
 						/>
-						<p>{workspace.purpose || "No purpose supplied"}</p>
-					</div>
-					<div className="centre-head-actions">
-						<WorkspaceBadges
-							activity={workspace.activity}
-							status={workspace.status}
-						/>
-						{workspace.desiredState === "destroyed" ? null : (
-							<Button
-								disabled={destroy.isPending}
-								onClick={() => destroy.mutate()}
-							>
-								{destroy.isPending ? "Queueing" : "Destroy"}
-							</Button>
-						)}
-					</div>
+					)}
 				</header>
 
-				{!blocked ? null : (
-					<section className="detail-blocked">
-						<h2>Waiting for you</h2>
-						<p>
-							The agent has asked a question and will not continue until it is
-							answered.
-						</p>
-					</section>
-				)}
+				{/* Placement, on screen whether or not the panel is open. */}
+				<MetaBand
+					facts={[
+						{ key: "node", value: workspace.node },
+						{ key: "vmid", value: workspace.vmid?.toString() },
+						{ key: "addr", value: workspace.ip },
+						{
+							key: "branch",
+							value:
+								workspace.hostname === undefined
+									? undefined
+									: workspaceBranch(workspace.hostname),
+						},
+					]}
+					tail={<Uptime workspace={workspace} />}
+				/>
 
-				{/* What became of the work, once the container is gone.
+				{/* Everything the two bars sit above. The bars bleed to the column's edges, so the
+				    padding that used to belong to the column belongs to this instead. */}
+				<div className="screen-body">
+					{!blocked ? null : (
+						<section className="detail-blocked">
+							<h2>Waiting for you</h2>
+							<p>
+								The agent has asked a question and will not continue until it is
+								answered.
+							</p>
+						</section>
+					)}
+
+					{/* What became of the work, once the container is gone.
 				    Derived from the timeline rather than stored: the push already writes the
 				    branch there, and a second copy is a second thing to keep true. */}
-				{!finished ? null : <Outcome workspace={workspace} />}
+					{!finished ? null : <Outcome workspace={workspace} />}
 
-				{/* Only while the workspace still exists. On a destroyed one this used to say it
+					{/* Only while the workspace still exists. On a destroyed one this used to say it
 				    "will not be destroyed automatically" and to open a Diff tab that is not there,
 				    which is advice about a container nobody can act on any more. */}
-				{workspace.unsavedWork !== true || finished ? null : (
-					<section className="detail-kept">
-						<h2>Holding unsaved work</h2>
-						<p>
-							The workspace has uncommitted or unpushed changes, so it will not
-							be destroyed automatically. Open the Diff tab to see what changed
-							and to push or discard it.
-						</p>
-					</section>
-				)}
+					{workspace.unsavedWork !== true || finished ? null : (
+						<section className="detail-kept">
+							<h2>Holding unsaved work</h2>
+							<p>
+								The workspace has uncommitted or unpushed changes, so it will
+								not be destroyed automatically. Open the Diff tab to see what
+								changed and to push or discard it.
+							</p>
+						</section>
+					)}
 
-				{workspace.errorMessage === undefined ? null : (
-					<section className="detail-error">
-						<h2>{workspace.errorCode ?? "error"}</h2>
-						<p>{workspace.errorMessage}</p>
-						{workspace.status !== "failed" ? null : (
-							<Button disabled={retry.isPending} onClick={() => retry.mutate()}>
-								{retry.isPending ? "Queueing" : "Retry"}
-							</Button>
-						)}
-					</section>
-				)}
-
-				{!ready ? null : (
-					<section className="centre-screen">
-						<AgentChat
-							approvals={agent.approvals}
-							busy={busy}
-							link={agent.link}
-							messages={agent.messages}
-							onDecide={(approvalId, behavior) =>
-								decide.mutate({ approvalId, behavior })
-							}
-							permissionMode={agent.permissionMode}
-							tail={agent.tail}
-						/>
-
-						<form
-							className="detail-prompt"
-							onSubmit={(event) => {
-								event.preventDefault();
-								submitPrompt();
-							}}
-						>
-							<div className="prompt-field">
-								<textarea
-									disabled={busy}
-									onChange={(event) => setPrompt(event.target.value)}
-									// Enter alone inserts a newline, because a prompt is often a
-									// paragraph and losing one to a stray keystroke is worse than
-									// reaching for a modifier.
-									onKeyDown={(event) => {
-										if (
-											event.key === "Enter" &&
-											(event.metaKey || event.ctrlKey)
-										) {
-											event.preventDefault();
-											submitPrompt();
-										}
-									}}
-									placeholder="Tell the agent what to do next"
-									rows={3}
-									value={prompt}
-								/>
+					{workspace.errorMessage === undefined ? null : (
+						<section className="detail-error">
+							<h2>{workspace.errorCode ?? "error"}</h2>
+							<p>{workspace.errorMessage}</p>
+							{workspace.status !== "failed" ? null : (
 								<Button
-									className="prompt-send"
-									disabled={busy || prompt.trim() === ""}
-									title="Send (Cmd or Ctrl + Enter)"
-									type="submit"
+									disabled={retry.isPending}
+									onClick={() => retry.mutate()}
 								>
-									{send.isPending ? "Sending" : "Send"}
+									{retry.isPending ? "Queueing" : "Retry"}
 								</Button>
-							</div>
-						</form>
-						{agentNote === "" ? null : (
-							<p className="detail-note">{agentNote}</p>
-						)}
-					</section>
-				)}
+							)}
+						</section>
+					)}
+
+					{!ready ? null : (
+						<section className="centre-screen">
+							<AgentChat
+								approvals={agent.approvals}
+								busy={busy}
+								link={agent.link}
+								messages={agent.messages}
+								onDecide={(approvalId, behavior) =>
+									decide.mutate({ approvalId, behavior })
+								}
+								permissionMode={agent.permissionMode}
+								tail={agent.tail}
+							/>
+
+							<form
+								className="detail-prompt"
+								onSubmit={(event) => {
+									event.preventDefault();
+									submitPrompt();
+								}}
+							>
+								<div className="prompt-field">
+									<textarea
+										disabled={busy}
+										onChange={(event) => setPrompt(event.target.value)}
+										// Enter alone inserts a newline, because a prompt is often a
+										// paragraph and losing one to a stray keystroke is worse than
+										// reaching for a modifier.
+										onKeyDown={(event) => {
+											if (
+												event.key === "Enter" &&
+												(event.metaKey || event.ctrlKey)
+											) {
+												event.preventDefault();
+												submitPrompt();
+											}
+										}}
+										placeholder="Tell the agent what to do next"
+										rows={3}
+										value={prompt}
+									/>
+									<Button
+										className="prompt-send"
+										disabled={busy || prompt.trim() === ""}
+										title="Send (Cmd or Ctrl + Enter)"
+										type="submit"
+									>
+										{send.isPending ? "Sending" : "Send"}
+									</Button>
+								</div>
+							</form>
+							{agentNote === "" ? null : (
+								<p className="detail-note">{agentNote}</p>
+							)}
+						</section>
+					)}
+				</div>
 			</main>
 
 			<WorkspaceRail
@@ -444,4 +488,37 @@ function body(outcome: WorkspaceOutcome) {
 	}
 
 	return "This workspace was last seen holding uncommitted or unpushed changes. Its container has been deleted, so that work is gone.";
+}
+
+// Uptime is the meta band's right-hand summary: how long this container has been up.
+//
+// Counted from ready_at rather than created_at, because "up" means reachable and the gap between
+// the two is the provision. Before a workspace is ready there is no uptime to report, so the band
+// says how long it has been waiting instead -- which is the number you actually want while you are
+// watching one build.
+//
+// Nothing at all once it is gone. A destroyed container's uptime is a number that stopped being
+// true, and a band that keeps counting is a band that is lying.
+function Uptime({
+	workspace,
+}: {
+	workspace: { createdAt?: string; readyAt?: string; status: string };
+}): ReactNode {
+	if (workspace.status === "destroyed") {
+		return null;
+	}
+
+	if (workspace.readyAt !== undefined) {
+		return (
+			<>
+				up <Elapsed of="duration" since={workspace.readyAt} />
+			</>
+		);
+	}
+
+	return (
+		<>
+			waiting <Elapsed of="duration" since={workspace.createdAt} />
+		</>
+	);
 }

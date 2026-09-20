@@ -241,16 +241,70 @@ h2 {
 	margin-bottom: 0;
 }
 
-.activity,
-.status {
-	border: 1px solid var(--line);
-	color: var(--fg-badge);
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	margin: 0;
-	padding: 6px 8px;
+/* A chip is state, never a control. 21px, a dot, a word, a tinted fill inside a tinted border of
+ * the same hue -- the four tones are tuned in tokens.css for 4.5:1 against them.
+ *
+ * The dot is decoration here and hidden from the accessibility tree: unlike the sidebar's, this one
+ * always has its word printed beside it, so reading the dot aloud would just double it. */
+.chip {
+	align-items: center;
+	border-radius: var(--radius-sm);
+	display: inline-flex;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 6px;
+	height: 21px;
+	letter-spacing: var(--tracking-ui);
+	padding: 0 8px;
 	text-transform: uppercase;
+}
+
+.chip-dot {
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 4px;
+	width: 4px;
+}
+
+.chip.is-green {
+	background: var(--chip-green-bg);
+	border: 1px solid var(--chip-green-line);
+	color: var(--chip-green-text);
+}
+
+.chip.is-green .chip-dot {
+	background: var(--green);
+}
+
+.chip.is-amber {
+	background: var(--chip-amber-bg);
+	border: 1px solid var(--chip-amber-line);
+	color: var(--chip-amber-text);
+}
+
+.chip.is-amber .chip-dot {
+	background: var(--amber);
+}
+
+.chip.is-red {
+	background: var(--chip-red-bg);
+	border: 1px solid var(--chip-red-line);
+	color: var(--chip-red-text);
+}
+
+.chip.is-red .chip-dot {
+	background: var(--red);
+}
+
+.chip.is-neutral {
+	background: var(--chip-neutral-bg);
+	border: 1px solid var(--chip-neutral-line);
+	color: var(--chip-neutral-text);
+}
+
+.chip.is-neutral .chip-dot {
+	background: var(--text-decorative);
 }
 
 .request-panel {
@@ -449,28 +503,9 @@ dd {
 	white-space: nowrap;
 }
 
-.status-requested {
-	border-color: var(--line);
-}
-
 /* Status and action travel together at the right edge. As separate children of a
    space-between row they drifted apart, so a row without a button put its badge where the
    button would have been. */
-.activity {
-	border-color: var(--border-dim);
-	color: var(--fg-muted);
-}
-
-.activity-active {
-	border-color: var(--line);
-	color: var(--fg-badge);
-}
-
-.activity-blocked {
-	border-color: var(--warn);
-	color: var(--warn-fg);
-}
-
 .detail {
 	margin: 0 auto;
 	max-width: 900px;
@@ -504,12 +539,6 @@ dd {
 	letter-spacing: 0.08em;
 	margin: 32px 0 12px;
 	text-transform: uppercase;
-}
-
-.detail .badges {
-	display: flex;
-	gap: 8px;
-	margin-top: 16px;
 }
 
 .detail-error {
@@ -1301,16 +1330,128 @@ dd {
 	padding: 24px var(--main-pad) 48px;
 }
 
-.centre-head {
-	align-items: start;
+/* The screen's one bar: title, purpose, state, and the single destructive control.
+ *
+ * 48px, and it reaches the column's own edges -- which is why .dashboard-main-fixed drops its
+ * padding entirely and .screen-body carries it instead. A bar inset from the page is a toolbar
+ * floating on it rather than the top of the screen. */
+.screen-bar {
+	align-items: center;
+	border-bottom: 1px solid var(--line-hairline);
 	display: flex;
-	gap: 16px;
-	justify-content: space-between;
+	flex-shrink: 0;
+	gap: 12px;
+	height: var(--topbar-h);
+	padding: 0 var(--space-8);
 }
 
-.centre-head h1 {
-	font-size: var(--text-xl);
-	margin: 0 0 4px;
+/* A 3px dot between the title and the purpose. Not a separator with meaning -- it is there so two
+   pieces of sans text at different weights do not read as one clipped sentence. */
+.screen-bar-tick {
+	background: var(--line-strong);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 3px;
+	width: 3px;
+}
+
+/* Takes the slack, and gives it up first. The purpose is the one thing here that can be arbitrarily
+   long and the only one that can be clipped without losing a fact. */
+.screen-bar-purpose {
+	color: var(--text-tertiary);
+	flex-grow: 1;
+	font-size: var(--text-body-md);
+	margin: 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Outlined in red rather than filled in sage. This was the accent-filled primary, which made the
+   one irreversible action on the page the brightest thing on it. */
+/* Doubled with `.icon-button` for specificity, not for emphasis. The base icon-button rules sit
+   further down the file, so at one class each they won on order and this rendered as a 32px grey
+   button -- exactly the thing the refresh is here to stop being. The control is also declared
+   `tertiary`, because the secondary variant sets a grey border at the same specificity as this
+   one and would win the same way. */
+.icon-button.screen-bar-destroy {
+	border-color: var(--red-line);
+	border-radius: var(--radius-md);
+	color: var(--red);
+	flex-shrink: 0;
+	height: var(--control-h);
+	width: var(--control-h);
+}
+
+.icon-button.screen-bar-destroy:hover:not(:disabled) {
+	background: var(--surface-raised);
+	border-color: var(--red-line-strong);
+	color: var(--red-ink);
+}
+
+/* The focus ring is red on a destructive control, per section 5. */
+.icon-button.screen-bar-destroy:focus-visible {
+	box-shadow: 0 0 0 2px var(--red-line-strong);
+	outline: none;
+}
+
+/* The refresh's signature strip: every machine fact that used to fight the content, on one sunk
+ * 32px line that is readable without opening the panel. */
+.meta-band {
+	align-items: center;
+	background: var(--surface-sunk);
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	height: var(--metaband-h);
+	overflow: hidden;
+	padding: 0 var(--space-8);
+}
+
+.meta-band-item {
+	align-items: center;
+	display: flex;
+	flex-shrink: 0;
+	gap: 6px;
+}
+
+/* The divider carries the spacing for the item it precedes, so the gaps either side of it stay
+   equal without the row needing a gap of its own. */
+.meta-band-sep {
+	background: var(--line-divider);
+	flex-shrink: 0;
+	height: 11px;
+	margin: 0 var(--space-6) 0 0;
+	width: 1px;
+}
+
+.meta-band-key {
+	color: var(--text-metakey);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.meta-band-val {
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.meta-band-spacer {
+	flex-grow: 1;
+	min-width: var(--space-6);
+}
+
+.meta-band-tail {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-variant-numeric: tabular-nums;
 }
 
 /* The heading, which is also the control that renames it.
@@ -1319,23 +1460,20 @@ dd {
  * thing on this page anybody would rename, so a separate control would be one pointing at its only
  * possible subject. It looks like text until it is hovered.
  *
- * TITLE_BOX is every measurement the two forms share, declared once. Reading and editing are two
- * elements showing the same string, and each one that disagrees is a pixel the line jumps when
- * they swap -- they were a different weight, a different letter-spacing and a different width, so
- * the hover box hugged the text while the field was twice as wide. */
+ * Every measurement the two forms share is declared once. Reading and editing are two elements
+ * showing the same string, and each one that disagrees is a pixel the line jumps when they swap. */
 .workspace-title,
 .workspace-title h1,
 .workspace-title input {
-	font-size: var(--text-xl);
+	font-size: var(--text-title);
 	font-weight: 500;
-	letter-spacing: -0.05em;
-	/* Not the 0.9 an h1 carries globally, which is set for a display heading two sizes up and
-	   leaves no room for a caret beside the glyphs. */
+	letter-spacing: normal;
 	line-height: 1.35;
 }
 
 .workspace-title h1 {
 	margin: 0;
+	white-space: nowrap;
 }
 
 /* Scoped to the button, because the editing form carries the same class and wants none of it: a
@@ -1343,57 +1481,47 @@ dd {
 button.workspace-title {
 	background: none;
 	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
 	display: block;
-	/* Pulled out by its own padding and border, so the text sits where it did before there was a
-	   box around it at all. */
-	height: var(--title-height);
-	margin: -3px -7px 4px;
-	padding: 2px 6px;
+	flex-shrink: 0;
+	/* Pulled out by its own padding and border, so the text sits where it would with no box around
+	   it at all -- and so the bar's 20px left padding is what you measure to, not 20 plus 7. */
+	margin: 0 -7px;
+	max-width: var(--title-width);
+	overflow: hidden;
+	padding: 3px 6px;
 	text-align: left;
-	width: var(--title-width);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 button.workspace-title:hover {
-	background: var(--surface);
-	border-color: var(--border);
+	background: var(--surface-raised);
 }
 
-/* A row, and nothing else. The field and its two controls each have their own edges.
- *
- * Pulled out by the same amounts as the button, so the text stays on the line it was on. Without
- * the top offset the heading dropped four pixels the moment it was clicked. */
+/* A row, and nothing else. The field and its two controls each have their own edges. */
 .workspace-title.is-editing {
 	align-items: center;
 	display: flex;
+	flex-shrink: 0;
 	gap: 6px;
-	margin: -3px 0 4px -7px;
+	margin: 0 0 0 -7px;
 }
 
 .workspace-title input {
-	background: var(--bg);
-	border: 1px solid var(--border);
-	color: var(--fg-bright);
-	height: var(--title-height);
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	height: var(--control-h);
 	padding: 2px 6px;
 	width: var(--title-width);
 }
 
 .workspace-title .icon-button {
-	height: var(--title-height);
-	width: var(--title-height);
-}
-
-.centre-head p {
-	color: var(--fg-muted);
-	margin: 0;
-	max-width: 60ch;
-}
-
-.centre-head-actions {
-	align-items: center;
-	display: flex;
-	flex-shrink: 0;
-	gap: 8px;
+	height: var(--control-h);
+	width: var(--control-h);
 }
 
 .centre-screen {
@@ -2142,28 +2270,6 @@ button.workspace-title:hover {
 	opacity: 0.5;
 }
 
-/* One rule for all three, covering type as well as size. The badges take the button's height,
-   because the button is the control with a size worth keeping and a badge has no intrinsic one;
-   the button takes the badges' typeface, because three controls in a row reading as one group is
-   the point, and the odd one out was the button in the body font.
- *
- * Scoped to `.button` rather than bare `button`: as the latter it reached any icon button placed
- * here, and had to be undone by a second `.icon-button` rule further down. */
-.centre-head-actions .status,
-.centre-head-actions .activity,
-.centre-head-actions .button {
-	align-items: center;
-	box-sizing: border-box;
-	display: inline-flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-md);
-	height: var(--control-height);
-	letter-spacing: 0.08em;
-	padding-block: 0;
-	padding-inline: 16px;
-	text-transform: uppercase;
-}
-
 .empty-field {
 	display: flex;
 	flex-direction: column;
@@ -2218,13 +2324,26 @@ button.workspace-title:hover {
    so the only section with more content than space is the history, and it is the one that gets a
    scrollbar. Letting the column scroll instead pushed the terminal off the top of the window,
    which is the one thing on the page that should always be in view. */
+/* The workspace page. Its two bars reach the column's edges, so the column keeps no padding of its
+   own and no gap -- .screen-body carries both for everything underneath them. */
 .dashboard-main-fixed {
+	gap: 0;
+	padding: 0;
 	overflow: hidden;
 	padding-bottom: 24px;
 }
 
 /* Takes the space the fixed sections leave. Its font size is then computed against that space, so
    the grid fits it exactly rather than overflowing and being clipped. */
+.screen-body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: var(--space-8);
+	min-height: 0;
+	padding: var(--space-8) var(--main-pad) 0;
+}
+
 .dashboard-main-fixed .centre-screen {
 	flex: 1 1 0;
 	min-height: 0;
@@ -2692,12 +2811,6 @@ button.workspace-title:hover {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
-}
-
-.fleet-badges .status,
-.fleet-badges .activity {
-	font-size: var(--text-xs);
-	padding: 3px 6px;
 }
 
 .fleet-flag {

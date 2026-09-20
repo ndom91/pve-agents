@@ -4,6 +4,7 @@ import { type ReactNode, useState } from "react";
 import { settingsQuery } from "../lib/queries";
 import { saveWorkspaceSettings } from "../server/settings.functions";
 import { Button } from "./button";
+import { StatusChip } from "./status-chip";
 
 // SettingsReaping is the policy for destroying workspaces nobody is using.
 export function SettingsReaping(): ReactNode {
@@ -100,8 +101,7 @@ export function SettingsReaping(): ReactNode {
 				An agent waiting at a question is exempt from both rules, so that
 				answering it later cannot lose its work. That does mean a question
 				nobody answers keeps its container running indefinitely. Watch for the{" "}
-				<span className="activity activity-blocked">blocked</span> badge on the
-				fleet.
+				<StatusChip label="blocked" tone="amber" /> chip on the fleet.
 			</p>
 
 			<Button disabled={saving} type="submit">
