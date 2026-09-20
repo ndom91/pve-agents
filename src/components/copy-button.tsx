@@ -51,9 +51,9 @@ export function CopyButton({
 			type="button"
 		>
 			{copied ? (
-				<Check aria-hidden size={13} strokeWidth={2} />
+				<Check aria-hidden size={14} strokeWidth={2} />
 			) : (
-				<Copy aria-hidden size={13} strokeWidth={1.75} />
+				<Copy aria-hidden size={14} strokeWidth={1.75} />
 			)}
 		</button>
 	);

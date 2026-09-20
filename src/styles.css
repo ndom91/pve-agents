@@ -963,21 +963,24 @@ dd {
 	display: flex;
 	justify-content: flex-end;
 	margin-top: 2px;
-	min-height: 20px;
+	min-height: 22px;
 }
 
+/* Tertiary: no border at any point, so it reads as an affordance on the text rather than as a
+   control sitting beside it. Hover is a tint and a brighter glyph, which is enough to say it is
+   live without drawing a box around something that is already hidden most of the time. */
 .copy-button {
 	align-items: center;
 	background: none;
-	border: 1px solid transparent;
+	border: none;
 	border-radius: 4px;
 	color: var(--fg-dim);
 	display: inline-flex;
 	justify-content: center;
-	height: 20px;
+	height: 22px;
 	opacity: 0;
 	transition: opacity 120ms ease;
-	width: 22px;
+	width: 24px;
 }
 
 .agent-answer:hover .copy-button,
@@ -987,7 +990,6 @@ dd {
 
 .copy-button:hover {
 	background: var(--surface);
-	border-color: var(--border);
 	color: var(--fg-bright);
 }
 
