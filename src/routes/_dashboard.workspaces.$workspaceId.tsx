@@ -37,7 +37,11 @@ function WorkspaceDetail() {
 	const queryClient = useQueryClient();
 	const { data: workspace } = useQuery(workspaceQuery(workspaceId));
 	const [prompt, setPrompt] = useState("");
-	const [note, setNote] = useState("");
+	// Two notes, not one. A single slot was rendered in both places that show one -- under the
+	// prompt and inside the Diff tab's actions -- so a failed prompt put "could not reach the
+	// agent" underneath the push controls, where it reads as a push that went wrong.
+	const [agentNote, setAgentNote] = useState("");
+	const [changesNote, setChangesNote] = useState("");
 	const [tab, setTab] = useState<RailTab>({ kind: "details" });
 	// Bumped when work is discarded, and used as the change list's key so it remounts collapsed.
 	// A row left unfolded over a file that has just been thrown away is showing a diff of nothing.
@@ -81,20 +85,20 @@ function WorkspaceDetail() {
 		onMutate: () => (blocked ? undefined : predict({ activity: "active" })),
 		onError: async (_error, _text, rollback) => {
 			rollback?.();
-			setNote("could not reach the agent");
+			setAgentNote("could not reach the agent");
 		},
 		onSuccess: async (result, _text, rollback) => {
 			// Accepted-but-refused still has to put the prediction back: the agent is not working,
 			// it is waiting.
 			if (result.kind !== "sent") {
 				rollback?.();
-				setNote(result.reason);
+				setAgentNote(result.reason);
 
 				return;
 			}
 
 			setPrompt("");
-			setNote("");
+			setAgentNote("");
 			await refresh();
 		},
 	});
@@ -108,13 +112,13 @@ function WorkspaceDetail() {
 		onMutate: () => predict({ activity: "active" }),
 		onError: async (_error, _choice, rollback) => {
 			rollback?.();
-			setNote("could not reach the agent");
+			setAgentNote("could not reach the agent");
 		},
 		onSuccess: async (result, _choice, rollback) => {
 			if (result.kind !== "sent") {
 				rollback?.();
 			}
-			setNote(result.kind === "unavailable" ? result.reason : "");
+			setAgentNote(result.kind === "unavailable" ? result.reason : "");
 			await refresh();
 		},
 	});
@@ -134,9 +138,9 @@ function WorkspaceDetail() {
 	const push = useMutation({
 		mutationFn: (message: string) =>
 			pushWorkspaceChanges({ data: { id: workspaceId, message } }),
-		onError: () => setNote("could not reach the workspace"),
+		onError: () => setChangesNote("could not reach the workspace"),
 		onSuccess: async (result) => {
-			setNote(
+			setChangesNote(
 				result.kind === "done"
 					? `Pushed to ${result.branch}.`
 					: result.kind === "nothing"
@@ -149,12 +153,12 @@ function WorkspaceDetail() {
 
 	const discard = useMutation({
 		mutationFn: () => discardWorkspaceChanges({ data: { id: workspaceId } }),
-		onError: () => setNote("could not reach the workspace"),
+		onError: () => setChangesNote("could not reach the workspace"),
 		onSuccess: async (result) => {
 			// Any row left unfolded is showing a file that may no longer exist, and a stale diff of
 			// work that was just thrown away is the most misleading thing this page could show.
 			setDiscarded((count) => count + 1);
-			setNote(result.kind === "failed" ? result.message : "Discarded.");
+			setChangesNote(result.kind === "failed" ? result.message : "Discarded.");
 			await settle();
 		},
 	});
@@ -309,7 +313,9 @@ function WorkspaceDetail() {
 								</Button>
 							</div>
 						</form>
-						{note === "" ? null : <p className="detail-note">{note}</p>}
+						{agentNote === "" ? null : (
+							<p className="detail-note">{agentNote}</p>
+						)}
 					</section>
 				)}
 			</main>
@@ -320,7 +326,7 @@ function WorkspaceDetail() {
 						<ChangesActions
 							discarding={discard.isPending}
 							files={changes.files}
-							note={note}
+							note={changesNote}
 							unpushed={changes.unpushed}
 							onDiscard={() => discard.mutate()}
 							onPush={(message) => push.mutate(message)}
