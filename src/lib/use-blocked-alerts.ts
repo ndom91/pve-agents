@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useFaviconAlert } from "./use-favicon-alert";
+
 type Watched = {
 	activity: string;
 	hostname: string;
@@ -12,7 +14,7 @@ type Watched = {
 export type AlertPermission = "denied" | "granted" | "prompt" | "unsupported";
 
 // BASE_TITLE is restored whenever nothing is waiting, so the tab does not keep a stale count.
-const BASE_TITLE = "Agent Compute Controller";
+const BASE_TITLE = "Proxmox Agents";
 
 // useBlockedAlerts makes a waiting agent noticeable without the page being watched.
 //
@@ -47,6 +49,10 @@ export function useBlockedAlerts(workspaces: Watched[]): {
 		document.title =
 			blocked.length === 0 ? BASE_TITLE : `(${blocked.length}) ${BASE_TITLE}`;
 	}, [blocked.length]);
+
+	// The same message in the one part of a background tab that is always drawn. A count in the
+	// title says nothing to somebody whose tab strip is showing sixteen tabs and no text.
+	useFaviconAlert(blocked.length > 0);
 
 	useEffect(() => {
 		if (typeof window === "undefined" || currentPermission() !== "granted") {

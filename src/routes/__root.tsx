@@ -21,7 +21,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 					content: "width=device-width, initial-scale=1",
 				},
 				{
-					title: "Agent Compute Controller",
+					title: "Proxmox Agents",
 				},
 				// Matches the page background, so the browser chrome on a phone does not frame a
 				// dark application in white.
