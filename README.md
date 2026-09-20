@@ -1,6 +1,7 @@
-<img src="public/web-app-manifest-192x192.png" width="88" alt="">
-
-# PVE Agents
+<h1>
+  <img src="public/icon0.svg" width="88" align="middle" alt="">
+  pve-agents
+</h1>
 
 A controller that turns a request for work into a disposable Proxmox LXC with a coding agent
 already working in it.
