@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRepository, repositoryURL } from "./repository";
+import { branchPage, parseRepository, repositoryURL } from "./repository";
 
 describe("parseRepository", () => {
 	it("accepts the forms a person reasonably types", () => {
@@ -70,5 +70,28 @@ describe("repositoryURL", () => {
 
 		expect(url).toBe("https://github.com/ndom91/open-plan-annotator.git");
 		expect(url).not.toContain("@");
+	});
+});
+
+describe("branchPage", () => {
+	it("keeps the slash that separates a branch's own path", () => {
+		// Every workspace branch is `pve-agents/<hostname>`, and that slash belongs to the URL
+		// GitHub expects. Escaping the branch whole would turn it into %2F and 404.
+		expect(
+			branchPage(
+				{ name: "open-plan-annotator", owner: "ndom91" },
+				"pve-agents/agent-c824",
+			),
+		).toBe(
+			"https://github.com/ndom91/open-plan-annotator/tree/pve-agents/agent-c824",
+		);
+	});
+
+	it("escapes what is inside a segment", () => {
+		// Not a branch this controller creates, but the link is built from a stored value and a
+		// `#` would silently truncate the URL at the fragment.
+		expect(branchPage({ name: "repo", owner: "owner" }, "fix/#1 spaces")).toBe(
+			"https://github.com/owner/repo/tree/fix/%231%20spaces",
+		);
 	});
 });

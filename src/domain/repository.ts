@@ -76,3 +76,28 @@ export function repositoryURL(repository: {
 }): string {
 	return `https://${HOST}/${repository.owner}/${repository.name}.git`;
 }
+
+// repositoryPage is where a person reads the repository, as opposed to where git clones it.
+//
+// Built from the parsed owner and name rather than from the stored string, so whichever of the
+// three accepted spellings was typed, the link is the same one.
+export function repositoryPage(repository: {
+	name: string;
+	owner: string;
+}): string {
+	return `https://${HOST}/${repository.owner}/${repository.name}`;
+}
+
+// branchPage is where a person reads one branch of that repository.
+//
+// The branch is escaped segment by segment. Every workspace branch contains a slash -- they are
+// all `pve-agents/<hostname>` -- and that slash is part of the path GitHub expects, so escaping
+// the string whole would turn the one separator that matters into %2F.
+export function branchPage(
+	repository: { name: string; owner: string },
+	branch: string,
+): string {
+	const path = branch.split("/").map(encodeURIComponent).join("/");
+
+	return `${repositoryPage(repository)}/tree/${path}`;
+}

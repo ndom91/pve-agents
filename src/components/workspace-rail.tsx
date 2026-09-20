@@ -1,11 +1,18 @@
+import { ExternalLink } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 
+import {
+	branchPage,
+	parseRepository,
+	repositoryPage,
+} from "../domain/repository";
 import { useRailWidth } from "../lib/use-rail-width";
 // Type-only in this module's own imports, so nothing server-side follows it into the bundle. Taken
 // from there rather than rebuilt here because a second copy of the branch prefix is a second thing
 // that has to stay true, and the one the pushes actually use is that one.
 import { workspaceBranch } from "../services/workspace-changes";
 import { CopyButton } from "./copy-button";
+import { IconOutLink } from "./icon-button";
 import { RailResizer } from "./rail-resizer";
 import { type Tab, TabStrip } from "./tab-strip";
 
@@ -68,6 +75,14 @@ export function WorkspaceRail({
 	workspace: RailWorkspace;
 }): ReactNode {
 	const { setWidth, width } = useRailWidth();
+
+	const branch =
+		workspace.hostname === undefined
+			? undefined
+			: workspaceBranch(workspace.hostname);
+	// Links only for a repository that parses. A stored value that does not is a workspace that
+	// failed before it cloned, and a link built from it would go somewhere that is not there.
+	const source = sourceLinks(workspace.repository, branch);
 
 	// Which panels have ever been opened. A panel stays mounted once it has been, and is hidden
 	// rather than unmounted when another tab is chosen.
@@ -146,17 +161,15 @@ export function WorkspaceRail({
 			)}
 			<div className="rail-facts">
 				<Group title="Source">
-					<Fact label="Repository" value={workspace.repository} wide />
-					<Fact label="Ref" value={workspace.ref} />
 					<Fact
-						label="Branch"
-						value={
-							workspace.hostname === undefined
-								? undefined
-								: workspaceBranch(workspace.hostname)
-						}
+						copy
+						href={source?.repository}
+						label="Repository"
+						value={workspace.repository}
 						wide
 					/>
+					<Fact label="Ref" value={workspace.ref} />
+					<Fact copy href={source?.branch} label="Branch" value={branch} wide />
 				</Group>
 
 				<Group title="Placement">
@@ -266,17 +279,44 @@ function Tabs({
 	);
 }
 
+// sourceLinks builds the two GitHub URLs, or nothing if the repository does not parse.
+//
+// Both or neither. They are built from the same parsed owner and name, so there is no state where
+// one is reachable and the other is not.
+function sourceLinks(
+	repository?: string,
+	branch?: string,
+): { branch?: string; repository: string } | undefined {
+	if (repository === undefined) {
+		return undefined;
+	}
+
+	const parsed = parseRepository(repository);
+	if (parsed.kind !== "parsed") {
+		return undefined;
+	}
+
+	return {
+		branch: branch === undefined ? undefined : branchPage(parsed, branch),
+		repository: repositoryPage(parsed),
+	};
+}
+
 // Fact renders one label and value, and nothing at all when there is no value yet.
 //
 // A workspace acquires these as it provisions, so a missing one means "not there yet" rather than
 // "empty", and an empty row would read as a problem.
 function Fact({
 	copy = false,
+	href,
 	label,
 	value,
 	wide = false,
 }: {
 	copy?: boolean;
+	// Somewhere to read this value that is not here. Only for the two that name something on
+	// GitHub; the rest are this controller's own facts and lead nowhere.
+	href?: string;
 	label: string;
 	value?: string;
 	wide?: boolean;
@@ -293,6 +333,20 @@ function Fact({
 				{copy ? (
 					<CopyButton label={`Copy ${label.toLowerCase()}`} text={value} />
 				) : null}
+				{href === undefined ? null : (
+					<IconOutLink
+						className="fact-open"
+						href={href}
+						icon={ExternalLink}
+						label={`Open ${label.toLowerCase()} on GitHub`}
+						// The same 14 as the copy button beside it. A pixel between two glyphs in a
+						// row is not read as a size, it is read as one of them being wrong.
+						size={14}
+						// Matching the copy button beside it. A bordered control next to a borderless
+						// one reads as two different kinds of thing rather than a pair.
+						variant="tertiary"
+					/>
+				)}
 			</dd>
 		</div>
 	);
