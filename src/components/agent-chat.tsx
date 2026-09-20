@@ -126,7 +126,16 @@ function Rail({
 					{tail.kind === "thought" ? (
 						// Open while it is being written, then folded away by the transcript once it
 						// lands. Thinking is worth watching and rarely worth re-reading.
-						<p className="chat-text chat-thinking">{tail.text}</p>
+						//
+						// Shimmered while it holds. data-text carries the same string a second time
+						// because the gradient is clipped to the glyphs of a ::before layer, which
+						// has no access to the element's own text.
+						<p
+							className="chat-text chat-thinking t-shimmer"
+							data-text={tail.text}
+						>
+							{tail.text}
+						</p>
 					) : (
 						<AgentProse streaming text={tail.text} />
 					)}
@@ -212,8 +221,22 @@ function Fold({
 	const [shown, setShown] = useState(open);
 	const empty = text.trim() === "";
 
+	// Whether the panel is in the DOM at all, kept apart from whether it is open.
+	//
+	// A grid track cannot animate from 0fr to 1fr in the same frame its content first appears, so
+	// the panel has to be mounted shut and opened afterwards. Mounting every fold shut from the
+	// start would be simpler and much worse: a long transcript is dozens of tool results, and
+	// every one of them would be highlighted on arrival for a panel nobody opened.
+	const [mounted, setMounted] = useState(open);
+	useEffect(() => {
+		if (!shown) {
+			return;
+		}
+		setMounted(true);
+	}, [shown]);
+
 	return (
-		<>
+		<div className="t-acc" data-open={mounted && shown && !empty}>
 			<button
 				aria-expanded={shown}
 				className={state === undefined ? "chat-fold" : `chat-fold is-${state}`}
@@ -229,10 +252,14 @@ function Fold({
 					<span className="chat-state">{label(state)}</span>
 				)}
 			</button>
-			{shown && !empty ? (
-				<CodeBlock className="chat-output" code={text} lang={lang} />
-			) : null}
-		</>
+			{empty || !mounted ? null : (
+				<div className="t-acc-panel">
+					<div className="t-acc-panel-inner">
+						<CodeBlock className="chat-output" code={text} lang={lang} />
+					</div>
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -248,16 +275,34 @@ function ApprovalCard({
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
 	permissionMode?: string;
 }) {
+	// Revealed rather than simply appearing. This card is the one thing in the transcript that
+	// stops and asks, and it arrives mid-scroll in a page that is otherwise always moving; a
+	// staggered rise is what separates "something new needs you" from "more output".
+	//
+	// Shown one frame after mount, because the lines have to be painted in their pre-reveal state
+	// before the class that moves them out of it lands.
+	const [shown, setShown] = useState(false);
+	useEffect(() => {
+		const frame = requestAnimationFrame(() => setShown(true));
+		return () => cancelAnimationFrame(frame);
+	}, []);
+
 	return (
-		<div className="chat-approval">
+		<div
+			className={
+				shown ? "chat-approval t-stagger is-shown" : "chat-approval t-stagger"
+			}
+		>
 			{/* The runner composes this sentence itself — "Claude wants to read foo.txt" — so it is
 			    shown rather than rebuilt from the tool name and its input. Rebuilding means writing
 			    a renderer per tool and getting it quietly wrong for the ones nobody tested. */}
-			<p className="chat-approval-title">
+			<p className="chat-approval-title t-stagger-line t-stagger-line--1">
 				{approval.title ?? `${approval.displayName ?? approval.toolName}`}
 			</p>
 			{approval.decisionReason === undefined ? null : (
-				<p className="chat-approval-why">{approval.decisionReason}</p>
+				<p className="chat-approval-why t-stagger-line t-stagger-line--2">
+					{approval.decisionReason}
+				</p>
 			)}
 			<CodeBlock
 				className="chat-output"

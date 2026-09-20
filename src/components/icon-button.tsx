@@ -27,13 +27,24 @@ function classes({ className, variant = "secondary" }: IconStyle): string {
 // IconButton is a square control carrying an icon and nothing else.
 //
 // The label becomes both the accessible name and the tooltip, so the two cannot drift apart.
+//
+// `swapIcon` opts into the second icon. Both are mounted and stacked in one grid cell, and
+// `swapped` decides which is lit: a cross-fade needs the outgoing icon still there to fade, which
+// swapping one element's `icon` prop cannot give. Callers that never change icon pass neither and
+// get a single glyph, as before.
 export function IconButton({
 	disabled,
 	onClick,
+	swapIcon: SwapIcon,
+	swapStrokeWidth,
+	swapped = false,
 	...style
 }: IconStyle & {
 	disabled?: boolean;
 	onClick?: () => void;
+	swapIcon?: LucideIcon;
+	swapStrokeWidth?: number;
+	swapped?: boolean;
 }): ReactNode {
 	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
@@ -46,7 +57,22 @@ export function IconButton({
 			title={label}
 			type="button"
 		>
-			<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+			{SwapIcon === undefined ? (
+				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+			) : (
+				<span className="t-icon-swap" data-state={swapped ? "b" : "a"}>
+					<span className="t-icon" data-icon="a">
+						<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+					</span>
+					<span className="t-icon" data-icon="b">
+						<SwapIcon
+							aria-hidden
+							size={size}
+							strokeWidth={swapStrokeWidth ?? strokeWidth}
+						/>
+					</span>
+				</span>
+			)}
 		</button>
 	);
 }
@@ -66,5 +92,33 @@ export function IconLink({
 		<Link aria-label={label} className={classes(style)} title={label} to={to}>
 			<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
 		</Link>
+	);
+}
+
+// IconOutLink goes somewhere this application does not own.
+//
+// A plain anchor rather than the router's `Link`, which exists to navigate within this app and
+// would try to match an external URL against the route tree.
+//
+// `noreferrer` as well as `noopener`: the two are often written as a pair out of habit, and here
+// the first is the one doing work. Without it the destination is told which workspace page the
+// operator came from, which names an internal host in somebody else's logs.
+export function IconOutLink({
+	href,
+	...style
+}: IconStyle & { href: string }): ReactNode {
+	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
+
+	return (
+		<a
+			aria-label={label}
+			className={classes(style)}
+			href={href}
+			rel="noreferrer noopener"
+			target="_blank"
+			title={label}
+		>
+			<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+		</a>
 	);
 }

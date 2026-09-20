@@ -24,6 +24,11 @@
 	   resolved to nothing and the rules using it were dropped. */
 	--control-height: 42px;
 
+	/* One height for a select, a text field and a button, so a row of them lines up without anyone
+	   measuring. It is what a `.button` already came to naturally from its padding and type; the
+	   fields were two pixels shorter, which is exactly enough to look like a mistake. */
+	--field-height: 36px;
+
 	/* The palette, named for the job rather than the value.
 	 *
 	 * It was thirty-four unnamed hex literals, five of which were accidents: three input
@@ -95,6 +100,70 @@
 	background: var(--bg);
 	color: var(--fg);
 	font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+}
+
+/* transitions.dev motion tokens, and the per-transition variables for the ones installed below.
+ *
+ * Only the transitions this application actually uses are here rather than the whole 286-line
+ * block: a variable nothing reads is a tuning knob that does nothing, and the next person cannot
+ * tell the difference between those and the live ones by looking.
+ *
+ * Colour-bearing tokens are re-pointed at this palette. The snippets ship light-theme literals —
+ * a white pill on #f1f1f1 — which would arrive in this page as a bright rectangle. */
+:root {
+	/* Durations */
+	--duration-stagger: 40ms;
+	--duration-quick: 150ms;
+	--duration-fast: 250ms;
+	--duration-slow: 400ms;
+	--duration-very-slow: 500ms;
+
+	/* Easings */
+	--ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-in-out: ease-in-out;
+	--ease-linear: linear;
+
+	/* Text states swap */
+	--text-swap-dur: 150ms;
+	--text-swap-translate-y: 4px;
+	--text-swap-blur: 2px;
+	--text-swap-ease: ease-in-out;
+
+	/* Icon swap */
+	--icon-swap-dur: 250ms;
+	--icon-swap-blur: 2px;
+	--icon-swap-start-scale: 0.25;
+	--icon-swap-ease: ease-in-out;
+
+	/* Shimmer text */
+	--shimmer-dur: 2000ms;
+	--shimmer-base: var(--fg-dim);
+	--shimmer-highlight: var(--fg-bright);
+	--shimmer-band: 400%;
+	--shimmer-ease: linear;
+
+	/* Tabs sliding */
+	--tabs-dur: 250ms;
+	--tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+	/* Texts reveal */
+	--stagger-dur: 500ms;
+	--stagger-distance: 12px;
+	--stagger-stagger: 40ms;
+	--stagger-blur: 3px;
+	--stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+	/* Accordion expand */
+	--acc-expand: 250ms;
+	--acc-collapse: 250ms;
+	--acc-chevron: 250ms;
+	--acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+	/* Streaming text */
+	--stream-gap: 60ms;
+	--stream-fade: 350ms;
+	--stream-blur: 1px;
+	--stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -195,7 +264,36 @@ input {
 	padding: 11px 12px;
 }
 
-input:focus {
+/* The dropdown, wearing this application's appearance rather than the platform's.
+ *
+ * `appearance: none` is what makes that possible, and it takes the arrow with it -- hence the
+ * chevron drawn as a background below. Without it the control keeps a system border and a system
+ * focus ring that no amount of `outline` reliably replaces, which is how the first one in this
+ * codebase ended up with a bright blue halo among soft green ones. */
+.select {
+	appearance: none;
+	background-color: var(--bg);
+	/* A chevron, as two strokes. An inline SVG rather than an icon component because a background
+	   cannot be a React element, and the alternative is absolutely positioning one over the field. */
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%238a9a83' stroke-width='1.5'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+	background-position: right 10px center;
+	background-repeat: no-repeat;
+	background-size: 12px;
+	border: 1px solid var(--border);
+	color: var(--fg-bright);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-md);
+	height: var(--field-height);
+	/* Room for the chevron, so a long option does not run underneath it. */
+	padding: 0 30px 0 10px;
+	width: 100%;
+}
+
+/* One ring for every control that takes focus. Written once here rather than per control, which is
+   how the select came to have a different one. */
+.select:focus-visible,
+input:focus,
+textarea:focus-visible {
 	border-color: var(--accent-fill);
 	outline: 2px solid var(--accent-ring);
 	outline-offset: 2px;
@@ -222,6 +320,10 @@ button {
 	border: 1px solid transparent;
 	color: var(--fg);
 	font-weight: 700;
+	/* A floor, not a height: this is what the padding below already produces, so it changes nothing
+	   on its own and guarantees the match with a field beside it. A button whose label wraps is
+	   still free to grow. */
+	min-height: var(--field-height);
 	padding: 10px 15px;
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: var(--text-md);
@@ -657,13 +759,13 @@ dd {
 	flex: 1 1 260px;
 }
 
-.seed-where select,
 .seed-destination input[type="text"] {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
-	padding: 8px 10px;
+	height: var(--field-height);
+	padding: 0 10px;
 	width: 100%;
 }
 
@@ -1062,10 +1164,14 @@ dd {
 	cursor: default;
 }
 
+/* Matched to the panel it opens. At 120ms the caret was finished and still while the fold was
+   halfway, which reads as two controls rather than one. Kept as a rotate rather than the
+   snippet's scaleY flip: this chevron points right when shut, not down, so there is no "v" to
+   turn into a "^". */
 .chat-caret {
 	color: var(--fg-dim);
 	flex: none;
-	transition: transform 120ms ease;
+	transition: transform var(--acc-chevron) var(--acc-ease);
 }
 
 .chat-fold[aria-expanded="true"] .chat-caret {
@@ -1484,6 +1590,36 @@ dd {
 	margin: 0;
 }
 
+/* A fact's controls, revealed with the row they belong to.
+ *
+ * This is why the SSH row's copy button was invisible from the day it was added: `.copy-button`
+ * hides itself and was only ever un-hidden by `.agent-answer:hover`, which is a chat selector. The
+ * rail has no such ancestor, so the button was there, focusable, and never once seen.
+ *
+ * `focus-within` as well as hover, or the control cannot be reached from the keyboard at all. */
+.rail-fact .copy-button,
+.rail-fact .fact-open {
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.rail-fact:hover .copy-button,
+.rail-fact:hover .fact-open,
+.rail-fact:focus-within .copy-button,
+.rail-fact:focus-within .fact-open {
+	opacity: 1;
+}
+
+/* Sized to sit inside a line of text rather than beside a paragraph, so a row keeps its height
+   whether it has controls or not. */
+.icon-button.fact-open {
+	border-radius: 4px;
+	color: var(--fg-dim);
+	flex: none;
+	height: 20px;
+	width: 22px;
+}
+
 /* Values with no natural stopping point — a repository url, an ssh command, a Proxmox UPID. In a
    132px cell they would push the rail wider than the operator dragged it. */
 .rail-fact-wide {
@@ -1873,8 +2009,10 @@ dd {
 	color: var(--fg-bright);
 }
 
+/* No border-bottom-color here any more. The open tab's underline is one element that travels
+   between tabs rather than a border each tab lights on its own — see `.t-tabs-pill`. A border
+   here as well would leave a second, stationary mark under the tab the bar has just left. */
 .tab[aria-selected="true"] {
-	border-bottom-color: var(--accent);
 	color: var(--fg-bright);
 }
 
@@ -1995,6 +2133,10 @@ dd {
 }
 
 /* Points right when shut and down when open, so the state is legible without reading the row. */
+/* Deliberately quicker than the chat fold's caret, and deliberately not paired with a height
+   animation. The diff under this row is fetched over SSH when the row opens, so there is no
+   height to grow to at the moment of the click, and a panel that tweens to the size of a loading
+   state and then jumps is worse than one that simply appears. */
 .change-caret {
 	color: var(--fg-dim);
 	flex: none;
@@ -2430,4 +2572,275 @@ dd {
 
 .timeline-entry.is-problem .timeline-message {
 	color: var(--danger-soft);
+}
+
+/* ── transitions.dev ───────────────────────────────────────────────────────────────────────────
+ *
+ * Snippets from the transitions-dev skill, pasted as shipped except where noted. Each keeps its
+ * own prefers-reduced-motion guard; those are not optional and are what makes this pass an
+ * accessibility audit.
+ *
+ * Every rule here is namespaced `t-*` so a transition can be lifted out again by deleting its
+ * block and its hooks, without wondering what else read the selector. */
+
+/* Icon swap — the copy button's Copy becoming Check in the same slot. */
+.t-icon-swap {
+	position: relative;
+	display: inline-grid;
+}
+.t-icon-swap .t-icon {
+	grid-area: 1 / 1;
+	transition:
+		opacity var(--icon-swap-dur) var(--icon-swap-ease),
+		filter var(--icon-swap-dur) var(--icon-swap-ease),
+		transform var(--icon-swap-dur) var(--icon-swap-ease);
+	will-change: opacity, filter, transform;
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="a"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="b"] {
+	opacity: 1;
+	filter: blur(0);
+	transform: scale(1);
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="b"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="a"] {
+	opacity: 0;
+	filter: blur(var(--icon-swap-blur));
+	transform: scale(var(--icon-swap-start-scale));
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-icon-swap .t-icon {
+		transition: none !important;
+	}
+}
+
+/* Text states swap — a badge whose word changes as the workspace progresses. */
+.t-text-swap {
+	display: inline-block;
+	transform: translateY(0);
+	filter: blur(0);
+	opacity: 1;
+	transition:
+		transform var(--text-swap-dur) var(--text-swap-ease),
+		filter var(--text-swap-dur) var(--text-swap-ease),
+		opacity var(--text-swap-dur) var(--text-swap-ease);
+	will-change: transform, filter, opacity;
+}
+.t-text-swap.is-exit {
+	transform: translateY(calc(var(--text-swap-translate-y) * -1));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+}
+.t-text-swap.is-enter-start {
+	transform: translateY(var(--text-swap-translate-y));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+	transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-text-swap {
+		transition: none !important;
+	}
+}
+
+/* Shimmer text — the agent's thinking line while it holds.
+ *
+ * --shimmer-base and --shimmer-highlight are re-pointed at the palette above. The shipped
+ * literals are a mid grey lit by near-black, which is a light-theme reading of "dim lit by
+ * bright" and inverts to invisible here. */
+.t-shimmer {
+	position: relative;
+	display: inline-block;
+	color: var(--shimmer-base);
+}
+.t-shimmer::before {
+	content: attr(data-text);
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: linear-gradient(
+		90deg,
+		transparent 0%,
+		transparent 40%,
+		var(--shimmer-highlight) 50%,
+		transparent 60%,
+		transparent 100%
+	);
+	background-size: var(--shimmer-band) 100%;
+	background-repeat: no-repeat;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	-webkit-text-fill-color: transparent;
+	animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite;
+}
+@keyframes t-shimmer {
+	0% {
+		background-position: 100% 0;
+	}
+	100% {
+		background-position: 0% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-shimmer::before {
+		animation: none !important;
+	}
+}
+
+/* The snippet assumes a short inline label. The thinking line is a paragraph that wraps and
+   preserves its own newlines, so the two layers only sit on top of each other if the ::before
+   copy wraps identically: same display, same whitespace handling, same width. */
+.chat-thinking.t-shimmer {
+	display: block;
+}
+.chat-thinking.t-shimmer::before {
+	white-space: pre-wrap;
+}
+
+/* Texts reveal — the approval card, which is the one thing on this page somebody has to read
+ * before answering. */
+.t-stagger-line {
+	display: block;
+	opacity: 0;
+	transform: translateY(var(--stagger-distance));
+	filter: blur(var(--stagger-blur));
+	transition:
+		opacity var(--stagger-dur) var(--stagger-ease),
+		transform var(--stagger-dur) var(--stagger-ease),
+		filter var(--stagger-dur) var(--stagger-ease);
+	will-change: transform, opacity, filter;
+}
+.t-stagger-line--2 {
+	transition-delay: var(--stagger-stagger);
+}
+.t-stagger-line--3 {
+	transition-delay: calc(var(--stagger-stagger) * 2);
+}
+
+.t-stagger.is-shown .t-stagger-line {
+	opacity: 1;
+	transform: translateY(0);
+	filter: blur(0);
+}
+.t-stagger.is-hiding .t-stagger-line {
+	opacity: 0;
+	transform: translateY(0);
+	filter: blur(0);
+	transition:
+		opacity 200ms ease,
+		transform 0s linear,
+		filter 0s linear;
+	transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-stagger-line {
+		transition: none !important;
+	}
+}
+
+/* Accordion expand — the chat folds and the change list.
+ *
+ * grid-template-rows 0fr → 1fr, so no height is ever measured in JS and a fold of any size
+ * animates. Padding belongs on the inner element: on the 0fr track it leaves a residual strip and
+ * the panel never fully closes. */
+.t-acc-panel {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel {
+	grid-template-rows: 1fr;
+	transition: grid-template-rows var(--acc-expand) var(--acc-ease);
+}
+.t-acc-panel-inner {
+	overflow: hidden;
+	opacity: 0;
+	filter: blur(2px);
+	transition:
+		opacity var(--acc-collapse) var(--acc-ease),
+		filter var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-open="true"] .t-acc-panel-inner {
+	opacity: 1;
+	filter: blur(0);
+	transition:
+		opacity var(--acc-expand) var(--acc-ease),
+		filter var(--acc-expand) var(--acc-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-acc-panel,
+	.t-acc-panel-inner {
+		transition: none !important;
+	}
+}
+
+/* Tabs sliding — adapted, not pasted.
+ *
+ * The snippet ships a white pill inside a light grey bar with a 48px radius. That is a different
+ * tab control from this one, and installing it would have been a redesign wearing a transition's
+ * name. What is kept is the mechanism and the tuning: JS writes the active tab's offsetLeft and
+ * offsetWidth onto an absolutely positioned element, CSS owns the tween, and both read the
+ * snippet's own --tabs-dur and --tabs-ease.
+ *
+ * Here that element is the underline the tabs already had, moved from each tab's own border to
+ * one bar that travels. */
+.t-tabs {
+	position: relative;
+}
+.t-tabs-pill {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 2px;
+	width: 0;
+	background: var(--accent);
+	transform: translateX(0);
+	transition:
+		transform var(--tabs-dur) var(--tabs-ease),
+		width var(--tabs-dur) var(--tabs-ease);
+	will-change: transform, width;
+	pointer-events: none;
+	z-index: 0;
+}
+.t-tabs .tab {
+	position: relative;
+	z-index: 1;
+	transition: color var(--tabs-dur) var(--tabs-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-tabs-pill,
+	.t-tabs .tab {
+		transition: none !important;
+	}
+}
+
+/* Streaming text — the agent's words resolving rather than appearing.
+ *
+ * Words rest visible, which matters here: the transcript re-renders on every token and a span
+ * that started hidden would flicker. Only a span that has never been seen before animates in. */
+.t-stream-w {
+	opacity: 0;
+	filter: blur(var(--stream-blur));
+	transition:
+		opacity var(--stream-fade) var(--stream-ease),
+		filter var(--stream-fade) var(--stream-ease);
+}
+.t-stream-w.is-in {
+	opacity: 1;
+	filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-stream-w {
+		transition: none !important;
+		filter: none !important;
+		opacity: 1 !important;
+	}
 }

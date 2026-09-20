@@ -45,13 +45,18 @@ export function CopyButton({
 	return (
 		<IconButton
 			className="copy-button"
-			icon={copied ? Check : Copy}
+			icon={Copy}
 			// The name changes with the state, so a screen reader is told the copy happened rather
 			// than being left with a button whose label never reacts.
 			label={copied ? "Copied" : label}
 			onClick={() => void copy()}
 			size={14}
-			strokeWidth={copied ? 2 : 1.75}
+			strokeWidth={1.75}
+			// Both icons stay mounted so the tick can cross-fade in over the outgoing clipboard
+			// rather than replacing it between two frames.
+			swapIcon={Check}
+			swapStrokeWidth={2}
+			swapped={copied}
 			variant="tertiary"
 		/>
 	);
