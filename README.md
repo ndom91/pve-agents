@@ -3,7 +3,7 @@
   pve-agents
 </h1>
 
-Cloud agents, but using your Proxmox host instead of a cloud provider.
+Disposable coding agents on your own Proxmox host.
 
 Give it a repository, a ref, and a purpose. It clones a golden template, boots an LXC, checks the
 repository out, starts a Claude Code agent inside it and hands it the purpose. The web UI streams
