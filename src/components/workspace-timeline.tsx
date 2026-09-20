@@ -1,3 +1,5 @@
+import { Timestamp } from "./timestamp";
+
 type TimelineEvent = {
 	createdAt: string;
 	eventType: string;
@@ -44,9 +46,7 @@ export function WorkspaceTimeline({ events }: { events: TimelineEvent[] }) {
 								<span className="timeline-type">
 									{event.eventType.replace("workspace.", "").replace(/_/g, " ")}
 								</span>
-								<time dateTime={event.createdAt}>
-									{event.createdAt.slice(11, 19)}
-								</time>
+								<Timestamp iso={event.createdAt} of="time" />
 							</div>
 							<p className="timeline-message">{event.message}</p>
 						</div>

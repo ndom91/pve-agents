@@ -6,6 +6,8 @@ import {
 	parseRepository,
 	repositoryPage,
 } from "../domain/repository";
+import { formatStamp, UTC } from "../lib/clock";
+import { useMounted } from "../lib/use-mounted";
 import { useRailWidth } from "../lib/use-rail-width";
 // Type-only in this module's own imports, so nothing server-side follows it into the bundle. Taken
 // from there rather than rebuilt here because a second copy of the branch prefix is a second thing
@@ -75,6 +77,8 @@ export function WorkspaceRail({
 	workspace: RailWorkspace;
 }): ReactNode {
 	const { setWidth, width } = useRailWidth();
+	// Timestamps below are the reader's zone once this is true, and UTC before it.
+	const mounted = useMounted();
 
 	const branch =
 		workspace.hostname === undefined
@@ -193,15 +197,21 @@ export function WorkspaceRail({
 				<Group title="Progress">
 					<Fact label="Phase" value={workspace.provisionPhase} />
 					<Fact label="Step" value={workspace.currentStep} />
-					<Fact label="Created" value={stamp(workspace.createdAt)} />
-					<Fact label="Ready" value={stamp(workspace.readyAt)} />
+					<Fact label="Created" value={stamp(workspace.createdAt, mounted)} />
+					<Fact label="Ready" value={stamp(workspace.readyAt, mounted)} />
 					<Fact
 						label="Took"
 						value={took(workspace.createdAt, workspace.readyAt)}
 					/>
-					<Fact label="Last active" value={stamp(workspace.lastActivityAt)} />
-					<Fact label="Checked" value={stamp(workspace.activityObservedAt)} />
-					<Fact label="Updated" value={stamp(workspace.updatedAt)} />
+					<Fact
+						label="Last active"
+						value={stamp(workspace.lastActivityAt, mounted)}
+					/>
+					<Fact
+						label="Checked"
+						value={stamp(workspace.activityObservedAt, mounted)}
+					/>
+					<Fact label="Updated" value={stamp(workspace.updatedAt, mounted)} />
 				</Group>
 
 				<Group title="Identity">
@@ -373,10 +383,16 @@ function Group({
 	);
 }
 
-// stamp trims an ISO timestamp to the second. The zone is UTC for every row and the milliseconds
-// are noise in a column somebody reads rather than sorts.
-function stamp(value?: string): string | undefined {
-	return value?.slice(0, 19).replace("T", " ");
+// stamp renders one timestamp for a Fact, in the reader's own zone once the page has mounted.
+//
+// A string rather than the `Timestamp` component, because `Fact` takes a value it may decide not
+// to render at all. Passing an element would mean an element that renders nothing, which is not
+// the same as no row -- and no row is what an absent timestamp should produce.
+//
+// UTC until mounted, so the server render and the first client render agree. The swap happens in
+// the same tick as the effect.
+function stamp(value: string | undefined, local: boolean): string | undefined {
+	return formatStamp(value, local ? undefined : UTC);
 }
 
 // took is how long provisioning ran, for the workspaces that have a ready_at.
