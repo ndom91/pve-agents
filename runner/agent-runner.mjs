@@ -162,7 +162,18 @@ function main() {
 			return;
 		}
 
-		if (request.type === "attach") {
+		// Two ways to ask for the same answer, and the difference is what happens next.
+		//
+		// "attach" subscribes: the snapshot first, then every event as it happens. That is what a
+		// page holds open.
+		//
+		// "snapshot" is one-shot: the same reply, and then the runner closes the connection. It
+		// exists because a subscriber is sent broadcasts from the moment it connects, so a caller
+		// that sends a prompt and then asks for a snapshot can have a status broadcast arrive
+		// first. Reading "the first line" then returns the broadcast, and the reply it was waiting
+		// for is never seen. Closing here is what lets that caller read to end-of-stream and pick
+		// out the reply rather than guessing which line it is.
+		if (request.type === "attach" || request.type === "snapshot") {
 			// A replay, not just a subscription. A controller that restarts leaves approvals parked
 			// in a runner that is still alive, and an attach that only streamed what happened next
 			// would show an idle agent that is actually waiting for an answer.
@@ -177,6 +188,9 @@ function main() {
 					type: "snapshot",
 				})}\n`,
 			);
+			if (request.type === "snapshot") {
+				client.end();
+			}
 
 			return;
 		}

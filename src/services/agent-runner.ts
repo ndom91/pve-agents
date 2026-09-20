@@ -244,14 +244,21 @@ export function framer(
 	};
 }
 
-// EXCHANGE_SCRIPT sends what arrives on stdin and takes the first line of the answer.
+// EXCHANGE_SCRIPT sends what arrives on stdin and reads until the runner hangs up.
 //
 // The message goes in on stdin rather than as an argument, which is this codebase's standing rule
 // and matters more than usual here: a prompt is operator text that may contain anything at all.
 //
-// `head -1` closes the pipe as soon as the answer arrives and nc exits on the broken pipe, so this
-// costs a round trip rather than a timeout.
-const EXCHANGE_SCRIPT = `nc -U "$1" | head -1`;
+// It used to be `nc -U "$1" | head -1`, and that was wrong in a way that took an hour of an agent
+// being re-briefed every five seconds to notice. A connection receives broadcasts from the moment
+// it opens, so a prompt's own "status: working" broadcast reliably arrives *before* the snapshot
+// asked for behind it. The first line back was the broadcast, the caller read it as a failed
+// delivery, and provisioning retried a prompt that had in fact landed — forty-one times.
+//
+// The runner now closes the connection after a one-shot snapshot, so reading to end of stream
+// terminates on its own and the reply is picked out of whatever arrived rather than assumed to be
+// first. `timeout` bounds a runner that answers nothing at all.
+const EXCHANGE_SCRIPT = `timeout 15 nc -U "$1"`;
 
 // exchange sends messages to a runner and reads its reply.
 //
@@ -264,7 +271,7 @@ async function exchange(
 	messages: RunnerRequest[],
 	ssh: SshRunner,
 ): Promise<RunnerSnapshot | undefined> {
-	const payload = `${[...messages, { type: "attach" }]
+	const payload = `${[...messages, { type: "snapshot" } as RunnerRequest]
 		.map((message) => JSON.stringify(message))
 		.join("\n")}\n`;
 
@@ -277,16 +284,36 @@ async function exchange(
 		return undefined;
 	}
 
-	let event: unknown;
-	try {
-		event = JSON.parse(result.stdout.trim());
-	} catch {
-		return undefined;
+	// The reply, found rather than assumed. Broadcasts for this caller's own message can be
+	// interleaved ahead of it, which is the whole reason the runner closes the connection.
+	for (const line of result.stdout.split("\n")) {
+		if (line.trim() === "") {
+			continue;
+		}
+
+		try {
+			const event = readEvent(JSON.parse(line));
+			if (event?.type === "snapshot") {
+				return event;
+			}
+		} catch {
+			// A truncated or malformed line. Keep looking: the reply may still be behind it.
+		}
 	}
 
-	const parsed = readEvent(event);
+	return undefined;
+}
 
-	return parsed?.type === "snapshot" ? parsed : undefined;
+// runnerTranscriptLength reports how much the agent has been told and has said.
+//
+// Zero means a runner nobody has spoken to yet, which is the only state in which briefing it is
+// the right thing to do. Anything else means the briefing already landed, whatever the pass that
+// sent it was told afterwards.
+export async function runnerTranscriptLength(
+	target: SshTarget,
+	ssh: SshRunner,
+): Promise<number> {
+	return (await exchange(target, [], ssh))?.messages.length ?? 0;
 }
 
 // promptRunner delivers one prompt and confirms the runner took it.

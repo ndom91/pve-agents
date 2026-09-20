@@ -12,9 +12,14 @@
 
 // RunnerRequest is everything the controller sends.
 export type RunnerRequest =
-	// Asks for a snapshot. Also the confirmation trick the write calls rely on: the runner handles
-	// lines in order, so a snapshot requested behind a prompt already reflects that prompt.
+	// Subscribes: the snapshot, then every event as it happens. What an open page holds.
 	| { type: "attach" }
+	// The same reply, one-shot: the runner closes the connection after sending it.
+	//
+	// Separate from "attach" because a subscriber receives broadcasts from the moment it connects.
+	// A caller that sends a prompt and asks for a snapshot behind it can have the status broadcast
+	// for its own prompt arrive first, so "the first line back" is not the reply.
+	| { type: "snapshot" }
 	| { behavior: "allow" | "deny"; id: string; type: "decide" }
 	| { text: string; type: "prompt" }
 	| { type: "interrupt" };

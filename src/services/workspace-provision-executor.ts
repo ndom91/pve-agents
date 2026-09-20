@@ -26,6 +26,7 @@ import {
 	promptRunner,
 	runnerSource,
 	runnerState,
+	runnerTranscriptLength,
 	startRunner,
 } from "./agent-runner";
 import { prepareClaudeWorkspace } from "./claude-agent";
@@ -537,6 +538,19 @@ async function briefAgent(
 	// someone to tell it something from the UI.
 	if (purpose === undefined || purpose === "" || target === undefined) {
 		return ready("workspace ready, awaiting instructions");
+	}
+
+	// Told once, even if the confirmation is lost.
+	//
+	// The briefing is the one step here that is not naturally idempotent: a prompt that lands but
+	// whose confirmation goes missing gets sent again on the next pass, and again, for as long as
+	// the failure persists. That is not a theory — a broken confirmation re-briefed one agent
+	// forty-one times before anybody looked. So a runner that has already been told something is
+	// treated as briefed rather than told again.
+	if ((await runnerTranscriptLength(target, ssh)) > 0) {
+		recordWorkspaceInteraction(db, workspace.id, now);
+
+		return ready(`briefed: ${summarise(purpose)}`);
 	}
 
 	const prompted = await promptRunner(target, purpose, ssh);

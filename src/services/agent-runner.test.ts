@@ -218,27 +218,38 @@ describe("runnerStatus", () => {
 	it("reads the status out of the snapshot", async () => {
 		for (const status of ["working", "idle", "blocked"] as const) {
 			const { ssh } = answering(
-				JSON.stringify({ approvals: [], status, type: "snapshot" }),
+				JSON.stringify({
+					approvals: [],
+					messages: [],
+					status,
+					type: "snapshot",
+				}),
 			);
 
 			expect(await runnerStatus(TARGET, ssh)).toBe(status);
 		}
 	});
 
-	it("closes the pipe on the first line rather than waiting", async () => {
-		// The alternative is a netcat timeout, whose delay would be paid for every workspace on
-		// every observation pass, for a reply that has already arrived.
+	it("asks for a one-shot snapshot, not a subscription", async () => {
+		// A subscription is what delivers the broadcasts that used to be mistaken for the reply.
+		// The one-shot makes the runner hang up, which is what lets this read to end of stream.
 		const { calls, ssh } = answering('{"type":"snapshot","status":"idle"}');
 
 		await runnerStatus(TARGET, ssh);
 
-		expect(calls[0]?.command.join(" ")).toContain("head -1");
+		expect(calls[0]?.input).toContain('{"type":"snapshot"}');
+		expect(calls[0]?.input).not.toContain('{"type":"attach"}');
 	});
 
 	it("refuses to guess at an answer it could not read", async () => {
 		// "unknown" is load-bearing. The reaper destroys idle workspaces and keeps ones it cannot
 		// inspect, so reading silence as idle is how somebody's work gets thrown away.
-		for (const stdout of ["", "   ", "not json", '{"type":"snapshot"}']) {
+		for (const stdout of [
+			"",
+			"   ",
+			"not json",
+			'{"type":"status","status":"working"}',
+		]) {
 			const { ssh } = answering(stdout);
 
 			expect(await runnerStatus(TARGET, ssh)).toBe("unknown");
