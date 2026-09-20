@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pve-agents — Direction A — Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+body { margin: 0; background: #111411; font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #b5cda9; } a:hover { color: #cfe0c4; }
+</style>
+</head>
+<body>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #111411; display: flex; font-family: Geist, system-ui, sans-serif; overflow: hidden;">
+
+  <!-- ░░ SIDEBAR ░░ -->
+  <div style="width: 236px; flex-shrink: 0; border-right: 1px solid #1c221a; display: flex; flex-direction: column; background: #0f120e;">
+    <div style="height: 44px; flex-shrink: 0; padding: 0 14px; display: flex; align-items: center; gap: 9px; border-bottom: 1px solid #1c221a;">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="1.2" y="1.2" width="11.6" height="11.6" rx="2" stroke="#b5cda9" stroke-width="1.2"/><path d="M4.6 5.2L6.9 7L4.6 8.8" stroke="#b5cda9" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.9 9.1H9.9" stroke="#b5cda9" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: #dbe4d3;">PVE&middot;AGENTS</div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a;">nas</div>
+    </div>
+
+    <div style="padding: 14px 14px 7px; display: flex; align-items: center; gap: 8px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">RUNNING</div>
+      <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #7d8b76;">1</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+      <div style="position: relative; padding: 9px 14px 10px 14px; background: #171d15; display: flex; flex-direction: column; gap: 5px;">
+        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #b5cda9;"></div>
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #7fa06a; box-shadow: 0 0 0 3px rgba(127, 160, 106, 0.16);"></div>
+          <div style="flex-grow: 1; font-size: 12.5px; font-weight: 500; color: #e6e9df; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">List available MCP servers</div>
+        </div>
+        <div style="padding-left: 12px; display: flex; align-items: center; gap: 7px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8f9c88;">agent-caba</div>
+          <div style="width: 2px; height: 2px; border-radius: 50%; background: #3b4636;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ndom91/home26</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">9m</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding: 16px 14px 7px; display: flex; align-items: center; gap: 8px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">DESTROYED</div>
+      <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #7d8b76;">15</div>
+    </div>
+    <button type="button" style="margin: 0 8px; padding: 6px 6px; display: flex; align-items: center; gap: 7px; background: transparent; border: 0; border-radius: 4px; color: #6b7766; cursor: pointer; text-align: left;">
+      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #6b7766;">show archive</span>
+    </button>
+
+    <div style="flex-grow: 1;"></div>
+
+    <div style="padding: 10px; border-top: 1px solid #1c221a; display: flex; gap: 7px;">
+      <button type="button" style="flex-grow: 1; height: 30px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #2c3428; border-radius: 4px; background: transparent; color: #c9d6c2; cursor: pointer;">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2V10M2 6H10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em;">NEW WORKSPACE</span>
+      </button>
+      <button type="button" aria-label="Settings" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 1px solid #2c3428; border-radius: 4px; background: transparent; color: #7d8b76; cursor: pointer;"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1.5 4.5H12.5M1.5 9.5H12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="5" cy="4.5" r="1.7" fill="#0f120e" stroke="currentColor" stroke-width="1.2"/><circle cx="9.5" cy="9.5" r="1.7" fill="#0f120e" stroke="currentColor" stroke-width="1.2"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ░░ FEED COLUMN ░░ -->
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+
+    <div style="height: 48px; flex-shrink: 0; padding: 0 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1c221a;">
+      <div style="font-size: 14px; font-weight: 500; color: #e6e9df; white-space: nowrap;">List available MCP servers</div>
+      <div style="width: 3px; height: 3px; border-radius: 50%; background: #3b4636; flex-shrink: 0;"></div>
+      <div style="flex-grow: 1; min-width: 0; font-size: 12.5px; color: #8f9c88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Which MCP servers do we have access to?</div>
+      <div style="display: flex; border: 1px solid #2c3428; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
+        <div style="height: 26px; padding: 0 12px; display: flex; align-items: center; gap: 6px; background: #26301f; color: #dbe8d2;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #7fa06a;"></div>
+          <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.12em;">READY</span>
+        </div>
+        <div style="width: 1px; background: #2c3428;"></div>
+        <div style="height: 26px; padding: 0 12px; display: flex; align-items: center; color: #7d8b76;">
+          <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.12em;">IDLE</span>
+        </div>
+      </div>
+      <button type="button" aria-label="Destroy workspace" style="width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #4a2f29; border-radius: 4px; background: transparent; color: #d98b7d; cursor: pointer;"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 3.8H11.5M5.6 3.8V2.6H8.4V3.8M3.7 3.8L4.3 11.4H9.7L10.3 3.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+
+    <div style="height: 32px; flex-shrink: 0; padding: 0 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #1c221a; background: #0f120e;">
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; color: #626e5d;">NODE</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2;">nas</span></div>
+      <div style="width: 1px; height: 11px; background: #232b21;"></div>
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; color: #626e5d;">VMID</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2; font-variant-numeric: tabular-nums;">402</span></div>
+      <div style="width: 1px; height: 11px; background: #232b21;"></div>
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; color: #626e5d;">ADDR</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2; font-variant-numeric: tabular-nums;">10.0.3.127</span></div>
+      <div style="width: 1px; height: 11px; background: #232b21;"></div>
+      <div style="display: flex; align-items: center; gap: 6px;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; color: #626e5d;">BRANCH</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2;">pve-agents/agent-caba</span></div>
+      <div style="flex-grow: 1;"></div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">up 9m 22s</div>
+    </div>
+
+    <!-- feed -->
+    <div style="flex-grow: 1; min-height: 0; padding: 20px 20px 8px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+
+      <div style="display: flex; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: #b5cda9; line-height: 1.55; flex-shrink: 0;">&rsaquo;</div>
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 13.5px; line-height: 1.55; color: #e6e9df;">Which MCP servers do we have access to?</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #5f6b5a;">22:42:09</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px; padding-left: 22px;">
+        <div style="font-size: 13.5px; line-height: 1.6; color: #d6e2cf;">Datadog, Linear, Plain, Slack.</div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 22px;">
+          <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #b5cda9; width: 58px; flex-shrink: 0;">datadog</span><span style="font-size: 12.5px; color: #a9b8a2;">metrics, logs, traces, monitors</span></div>
+          <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #b5cda9; width: 58px; flex-shrink: 0;">linear</span><span style="font-size: 12.5px; color: #a9b8a2;">issues, projects, cycles</span></div>
+          <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #b5cda9; width: 58px; flex-shrink: 0;">plain</span><span style="font-size: 12.5px; color: #a9b8a2;">threads, customers, broadcasts</span></div>
+          <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #b5cda9; width: 58px; flex-shrink: 0;">slack</span><span style="font-size: 12.5px; color: #a9b8a2;">channels, threads</span></div>
+        </div>
+      </div>
+
+      <div style="height: 1px; background: #1c221a;"></div>
+
+      <div style="display: flex; gap: 10px;">
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: #b5cda9; line-height: 1.55; flex-shrink: 0;">&rsaquo;</div>
+        <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 13.5px; line-height: 1.55; color: #e6e9df;">What Linear tickets are open in &ldquo;Broadcast Unsubscribe&rdquo; on the Core team?</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #5f6b5a;">22:50:31</div>
+        </div>
+      </div>
+
+      <!-- tool log -->
+      <div style="margin-left: 22px; border: 1px solid #1c221a; border-radius: 5px; background: #0f120e; overflow: hidden;">
+        <div style="height: 27px; padding: 0 11px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #1c221a; background: #131713;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; color: #7d8b76;">TOOL CALLS</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a;">6</div>
+          <div style="flex-grow: 1;"></div>
+          <div style="display: flex; align-items: center; gap: 5px;"><div style="width: 4px; height: 4px; border-radius: 50%; background: #d98b7d;"></div><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #d98b7d;">1 error</span></div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">4.8s</div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 9px; padding: 6px 11px;">
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color: #5f6b5a;"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #4e5a49;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #a9b8a2;">ToolSearch</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">DONE</div>
+          <div style="width: 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">0.3s</div>
+        </div>
+
+        <div style="border-top: 1px solid #161b14; background: #12160f;">
+          <div style="display: flex; align-items: center; gap: 9px; padding: 6px 11px;">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color: #8f9c88; transform: rotate(90deg);"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div style="width: 4px; height: 4px; border-radius: 50%; background: #d98b7d;"></div>
+            <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #e0d3cf;">mcp__linear__list_issues</div>
+            <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #d98b7d;">ERROR</div>
+            <div style="width: 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">0.9s</div>
+          </div>
+          <div style="margin: 0 11px 9px 40px; padding: 8px 10px; background: #0b0f0a; border: 1px solid #2a1f1c; border-radius: 4px;">
+            <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.5; color: #e0a094;">Error: could not find project &ldquo;Broadcast Unsubscribe&rdquo;</div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 9px; padding: 6px 11px; border-top: 1px solid #161b14;">
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color: #5f6b5a;"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #4e5a49;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #a9b8a2;">mcp__linear__list_projects</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">DONE</div>
+          <div style="width: 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">1.1s</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; padding: 6px 11px; border-top: 1px solid #161b14;">
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true" style="color: #5f6b5a;"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #4e5a49;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #a9b8a2;">mcp__linear__list_teams</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">DONE</div>
+          <div style="width: 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">0.7s</div>
+        </div>
+      </div>
+
+      <div style="padding-left: 22px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 13.5px; line-height: 1.6; color: #d6e2cf;">Found it &mdash; the project is named <strong style="color: #e6e9df; font-weight: 500;">Plain Broadcasts &mdash; Unsubscribe</strong> on the Core team. 14 open issues:</div>
+        <div style="display: flex; flex-direction: column; gap: 1px;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #161b14;">
+            <div style="width: 74px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #b5cda9;">CORE-2519</div>
+            <div style="flex-grow: 1; min-width: 0; font-size: 12.5px; color: #d6e2cf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Surface unsubscribed channels in audience preview</div>
+            <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; letter-spacing: 0.1em; color: #d98b7d;">URGENT</div>
+            <div style="width: 58px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #6b7766;">todo</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #161b14;">
+            <div style="width: 74px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #b5cda9;">CORE-2511</div>
+            <div style="flex-grow: 1; min-width: 0; font-size: 12.5px; color: #d6e2cf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Add unsubscribe and resubscribe mutations</div>
+            <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; letter-spacing: 0.1em; color: #d4a85f;">HIGH</div>
+            <div style="width: 58px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #6b7766;">in review</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #161b14;">
+            <div style="width: 74px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #b5cda9;">CORE-2513</div>
+            <div style="flex-grow: 1; min-width: 0; font-size: 12.5px; color: #d6e2cf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Unsubscribes management page</div>
+            <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; letter-spacing: 0.1em; color: #7d8b76;">MEDIUM</div>
+            <div style="width: 58px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #6b7766;">in review</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- composer -->
+    <div style="flex-shrink: 0; padding: 12px 20px 14px; border-top: 1px solid #1c221a;">
+      <div style="background: #0b0f0a; border: 1px solid #2c3428; border-radius: 5px; padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 8px;">
+        <label for="a-composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Message the agent</label>
+        <input id="a-composer" type="text" placeholder="Tell the agent what to do next" style="box-sizing: border-box; width: 100%; border: 0; background: transparent; color: #d6e2cf; font-family: Geist, system-ui, sans-serif; font-size: 13px; outline: none; padding: 0;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #5f6b5a;">&#8984;&#8629; SEND</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #5f6b5a;">&#8679;&#8629; NEWLINE</div>
+          <div style="flex-grow: 1;"></div>
+          <button type="button" style="height: 26px; padding: 0 13px; border: 0; border-radius: 4px; background: #b5cda9; color: #101410; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; cursor: pointer;">SEND</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░ RIGHT PANEL ░░ -->
+  <div style="width: 392px; flex-shrink: 0; border-left: 1px solid #1c221a; background: #0f120e; display: flex; flex-direction: column;">
+    <div style="height: 48px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: flex-end; gap: 18px; border-bottom: 1px solid #1c221a;">
+      <div style="position: relative; padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #e6e9df;">DETAILS<div style="position: absolute; left: -2px; right: -2px; bottom: -1px; height: 2px; background: #b5cda9;"></div></div>
+      <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DIFF</div>
+      <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TIMELINE</div>
+      <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TERMINAL</div>
+    </div>
+
+    <div style="flex-grow: 1; min-height: 0; padding: 16px; display: flex; flex-direction: column; gap: 18px; overflow: hidden;">
+
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">SOURCE</div>
+          <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">REPOSITORY</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">github.com/ndom91/home26</div></div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">REF</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">main</div></div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">BRANCH</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">pve-agents/agent-caba</div></div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">PLACEMENT</div>
+          <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px;">
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">NODE</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">nas</div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">VMID</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf; font-variant-numeric: tabular-nums;">402</div></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; background: #0b0f0a; border: 1px solid #1c221a; border-radius: 4px; padding: 7px 9px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #a9b8a2;">ssh agent@10.0.3.127</div>
+          <button type="button" aria-label="Copy SSH command" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #7d8b76; cursor: pointer; padding: 0;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="4.2" y="4.2" width="6.3" height="6.3" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M8 1.5H2.5A1 1 0 0 0 1.5 2.5V8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">PROGRESS</div>
+          <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #7fa06a;">ready in 31s</div>
+        </div>
+        <div style="display: flex; gap: 3px;">
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+          <div style="flex-grow: 1; height: 3px; border-radius: 2px; background: #7fa06a;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; margin-top: 2px;">
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">PHASE</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">briefed</div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">STEP</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">ready</div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">CREATED</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #a9b8a2; font-variant-numeric: tabular-nums;">22:41:38</div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px;"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">LAST ACTIVE</div><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #a9b8a2; font-variant-numeric: tabular-nums;">22:51:10</div></div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: #7d8b76;">IDENTITY</div>
+          <div style="flex-grow: 1; height: 1px; background: #1c221a;"></div>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">NAME</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">agent-caba</div></div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">WORKSPACE</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #a9b8a2;">cabaae2a&hellip;982d99032181</div></div>
+        <div style="display: flex; align-items: baseline; gap: 12px;"><div style="width: 86px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">WANTED</div><div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: #d6e2cf;">present</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

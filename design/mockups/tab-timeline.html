@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pve-agents — Panel — timeline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+body { margin: 0; background: #0f120e; font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #b5cda9; } a:hover { color: #cfe0c4; }
+</style>
+</head>
+<body>
+<div style="width: 400px; height: 880px; box-sizing: border-box; background: #0f120e; border-left: 1px solid #1c221a; display: flex; flex-direction: column; font-family: Geist, system-ui, sans-serif; overflow: hidden;">
+
+  <div style="height: 48px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: flex-end; gap: 18px; border-bottom: 1px solid #1c221a;">
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DETAILS</div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DIFF</div>
+    <div style="position: relative; padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #e6e9df;">TIMELINE<div style="position: absolute; left: -2px; right: -2px; bottom: -1px; height: 2px; background: #b5cda9;"></div></div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TERMINAL</div>
+  </div>
+
+  <div style="height: 34px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #1c221a; background: #0b0f0a;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2;">10 events</div>
+    <div style="flex-grow: 1;"></div>
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #626e5d;">READY IN</div>
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #7fa06a; font-variant-numeric: tabular-nums;">31s</div>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; padding: 18px 16px; overflow: hidden;">
+    <div style="position: relative; padding-left: 26px; display: flex; flex-direction: column;">
+      <div style="position: absolute; left: 4px; top: 6px; bottom: 6px; width: 1px; background: #232b21;"></div>
+
+      <div style="position: relative; padding-bottom: 14px;">
+        <div style="position: absolute; left: -26px; top: 3px; width: 9px; height: 9px; border-radius: 50%; background: #0f120e; border: 1.5px solid #7fa06a;"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #dbe4d3;">REQUESTED</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">22:41:38</div>
+        </div>
+        <div style="margin-top: 3px; font-size: 12px; line-height: 1.45; color: #7d8b76;">Workspace request accepted</div>
+      </div>
+
+      <div style="position: relative; height: 16px; display: flex; align-items: center;">
+        <div style="position: absolute; left: -26px; top: 2px; width: 9px; display: flex; justify-content: center;"><div style="width: 1px; height: 12px; background: #232b21;"></div></div>
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; color: #4e5a49; font-variant-numeric: tabular-nums;">+7s</div>
+      </div>
+
+      <div style="position: relative; padding: 8px 0 14px;">
+        <div style="position: absolute; left: -26px; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: #0f120e; border: 1.5px solid #7fa06a;"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #dbe4d3;">CLONE CONFIRMED</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">22:41:45</div>
+        </div>
+        <div style="margin-top: 3px; font-size: 12px; line-height: 1.45; color: #7d8b76;">Proxmox confirmed the workspace clone</div>
+      </div>
+
+      <div style="position: relative; height: 16px; display: flex; align-items: center;">
+        <div style="position: absolute; left: -26px; top: 2px; width: 9px; display: flex; justify-content: center;"><div style="width: 1px; height: 12px; background: #232b21;"></div></div>
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; color: #4e5a49; font-variant-numeric: tabular-nums;">+5s</div>
+      </div>
+
+      <div style="position: relative; padding: 8px 0 10px;">
+        <div style="position: absolute; left: -26px; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: #0f120e; border: 1.5px solid #7fa06a;"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #dbe4d3;">BOOTED</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">22:41:50</div>
+        </div>
+        <div style="margin-top: 3px; font-size: 12px; line-height: 1.45; color: #7d8b76;">Container booted on nas &middot; vmid 402</div>
+      </div>
+
+      <div style="position: relative; margin-bottom: 12px; border-left: 1px solid #232b21; margin-left: -12px; padding-left: 12px; display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #3b4636; flex-shrink: 0; align-self: center;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8f9c88;">addressed &middot; 10.0.3.127</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">22:41:50</div>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #3b4636; flex-shrink: 0; align-self: center;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8f9c88;">reachable as agent</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">22:41:50</div>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #3b4636; flex-shrink: 0; align-self: center;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8f9c88;">bootstrapped /workspace/repo</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">22:41:50</div>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #3b4636; flex-shrink: 0; align-self: center;"></div>
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #8f9c88;">checked out home26 at main</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a; font-variant-numeric: tabular-nums;">22:41:50</div>
+        </div>
+      </div>
+
+      <div style="position: relative; height: 16px; display: flex; align-items: center;">
+        <div style="position: absolute; left: -26px; top: 2px; width: 9px; display: flex; justify-content: center;"><div style="width: 1px; height: 12px; background: #232b21;"></div></div>
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; color: #4e5a49; font-variant-numeric: tabular-nums;">+12s</div>
+      </div>
+
+      <div style="position: relative; padding: 8px 0 14px;">
+        <div style="position: absolute; left: -26px; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: #0f120e; border: 1.5px solid #7fa06a;"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #dbe4d3;">SEEDED</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">22:42:02</div>
+        </div>
+        <div style="margin-top: 3px; font-size: 12px; line-height: 1.45; color: #7d8b76;">Seeded 4 files</div>
+      </div>
+
+      <div style="position: relative; height: 16px; display: flex; align-items: center;">
+        <div style="position: absolute; left: -26px; top: 2px; width: 9px; display: flex; justify-content: center;"><div style="width: 1px; height: 12px; background: #232b21;"></div></div>
+        <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; color: #4e5a49; font-variant-numeric: tabular-nums;">+6s</div>
+      </div>
+
+      <div style="position: relative; padding: 8px 0 14px;">
+        <div style="position: absolute; left: -26px; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: #0f120e; border: 1.5px solid #7fa06a;"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #dbe4d3;">SESSION STARTED</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">22:42:08</div>
+        </div>
+        <div style="margin-top: 3px; font-size: 12px; line-height: 1.45; color: #7d8b76;">Agent runner listening &middot; permissions auto</div>
+      </div>
+
+      <div style="position: relative; padding: 8px 0 0;">
+        <div style="position: absolute; left: -27px; top: 10px; width: 11px; height: 11px; border-radius: 50%; background: #b5cda9; box-shadow: 0 0 0 3px rgba(181, 205, 169, 0.14);"></div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; color: #e6e9df;">READY</div>
+          <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #a9b8a2; font-variant-numeric: tabular-nums;">22:42:09</div>
+        </div>
+        <div style="margin-top: 5px; background: #131713; border: 1px solid #232b21; border-radius: 4px; padding: 8px 10px; font-size: 12px; line-height: 1.45; color: #a9b8a2;">Briefed: <span style="color: #d6e2cf;">Which MCP servers do we have access to?</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 46px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-top: 1px solid #1c221a; background: #0b0f0a;">
+    <div style="width: 5px; height: 5px; border-radius: 50%; background: #7fa06a; box-shadow: 0 0 0 3px rgba(127, 160, 106, 0.16);"></div>
+    <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2;">watching for events</div>
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">last 22:51:10</div>
+  </div>
+</div>
+</body>
+</html>

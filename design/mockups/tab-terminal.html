@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pve-agents — Panel — terminal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+body { margin: 0; background: #0f120e; font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #b5cda9; } a:hover { color: #cfe0c4; }
+</style>
+</head>
+<body>
+<div style="width: 400px; height: 880px; box-sizing: border-box; background: #0f120e; border-left: 1px solid #1c221a; display: flex; flex-direction: column; font-family: Geist, system-ui, sans-serif; overflow: hidden;">
+
+  <div style="height: 48px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: flex-end; gap: 18px; border-bottom: 1px solid #1c221a;">
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DETAILS</div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DIFF</div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TIMELINE</div>
+    <div style="position: relative; padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #e6e9df;">TERMINAL<div style="position: absolute; left: -2px; right: -2px; bottom: -1px; height: 2px; background: #b5cda9;"></div></div>
+  </div>
+
+  <div style="height: 34px; flex-shrink: 0; padding: 0 10px 0 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #1c221a; background: #0b0f0a;">
+    <div style="width: 5px; height: 5px; border-radius: 50%; background: #7fa06a; flex-shrink: 0;"></div>
+    <div style="flex-grow: 1; min-width: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">agent@agent-caba:/workspace/repo</div>
+    <button type="button" aria-label="Copy buffer" style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #7d8b76; cursor: pointer; padding: 0;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="4.2" y="4.2" width="6.3" height="6.3" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M8 1.5H2.5A1 1 0 0 0 1.5 2.5V8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></button>
+    <button type="button" aria-label="Clear terminal" style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #7d8b76; cursor: pointer; padding: 0;"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2.5 3.8H11.5M3.7 3.8L4.3 11.4H9.7L10.3 3.8M5.6 3.8V2.6H8.4V3.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" aria-label="Expand terminal" style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #7d8b76; cursor: pointer; padding: 0;"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.4 2.4H11.6V5.6M5.6 11.6H2.4V8.4M11.6 2.4L8 6M2.4 11.6L6 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; background: #0b0f0a; padding: 12px 14px; overflow: hidden; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; line-height: 1.6;">
+    <div style="white-space: pre-wrap; word-break: break-all; color: #b5cda9;">agent@agent-caba<span style="color: #6b7766;">:</span><span style="color: #8fb0d6;">/workspace/repo</span><span style="color: #6b7766;">$</span> <span style="color: #d6e2cf;">ll</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">total 381</div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwx------  8 agent agent    26 Sep 20 22:41 <span style="color: #8fb0d6;">./</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxr-xr-x  3 agent agent     3 Sep 20 22:41 <span style="color: #8fb0d6;">../</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  3 agent agent     3 Sep 20 22:41 <span style="color: #8fb0d6;">.claude/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent   350 Sep 20 22:41 <span style="color: #c9d6c2;">.cta.json</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  8 agent agent    13 Sep 20 22:51 <span style="color: #8fb0d6;">.git/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent    72 Sep 20 22:41 <span style="color: #c9d6c2;">.gitignore</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent     3 Sep 20 22:41 <span style="color: #c9d6c2;">.nvmrc</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  9292 Sep 20 22:41 <span style="color: #c9d6c2;">AGENTS.md</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">lrwxrwxrwx  1 agent agent     9 Sep 20 22:41 <span style="color: #7fd3c8;">CLAUDE.md</span> <span style="color: #6b7766;">-&gt;</span> <span style="color: #c9d6c2;">AGENTS.md</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  1078 Sep 20 22:41 <span style="color: #c9d6c2;">LICENSE</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent   748 Sep 20 22:41 <span style="color: #c9d6c2;">README.md</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  1992 Sep 20 22:41 <span style="color: #c9d6c2;">biome.json</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  4 agent agent     4 Sep 20 22:41 <span style="color: #8fb0d6;">content/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  5178 Sep 20 22:41 <span style="color: #c9d6c2;">content-collections.ts</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  3061 Sep 20 22:41 <span style="color: #c9d6c2;">package.json</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent 218636 Sep 20 22:41 <span style="color: #c9d6c2;">pnpm-lock.yaml</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent    75 Sep 20 22:41 <span style="color: #c9d6c2;">pnpm-workspace.yaml</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  2 agent agent    16 Sep 20 22:41 <span style="color: #8fb0d6;">public/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  2 agent agent     9 Sep 20 22:41 <span style="color: #8fb0d6;">scripts/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">drwxrwxr-x  5 agent agent     9 Sep 20 22:41 <span style="color: #8fb0d6;">src/</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent   760 Sep 20 22:41 <span style="color: #c9d6c2;">tsconfig.json</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent  2670 Sep 20 22:41 <span style="color: #c9d6c2;">vite.config.ts</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent   119 Sep 20 22:41 <span style="color: #c9d6c2;">vitest.config.ts</span></div>
+    <div style="white-space: pre-wrap; word-break: break-all; color: #8f9c88;">-rw-rw-r--  1 agent agent   407 Sep 20 22:41 <span style="color: #c9d6c2;">wrangler.jsonc</span></div>
+    <div style="display: flex; align-items: center; white-space: pre-wrap; word-break: break-all; color: #b5cda9;">agent@agent-caba<span style="color: #6b7766;">:</span><span style="color: #8fb0d6;">/workspace/repo</span><span style="color: #6b7766;">$</span>&nbsp;<span style="display: inline-block; width: 6px; height: 13px; background: #b5cda9;"></span></div>
+  </div>
+
+  <div style="height: 46px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-top: 1px solid #1c221a; background: #0f120e;">
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <div style="width: 5px; height: 5px; border-radius: 50%; background: #7fa06a;"></div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #a9b8a2;">attached</div>
+    </div>
+    <div style="width: 1px; height: 11px; background: #232b21;"></div>
+    <div style="flex-grow: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766; font-variant-numeric: tabular-nums;">10.0.3.127 &middot; 80&times;46</div>
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #5f6b5a;">&#8963;C DETACH</div>
+  </div>
+</div>
+</body>
+</html>

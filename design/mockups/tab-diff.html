@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pve-agents — Panel — diff</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap">
+<style>
+body { margin: 0; background: #0f120e; font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #b5cda9; } a:hover { color: #cfe0c4; }
+</style>
+</head>
+<body>
+<div style="width: 400px; height: 880px; box-sizing: border-box; background: #0f120e; border-left: 1px solid #1c221a; display: flex; flex-direction: column; font-family: Geist, system-ui, sans-serif; overflow: hidden;">
+
+  <div style="height: 48px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: flex-end; gap: 18px; border-bottom: 1px solid #1c221a;">
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">DETAILS</div>
+    <div style="position: relative; padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #e6e9df;">DIFF<div style="position: absolute; left: -2px; right: -2px; bottom: -1px; height: 2px; background: #b5cda9;"></div></div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TIMELINE</div>
+    <div style="padding-bottom: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; color: #7d8b76;">TERMINAL</div>
+  </div>
+
+  <div style="height: 34px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #1c221a; background: #0b0f0a;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #a9b8a2;">3 files</div>
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a; font-variant-numeric: tabular-nums;">+128</span>
+      <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #d98b7d; font-variant-numeric: tabular-nums;">&minus;24</span>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: #5f6b5a;">vs main</div>
+    <button type="button" aria-label="Refresh diff" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #7d8b76; cursor: pointer; padding: 0;"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M11.8 6.2A4.9 4.9 0 1 0 11 9.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M12.1 2.6V6.2H8.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+
+  <div style="flex-shrink: 0; display: flex; flex-direction: column; border-bottom: 1px solid #1c221a;">
+    <div style="padding: 8px 16px; display: flex; align-items: center; gap: 10px; background: #171d15;">
+      <div style="width: 14px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; color: #7fa06a;">A</div>
+      <div style="flex-grow: 1; min-width: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="color: #6b7766;">src/content/</span><span style="color: #e6e9df;">mcp-servers.md</span></div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #7fa06a; font-variant-numeric: tabular-nums;">+96</div>
+      <div style="width: 26px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">&minus;0</div>
+    </div>
+    <div style="padding: 8px 16px; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 14px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; color: #d4a85f;">M</div>
+      <div style="flex-grow: 1; min-width: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #a9b8a2;">content-collections.ts</div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #7fa06a; font-variant-numeric: tabular-nums;">+26</div>
+      <div style="width: 26px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #d98b7d; font-variant-numeric: tabular-nums;">&minus;18</div>
+    </div>
+    <div style="padding: 8px 16px; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 14px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; color: #d4a85f;">M</div>
+      <div style="flex-grow: 1; min-width: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #a9b8a2;">AGENTS.md</div>
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #7fa06a; font-variant-numeric: tabular-nums;">+6</div>
+      <div style="width: 26px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #d98b7d; font-variant-numeric: tabular-nums;">&minus;6</div>
+    </div>
+  </div>
+
+  <div style="height: 30px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 9px; background: #131713; border-bottom: 1px solid #1c221a;">
+    <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #c9d6c2;">src/content/mcp-servers.md</div>
+    <div style="flex-grow: 1;"></div>
+    <button type="button" style="border: 0; background: transparent; padding: 0; cursor: pointer; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #6b7766;">UNIFIED</button>
+    <div style="width: 1px; height: 10px; background: #232b21;"></div>
+    <button type="button" style="border: 0; background: transparent; padding: 0; cursor: pointer; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.1em; color: #4e5a49;">SPLIT</button>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; background: #0b0f0a; overflow: hidden; display: flex; flex-direction: column;">
+
+    <div style="padding: 5px 16px; background: #12160f; border-bottom: 1px solid #1c221a; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766;">@@ -0,0 +1,18 @@</div>
+
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">1</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">---</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">2</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">title: MCP servers</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">3</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">updated: 2026-09-20</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">4</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">---</div></div>
+    <div style="display: flex;"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #3b4636; font-variant-numeric: tabular-nums;">5</div><div style="width: 12px; flex-shrink: 0;"></div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #6b7766;">&nbsp;</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">6</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;"># MCP servers</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">7</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">&nbsp;</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">8</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">| Server | Scope |</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">9</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">| ------ | ----- |</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">10</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">| datadog | metrics, logs |</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">11</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">| linear | issues, cycles |</div></div>
+
+    <div style="padding: 5px 16px; background: #12160f; border-top: 1px solid #1c221a; border-bottom: 1px solid #1c221a; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #6b7766;">@@ -14,7 +14,9 @@ export default defineConfig</div>
+
+    <div style="display: flex;"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #3b4636; font-variant-numeric: tabular-nums;">14</div><div style="width: 12px; flex-shrink: 0;"></div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #8f9c88;">collections: [</div></div>
+    <div style="display: flex; background: rgba(217, 139, 125, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #5a4440; font-variant-numeric: tabular-nums;">15</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #d98b7d;">&minus;</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #ddb7ae;">&nbsp;&nbsp;posts,</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">15</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">&nbsp;&nbsp;posts,</div></div>
+    <div style="display: flex; background: rgba(127, 160, 106, 0.09);"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #4e5a49; font-variant-numeric: tabular-nums;">16</div><div style="width: 12px; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: #7fa06a;">+</div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #cbdcc2;">&nbsp;&nbsp;mcpServers,</div></div>
+    <div style="display: flex;"><div style="width: 46px; flex-shrink: 0; padding: 2px 8px 2px 0; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: #3b4636; font-variant-numeric: tabular-nums;">17</div><div style="width: 12px; flex-shrink: 0;"></div><div style="flex-grow: 1; padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; line-height: 1.65; color: #8f9c88;">],</div></div>
+  </div>
+
+  <div style="height: 46px; flex-shrink: 0; padding: 0 16px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #1c221a; background: #0f120e;">
+    <button type="button" style="flex-grow: 1; height: 28px; border: 1px solid #2c3428; border-radius: 4px; background: transparent; color: #c9d6c2; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.12em; cursor: pointer;">COPY PATCH</button>
+    <button type="button" style="flex-grow: 1; height: 28px; border: 0; border-radius: 4px; background: #b5cda9; color: #101410; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; cursor: pointer;">OPEN PR</button>
+  </div>
+</div>
+</body>
+</html>
