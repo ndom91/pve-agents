@@ -1440,10 +1440,31 @@ dd {
  * space would shift every row below it the moment a pointer crossed the answer, which is the worst
  * possible time for the page to move. */
 .agent-answer-actions {
+	align-items: center;
 	display: flex;
+	gap: 8px;
 	justify-content: flex-end;
 	margin-top: 2px;
 	min-height: 22px;
+}
+
+/* When the agent said it, on the same terms as the copy button beside it: available on hover,
+   absent while reading. A transcript with a time under every paragraph is a log rather than a
+   conversation.
+ *
+ * Monospaced and dim, because it is a reference value rather than prose -- the same treatment the
+ * rail gives its timestamps. */
+.agent-answer-at {
+	color: var(--fg-dim);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-xs);
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.agent-answer:hover .agent-answer-at,
+.agent-answer:focus-within .agent-answer-at {
+	opacity: 1;
 }
 
 /* Size and presence only; the colours come from `.icon-button.is-tertiary`, which it also carries.

@@ -55,6 +55,9 @@ type Block = {
 // almost all of them about things this does not render, and importing it here would put a
 // dependency on the SDK into the browser bundle to describe five fields.
 type Message = {
+	// Stamped by the runner as it records the message. Optional because a runner installed before
+	// that shipped is still running, and its messages have no time at all.
+	controller_at?: string;
 	message?: { content?: unknown; role?: string };
 	subtype?: string;
 	type?: string;
@@ -76,6 +79,7 @@ export function readTranscript(
 
 	for (const raw of messages) {
 		const message = raw as Message;
+		const at = message.controller_at;
 		const blocks = Array.isArray(message.message?.content)
 			? (message.message.content as Block[])
 			: [];
@@ -83,7 +87,7 @@ export function readTranscript(
 		if (message.type === "assistant") {
 			for (const block of blocks) {
 				if (block.type === "text" && block.text !== undefined) {
-					entries.push({ kind: "say", text: block.text });
+					entries.push({ at, kind: "say", text: block.text });
 				}
 				// Only when there is something to read.
 				//
@@ -92,7 +96,7 @@ export function readTranscript(
 				// Rendering a "Thought" row for one is an affordance that cannot do anything, which
 				// is exactly how it was reported — a disclosure that would not disclose.
 				if (block.type === "thinking" && (block.thinking ?? "").trim() !== "") {
-					entries.push({ kind: "thought", text: block.thinking ?? "" });
+					entries.push({ at, kind: "thought", text: block.thinking ?? "" });
 				}
 				if (block.type === "tool_use" && block.id !== undefined) {
 					const row: Extract<TranscriptEntry, { kind: "tool" }> = {
@@ -132,7 +136,7 @@ export function readTranscript(
 
 			const text = textOf(message.message?.content, blocks);
 			if (text !== "") {
-				entries.push({ kind: "prompt", text });
+				entries.push({ at, kind: "prompt", text });
 			}
 
 			continue;

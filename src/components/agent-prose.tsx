@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { CodeBlock } from "./code-block";
 import { CopyButton } from "./copy-button";
+import { Timestamp } from "./timestamp";
 
 // AgentProse renders what the agent said, as markdown.
 //
@@ -19,9 +20,13 @@ import { CopyButton } from "./copy-button";
 //
 // Alpha, at 0.0.15, and pinned exactly. The surface used is one component wide.
 export function AgentProse({
+	at,
 	streaming = false,
 	text,
 }: {
+	// When the agent said it. Absent for an answer from a runner installed before the runner
+	// started stamping, which shows as no timestamp rather than as a wrong one.
+	at?: string;
 	streaming?: boolean;
 	text: string;
 }): ReactNode {
@@ -48,6 +53,15 @@ export function AgentProse({
 			    message, an issue, another prompt — and flattened prose has to be marked up again
 			    by hand. */}
 			<div className="agent-answer-actions">
+				{/* Revealed with the copy button and by the same rule, because it answers the same
+				    kind of question: something you want occasionally and never while reading. A
+				    transcript with a time under every paragraph is a log rather than a
+				    conversation. */}
+				{streaming ? null : (
+					<span className="agent-answer-at">
+						<Timestamp iso={at} />
+					</span>
+				)}
 				{streaming ? null : <CopyButton label="Copy this answer" text={text} />}
 			</div>
 		</div>

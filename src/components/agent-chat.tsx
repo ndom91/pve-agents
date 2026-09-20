@@ -196,7 +196,7 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
 		return <p className="chat-text">{entry.text}</p>;
 	}
 
-	return <AgentProse text={entry.text} />;
+	return <AgentProse at={entry.at} text={entry.text} />;
 }
 
 // ToolRow is one tool call and, folded under it, what it returned.

@@ -57,6 +57,22 @@ function main() {
 	let sessionId;
 	let working = false;
 
+	// keep records one message and tells every listener about it.
+	//
+	// It stamps `controller_at` on the way past, because nothing the SDK yields carries a time and
+	// the runner is the only thing present when a message actually happens. The browser cannot do
+	// it: a reconnect replays the whole transcript, so stamping on arrival would date every message
+	// in a session to the moment somebody reloaded the page.
+	//
+	// A namespaced key rather than `at`, so it cannot collide with a field the SDK adds later.
+	// Readers treat it as optional: a runner installed before this shipped keeps running, and its
+	// messages simply have no time, which the UI shows as no timestamp rather than as a wrong one.
+	function keep(message) {
+		const stamped = { ...message, controller_at: new Date().toISOString() };
+		transcript.push(stamped);
+		broadcast({ message: stamped, type: "message" });
+	}
+
 	function status() {
 		if (pending.size > 0) {
 			// Asserted rather than inferred. The reaper refuses to destroy a blocked agent, and
@@ -213,8 +229,7 @@ function main() {
 			// fed. Without this the operator's own prompts are missing from the conversation: you
 			// type a question, it vanishes, and an answer appears with nothing above it. The runner
 			// is the one that knows what was sent, so it is the one that says so.
-			transcript.push(turn);
-			broadcast({ message: turn, type: "message" });
+			keep(turn);
 			turns.push(turn);
 
 			return;
@@ -269,8 +284,7 @@ function main() {
 					working = false;
 				}
 
-				transcript.push(message);
-				broadcast({ message, type: "message" });
+				keep(message);
 				announce();
 			}
 		} catch (error) {
