@@ -556,55 +556,101 @@ dd {
 	margin: 0;
 }
 
+/* The composer. A well with a border, the field on top and a row of keyboard hints under it with
+ * SEND pushed right.
+ *
+ * The button used to be absolutely positioned over the bottom-right of the textarea, with 46px of
+ * padding inside the field to keep text out from under it. That is a button floating on an input
+ * rather than a control belonging to it, and the padding was invisible until somebody typed far
+ * enough to find it. */
 .detail-prompt {
 	display: flex;
 	flex-direction: column;
+	flex-shrink: 0;
 	gap: 8px;
 	margin-top: 16px;
 }
 
-.detail-prompt textarea {
-	background: var(--bg);
-	border: 1px solid var(--border);
-	color: var(--fg-bright);
-	font-family: inherit;
-	font-size: var(--text-lg);
-	padding: 10px;
+.prompt-field {
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-lg);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px 12px 8px;
+}
+
+.prompt-field textarea {
+	background: transparent;
+	border: 0;
+	color: var(--text-body);
+	/* block, not the default inline-block. As an inline element the textarea leaves a baseline
+	   descender gap beneath it, which would show up as uneven padding at the bottom of the well. */
+	display: block;
+	font-family: var(--font-sans);
+	font-size: 13px;
+	outline: none;
+	padding: 0;
 	/* Dragging the handle fought the fixed-height column: growing the field pushed the terminal
 	   and the timeline around rather than scrolling anything. */
 	resize: none;
 	width: 100%;
 }
 
-.detail-prompt textarea:focus {
-	border-color: var(--line);
-	outline: none;
+.prompt-field textarea::placeholder {
+	color: var(--text-faint);
 }
 
-/* The send control sits inside the field it belongs to, rather than below it where it read as an
-   unrelated button. */
-.prompt-field {
-	position: relative;
+/* The border lives on the well, so focus has to be shown there. A ring on the textarea inside it
+   would draw a second box inside the first. */
+.prompt-field:focus-within {
+	border-color: var(--line-strong);
 }
 
-.prompt-field textarea {
-	/* block, not the default inline-block. As an inline element the textarea leaves a baseline
-	   descender gap beneath it, so the wrapper ended up taller than the field and the button's
-	   bottom offset was measured from below the border. No value for `bottom` could look even
-	   against `right` while that gap existed. */
-	display: block;
-	/* Room for the button, so a long prompt wraps above it instead of running underneath. */
-	padding-bottom: 46px;
-	width: 100%;
+.prompt-foot {
+	align-items: center;
+	display: flex;
+	gap: 10px;
 }
 
-.prompt-send {
-	/* Equal on both axes. They were 10 and 12, which reads as a mistake rather than as intent. */
-	bottom: 10px;
-	font-size: var(--text-md);
-	padding: 7px 14px;
-	position: absolute;
-	right: 10px;
+.prompt-hint {
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.prompt-foot-spacer {
+	flex-grow: 1;
+}
+
+/* The page's one primary action, and the only sage fill on it. */
+.button.prompt-send {
+	background: var(--sage);
+	border: 0;
+	border-radius: var(--radius-md);
+	color: var(--sage-ink);
+	font-size: var(--text-mono-xs);
+	font-weight: 600;
+	height: var(--control-h);
+	letter-spacing: var(--tracking-ui);
+	min-height: 0;
+	padding: 0 13px;
+}
+
+.button.prompt-send:hover:not(:disabled) {
+	background: var(--sage-hover);
+}
+
+/* Opacity stays at 1, per section 5. The surface drops and the text goes faint instead, which
+   reads as "not yet" rather than as a control someone has dimmed out of the page. */
+.button.prompt-send:disabled {
+	background: var(--surface-base);
+	color: var(--text-faint);
+	cursor: not-allowed;
+	opacity: 1;
 }
 
 /* The title sits tight against its subtitle everywhere else, where the subtitle is a workspace's
@@ -1572,6 +1618,25 @@ button.workspace-title:hover {
  * only place the conversation actually restarts.
  *
  * Ordered least to most specific: each rule below overrides the one above for the pair it names. */
+/* The agent's answer lines up under the user's words, not under the caret that marks them. 22px
+   is the caret's 10px gutter plus the 10px gap plus the two the glyph itself does not fill. */
+.chat-entry.is-say,
+.chat-entry.is-tools {
+	padding-left: 22px;
+}
+
+/* The group brings its own 22px, so it would otherwise be indented twice. */
+.chat-entry.is-tools {
+	padding-left: 0;
+}
+
+/* One hairline between exchanges. A new prompt is the only boundary in a transcript worth drawing,
+   and it was being marked with 30px of nothing. */
+.chat-entry + .chat-entry.is-prompt {
+	border-top: 1px solid var(--line-hairline);
+	padding-top: 16px;
+}
+
 .chat-entry + .chat-entry {
 	margin-top: 7px;
 }
@@ -1580,10 +1645,6 @@ button.workspace-title:hover {
 .chat-entry + .chat-entry.is-say,
 .chat-entry + .chat-entry.is-ended {
 	margin-top: 14px;
-}
-
-.chat-entry + .chat-entry.is-prompt {
-	margin-top: 30px;
 }
 
 .chat-text {
@@ -1598,11 +1659,44 @@ button.workspace-title:hover {
 /* A prompt is the one thing in the transcript a person wrote; without marking it the page reads as
    one long monologue with no turns in it. A filled block rather than only a rule down the side,
    because in a long conversation a 2px line has to be looked for. */
+/* The user's turn: a caret in a 10px gutter, the words beside it, the time under them.
+ *
+ * This was a tinted block with a 2px accent border down its left edge -- the loudest thing in the
+ * transcript, marking the shortest line in it. The caret says the same thing in one glyph and lets
+ * the agent's answer be what the eye lands on. */
+.chat-turn {
+	display: flex;
+	gap: 10px;
+}
+
+.chat-turn-caret {
+	color: var(--sage);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-lg);
+	line-height: 1.55;
+}
+
+.chat-turn-body {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	gap: 3px;
+	min-width: 0;
+}
+
 .chat-entry.is-prompt .chat-text {
-	background: var(--accent-wash);
-	border-left: 2px solid var(--accent);
-	color: var(--fg-bright);
-	padding: 9px 12px 9px 10px;
+	color: var(--text-primary);
+	font-size: var(--text-body-lg);
+	line-height: 1.55;
+}
+
+.chat-turn-at {
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.1em;
 }
 
 .chat-entry.is-thought .chat-text {
@@ -1621,23 +1715,94 @@ button.workspace-title:hover {
  * Muted at the same weight as a thought, because both are things the agent did on the way to an
  * answer. Only the thought row used to be, so a turn with three tool calls in it read as three
  * headings above the paragraph that mattered. */
+/* A run of agent activity in one bordered box, indented to sit under the user's words.
+ *
+ * The frame is the point. As a flat column of chevrons these were the page: the question above
+ * them and the answer below were two lines lost in fourteen, and nothing said where one piece of
+ * work stopped and the next began. */
+.tool-group {
+	background: var(--surface-sunk);
+	border: 1px solid var(--line-hairline);
+	border-radius: var(--radius-lg);
+	margin-left: 22px;
+	overflow: hidden;
+}
+
+.tool-group-head {
+	align-items: center;
+	background: var(--surface-raised);
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	gap: 8px;
+	height: var(--row-h);
+	padding: 0 11px;
+}
+
+.tool-group-title {
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.tool-group-count {
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	font-variant-numeric: tabular-nums;
+}
+
+.tool-group-spacer {
+	flex-grow: 1;
+}
+
+/* The one thing worth knowing about a group you have not opened. */
+.tool-group-errors {
+	align-items: center;
+	color: var(--red);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 5px;
+}
+
+.tool-group-dot {
+	background: var(--red);
+	border-radius: 50%;
+	height: 4px;
+	width: 4px;
+}
+
+/* Rows divide with --line-inner and the group wraps with --line-hairline: a border around, a
+   hairline between, never both on one edge. The first row has the header's border above it
+   already. */
+.tool-group-row + .tool-group-row {
+	border-top: 1px solid var(--line-inner);
+}
+
+/* A failed call is lifted onto the strip surface and its name goes pale red, so the row that
+   needs reading is findable without reading any of the others. */
+.tool-group-row:has(.chat-fold.is-error) {
+	background: var(--surface-strip);
+}
+
 .chat-fold {
 	align-items: center;
 	background: none;
-	border: none;
-	color: var(--fg-muted);
-	cursor: pointer;
+	border: 0;
+	color: var(--text-secondary);
 	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-md);
-	gap: 6px;
-	padding: 4px 0;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	gap: 9px;
+	padding: 6px 11px;
 	text-align: left;
 	width: 100%;
 }
 
 .chat-fold:hover:not(:disabled) {
-	color: var(--fg-bright);
+	background: var(--surface-raised);
 }
 
 /* A call with no output is still a row, because it happened and belongs in the order of events.
@@ -1651,7 +1816,7 @@ button.workspace-title:hover {
    snippet's scaleY flip: this chevron points right when shut, not down, so there is no "v" to
    turn into a "^". */
 .chat-caret {
-	color: var(--fg-dim);
+	color: var(--text-faint);
 	flex: none;
 	transition: transform var(--acc-chevron) var(--acc-ease);
 }
@@ -1667,28 +1832,69 @@ button.workspace-title:hover {
 	white-space: nowrap;
 }
 
+/* DONE / ERROR, and then a fixed 40px column for how long the call took. The column is empty for
+   now: the runner stamps a time on the message it records, but that stamp never reaches a tool
+   entry, so there is no duration to print. It reads as an em dash rather than being removed --
+   section 5's convention for a value that is not there yet -- and the column keeps its width so
+   the words above it stay in line. */
 .chat-state {
-	color: var(--fg-dim);
+	color: var(--text-dim);
 	flex: none;
-	font-size: var(--text-xs);
+	font-size: var(--text-label);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .chat-fold.is-error .chat-state {
-	color: var(--danger-fg);
+	color: var(--red);
+}
+
+.chat-fold.is-error .chat-summary {
+	color: var(--text-error-name);
 }
 
 .chat-fold.is-awaiting-approval .chat-state {
-	color: var(--warn-fg);
+	color: var(--amber);
 }
 
 .chat-fold.is-ok .chat-state {
-	color: var(--fg-muted);
+	color: var(--text-dim);
+}
+
+/* The duration column, after the state word and always present. */
+.chat-fold::after {
+	color: var(--text-faint);
+	content: "\2014";
+	flex: none;
+	font-size: var(--text-label);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	width: 40px;
+}
+
+/* Except on a thought, which is not a call and never took a measurable amount of anything. */
+.chat-fold:not([class*="is-"])::after {
+	content: "";
 }
 
 /* Capped, because one `cat` of a large file would otherwise be the whole page. Scrolls rather than
    truncates: the end of a stack trace is usually the part worth reading. */
+/* Output inside a group is inset to 40px, which is where the tool's name starts -- past the
+   chevron and the status dot. It reads as belonging to the row above it rather than to the group,
+   and it is the log-row size rather than the body size, because that is what it is. */
+.tool-group .chat-output {
+	font-size: var(--text-mono-sm);
+	margin: 0 11px 9px 40px;
+}
+
+/* A failed call's output is the reason the group is worth opening, so it gets the error well: the
+   deepest surface, a red hairline, and red ink. */
+.chat-fold.is-error + .t-acc-panel .chat-output {
+	background: var(--surface-well);
+	border-color: var(--red-well-line);
+	color: var(--red-ink);
+}
+
 .chat-output {
 	background: var(--bg-sunken);
 	border: 1px solid var(--border);
@@ -2040,10 +2246,27 @@ button.workspace-title:hover {
 	flex-direction: column;
 	min-height: 0;
 	overflow-y: auto;
-	padding: 24px 16px;
+	/* No padding of its own: the tab bar reaches the panel's edges the way the screen bar reaches
+	   the column's. The body below it pads itself. */
 	/* The resizer is positioned against this. */
 	position: relative;
 	width: 260px;
+}
+
+/* The panel's own 48px bar, matching the screen bar across the column from it. Scoped to the rail
+   because the settings page uses the same strip in a place that wants neither the fixed height nor
+   the flush bottom edge. */
+.dashboard-rail > .tabs {
+	align-items: flex-end;
+	flex-shrink: 0;
+	gap: 18px;
+	height: var(--topbar-h);
+	margin-bottom: 0;
+	padding: 0 16px;
+}
+
+.dashboard-rail > .tabs .tab {
+	padding: 0 0 12px;
 }
 
 /* Sits on the border itself, wider than the line so it can be grabbed. Reaching a one-pixel target
@@ -2065,6 +2288,7 @@ button.workspace-title:hover {
 }
 
 .rail-facts {
+	padding: 16px;
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
@@ -2419,7 +2643,7 @@ button.workspace-title:hover {
  * Scrolls sideways rather than wrapping. Wrapping changes the strip's height as tabs appear, which
  * moves everything below it. */
 .tabs {
-	border-bottom: 1px solid var(--border);
+	border-bottom: 1px solid var(--line-hairline);
 	display: flex;
 	flex: 0 0 auto;
 	/* No gap. The separation comes from each tab's own padding, so the underline that marks the
@@ -2460,9 +2684,17 @@ button.workspace-title:hover {
 	cursor: pointer;
 	font-size: var(--text-sm);
 	letter-spacing: 0.08em;
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	letter-spacing: 0.14em;
 	padding: 0 12px 8px;
 	text-transform: uppercase;
 	white-space: nowrap;
+}
+
+.tab[aria-selected="true"] {
+	color: var(--text-primary);
 }
 
 .tab:hover {
@@ -3262,7 +3494,7 @@ button.workspace-title:hover {
 	left: 0;
 	height: 2px;
 	width: 0;
-	background: var(--accent);
+	background: var(--sage);
 	transform: translateX(0);
 	transition:
 		transform var(--tabs-dur) var(--tabs-ease),

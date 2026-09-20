@@ -57,6 +57,31 @@ export function formatDuration(ms: number): string | undefined {
 	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
+// formatUptime renders a span that may run for days, for the meta band's "up 2h 22m".
+//
+// Separate from formatDuration because that one deliberately has no hours tier -- it is `took`,
+// which has said "74m 12s" since it was written and should not start saying something else as a
+// side effect of a visual refresh. This is a new call site with no history to preserve, and a
+// container that has been up since yesterday reading "2410m 8s" is a number nobody can parse.
+export function formatUptime(ms: number): string | undefined {
+	if (!Number.isFinite(ms) || ms < 0) {
+		return undefined;
+	}
+
+	const seconds = Math.floor(ms / 1000);
+	if (seconds < 3600) {
+		return formatDuration(ms);
+	}
+
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	if (hours < 24) {
+		return `${hours}h ${minutes}m`;
+	}
+
+	return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
 // formatAge renders the same span in one unit, for a column that has room for three characters.
 //
 // The sidebar wants "how long has this been up" at a glance, next to a repository name that is

@@ -176,12 +176,12 @@ export function WorkspaceRail({
 					<Fact copy href={source?.branch} label="Branch" value={branch} wide />
 				</Group>
 
+				{/* Node, vmid and address used to lead this group. They are in the meta band
+				    under the top bar now, which is the point of the band -- they are the facts you
+				    reach for when something has gone wrong, and they were readable only with this
+				    panel open and on this tab. What is left is the line nobody can assemble from
+				    the band by eye. */}
 				<Group title="Placement">
-					<Fact label="Node" value={workspace.node} />
-					<Fact label="VMID" value={workspace.vmid?.toString()} />
-					<Fact label="Address" value={workspace.ip} />
-					{/* The line somebody was assembling by hand out of the two rows above it every
-					    time they wanted a shell outside the browser. */}
 					<Fact
 						copy
 						label="SSH"

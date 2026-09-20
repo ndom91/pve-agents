@@ -12,7 +12,10 @@ import { WorkspaceRail } from "./workspace-rail";
 afterEach(cleanup);
 
 describe("WorkspaceRail", () => {
-	it("shows the placement a workspace has reached", () => {
+	it("leaves node, vmid and address to the meta band", () => {
+		// They lead the page now, in the 32px band under the top bar, where they are readable
+		// without this panel being open and on this tab. Repeating them here would be two places
+		// to look for one fact.
 		render(
 			<WorkspaceRail
 				workspace={{
@@ -24,9 +27,19 @@ describe("WorkspaceRail", () => {
 			/>,
 		);
 
-		expect(screen.getByText("10.0.3.110")).toBeDefined();
-		expect(screen.getByText("400")).toBeDefined();
-		expect(screen.getByText("nas")).toBeDefined();
+		expect(screen.queryByText("10.0.3.110")).toBeNull();
+		expect(screen.queryByText("400")).toBeNull();
+		expect(screen.queryByText("nas")).toBeNull();
+	});
+
+	it("keeps the ssh line, which the band cannot be read off by eye", () => {
+		// Assembled by hand out of the address every time somebody wanted a shell outside the
+		// browser, which is why it exists as a row of its own with a copy button.
+		render(
+			<WorkspaceRail workspace={{ ip: "10.0.3.110", repository: "a/b" }} />,
+		);
+
+		expect(screen.getByText("ssh agent@10.0.3.110")).toBeDefined();
 	});
 
 	it("omits what a workspace has not reached yet", () => {
@@ -34,8 +47,7 @@ describe("WorkspaceRail", () => {
 		// row would read as a problem instead of as nothing.
 		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
 
-		expect(screen.queryByText("VMID")).toBeNull();
-		expect(screen.queryByText("Address")).toBeNull();
+		expect(screen.queryByText("SSH")).toBeNull();
 		expect(screen.getByText("Repository")).toBeDefined();
 	});
 
@@ -114,7 +126,7 @@ describe("WorkspaceRail", () => {
 			/>,
 		);
 
-		expect(screen.getByText("10.0.3.110")).toBeDefined();
+		expect(screen.getByText("ssh agent@10.0.3.110")).toBeDefined();
 		expect(screen.queryByText("the changes")).toBeNull();
 
 		rerender(
@@ -127,7 +139,7 @@ describe("WorkspaceRail", () => {
 
 		expect(screen.getByText("the changes")).toBeDefined();
 		// The placement goes rather than being pushed below the fold: both want the full column.
-		expect(screen.queryByText("10.0.3.110")).toBeNull();
+		expect(screen.queryByText("ssh agent@10.0.3.110")).toBeNull();
 	});
 
 	it("puts the actions under the diff and nowhere else", () => {

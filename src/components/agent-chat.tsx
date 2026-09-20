@@ -7,6 +7,8 @@ import {
 	useState,
 } from "react";
 
+import type { ThoughtEntry, ToolEntry } from "../domain/agent-feed";
+import { countErrors, countTools, groupFeed } from "../domain/agent-feed";
 import {
 	readTranscript,
 	type TranscriptEntry,
@@ -16,6 +18,7 @@ import type { AgentTail, Approval } from "../lib/use-agent-stream";
 import { AgentProse } from "./agent-prose";
 import { Button } from "./button";
 import { CodeBlock } from "./code-block";
+import { Timestamp } from "./timestamp";
 
 // AgentChat is the conversation, where the terminal used to be.
 //
@@ -145,16 +148,28 @@ function Rail({
 			}}
 			ref={list}
 		>
-			{entries.map((entry, index) => (
-				<li
-					className={`chat-entry is-${entry.kind}`}
-					// Position is the only stable identity a text entry has: the same sentence can
-					// legitimately appear twice, and entries are never reordered or removed.
-					key={entry.kind === "tool" ? entry.id : `${entry.kind}-${index}`}
-				>
-					<Entry entry={entry} />
-				</li>
-			))}
+			{groupFeed(entries).map((item, index) =>
+				item.kind === "tools" ? (
+					<li
+						className="chat-entry is-tools"
+						// The first row's id. Runs are never reordered, and the row that opens one
+						// is the most stable thing about it.
+						key={`tools-${item.rows[0].kind === "tool" ? item.rows[0].id : index}`}
+					>
+						<ToolGroup rows={item.rows} />
+					</li>
+				) : (
+					<li
+						className={`chat-entry is-${item.entry.kind}`}
+						// Position is the only stable identity a text entry has: the same sentence
+						// can legitimately appear twice, and entries are only ever appended.
+						// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+						key={`${item.entry.kind}-${index}`}
+					>
+						<Entry entry={item.entry} />
+					</li>
+				),
+			)}
 			{tail === undefined ? null : (
 				<li className={`chat-entry is-${tail.kind} is-streaming`}>
 					{tail.kind === "thought" ? (
@@ -186,17 +201,79 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
 	if (entry.kind === "thought") {
 		return <Fold summary="Thought" text={entry.text} />;
 	}
+
 	if (entry.kind === "ended") {
 		return <p className="chat-ended">The turn ended: {entry.reason}</p>;
 	}
 
 	// A prompt is shown as typed. It is the operator's own words, and rendering their asterisks as
 	// emphasis would quietly change what they wrote.
+	//
+	// A caret in the gutter rather than a tinted block with an accent border. The block was the
+	// loudest thing in the transcript and it was marking the shortest line in it; the caret says
+	// the same thing in one glyph and lets the agent's answer be what the eye lands on.
 	if (entry.kind === "prompt") {
-		return <p className="chat-text">{entry.text}</p>;
+		return (
+			<div className="chat-turn">
+				<span aria-hidden="true" className="chat-turn-caret">
+					&rsaquo;
+				</span>
+				<div className="chat-turn-body">
+					<p className="chat-text">{entry.text}</p>
+					{entry.at === undefined ? null : (
+						<span className="chat-turn-at">
+							<Timestamp iso={entry.at} of="time" />
+						</span>
+					)}
+				</div>
+			</div>
+		);
 	}
 
 	return <AgentProse at={entry.at} text={entry.text} />;
+}
+
+// ToolGroup is a run of agent activity in one bordered box.
+//
+// The biggest change to the feed. A transcript is mostly these, and as a flat column of chevrons
+// they were the page -- the question above them and the answer below were two lines lost in
+// fourteen. The box says "this is one piece of work", the header says how much of it there was,
+// and the error count says whether any of it needs reading.
+//
+// Rows stay listed and their output stays folded. The group is a frame around them, not a second
+// disclosure on top of one -- two nested things to open before you can read an error is exactly
+// the friction this is removing.
+function ToolGroup({ rows }: { rows: (ThoughtEntry | ToolEntry)[] }) {
+	const calls = countTools(rows);
+	const errors = countErrors(rows);
+
+	return (
+		<div className="tool-group">
+			<div className="tool-group-head">
+				<span className="tool-group-title">Tool calls</span>
+				<span className="tool-group-count">{calls}</span>
+				<span className="tool-group-spacer" />
+				{errors === 0 ? null : (
+					<span className="tool-group-errors">
+						<span aria-hidden="true" className="tool-group-dot" />
+						{errors === 1 ? "1 error" : `${errors} errors`}
+					</span>
+				)}
+			</div>
+			{rows.map((row, index) => (
+				<div
+					className="tool-group-row"
+					key={row.kind === "tool" ? row.id : `thought-${index}`}
+				>
+					{row.kind === "tool" ? (
+						<ToolRow entry={row} />
+					) : (
+						<Fold summary="Thought" text={row.text} />
+					)}
+				</div>
+			))}
+		</div>
+	);
 }
 
 // ToolRow is one tool call and, folded under it, what it returned.

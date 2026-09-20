@@ -358,17 +358,26 @@ function WorkspaceDetail() {
 											}
 										}}
 										placeholder="Tell the agent what to do next"
-										rows={3}
+										rows={2}
 										value={prompt}
 									/>
-									<Button
-										className="prompt-send"
-										disabled={busy || prompt.trim() === ""}
-										title="Send (Cmd or Ctrl + Enter)"
-										type="submit"
-									>
-										{send.isPending ? "Sending" : "Send"}
-									</Button>
+									{/* The two keys that do something here, written as the glyphs
+									    they are printed on. The send button no longer floats over
+									    the field -- it sits on this row, which is what gives the
+									    hints somewhere to be. */}
+									<div className="prompt-foot">
+										<span className="prompt-hint">&#8984;&#8629; send</span>
+										<span className="prompt-hint">&#8679;&#8629; newline</span>
+										<span className="prompt-foot-spacer" />
+										<Button
+											className="prompt-send"
+											disabled={busy || prompt.trim() === ""}
+											title="Send (Cmd or Ctrl + Enter)"
+											type="submit"
+										>
+											{send.isPending ? "Sending" : "Send"}
+										</Button>
+									</div>
 								</div>
 							</form>
 							{agentNote === "" ? null : (
@@ -511,14 +520,14 @@ function Uptime({
 	if (workspace.readyAt !== undefined) {
 		return (
 			<>
-				up <Elapsed of="duration" since={workspace.readyAt} />
+				up <Elapsed of="uptime" since={workspace.readyAt} />
 			</>
 		);
 	}
 
 	return (
 		<>
-			waiting <Elapsed of="duration" since={workspace.createdAt} />
+			waiting <Elapsed of="uptime" since={workspace.createdAt} />
 		</>
 	);
 }

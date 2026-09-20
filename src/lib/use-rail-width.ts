@@ -8,7 +8,7 @@ export const RAIL_MIN = 260;
 //
 // These were one number, so the rail always opened at its narrowest and the first thing anybody did
 // with a diff was widen it. Wide enough to read one without dragging; a stored width still wins.
-export const RAIL_DEFAULT = 380;
+export const RAIL_DEFAULT = 392;
 
 // CENTRE_MIN is what the rail must leave behind. The terminal is the thing being watched, and a
 // rail dragged over the top of it would be a worse view of both.

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { elapsedSince, formatAge, formatDuration } from "../lib/clock";
+import { elapsedSince, formatAge, formatUptime } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 
 // Elapsed is how long it has been since something, counted from now.
@@ -17,8 +17,9 @@ export function Elapsed({
 	of = "age",
 	since,
 }: {
-	// "age" is one unit for a narrow column -- 9m. "duration" is the fuller form -- 9m 22s.
-	of?: "age" | "duration";
+	// "age" is one unit for a narrow column -- 9m. "uptime" is the fuller form, and rolls into
+	// hours and days rather than counting minutes forever -- 9m 22s, then 2h 22m, then 3d 4h.
+	of?: "age" | "uptime";
 	since?: string;
 }): ReactNode {
 	const mounted = useMounted();
@@ -27,7 +28,7 @@ export function Elapsed({
 		return null;
 	}
 
-	const shown = of === "age" ? formatAge(ms) : formatDuration(ms);
+	const shown = of === "age" ? formatAge(ms) : formatUptime(ms);
 
 	return shown === undefined ? null : <span className="elapsed">{shown}</span>;
 }
