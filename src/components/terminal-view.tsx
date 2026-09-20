@@ -1,6 +1,8 @@
 import { FitAddon, init, Terminal } from "ghostty-web";
 import { useEffect, useRef, useState } from "react";
 
+import { PanelNote, PanelSpinner } from "./panel-state";
+
 // TerminalView is a shell in the workspace.
 //
 // ghostty-web rather than xterm.js: the same API, but the parser is Ghostty's own, compiled to
@@ -108,10 +110,17 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 	return (
 		<div className="terminal-view">
 			<div className="terminal-host" ref={host} />
+			{/* Over the host rather than under it. ghostty measures real glyphs against the
+			    element's own box, so the host has to keep its size while the WASM loads; laying
+			    the wait on top is what leaves that box alone. */}
 			{state === "live" ? null : (
-				<p className="detail-note">
-					{state === "opening" ? "Opening a shell." : "The shell has ended."}
-				</p>
+				<div className="terminal-overlay">
+					{state === "opening" ? (
+						<PanelSpinner label="Opening a shell." />
+					) : (
+						<PanelNote>The shell has ended.</PanelNote>
+					)}
+				</div>
 			)}
 		</div>
 	);

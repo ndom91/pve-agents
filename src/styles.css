@@ -1622,11 +1622,11 @@ dd {
 	color: var(--fg-bright);
 }
 
-/* Everything the diff tab says when it has no files to list.
+/* What a rail tab shows while it waits, or when it has nothing to show at all.
  *
  * Centred in the panel rather than left at the top, where a single sentence under the tab strip
  * read as a caption for content that had failed to load. */
-.changes-empty {
+.panel-centre {
 	align-items: center;
 	display: flex;
 	flex: 1 1 auto;
@@ -1635,7 +1635,7 @@ dd {
 	padding: 24px 12px;
 }
 
-.changes-empty-card {
+.panel-note {
 	border-radius: 6px;
 	font-size: var(--text-md);
 	line-height: 1.5;
@@ -1645,18 +1645,52 @@ dd {
 	text-align: center;
 }
 
-.changes-empty-card-muted {
+.panel-note-muted {
 	background: var(--surface);
 	border: 1px solid var(--border);
 	color: var(--fg-muted);
 }
 
-/* Amber, not grey. These two cards mean "there may be work here that this panel cannot show you",
-   and a muted card says the opposite to someone deciding whether to destroy the workspace. */
-.changes-empty-card-warn {
+/* Amber, not grey. These cards mean "there may be work here that this panel cannot show you", and
+   a muted card says the opposite to someone deciding whether to destroy the workspace. */
+.panel-note-warn {
 	background: var(--warn-bg);
 	border: 1px solid var(--warn);
 	color: var(--warn-fg);
+}
+
+/* A ring with one lit quarter, turning. Small and dim on purpose: it marks a wait of a second or
+   two, and anything louder makes a fast tab feel like a slow one. */
+.panel-spinner {
+	animation: panel-spin 800ms linear infinite;
+	border: 1.5px solid var(--border-dim);
+	border-radius: 50%;
+	border-top-color: var(--accent-fill);
+	display: block;
+	height: 20px;
+	width: 20px;
+}
+
+@keyframes panel-spin {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+/* Reduced motion drops the rotation, which is the part this preference exists to stop, and fades
+   the whole ring instead. A ring left standing still says nothing is happening, which is the one
+   thing it must not say. */
+@media (prefers-reduced-motion: reduce) {
+	.panel-spinner {
+		animation: panel-fade 1.6s ease-in-out infinite;
+		border-top-color: var(--border-dim);
+	}
+}
+
+@keyframes panel-fade {
+	50% {
+		opacity: 0.3;
+	}
 }
 
 /* The change list: one row per file, and the diff that unfolds under it. */
@@ -2001,11 +2035,21 @@ dd {
 	flex: 1 1 auto;
 	flex-direction: column;
 	min-height: 0;
+	position: relative;
 }
 
 .terminal-host {
 	flex: 1 1 auto;
 	min-height: 240px;
+}
+
+/* Opaque, because the host underneath is a canvas mid-measurement and a shell that fades up
+   through a spinner reads as two things loading rather than one. */
+.terminal-overlay {
+	background: var(--bg);
+	display: flex;
+	inset: 0;
+	position: absolute;
 }
 
 

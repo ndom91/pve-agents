@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type { ChangedFiles } from "../services/workspace-changes";
 import { ChangesAccordion } from "./changes-accordion";
+import { PanelNote, PanelSpinner } from "./panel-state";
 
 // ChangesPanel is what the agent changed, or why nobody could tell.
 //
@@ -16,13 +17,13 @@ export function ChangesPanel({
 	workspaceId: string;
 }): ReactNode {
 	if (changes === undefined) {
-		return <ChangesEmpty>Reading the workspace.</ChangesEmpty>;
+		return <PanelSpinner label="Reading the workspace." />;
 	}
 	if (changes.kind === "failed") {
 		// Not an empty list. "The agent changed nothing" is a different claim from "nobody could
 		// look", and it is the claim the reaper refuses to make for the same reason. Warned rather
 		// than muted for that reason: a grey card here reads as "nothing to see".
-		return <ChangesEmpty tone="warn">{changes.message}</ChangesEmpty>;
+		return <PanelNote tone="warn">{changes.message}</PanelNote>;
 	}
 	if (changes.files.length === 0) {
 		// A clean tree is not the same as no work. A push that failed leaves the change committed
@@ -30,39 +31,17 @@ export function ChangesPanel({
 		// there is nothing to rescue and destroys the workspace.
 		if (changes.unpushed > 0) {
 			return (
-				<ChangesEmpty tone="warn">
+				<PanelNote tone="warn">
 					{`Nothing uncommitted. ${changes.unpushed} ${
 						changes.unpushed === 1 ? "commit is" : "commits are"
 					} committed here and not pushed anywhere else.`}
-				</ChangesEmpty>
+				</PanelNote>
 			);
 		}
 		return (
-			<ChangesEmpty>
-				The agent has not changed anything in the checkout.
-			</ChangesEmpty>
+			<PanelNote>The agent has not changed anything in the checkout.</PanelNote>
 		);
 	}
 
 	return <ChangesAccordion files={changes.files} workspaceId={workspaceId} />;
-}
-
-// ChangesEmpty is every answer this tab has that is not a list of files.
-//
-// Centred in the panel rather than set against its top-left corner, where one sentence under the
-// tab strip reads as a caption for content that failed to arrive rather than as the answer.
-function ChangesEmpty({
-	children,
-	tone = "muted",
-}: {
-	children: ReactNode;
-	tone?: "muted" | "warn";
-}): ReactNode {
-	return (
-		<div className="changes-empty">
-			<p className={`changes-empty-card changes-empty-card-${tone}`}>
-				{children}
-			</p>
-		</div>
-	);
 }

@@ -1,6 +1,7 @@
 import { lazy, type ReactNode, Suspense } from "react";
 
 import { useMounted } from "../lib/use-mounted";
+import { PanelNote, PanelSpinner } from "./panel-state";
 
 // Fetched when somebody opens the terminal tab, not when they open a workspace. xterm and its
 // stylesheet are the largest thing on this page, and most visits are to read a screen rather than
@@ -23,17 +24,17 @@ export function WorkspaceTerminal({
 		// A workspace that is not ready has no address to reach, and one that is gone has no
 		// container. Saying so beats a socket that fails with nothing to read.
 		return (
-			<p className="detail-note">
+			<PanelNote>
 				A shell needs a running workspace. This one has none.
-			</p>
+			</PanelNote>
 		);
 	}
 	if (!mounted) {
-		return <p className="detail-note">Loading the terminal.</p>;
+		return <PanelSpinner label="Loading the terminal." />;
 	}
 
 	return (
-		<Suspense fallback={<p className="detail-note">Loading the terminal.</p>}>
+		<Suspense fallback={<PanelSpinner label="Loading the terminal." />}>
 			<TerminalView workspaceId={workspaceId} />
 		</Suspense>
 	);
