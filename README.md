@@ -3,41 +3,124 @@
   pve-agents
 </h1>
 
-A controller that turns a request for work into a disposable Proxmox LXC with a coding agent
-already working in it.
+Cloud agents, but using your Proxmox host instead of a cloud provider.
 
-You give it a repository, a ref, and a purpose. It clones a golden template, boots the container,
-checks the repository out, starts a Claude Code agent inside it, and hands it the
-purpose. The web UI then streams that agent's terminal, takes prompts, answers its permission
-dialogs, shows what it changed, and pushes or discards the result. When the workspace has outlived
-its usefulness, the controller destroys it — unless it is holding work nobody has kept.
+Give it a repository, a ref, and a purpose. It clones a golden template, boots an LXC, checks the
+repository out, starts a Claude Code agent inside it and hands it the purpose. The web UI streams
+that agent's transcript, takes prompts, answers its permission dialogs, shows what it changed, and
+pushes or discards the result. When a workspace has outlived its usefulness the controller destroys
+it — unless it is holding work nobody kept.
 
-Built for one operator on a trusted LAN. It holds a Proxmox token, a GitHub App key, and a Claude
+The controller owns the lifecycle, the policy and the UI. Proxmox owns the containers. Claude Code
+owns the actual work.
+
+```text
+                You, in a browser
+                        │
+                        ▼
+                pve-agents :3000
+   request · stream · approve · diff · push · reap
+           │                          │
+           ▼                          ▼
+     Proxmox API                 workspace LXC
+ clone · boot · destroy      Claude Code · git checkout
+```
+
+Built for one operator on a trusted LAN. It holds a Proxmox token, a GitHub App key and a Claude
 subscription token, and it creates and destroys real containers.
 
-## Documentation
+## ✨ What it does
+
+- **Start work from a sentence** — a repository, a ref and a purpose become a booted container with
+  an agent already working in it. No step in between is yours.
+- **Watch the agent think** — the transcript streams over SSE, tool calls and all, replayed from
+  the beginning for whoever opens the page late.
+- **Answer its questions** — permission prompts surface in the browser and are answered there,
+  rather than in a terminal somebody has to already be attached to.
+- **Read what changed** — per-file diffs in the rail, then push to `pve-agents/<hostname>` or
+  discard the lot.
+- **Drop into a real shell** — a full terminal into the workspace over `ghostty-web`, for the
+  things a transcript cannot do.
+- **Forget about cleanup** — idle workspaces are reaped automatically, and a workspace holding
+  uncommitted or unpushed work is exempt until you deal with it.
+- **Keep Proxmox honest** — containers the controller no longer recognises are reported, never
+  destroyed. A restored database does not cost you your fleet.
+- **Lock it down** — GitHub sign-in for the UI, hashed API keys for machines.
+
+## ⚡ Quick start
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm dev                   # http://127.0.0.1:3000
+```
+
+State lands in `./data/controller.db`. `CONTROLLER_HOST` and `CONTROLLER_PORT` move the listener.
+
+**Nothing touches Proxmox until you ask it to.** `PROVISIONING_ENABLED` is off by default, and with
+it off a request queues a durable operation and builds nothing. That is the intended way to try the
+UI, the API and the whole state machine without a hypervisor anywhere near it.
+
+## 🏗️ Requirements
+
+To go past the queue and build real containers:
+
+- Node 22+ and pnpm
+- A Proxmox host with an API token, a pool, and a template built by
+  [`deploy/build-workspace-template.sh`](deploy/build-workspace-template.sh)
+- A GitHub App, for cloning and pushing as an installation rather than as you
+- A Claude subscription token for the agents
+
+## 🏔️ Environment
+
+Copy `.env.example` to `.env`. Twenty-one variables, of which four decide whether anything happens:
+
+| | |
+|---|---|
+| `CONTROLLER_AUTH_SECRET` | Turns authentication on. **Unset means the controller answers anyone who can reach it.** Set it. |
+| `PROVISIONING_ENABLED` | Gates every Proxmox write. Off by default. |
+| `PROXMOX_*` | URL, token, node, pool, template VMID, bridge. |
+| `WORKER_ENABLED` | Runs the operation worker in the server process. Off by default, so the first clone and destroy can be stepped by hand with `pnpm worker:tick`. |
+
+[`docs/production-runbook.md`](docs/production-runbook.md) has the rest.
+
+## 🚀 Deploying
+
+```bash
+./bin/deploy.sh              # deploy
+./bin/deploy.sh --dry-run    # show what would be sent and removed, change nothing
+```
+
+Not by hand. The controller's checkout is an rsync target rather than a git clone, and several
+steps fail silently when skipped — the runbook says which.
+
+## 🛡️ What it will not do
+
+Destruction is the only path that loses something irreversibly, so it is the one with the most said
+about it.
+
+- **Only the ownership marker authorises it.** Every container carries the controller's id, the
+  workspace id and a token in its LXC description, re-read immediately before anything is purged.
+  Pool membership, hostname and tags are discovery aids, not permission.
+- **Unsaved work is kept.** Uncommitted changes or unpushed commits exempt a workspace from reaping,
+  and so does a workspace the controller could not inspect. "Could not tell" is not "nothing to
+  lose".
+- **Unrecognised containers are reported, never destroyed.** A restored or lost database makes every
+  live workspace look orphaned, and a timer would then purge the fleet.
+
+## 📚 Documentation
 
 | | |
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | Start here to work on the code. Conventions, and the rules this codebase learned the hard way. |
 | [`docs/architecture.md`](docs/architecture.md) | The system as built, including where an earlier intention was abandoned and why. |
+| [`docs/http-api.md`](docs/http-api.md) | The HTTP API, for scripting the controller. |
 | [`docs/production-runbook.md`](docs/production-runbook.md) | Deploying and operating it. |
 | [`docs/proxmox-lifecycle.md`](docs/proxmox-lifecycle.md) | Clone, boot, address, destroy, and reconcile. |
-| [`docs/herdr-integration.md`](docs/herdr-integration.md) | Why Herdr left, and the two lessons that outlived it. |
 | [`docs/security-and-networking.md`](docs/security-and-networking.md) | Network shape, credentials, and what is deliberately not trusted. |
+| [`docs/herdr-integration.md`](docs/herdr-integration.md) | Why Herdr left, and the two lessons that outlived it. |
 
-## Running it locally
-
-```bash
-pnpm install
-pnpm dev
-```
-
-State lives in `./data/controller.db` by default. Copy `.env.example` to `.env` to change that or
-to configure Proxmox. The listener defaults to `127.0.0.1:3000`; `CONTROLLER_HOST` and
-`CONTROLLER_PORT` change it.
-
-Before committing:
+## 🧑‍💻 Development
 
 ```bash
 pnpm check && pnpm typecheck && pnpm test && pnpm build
@@ -45,50 +128,11 @@ pnpm check && pnpm typecheck && pnpm test && pnpm build
 
 None of those load a page. After anything touching routing or SSR, open the site and look at it.
 
-## Deploying
+## 🤖 Acknowledgements
 
-```bash
-./bin/deploy.sh              # deploy
-./bin/deploy.sh --dry-run    # show what would be sent and removed, change nothing
-```
+This project was developed with significant assistance from LLMs. Architecture decisions,
+implementation and documentation were all shaped through human-AI collaboration.
 
-Not by hand: the controller's checkout is an rsync target rather than a git clone, and several
-steps fail silently if skipped. `docs/production-runbook.md` explains which.
+## 📝 License
 
-## What creates containers
-
-`PROVISIONING_ENABLED` gates every Proxmox write. With it off, requests queue durable operations
-and nothing is built; with it on, the controller clones, boots and destroys for real.
-
-Destruction is the only path that loses something irreversibly, so it is the one with the most
-said about it:
-
-- **Only the ownership marker authorises it.** Every container carries the controller's id, the
-  workspace id, and a token in its LXC description, re-read immediately before anything is purged.
-  Pool membership, hostname and tags are discovery aids, not permission.
-- **Unsaved work is kept.** Uncommitted changes or unpushed commits exempt a workspace from
-  reaping, as does a workspace the controller could not inspect. "Could not tell" is not "nothing
-  to lose".
-- **Unrecognised containers are reported, never destroyed.** A restored or lost database makes
-  every live workspace look orphaned, and a timer would then purge the fleet.
-
-## Authentication
-
-**Off unless configured.** Setting `CONTROLLER_AUTH_SECRET` is what turns it on: with it, the UI
-is behind a GitHub sign-in and the API expects a key. Without it, the controller answers anyone who
-can reach it, which is only survivable because it is meant to sit on a trusted LAN. Set it.
-
-## HTTP API
-
-Everything the UI does goes through server functions rather than these. They exist for scripting.
-
-| | |
-|---|---|
-| `GET /api/health` | Controller health and whether provisioning is on. |
-| `GET /api/workspaces` | List workspaces. |
-| `POST /api/workspaces` | Request one. Takes `idempotencyKey`, `repository`, and optional `ref` and `purpose`. |
-| `GET /api/workspaces/:id` | One workspace and its timeline. |
-| `DELETE /api/workspaces/:id` | Queue destruction. |
-| `POST /api/workspaces/:id/retry` | Queue a retry, for a failed workspace only. |
-| `GET /api/workspaces/:id/stream` | Server-sent events: the agent's screen and what it is doing. |
-| `GET /api/infrastructure/probe` | Check the controller can reach Proxmox. |
+[AGPL-3.0-only](LICENSE)
