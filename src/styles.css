@@ -1363,7 +1363,34 @@ dd {
  * A caret after the last character, so a pause reads as the agent thinking rather than as the page
  * having stopped. Drawn with ::after on the last element inside rather than as its own node, which
  * would sit on a line of its own the moment the text ends on a paragraph break. */
-.chat-entry.is-streaming .agent-prose > :last-child::after,
+/* Three selectors rather than one, because ::after on a block container is laid out as a box
+   after that container's children rather than inside the last of them. On a paragraph it lands
+   inline after the final word, which is the whole idea; on a list it dropped onto a line of its
+   own below the bullets, which is what an answer ending in a list looked like every time.
+   So the caret walks into the container and sits on its last item instead.
+ *
+ * The :has() guards are why a nested list does not get two. Without them the outer list's last
+ * item matches as well as the inner one's, and since that item ends in the nested list its
+ * ::after lands below the bullets — the original bug, now beneath a correct caret.
+ *
+ * Three levels covers a list, a quote, and a list nested one deep inside either — which is as
+ * far as an answer in this transcript has ever gone. Deeper than that and the caret is simply
+ * absent for the last few tokens, which is quieter than putting it in the wrong place. */
+.chat-entry.is-streaming
+	.agent-prose
+	> :last-child:not(:is(ul, ol, blockquote, table))::after,
+.chat-entry.is-streaming
+	.agent-prose
+	> :is(ul, ol, blockquote):last-child
+	> :last-child:not(:is(ul, ol, blockquote, table)):not(
+		:has(> :is(ul, ol, blockquote, table):last-child)
+	)::after,
+.chat-entry.is-streaming
+	.agent-prose
+	> :is(ul, ol, blockquote):last-child
+	> :last-child
+	> :is(ul, ol, blockquote):last-child
+	> :last-child:not(:has(> :is(ul, ol, blockquote, table):last-child))::after,
 .chat-entry.is-streaming .chat-thinking::after {
 	animation: chat-caret 1s steps(2, start) infinite;
 	background: var(--accent-fill);
