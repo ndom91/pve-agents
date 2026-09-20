@@ -915,7 +915,7 @@ dd {
    the more complicated half of a simple feature. */
 .dashboard {
 	display: grid;
-	grid-template-columns: 260px minmax(0, 1fr) auto;
+	grid-template-columns: var(--sidebar-w) minmax(0, 1fr) auto;
 	height: 100vh;
 	overflow: hidden;
 }
@@ -925,8 +925,13 @@ dd {
 	grid-column: 2 / -1;
 }
 
+/* Chrome sinks, content sits, wells recede. The page painted one colour everywhere, which is why
+   neither of the two side columns read as a panel -- they were the centre with a line drawn down
+   them. The edge toward the centre drops to a hairline at the same time: against a surface that
+   now differs on its own, a --border-weight line is a second statement of the same boundary. */
 .dashboard-sidebar {
-	border-right: 1px solid var(--border);
+	background: var(--surface-sunk);
+	border-right: 1px solid var(--line-hairline);
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
@@ -1070,6 +1075,10 @@ dd {
 	   in one variable is what stops them drifting apart. */
 	--main-pad: 28px;
 
+	/* Stated rather than inherited from the body. It is the same colour, but the two columns
+	   beside it are no longer, and a centre column that only looks right because nothing has been
+	   said about it is one rule away from not. */
+	background: var(--surface-base);
 	display: flex;
 	flex-direction: column;
 	gap: 24px;
@@ -1684,7 +1693,8 @@ button.workspace-title:hover {
 }
 
 .dashboard-rail {
-	border-left: 1px solid var(--border);
+	background: var(--surface-sunk);
+	border-left: 1px solid var(--line-hairline);
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
@@ -1827,7 +1837,7 @@ button.workspace-title:hover {
 
 	.dashboard-rail {
 		border-left: none;
-		border-top: 1px solid var(--border);
+		border-top: 1px solid var(--line-hairline);
 		grid-column: 2;
 	}
 
@@ -1842,7 +1852,7 @@ button.workspace-title:hover {
 	}
 
 	.dashboard-sidebar {
-		border-bottom: 1px solid var(--border);
+		border-bottom: 1px solid var(--line-hairline);
 		border-right: none;
 		height: auto;
 		overflow-y: visible;
