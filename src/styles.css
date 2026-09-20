@@ -1664,9 +1664,10 @@ dd {
 	max-width: 280px;
 	padding: 16px 18px;
 	text-align: center;
-	/* Two lines, centred, in a fixed-width card: without this the second line was routinely one
-	   word, which reads as a mistake rather than as a sentence. */
-	text-wrap: balance;
+	/* The second line was routinely one word, which reads as a mistake rather than as a sentence.
+	   "pretty" rather than "balance": it pulls the orphan up without evening out every line, so a
+	   longer card keeps its natural measure instead of being squared off. */
+	text-wrap: pretty;
 }
 
 .panel-note-muted {
