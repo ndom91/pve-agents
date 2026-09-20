@@ -578,7 +578,7 @@ dd {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	padding: 10px 12px 8px;
+	padding: 10px 12px 8px calc(var(--chat-gutter) - 1px);
 }
 
 .prompt-field textarea {
@@ -1115,9 +1115,13 @@ dd {
 	padding: 0 14px;
 }
 
+/* 16px rather than the mockup's 14. That was a 1.2px line glyph; this is a raster mark with three
+   shapes inside it, and two pixels is the difference between reading as cubes and reading as a
+   smudge. The 44px bar does not notice. */
 .sidebar-mark {
-	color: var(--sage);
 	flex-shrink: 0;
+	height: 16px;
+	width: 16px;
 }
 
 .sidebar-wordmark {
@@ -1421,6 +1425,13 @@ dd {
    button -- exactly the thing the refresh is here to stop being. The control is also declared
    `tertiary`, because the secondary variant sets a grey border at the same specificity as this
    one and would win the same way. */
+/* Chips are 21px wherever they are read on their own. In the bar they sit beside a 26px control,
+   and two heights five pixels apart on one row reads as one of them being wrong. */
+.screen-bar .chip {
+	height: var(--control-h);
+	padding: 0 10px;
+}
+
 .icon-button.screen-bar-destroy {
 	border-color: var(--red-line);
 	border-radius: var(--radius-md);
@@ -1571,6 +1582,11 @@ button.workspace-title:hover {
 }
 
 .centre-screen {
+	/* Where the conversation's text starts. The caret sits in the 10px before it and the gap is
+	   the other 10; the agent's prose, the tool groups and the composer's own field all line up on
+	   this, so the column has one left edge rather than three within seven pixels of each other. */
+	--chat-gutter: 20px;
+
 	/* Both axes, because the screen is fitted to the box in both. `size` rather than `inline-size`
 	   needs a definite height, which the flex rule below gives it. */
 	container-type: size;
@@ -1622,7 +1638,7 @@ button.workspace-title:hover {
    is the caret's 10px gutter plus the 10px gap plus the two the glyph itself does not fill. */
 .chat-entry.is-say,
 .chat-entry.is-tools {
-	padding-left: 22px;
+	padding-left: var(--chat-gutter);
 }
 
 /* The group brings its own 22px, so it would otherwise be indented twice. */
@@ -1672,6 +1688,9 @@ button.workspace-title:hover {
 .chat-turn-caret {
 	color: var(--sage);
 	flex-shrink: 0;
+	/* Fixed, not whatever the glyph happens to measure. The gutter is a column that other things
+	   align to, so it cannot depend on the width of a single rsaquo in the current face. */
+	width: 10px;
 	font-family: var(--font-mono);
 	font-size: var(--text-mono-lg);
 	line-height: 1.55;
@@ -1724,7 +1743,7 @@ button.workspace-title:hover {
 	background: var(--surface-sunk);
 	border: 1px solid var(--line-hairline);
 	border-radius: var(--radius-lg);
-	margin-left: 22px;
+	margin-left: var(--chat-gutter);
 	overflow: hidden;
 }
 
@@ -2099,8 +2118,12 @@ button.workspace-title:hover {
  * It was always writing markdown; the page was showing the asterisks. Spacing is tightened from the
  * browser default throughout, because a transcript is a conversation rather than a document and
  * document margins leave it full of holes. */
+/* 13.5px, the feed size from section 3. This had no font-size of its own and was inheriting the
+   document's 16px, which made the agent's answer the largest text on the page -- larger than the
+   screen title, and two and a half points larger than the question it was answering. */
 .agent-prose {
-	line-height: 1.5;
+	font-size: var(--text-body-lg);
+	line-height: var(--leading-prose);
 	overflow-wrap: anywhere;
 	/* "pretty" rather than "balance": these paragraphs run to many lines, where balance does
 	   nothing past the last few, and the problem worth fixing here is the one-word last line. */

@@ -6,7 +6,6 @@ import {
 	redirect,
 } from "@tanstack/react-router";
 import { Bell, ChevronRight, LogOut, Plus, Settings } from "lucide-react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { IconButton, IconLink } from "../components/icon-button";
@@ -70,7 +69,11 @@ function Dashboard() {
 				    the column. It was an eyebrow floating above the first group, which read as a
 				    label belonging to that group rather than to the window. */}
 				<div className="sidebar-head">
-					<Mark />
+					{/* The product's own mark, from public/. It was a line glyph copied out of the
+					    mockup, which was a stand-in for exactly this. Decorative beside the
+					    wordmark that names the same thing, so it is hidden from the accessibility
+					    tree rather than given alt text that would be read twice. */}
+					<img alt="" className="sidebar-mark" src="/icon1.png" />
 					<span className="sidebar-wordmark">PVE&middot;AGENTS</span>
 				</div>
 
@@ -155,45 +158,5 @@ function Dashboard() {
 
 			<Outlet />
 		</div>
-	);
-}
-
-// Mark is the application's glyph: a bracket with a prompt caret and a cursor rule inside it.
-//
-// Inline stroke SVG at currentColor, per STYLE.md section 10 -- no icon font and no emoji. Copied
-// from the mockup rather than redrawn, so the one place it appears matches the reference exactly.
-function Mark(): ReactNode {
-	return (
-		<svg
-			aria-hidden="true"
-			className="sidebar-mark"
-			fill="none"
-			height="14"
-			viewBox="0 0 14 14"
-			width="14"
-		>
-			<rect
-				height="11.6"
-				rx="2"
-				stroke="currentColor"
-				strokeWidth="1.2"
-				width="11.6"
-				x="1.2"
-				y="1.2"
-			/>
-			<path
-				d="M4.6 5.2L6.9 7L4.6 8.8"
-				stroke="currentColor"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				strokeWidth="1.2"
-			/>
-			<path
-				d="M7.9 9.1H9.9"
-				stroke="currentColor"
-				strokeLinecap="round"
-				strokeWidth="1.2"
-			/>
-		</svg>
 	);
 }
