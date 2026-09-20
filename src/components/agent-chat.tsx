@@ -1,5 +1,11 @@
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 
 import {
 	readTranscript,
@@ -73,6 +79,14 @@ export function AgentChat({
 	);
 }
 
+// SLACK is how far from the bottom still counts as reading the end.
+//
+// A reader who has scrolled deliberately is usually hundreds of pixels up, so this only has to
+// absorb the last line sitting a few pixels short of flush and the sub-pixel rounding a zoomed
+// page produces. Generous enough and it stops being possible to stand just above the newest
+// entry without being dragged down to it.
+const SLACK = 24;
+
 // Rail is the transcript itself, pinned to the bottom while it grows.
 function Rail({
 	entries,
@@ -81,35 +95,55 @@ function Rail({
 	entries: TranscriptEntry[];
 	tail?: AgentTail;
 }) {
-	const end = useRef<HTMLDivElement>(null);
-	// Whether the reader is at the bottom. Scrolling on every append would yank somebody out of
-	// the middle of a tool result they had scrolled back to read, which is the commonest reason to
-	// scroll back at all.
-	const pinned = useRef(true);
-
-	// Follows both a new entry and a growing tail. It used to have an empty dependency list, which
-	// meant it scrolled once on mount and then never again: the transcript grew below the fold and
-	// the page sat still. Invisible while answers arrived whole every few seconds; impossible to
-	// miss once text streams in a character at a time.
+	const list = useRef<HTMLOListElement>(null);
+	// How tall the transcript was the last time this knew where the reader was.
 	//
-	// The two lengths are triggers rather than values the body reads, which is what the rule below
-	// objects to. They are the whole mechanism: scrolling is a response to the content having
-	// grown, and there is nothing else in scope that changes when it does.
+	// The whole mechanism, and the reason there is no longer a scroll listener deciding it. "Is
+	// the reader at the bottom" cannot be answered after the content has grown — by then the
+	// bottom has moved. Answering it against the height from before the growth can be done
+	// synchronously, at the moment of the change, with nothing to race.
+	const measured = useRef(0);
+
+	// Follows a new entry and a growing tail, and only while the reader is already at the end.
+	//
+	// It used to read a `pinned` ref that a scroll handler wrote. That handler was the bug:
+	// scroll events are delivered asynchronously, and during a stream a token arrives every few
+	// milliseconds. Scrolling up put the event in the queue behind the next token, the effect
+	// still saw the stale "at the bottom", and the reader was dragged back down by the thing they
+	// had just scrolled away from. Measuring here instead closes the window entirely.
+	//
+	// The two lengths are triggers rather than values the body reads, which is what the rule
+	// below objects to. Growth is the event; the size of it is measured from the DOM.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: the lengths are the trigger, not an input
-	useEffect(() => {
-		if (pinned.current) {
-			end.current?.scrollIntoView({ block: "end" });
+	useLayoutEffect(() => {
+		const box = list.current;
+		if (box === null) {
+			return;
 		}
+
+		// Against the previous height, not the current one. Appending below does not move
+		// scrollTop, so this asks where the reader was standing in the transcript as it was.
+		// SLACK covers sub-pixel rounding and the last line being a few pixels short of flush.
+		const followed =
+			box.scrollTop + box.clientHeight >= measured.current - SLACK;
+		if (followed) {
+			// scrollTop rather than scrollIntoView: that scrolls every scrollable ancestor to
+			// reveal the element, so on a short window it moved the page as well as the list.
+			box.scrollTop = box.scrollHeight;
+		}
+		measured.current = box.scrollHeight;
 	}, [entries.length, tail?.text.length]);
 
 	return (
 		<ol
 			className="chat-entries"
+			// Nothing is decided here. It re-reads the height so that growth this effect never saw
+			// — a tool fold opening, an image landing — cannot leave the stored height too small
+			// and make the next append think the reader is at the bottom when they are not.
 			onScroll={(event) => {
-				const box = event.currentTarget;
-				pinned.current =
-					box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+				measured.current = event.currentTarget.scrollHeight;
 			}}
+			ref={list}
 		>
 			{entries.map((entry, index) => (
 				<li
@@ -141,7 +175,6 @@ function Rail({
 					)}
 				</li>
 			)}
-			<div ref={end} />
 		</ol>
 	);
 }
