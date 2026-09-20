@@ -1044,8 +1044,12 @@ dd {
    sitting beside it.
  *
  * Hidden until the answer is hovered, because one of these under every paragraph is a column of
-   buttons down the side of a transcript nobody asked for. */
-.copy-button {
+   buttons down the side of a transcript nobody asked for.
+ *
+ * Qualified with `.icon-button` for the specificity, not for the selector: that rule lives several
+ * hundred lines below this one, so at equal weight it wins on source order and this button came
+ * out the full 32px square with the wrong text colour. */
+.icon-button.copy-button {
 	border-radius: 4px;
 	color: var(--fg-dim);
 	height: 22px;
