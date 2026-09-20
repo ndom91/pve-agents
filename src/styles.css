@@ -1,3 +1,9 @@
+/* The refresh's design tokens. First line because @import has to precede every rule, including
+ * the @font-face below. Nothing in this file reads them yet — they are landed on their own so the
+ * surfaces that follow have a vocabulary to convert into, one at a time. None of their names
+ * collide with the palette further down, so adding them changes no pixels. */
+@import "./tokens.css";
+
 /* Geist Sans, self-hosted.
  *
  * One variable file rather than a weight per file: 70 kB covers 100 to 900, where the static set

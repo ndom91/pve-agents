@@ -1,0 +1,156 @@
+/* pve-agents — design tokens
+ * Single source of truth. Imported once, from the top of styles.css.
+ *
+ * This is the shipping copy; design/tokens.css is the design source and is
+ * left alone. The two differ only in --font-mono / --font-sans, which point
+ * at the faces this app loads rather than the mockups' stand-ins. A colour
+ * the mockups use and this file lacks is a missing token: add it here, do
+ * not inline the hex.
+ *
+ * Every value below was sampled from the existing app or derived from it;
+ * nothing here is a new brand decision.
+ *
+ * Dark only for now. When light mode happens, redefine the --surface-*,
+ * --line-* and --text-* groups under a [data-theme="light"] selector and
+ * leave everything else alone.
+ */
+
+:root {
+	/* ── Surfaces ───────────────────────────────────────────────────────
+     Four levels. The current app uses one (#111411) everywhere, which is
+     why nothing reads as a panel. Use exactly these four, in this order
+     of depth, and do not invent a fifth. */
+	--surface-well: #0b0f0a; /* inputs, terminal, code, error output */
+	--surface-base: #111411; /* the page itself */
+	--surface-sunk: #0f120e; /* sidebar, right panel, meta band */
+	--surface-raised: #131713; /* cards, table rows, grouped lists */
+	--surface-hover: #1c211a; /* hover / pressed on a raised thing */
+	--surface-select: #171d15; /* selected row in a list */
+
+	/* ── Lines ──────────────────────────────────────────────────────────
+     Hairline separates things inside a group; border wraps a group;
+     strong is focus only. */
+	--line-hairline: #1c221a;
+	--line-inner: #161b14; /* between rows inside one bordered group */
+	--line-border: #2c3428;
+	--line-strong: #3b4636;
+
+	/* ── Ink ────────────────────────────────────────────────────────────
+     muted is the floor for anything readable — 5.1:1 on --surface-base.
+     The app's current label grey (#485145) is ~4.3:1 and fails; faint is
+     for non-text decoration only. */
+	--text-primary: #e6e9df; /* titles, live values */
+	--text-body: #d6e2cf; /* prose, answers */
+	--text-secondary: #a9b8a2; /* meta values */
+	--text-muted: #7d8b76; /* section labels, key names */
+	--text-dim: #6b7766; /* timestamps, counts, hints */
+	--text-faint: #5f6b5a; /* keyboard hints, disabled */
+	--text-decorative: #4e5a49; /* dots, rails, gutters — never words */
+
+	/* ── Signal ─────────────────────────────────────────────────────────
+     Sage = something you can do. Green = something that is true right
+     now. They are not interchangeable: a destroy button is never sage. */
+	--sage: #b5cda9;
+	--sage-ink: #101410; /* text on a sage fill */
+	--sage-quiet: #26301f; /* sage at rest — active segment, monogram */
+	--green: #7fa06a; /* live, ready, healthy, additions */
+	--amber: #d4a85f; /* provisioning, waiting, high priority */
+	--red: #d98b7d; /* error, destroy, removals */
+	--red-ink: #e0a094; /* red text on a dark well */
+	--red-line: #4a2f29; /* destroy button border */
+	--red-well-line: #2a1f1c; /* border on an error well */
+
+	/* tinted chip fills — keep these exact, they are tuned for 4.5:1 */
+	--chip-green-bg: rgba(127, 160, 106, 0.14);
+	--chip-green-line: rgba(127, 160, 106, 0.3);
+	--chip-green-text: #a5c493;
+	--chip-amber-bg: rgba(212, 168, 95, 0.12);
+	--chip-amber-line: rgba(212, 168, 95, 0.28);
+	--chip-amber-text: #d4b785;
+	--chip-red-bg: rgba(217, 139, 125, 0.12);
+	--chip-red-line: rgba(217, 139, 125, 0.3);
+	--chip-red-text: #e0a094;
+	--chip-neutral-bg: #1c211a;
+	--chip-neutral-line: #2c3428;
+	--chip-neutral-text: #a9b8a2;
+
+	/* diff row tints */
+	--diff-add-bg: rgba(127, 160, 106, 0.09);
+	--diff-del-bg: rgba(217, 139, 125, 0.09);
+	--diff-add-text: #cbdcc2;
+	--diff-del-text: #ddb7ae;
+	--diff-gutter: #4e5a49;
+
+	/* ── Type ───────────────────────────────────────────────────────────
+     The mockups load JetBrains Mono and Geist as metric stand-ins. These
+     point at the faces this app actually ships, per STYLE.md §2: only the
+     role split and the sizes below are prescriptive.
+
+     --font-mono is the stack every mono rule in styles.css already spells
+     out by hand. --font-sans is Geist, which is self-hosted in
+     public/fonts and was until now scoped to the conversation as
+     --font-chat; the Avenir/Helvetica tail is the interface stack it
+     falls back to. */
+	--font-mono: "SF Mono", "Roboto Mono", monospace;
+	--font-sans: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
+
+	--text-label: 9.5px; /* uppercase mono section label */
+	--text-label-lg: 10.5px; /* uppercase mono tab / button label */
+	--text-mono-sm: 10.5px; /* dense mono values, log rows */
+	--text-mono: 11.5px; /* key/value mono values */
+	--text-mono-lg: 12.5px; /* emphasised mono value */
+	--text-body-sm: 12px; /* secondary prose, table cells */
+	--text-body-md: 12.5px; /* list rows, subtitles */
+	--text-body-lg: 13.5px; /* the conversation feed */
+	--text-title: 14px; /* screen title in the top bar */
+	--text-title-lg: 22px; /* page title (home) */
+
+	--tracking-label: 0.16em; /* section labels */
+	--tracking-ui: 0.12em; /* buttons, chips, tabs */
+	--leading-prose: 1.6;
+	--leading-tight: 1.45;
+
+	/* ── Radius ─────────────────────────────────────────────────────────
+     Small and crisp. Nothing in this app is rounder than 7px. */
+	--radius-xs: 2px; /* progress segments */
+	--radius-sm: 3px; /* status chips */
+	--radius-md: 4px; /* buttons, inputs, wells */
+	--radius-lg: 5px; /* cards, grouped lists */
+	--radius-xl: 7px; /* nothing yet — reserved */
+
+	/* ── Space ──────────────────────────────────────────────────────────*/
+	--space-1: 3px;
+	--space-2: 6px;
+	--space-3: 8px;
+	--space-4: 10px;
+	--space-5: 12px;
+	--space-6: 14px;
+	--space-7: 16px;
+	--space-8: 20px;
+
+	/* ── Layout ─────────────────────────────────────────────────────────*/
+	--sidebar-w: 236px;
+	--panel-w: 392px; /* right panel; 400px when it has its own border */
+	--topbar-h: 48px;
+	--metaband-h: 32px;
+	--row-h: 27px; /* group header strip */
+	--control-h: 26px; /* dense button in a bar */
+	--control-h-md: 30px; /* standalone button */
+	--control-h-lg: 34px; /* form input */
+
+	/* ── Motion ─────────────────────────────────────────────────────────
+     Three durations, always ease-in-out. No springs, no transforms on
+     press — the surface steps up a level instead. */
+	--dur-fast: 75ms;
+	--dur-base: 150ms;
+	--dur-slow: 300ms;
+	--ease: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-fast: 1ms;
+		--dur-base: 1ms;
+		--dur-slow: 1ms;
+	}
+}
