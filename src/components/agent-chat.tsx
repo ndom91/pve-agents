@@ -272,13 +272,9 @@ function ApprovalCard({
 				>
 					Allow
 				</Button>
-				{/* Declining is not the dangerous option -- the danger is on the other button
-				    -- so it is quiet rather than red. A red Decline teaches people to click
-				    Allow to make the red thing go away.
-
-				    Tertiary rather than secondary for the same reason: an outlined Decline
-				    beside a filled Allow reads as a second accent button and competes with the
-				    one that is meant to be the default. */}
+				{/* Quiet rather than red: the danger is on the other button, and a red Decline
+				    teaches people to click Allow to make the red thing go away. Tertiary rather
+				    than secondary because an outline here reads as a second accent button. */}
 				<Button
 					disabled={busy}
 					onClick={() => onDecide(approval.id, "deny")}

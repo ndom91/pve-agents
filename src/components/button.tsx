@@ -1,16 +1,12 @@
 import type { ReactNode } from "react";
 
-// ButtonVariant is how loud a control is, in three steps.
-//
-// Primary is the accent fill and there should be one obvious candidate per view. Secondary is the
-// same shape outlined rather than filled. Tertiary carries neither, for a control that should be
-// available without competing with the thing beside it.
+// How loud a control is. What each one looks like is in styles.css, beside the values.
 export type ButtonVariant = "primary" | "secondary" | "tertiary";
 
 type ButtonProps = {
 	children: ReactNode;
-	// Layout only: where the button sits, never how it looks. Appearance is `variant`, so a new
-	// quiet button cannot arrive as a one-off class that the next one then copies.
+	// Layout only. Appearance is `variant`, so a new quiet button cannot arrive as a one-off class
+	// that the next one then copies.
 	className?: string;
 	disabled?: boolean;
 	onClick?: () => void;

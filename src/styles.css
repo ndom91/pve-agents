@@ -215,8 +215,8 @@ button {
 /* Every text control, so the same button cannot read as mono in one place and body text in
    another depending on which selector reached it first.
  *
- * Shape only. The three variants below supply the colour, and they all keep this border so that a
- * filled button and an outlined one are the same height without anyone adjusting the padding. */
+ * Shape only; the variants below supply the colour. They all keep this transparent border, which
+ * is what makes a filled button and an outlined one the same height. */
 .button {
 	background: none;
 	border: 1px solid transparent;
@@ -229,7 +229,6 @@ button {
 	text-transform: uppercase;
 }
 
-/* Primary: the one obvious candidate in a view. */
 .button.is-primary {
 	background: var(--accent-fill);
 	color: var(--accent-ink);
@@ -239,8 +238,7 @@ button {
 	background: var(--accent-fill-hover);
 }
 
-/* Secondary: the same shape outlined rather than filled, for an action worth offering beside a
-   primary without asking for the click. */
+/* For an action worth offering beside a primary without asking for the click. */
 .button.is-secondary {
 	border-color: var(--accent);
 	color: var(--accent-fill);
@@ -251,9 +249,8 @@ button {
 	border-color: var(--accent-fill);
 }
 
-/* Tertiary: neither fill nor border, so it reads as an affordance rather than as a control sitting
-   beside the one that matters. Hover is a tint and brighter text, which is enough to say it is
-   live without drawing a box around it. */
+/* Neither fill nor border, so it reads as an affordance rather than as a control sitting beside
+   the one that matters. */
 .button.is-tertiary {
 	color: var(--fg-soft);
 }
@@ -814,11 +811,9 @@ dd {
 	overflow-wrap: anywhere;
 }
 
-/* A prompt is set apart because it is the one thing in the transcript a person wrote. Without it
-   the page reads as one long monologue with no turns in it.
- *
- * A block rather than a rule down the side: in a long conversation the eye finds a filled shape
- * from across the page, where a 2px line has to be looked for. */
+/* A prompt is the one thing in the transcript a person wrote; without marking it the page reads as
+   one long monologue with no turns in it. A filled block rather than only a rule down the side,
+   because in a long conversation a 2px line has to be looked for. */
 .chat-entry.is-prompt .chat-text {
 	background: var(--accent-wash);
 	border-left: 2px solid var(--accent);
@@ -839,9 +834,9 @@ dd {
 /* The disclosure. Deliberately the same shape as a row in the diff accordion, because they are the
    same gesture and learning it twice is a cost for no benefit.
  *
- * Muted, at the same weight as a thought: both are things the agent did on the way to an answer,
- * and the answer is what the eye should land on. Only the thought row used to be muted, so a turn
- * with three tool calls in it read as three headings above the paragraph that mattered. */
+ * Muted at the same weight as a thought, because both are things the agent did on the way to an
+ * answer. Only the thought row used to be, so a turn with three tool calls in it read as three
+ * headings above the paragraph that mattered. */
 .chat-fold {
 	align-items: center;
 	background: none;
@@ -1056,16 +1051,14 @@ dd {
 	min-height: 22px;
 }
 
-/* Everything here is size and presence. The colours come from `.icon-button.is-tertiary`, which
-   it also carries: borderless, so it reads as an affordance on the text rather than as a control
-   sitting beside it.
+/* Size and presence only; the colours come from `.icon-button.is-tertiary`, which it also carries.
  *
  * Hidden until the answer is hovered, because one of these under every paragraph is a column of
    buttons down the side of a transcript nobody asked for.
  *
- * Qualified with `.icon-button` for the specificity, not for the selector: that rule lives several
- * hundred lines below this one, so at equal weight it wins on source order and this button came
- * out the full 32px square with the wrong text colour. */
+ * Qualified with `.icon-button` for the specificity, not the selector: that rule is several hundred
+ * lines below, so at equal weight it won on source order and this came out full size in the wrong
+ * colour. */
 .icon-button.copy-button {
 	border-radius: 4px;
 	color: var(--fg-dim);
@@ -1393,11 +1386,9 @@ dd {
 	}
 }
 
-/* Square, quiet, and the same whether it is a button or a link that looks like one.
- *
- * Shape only, and the same two variant names `.button` uses, so one word means one thing across
- * both. The transparent border is what keeps an outlined icon button and a bare one the same
- * size. */
+/* Square, quiet, and the same whether it is a button or a link that looks like one. Shape only,
+   with the variant names `.button` uses; the transparent border is what keeps an outlined icon
+   button and a bare one the same size. */
 .icon-button {
 	align-items: center;
 	background: none;
@@ -1419,7 +1410,6 @@ dd {
 	border-color: var(--line);
 }
 
-/* Tertiary needs no rule of its own: the base is already borderless. */
 .icon-button:hover:not(:disabled) {
 	background: var(--surface);
 	color: var(--fg-bright);
@@ -1435,9 +1425,8 @@ dd {
    the button takes the badges' typeface, because three controls in a row reading as one group is
    the point, and the odd one out was the button in the body font.
  *
- * Scoped to `.button` rather than to bare `button`. It used to be the latter, which reached any
- * icon button placed here and had to be undone by a second `.icon-button` rule further down --
- * an override guarding against a case that no call site has had for some time. */
+ * Scoped to `.button` rather than bare `button`: as the latter it reached any icon button placed
+ * here, and had to be undone by a second `.icon-button` rule further down. */
 .centre-head-actions .status,
 .centre-head-actions .activity,
 .centre-head-actions .button {
@@ -2161,9 +2150,8 @@ dd {
 /* The rule, drawn by each entry rather than the list, so it stops at the last one instead of
    trailing off under empty space.
  *
- * It runs from the middle of one dot to the middle of the next, deliberately overshooting at both
- * ends, and the dots are lifted above it so they cover the overshoot. Trying to land it exactly on
- * each dot's edge instead gives you one of two bugs and no third option: short of the edge is a
+ * It overshoots into both dots, which are lifted above it to cover the overshoot. Landing it on
+ * each dot's edge instead gives one of two bugs and no third option: short of the edge is a
  * visibly broken rule, and level with it puts a line across the dot's outline. */
 .timeline-entry:not(:last-child)::before {
 	background: var(--border);

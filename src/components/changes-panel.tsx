@@ -21,8 +21,7 @@ export function ChangesPanel({
 	}
 	if (changes.kind === "failed") {
 		// Not an empty list. "The agent changed nothing" is a different claim from "nobody could
-		// look", and it is the claim the reaper refuses to make for the same reason. Warned rather
-		// than muted for that reason: a grey card here reads as "nothing to see".
+		// look", and it is the claim the reaper refuses to make for the same reason.
 		return <PanelNote tone="warn">{changes.message}</PanelNote>;
 	}
 	if (changes.files.length === 0) {

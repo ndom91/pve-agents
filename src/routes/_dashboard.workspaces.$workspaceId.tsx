@@ -37,9 +37,8 @@ function WorkspaceDetail() {
 	const queryClient = useQueryClient();
 	const { data: workspace } = useQuery(workspaceQuery(workspaceId));
 	const [prompt, setPrompt] = useState("");
-	// Two notes, not one. A single slot was rendered in both places that show one -- under the
-	// prompt and inside the Diff tab's actions -- so a failed prompt put "could not reach the
-	// agent" underneath the push controls, where it reads as a push that went wrong.
+	// Two, because both panels render one. A single slot put "could not reach the agent" under the
+	// Diff tab's push controls, where it read as a push that went wrong.
 	const [agentNote, setAgentNote] = useState("");
 	const [changesNote, setChangesNote] = useState("");
 	const [tab, setTab] = useState<RailTab>({ kind: "details" });

@@ -12,12 +12,11 @@ type TimelineEvent = {
 // fixed-width column for the type, which in a rail meant every message was cut off or wrapped
 // against an arbitrary edge.
 //
-// Prompts are filtered out rather than shown. Every one of them is already on screen in full in
-// the chat, so the row here was the same sentence truncated to 160 characters, and a conversation
-// of any length buried the provisioning steps and the failures under a list of them.
+// Prompts are filtered out: the chat already shows each one in full, so the row here was the same
+// sentence truncated to 160 characters, and a long conversation buried the failures under them.
 //
-// Filtered here rather than not recorded: a destroyed workspace loses its transcript and keeps its
-// timeline, so the row is still the durable record of what was asked.
+// Filtered rather than not recorded, because a destroyed workspace loses its transcript and keeps
+// its timeline.
 export function WorkspaceTimeline({ events }: { events: TimelineEvent[] }) {
 	const shown = events.filter(
 		(event) => event.eventType !== "workspace.prompted",

@@ -109,8 +109,6 @@ function Dashboard() {
 						+ New workspace
 					</Link>
 					<div className="sidebar-tools">
-						{/* A link rather than a button because it navigates, and IconLink so the
-						    appearance comes from the same place as the buttons beside it. */}
 						<IconLink icon={Settings} label="Settings" to="/settings" />
 						{/* Offered only while it would do something. Browsers require a gesture to
 						    ask, so this is a button rather than a prompt on load, and it disappears

@@ -61,13 +61,12 @@ export type WorkspaceOperationRun = {
 
 // retry puts an operation back on the queue after a setback it may recover from.
 //
-// It is here rather than spelled out at each of its eighteen call sites across the two executors,
-// because the two halves have to stay together: releasing without noting loses the reason, and
-// noting without releasing leaves the lease held for its full sixty seconds. That second one is
-// the dangerous direction, because it looks exactly like a slow Proxmox rather than like a bug.
+// The two halves have to stay together. Releasing without noting loses the reason; noting without
+// releasing holds the lease for its full sixty seconds, which looks exactly like a slow Proxmox
+// rather than like a bug.
 //
-// The message is optional, and its absence is a decision rather than an oversight. A workspace
-// that is merely still booting should not fill its own timeline with a note every five seconds.
+// The message is optional, and its absence is a decision: a workspace that is merely still booting
+// should not write to its own timeline every five seconds.
 export function retry(
 	db: Database.Database,
 	lease: OperationLease,

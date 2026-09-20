@@ -2,10 +2,8 @@ import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-// IconVariant is the same vocabulary `Button` uses, minus the one step that has no meaning here.
-//
-// There is no primary icon button: an icon alone cannot carry the weight of being the obvious
-// candidate in a view, and no call site has ever wanted one.
+// `Button`'s vocabulary without "primary": an icon alone cannot carry being the obvious candidate
+// in a view, and no call site has wanted one.
 export type IconVariant = "secondary" | "tertiary";
 
 type IconStyle = {
@@ -20,7 +18,6 @@ type IconStyle = {
 	variant?: IconVariant;
 };
 
-// classes joins the shape, the variant and whatever the caller needs for placement.
 function classes({ className, variant = "secondary" }: IconStyle): string {
 	return ["icon-button", `is-${variant}`, className ?? ""]
 		.filter((part) => part !== "")
@@ -56,10 +53,9 @@ export function IconButton({
 
 // IconLink is the same control for somewhere to go rather than something to do.
 //
-// It exists because the one navigating icon in the app used to hand-write `className="icon-button"`
-// on a `<Link>`, which meant a change to the button reached every icon except that one. A link and
-// a button are different elements for good reasons -- middle-click, the status bar, the keyboard --
-// so this shares the appearance rather than pretending they are the same thing.
+// The navigating icon used to hand-write `className="icon-button"` on a `<Link>`, so a change to
+// the button reached every icon except that one. Still a `<Link>`, because middle-click, the
+// status bar and the keyboard all depend on it being one.
 export function IconLink({
 	to,
 	...style
