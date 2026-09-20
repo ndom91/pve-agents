@@ -1425,11 +1425,89 @@ dd {
    button -- exactly the thing the refresh is here to stop being. The control is also declared
    `tertiary`, because the secondary variant sets a grey border at the same specificity as this
    one and would win the same way. */
-/* Chips are 21px wherever they are read on their own. In the bar they sit beside a 26px control,
-   and two heights five pixels apart on one row reads as one of them being wrong. */
-.screen-bar .chip {
+/* The two state facts as one object rather than two. One border around the pair, a 1px rule
+ * between them, and the corners clipped by the group so neither half rounds where it meets the
+ * other.
+ *
+ * Not a control, despite looking like the mockup's segmented one. Nothing here can be set: the
+ * lifecycle is observed and the activity is reported. It borrows the shape and stays spans. */
+.state-group {
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	display: flex;
+	flex-shrink: 0;
+	overflow: hidden;
+}
+
+.state-seg {
+	align-items: center;
+	color: var(--text-muted);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 6px;
 	height: var(--control-h);
-	padding: 0 10px;
+	letter-spacing: var(--tracking-ui);
+	padding: 0 12px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.state-div {
+	background: var(--line-border);
+	flex-shrink: 0;
+	width: 1px;
+}
+
+.state-dot {
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+/* The lead segment is filled; the one beside it is not. */
+.state-seg.is-lead.is-green {
+	background: var(--chip-green-bg);
+	color: var(--chip-green-text);
+}
+
+.state-seg.is-lead.is-green .state-dot {
+	background: var(--green);
+}
+
+.state-seg.is-lead.is-amber {
+	background: var(--chip-amber-bg);
+	color: var(--chip-amber-text);
+}
+
+.state-seg.is-lead.is-amber .state-dot {
+	background: var(--amber);
+}
+
+.state-seg.is-lead.is-red {
+	background: var(--chip-red-bg);
+	color: var(--chip-red-text);
+}
+
+.state-seg.is-lead.is-red .state-dot {
+	background: var(--red);
+}
+
+.state-seg.is-lead.is-neutral {
+	background: var(--chip-neutral-bg);
+	color: var(--chip-neutral-text);
+}
+
+.state-seg.is-lead.is-neutral .state-dot {
+	background: var(--text-decorative);
+}
+
+/* Blocked is the one activity that gets a colour of its own, because it is the one that needs a
+   person. It takes the word rather than a fill -- a second filled half would leave the group with
+   nothing to read first. */
+.state-seg.is-amber:not(.is-lead) {
+	color: var(--chip-amber-text);
 }
 
 .icon-button.screen-bar-destroy {
@@ -1898,12 +1976,19 @@ button.workspace-title:hover {
 
 /* Capped, because one `cat` of a large file would otherwise be the whole page. Scrolls rather than
    truncates: the end of a stack trace is usually the part worth reading. */
-/* Output inside a group is inset to 40px, which is where the tool's name starts -- past the
-   chevron and the status dot. It reads as belonging to the row above it rather than to the group,
-   and it is the log-row size rather than the body size, because that is what it is. */
+/* Output inside a group hangs under the name of the call that produced it, and it is the log-row
+ * size rather than the body size, because that is what it is.
+ *
+ * 32px is that column, derived rather than chosen: 11px of row padding, the 12px chevron, and the
+ * 9px gap after it. The mockup says 40, which is the same sum in a row that also has a status dot
+ * in it -- this one does not, so copying the number left the box eight pixels right of the name it
+ * belongs to.
+ *
+ * The 8px above is not in the mockup. Without it the box sits flush against the row and the two
+ * read as one block, which is exactly the thing a disclosure should not do. */
 .tool-group .chat-output {
 	font-size: var(--text-mono-sm);
-	margin: 0 11px 9px 40px;
+	margin: 8px 11px 9px 32px;
 }
 
 /* A failed call's output is the reason the group is worth opening, so it gets the error well: the

@@ -234,6 +234,7 @@ function WorkspaceDetail() {
 					<WorkspaceBadges
 						activity={workspace.activity}
 						status={workspace.status}
+						variant="group"
 					/>
 					{/* Outlined in red, never the accent fill. It was the brightest thing on the
 					    page, which made the one irreversible action the most attractive. */}

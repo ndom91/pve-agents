@@ -53,4 +53,36 @@ describe("WorkspaceBadges", () => {
 		);
 		expect(gone.querySelector(".chip.is-neutral")).not.toBeNull();
 	});
+
+	it("draws one group with a divider when the bar asks for it", () => {
+		// Two separate outlines beside the destroy button was three objects in a row meant to read
+		// as two. The group is a borrowed shape, not a borrowed behaviour: nothing in it can be
+		// set, so it stays spans inside a labelled group rather than becoming buttons.
+		const { container } = render(
+			<WorkspaceBadges activity="idle" status="ready" variant="group" />,
+		);
+
+		expect(container.querySelectorAll(".state-group")).toHaveLength(1);
+		expect(container.querySelectorAll(".state-seg")).toHaveLength(2);
+		expect(container.querySelector(".state-div")).not.toBeNull();
+		expect(container.querySelector("button")).toBeNull();
+	});
+
+	it("fills only the lifecycle half of the group", () => {
+		// Two filled halves would leave the pair with nothing to read first.
+		const { container } = render(
+			<WorkspaceBadges activity="idle" status="ready" variant="group" />,
+		);
+
+		expect(container.querySelectorAll(".state-seg.is-lead")).toHaveLength(1);
+	});
+
+	it("has no second half to divide before a workspace is ready", () => {
+		const { container } = render(
+			<WorkspaceBadges activity="unknown" status="booting" variant="group" />,
+		);
+
+		expect(container.querySelectorAll(".state-seg")).toHaveLength(1);
+		expect(container.querySelector(".state-div")).toBeNull();
+	});
 });
