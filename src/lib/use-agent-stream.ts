@@ -95,7 +95,20 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 	}
 
 	if (event.type === "message") {
-		return { ...state, messages: [...state.messages, event.message] };
+		// Partials are dropped rather than kept.
+		//
+		// The runner forwards token deltas as well as completed messages, and it does not store the
+		// deltas itself for exactly the reason they must not be stored here: one reasoning turn
+		// produces several hundred of them. They were being appended to a list that `readTranscript`
+		// then ignores, so a long session accumulated tens of thousands of entries that rendered
+		// nothing and were walked on every re-render.
+		//
+		// They stay on the wire because they are what a live token-by-token view would be built
+		// from, and the runner cannot be changed without recreating every workspace. This is the
+		// cheaper half of that decision: available, not hoarded.
+		return isPartial(event.message)
+			? state
+			: { ...state, messages: [...state.messages, event.message] };
 	}
 
 	if (event.type === "approval") {
@@ -122,6 +135,15 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 	}
 
 	return state;
+}
+
+// isPartial reports a token delta, as opposed to a message that completed.
+function isPartial(message: unknown): boolean {
+	return (
+		typeof message === "object" &&
+		message !== null &&
+		(message as { type?: unknown }).type === "stream_event"
+	);
 }
 
 function parse(data: string): RunnerEvent | undefined {
