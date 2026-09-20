@@ -11,14 +11,25 @@ type TimelineEvent = {
 // its name and time on one line with the message under them. The table shape it had needed a
 // fixed-width column for the type, which in a rail meant every message was cut off or wrapped
 // against an arbitrary edge.
+//
+// Prompts are filtered out rather than shown. Every one of them is already on screen in full in
+// the chat, so the row here was the same sentence truncated to 160 characters, and a conversation
+// of any length buried the provisioning steps and the failures under a list of them.
+//
+// Filtered here rather than not recorded: a destroyed workspace loses its transcript and keeps its
+// timeline, so the row is still the durable record of what was asked.
 export function WorkspaceTimeline({ events }: { events: TimelineEvent[] }) {
-	if (events.length === 0) {
+	const shown = events.filter(
+		(event) => event.eventType !== "workspace.prompted",
+	);
+
+	if (shown.length === 0) {
 		return <p className="detail-note">Nothing has happened yet.</p>;
 	}
 
 	return (
 		<ol className="detail-timeline">
-			{events.map((event) => {
+			{shown.map((event) => {
 				const problem = isProblem(event.eventType);
 
 				return (

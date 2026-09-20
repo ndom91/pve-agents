@@ -1997,10 +1997,13 @@ dd {
 }
 
 /* The rule, drawn by each entry rather than the list, so it stops at the last one instead of
-   trailing off under empty space. */
+   trailing off under empty space.
+ *
+ * It overruns the entry by the dot's own `margin-top`. Stopping at the entry's edge left the line
+ * short of the next dot by exactly those 4px, which read as a broken rule rather than as spacing. */
 .timeline-entry:not(:last-child)::before {
 	background: var(--border);
-	bottom: 0;
+	bottom: -4px;
 	content: "";
 	left: 4px;
 	position: absolute;
