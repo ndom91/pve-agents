@@ -838,6 +838,184 @@ dd {
 	overflow-wrap: anywhere;
 }
 
+/* Syntax highlighting.
+ *
+ * TanStack Highlight emits semantic class names rather than inline colours, so the palette below is
+ * this application's own rather than a theme imported from somewhere else. That is the whole reason
+ * it was chosen over the Shiki already in the bundle: a highlighter that bakes its colours into the
+ * markup cannot be told to match anything. */
+.th-token {
+	color: inherit;
+}
+
+.th-comment {
+	color: var(--fg-dim);
+	font-style: italic;
+}
+
+.th-keyword,
+.th-command {
+	color: var(--accent-fill);
+}
+
+.th-string,
+.th-inserted {
+	color: var(--accent);
+}
+
+.th-number,
+.th-literal {
+	color: var(--status-modified);
+}
+
+.th-function,
+.th-tag,
+.th-selector {
+	color: var(--info-fg);
+}
+
+.th-property,
+.th-attr,
+.th-variable {
+	color: var(--fg-bright);
+}
+
+.th-type,
+.th-meta,
+.th-heading {
+	color: var(--warn-fg);
+}
+
+.th-operator,
+.th-punctuation {
+	color: var(--fg-muted);
+}
+
+.th-deleted {
+	color: var(--danger-fg);
+}
+
+.th-link {
+	color: var(--info-fg);
+	text-decoration: underline;
+}
+
+/* The block itself. `chat-output` supplies the box; this supplies only the text, so the two can be
+   combined without either deciding both. */
+.code-block {
+	font-size: var(--text-md);
+	margin: 0;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.code-block code {
+	font-family: "SF Mono", "Roboto Mono", monospace;
+}
+
+/* What the agent said, as markdown.
+ *
+ * It was always writing markdown; the page was showing the asterisks. Spacing is tightened from the
+ * browser default throughout, because a transcript is a conversation rather than a document and
+ * document margins leave it full of holes. */
+.agent-prose {
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.agent-prose > :first-child {
+	margin-top: 0;
+}
+
+.agent-prose > :last-child {
+	margin-bottom: 0;
+}
+
+.agent-prose p,
+.agent-prose ul,
+.agent-prose ol,
+.agent-prose blockquote,
+.agent-prose table {
+	margin: 0 0 10px;
+}
+
+.agent-prose h1,
+.agent-prose h2,
+.agent-prose h3,
+.agent-prose h4 {
+	color: var(--fg-bright);
+	font-size: var(--text-lg);
+	font-weight: 600;
+	letter-spacing: 0;
+	margin: 14px 0 6px;
+}
+
+.agent-prose ul,
+.agent-prose ol {
+	padding-left: 20px;
+}
+
+.agent-prose li {
+	margin-bottom: 2px;
+}
+
+.agent-prose strong {
+	color: var(--fg-bright);
+	font-weight: 600;
+}
+
+.agent-prose a {
+	color: var(--info-fg);
+}
+
+.agent-prose blockquote {
+	border-left: 2px solid var(--border-dim);
+	color: var(--fg-soft);
+	padding-left: 10px;
+}
+
+.agent-prose hr {
+	border: 0;
+	border-top: 1px solid var(--border);
+	margin: 14px 0;
+}
+
+/* Inline code, which is most of what an agent writes about: paths, flags, package names. A box
+   rather than a colour, so it reads as a thing rather than as emphasis. */
+.prose-code {
+	background: var(--bg-sunken);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: 0.92em;
+	padding: 1px 4px;
+}
+
+/* A fenced block inside prose gets the same box a tool result gets, so the page has one idea of
+   what code looks like. */
+.agent-prose .code-block {
+	background: var(--bg-sunken);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	margin: 0 0 10px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 8px 10px;
+}
+
+.agent-prose table {
+	border-collapse: collapse;
+	display: block;
+	overflow-x: auto;
+}
+
+.agent-prose th,
+.agent-prose td {
+	border: 1px solid var(--border);
+	padding: 4px 8px;
+	text-align: left;
+}
+
 /* The question the whole control plane exists to ask. Amber rather than red: it is a decision, not
    a failure, and colouring it as an error makes "Allow" read as the wrong answer. */
 .chat-approval {

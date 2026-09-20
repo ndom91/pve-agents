@@ -129,6 +129,14 @@ function main() {
 			includePartialMessages: true,
 			maxTurns: MAX_TURNS,
 			permissionMode: MODE,
+			// Ask for thinking we can actually show.
+			//
+			// Without this the blocks arrive with an empty `thinking` and a signature: the
+			// reasoning is encrypted and the client never sees it, so the UI had a "Thought" row
+			// with nothing behind it. "summarized" is the display mode that returns readable text.
+			// If a model declines to summarise, the block stays empty and the row is dropped
+			// rather than rendered as a disclosure that will not disclose.
+			thinking: { display: "summarized", type: "adaptive" },
 			// `settingSources` is deliberately not set. Its default loads user, project and local,
 			// which is what makes the checked-out repository's own CLAUDE.md and .claude/settings
 			// apply. The SDK's multi-tenant advice says to disable them; that is for one container

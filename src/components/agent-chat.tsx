@@ -5,8 +5,11 @@ import {
 	readTranscript,
 	type TranscriptEntry,
 } from "../domain/agent-transcript";
+import { languageOfOutput, languageOfPath } from "../lib/highlight";
 import type { Approval } from "../lib/use-agent-stream";
+import { AgentProse } from "./agent-prose";
 import { Button } from "./button";
+import { CodeBlock } from "./code-block";
 
 // AgentChat is the conversation, where the terminal used to be.
 //
@@ -117,7 +120,13 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
 		return <p className="chat-ended">The turn ended: {entry.reason}</p>;
 	}
 
-	return <p className="chat-text">{entry.text}</p>;
+	// A prompt is shown as typed. It is the operator's own words, and rendering their asterisks as
+	// emphasis would quietly change what they wrote.
+	if (entry.kind === "prompt") {
+		return <p className="chat-text">{entry.text}</p>;
+	}
+
+	return <AgentProse text={entry.text} />;
 }
 
 // ToolRow is one tool call and, folded under it, what it returned.
@@ -131,6 +140,7 @@ function ToolRow({
 }) {
 	return (
 		<Fold
+			lang={languageOfResult(entry)}
 			// Failures open on their own. A closed row saying "Error" asks the reader to go and
 			// find out what went wrong; the reason is the entire content of that row.
 			open={entry.state === "error"}
@@ -141,13 +151,31 @@ function ToolRow({
 	);
 }
 
+// languageOfResult decides how to colour what a tool returned.
+//
+// A file read is the file's own language, which the path gives away. Anything else is guessed only
+// where the guess is safe: a JSON body reads far better highlighted, and an `ls -la` listing or a
+// test log is prose with punctuation in it that a highlighter turns into confetti.
+function languageOfResult(
+	entry: Extract<TranscriptEntry, { kind: "tool" }>,
+): string {
+	const path = entry.input.file_path ?? entry.input.path;
+	if (typeof path === "string" && path !== "") {
+		return languageOfPath(path);
+	}
+
+	return languageOfOutput(entry.result ?? "");
+}
+
 // Fold is the disclosure this page uses everywhere: a summary row, and content under it.
 function Fold({
+	lang,
 	open = false,
 	state,
 	summary,
 	text,
 }: {
+	lang?: string;
 	open?: boolean;
 	state?: string;
 	summary: string;
@@ -173,7 +201,9 @@ function Fold({
 					<span className="chat-state">{label(state)}</span>
 				)}
 			</button>
-			{shown && !empty ? <pre className="chat-output">{text}</pre> : null}
+			{shown && !empty ? (
+				<CodeBlock className="chat-output" code={text} lang={lang} />
+			) : null}
 		</>
 	);
 }
@@ -201,9 +231,11 @@ function ApprovalCard({
 			{approval.decisionReason === undefined ? null : (
 				<p className="chat-approval-why">{approval.decisionReason}</p>
 			)}
-			<pre className="chat-output">
-				{JSON.stringify(approval.input, null, 2)}
-			</pre>
+			<CodeBlock
+				className="chat-output"
+				code={JSON.stringify(approval.input, null, 2)}
+				lang="json"
+			/>
 			<div className="chat-approval-actions">
 				<Button
 					disabled={busy}

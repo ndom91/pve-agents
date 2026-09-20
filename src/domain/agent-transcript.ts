@@ -89,8 +89,14 @@ export function readTranscript(
 				if (block.type === "text" && block.text !== undefined) {
 					entries.push({ kind: "say", text: block.text });
 				}
-				if (block.type === "thinking" && block.thinking !== undefined) {
-					entries.push({ kind: "thought", text: block.thinking });
+				// Only when there is something to read.
+				//
+				// A thinking block often arrives with an empty `thinking` and nothing but a
+				// signature: the reasoning is encrypted and the client is not meant to see it.
+				// Rendering a "Thought" row for one is an affordance that cannot do anything, which
+				// is exactly how it was reported — a disclosure that would not disclose.
+				if (block.type === "thinking" && (block.thinking ?? "").trim() !== "") {
+					entries.push({ kind: "thought", text: block.thinking ?? "" });
 				}
 				if (block.type === "tool_use" && block.id !== undefined) {
 					const row: Extract<TranscriptEntry, { kind: "tool" }> = {
