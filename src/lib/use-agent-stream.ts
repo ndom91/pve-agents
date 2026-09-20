@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import type { ApprovalRequest, RunnerEvent } from "../domain/runner-protocol";
 import { readEvent } from "../domain/runner-protocol";
 import { mapActivity } from "../domain/workspace";
+import { type AgentTail, isPartial, readTail } from "./agent-tail";
+
+export type { AgentTail } from "./agent-tail";
+
 import { workspaceKeys } from "./queries";
 
 // Approval is one tool call the agent is suspended on.
@@ -19,6 +23,7 @@ export type AgentState = {
 	messages: unknown[];
 	permissionMode?: string;
 	status?: string;
+	tail?: AgentTail;
 };
 
 const EMPTY: AgentState = { approvals: [], link: "opening", messages: [] };
@@ -81,6 +86,10 @@ export function useAgentStream(
 
 // reduce folds one event into what the page knows.
 function reduce(state: AgentState, event: RunnerEvent): AgentState {
+	// Worked out for every event, because the rule about when a half-written block is replaced is
+	// one rule rather than one per branch.
+	const tail = readTail(state.tail, event);
+
 	if (event.type === "snapshot") {
 		// A replacement, not a merge. The snapshot is the runner's whole truth, and it arrives
 		// again on every reconnection: merging would double the transcript each time the
@@ -91,28 +100,23 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 			messages: event.messages,
 			permissionMode: event.permissionMode,
 			status: event.status,
+			tail,
 		};
 	}
 
 	if (event.type === "message") {
-		// Partials are dropped rather than kept.
+		// A token delta feeds the tail and is then thrown away.
 		//
-		// The runner forwards token deltas as well as completed messages, and it does not store the
-		// deltas itself for exactly the reason they must not be stored here: one reasoning turn
-		// produces several hundred of them. They were being appended to a list that `readTranscript`
-		// then ignores, so a long session accumulated tens of thousands of entries that rendered
-		// nothing and were walked on every re-render.
-		//
-		// They stay on the wire because they are what a live token-by-token view would be built
-		// from, and the runner cannot be changed without recreating every workspace. This is the
-		// cheaper half of that decision: available, not hoarded.
+		// Never appended to `messages`: one reasoning turn produces several hundred of them
+		// against a dozen entries worth showing, and `readTranscript` ignores them, so keeping
+		// them grew the list without bound for data nothing rendered.
 		return isPartial(event.message)
-			? state
-			: { ...state, messages: [...state.messages, event.message] };
+			? { ...state, tail }
+			: { ...state, messages: [...state.messages, event.message], tail };
 	}
 
 	if (event.type === "approval") {
-		return { ...state, approvals: [...state.approvals, event.approval] };
+		return { ...state, approvals: [...state.approvals, event.approval], tail };
 	}
 
 	if (event.type === "resolved") {
@@ -125,7 +129,7 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 	}
 
 	if (event.type === "status") {
-		return { ...state, status: event.status };
+		return { ...state, status: event.status, tail };
 	}
 
 	if (event.type === "detached") {
@@ -134,16 +138,7 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 		return { ...state, link: "gone" };
 	}
 
-	return state;
-}
-
-// isPartial reports a token delta, as opposed to a message that completed.
-function isPartial(message: unknown): boolean {
-	return (
-		typeof message === "object" &&
-		message !== null &&
-		(message as { type?: unknown }).type === "stream_event"
-	);
+	return { ...state, tail };
 }
 
 function parse(data: string): RunnerEvent | undefined {

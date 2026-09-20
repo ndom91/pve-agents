@@ -269,6 +269,7 @@ function WorkspaceDetail() {
 								decide.mutate({ approvalId, behavior })
 							}
 							permissionMode={agent.permissionMode}
+							tail={agent.tail}
 						/>
 
 						<form

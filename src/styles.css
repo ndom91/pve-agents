@@ -979,6 +979,47 @@ dd {
 	font-family: "SF Mono", "Roboto Mono", monospace;
 }
 
+/* The block being written right now.
+ *
+ * A caret after the last character, so a pause reads as the agent thinking rather than as the page
+ * having stopped. Drawn with ::after on the last element inside rather than as its own node, which
+ * would sit on a line of its own the moment the text ends on a paragraph break. */
+.chat-entry.is-streaming .agent-prose > :last-child::after,
+.chat-entry.is-streaming .chat-thinking::after {
+	animation: chat-caret 1s steps(2, start) infinite;
+	background: var(--accent-fill);
+	content: "";
+	display: inline-block;
+	height: 1em;
+	margin-left: 2px;
+	vertical-align: text-bottom;
+	width: 7px;
+}
+
+@keyframes chat-caret {
+	50% {
+		opacity: 0;
+	}
+}
+
+/* Thinking, while it is being written. Muted, because it is reasoning rather than an answer, and
+   the transcript folds it away as soon as it lands. */
+.chat-thinking {
+	color: var(--fg-muted);
+	margin: 0;
+	white-space: pre-wrap;
+}
+
+/* Reduced motion turns the blink off and leaves the caret solid. A blinking block is exactly the
+   kind of repetitive movement this preference exists to stop, and the caret still says where the
+   text has got to without it. */
+@media (prefers-reduced-motion: reduce) {
+	.chat-entry.is-streaming .agent-prose > :last-child::after,
+	.chat-entry.is-streaming .chat-thinking::after {
+		animation: none;
+	}
+}
+
 /* One answer: the prose, and the quiet control under it. */
 .agent-answer {
 	display: flex;

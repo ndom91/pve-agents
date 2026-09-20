@@ -1,3 +1,4 @@
+import { streamingMarkdownExtension } from "@tanstack/markdown/extensions/streaming";
 import { Markdown } from "@tanstack/markdown/react";
 import type { ReactNode } from "react";
 
@@ -17,17 +18,37 @@ import { CopyButton } from "./copy-button";
 // HTML string, so nothing reaches dangerouslySetInnerHTML.
 //
 // Alpha, at 0.0.15, and pinned exactly. The surface used is one component wide.
-export function AgentProse({ text }: { text: string }): ReactNode {
+export function AgentProse({
+	streaming = false,
+	text,
+}: {
+	streaming?: boolean;
+	text: string;
+}): ReactNode {
 	return (
 		<div className="agent-answer">
-			<div className="agent-prose">
-				<Markdown components={COMPONENTS}>{text}</Markdown>
+			<div className={streaming ? "agent-prose is-streaming" : "agent-prose"}>
+				{/* While a block is still being written, the parser is told so. Markdown half way
+				    through is full of markers that are not yet markers — an unclosed fence, a
+				    dangling list item — and the streaming profile renders those as the author
+				    meant rather than as literal asterisks that vanish a keystroke later. */}
+				<Markdown
+					components={COMPONENTS}
+					extensions={streaming ? STREAMING : undefined}
+				>
+					{text}
+				</Markdown>
 			</div>
-			{/* The markdown as the agent wrote it, not the rendered text. Somebody copying an answer
-			    is almost always moving it somewhere that understands markdown — a commit message, an
-			    issue, another prompt — and flattened prose has to be marked up again by hand. */}
+			{/* No copy control on a half-written answer: it would put an unfinished sentence on
+			    the clipboard, and the button appears a second later anyway when the block lands.
+			    The row is still reserved so nothing shifts at that moment.
+			
+			    The markdown as the agent wrote it, not the rendered text. Somebody copying an
+			    answer is almost always moving it somewhere that understands markdown — a commit
+			    message, an issue, another prompt — and flattened prose has to be marked up again
+			    by hand. */}
 			<div className="agent-answer-actions">
-				<CopyButton label="Copy this answer" text={text} />
+				{streaming ? null : <CopyButton label="Copy this answer" text={text} />}
 			</div>
 		</div>
 	);
@@ -63,3 +84,7 @@ const COMPONENTS = {
 	code: Code,
 	pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
 };
+
+// Module scope: rebuilding it per render would hand the parser a new extension list on every
+// token, which is the one place in this file that happens hundreds of times a turn.
+const STREAMING = [streamingMarkdownExtension()];

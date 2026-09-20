@@ -6,7 +6,7 @@ import {
 	type TranscriptEntry,
 } from "../domain/agent-transcript";
 import { languageOfOutput, languageOfPath } from "../lib/highlight";
-import type { Approval } from "../lib/use-agent-stream";
+import type { AgentTail, Approval } from "../lib/use-agent-stream";
 import { AgentProse } from "./agent-prose";
 import { Button } from "./button";
 import { CodeBlock } from "./code-block";
@@ -28,6 +28,7 @@ export function AgentChat({
 	messages,
 	onDecide,
 	permissionMode,
+	tail,
 }: {
 	approvals: Approval[];
 	busy: boolean;
@@ -35,12 +36,13 @@ export function AgentChat({
 	messages: unknown[];
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
 	permissionMode?: string;
+	tail?: AgentTail;
 }): ReactNode {
 	const entries = readTranscript(messages, approvals);
 
 	return (
 		<div className="agent-chat">
-			<Rail entries={entries} />
+			<Rail entries={entries} tail={tail} />
 
 			{/* Below the transcript, not inside it. An approval is the newest thing that happened
 			    and the only thing that needs an answer, so it sits where the eye lands last. */}
@@ -59,10 +61,10 @@ export function AgentChat({
 					The agent runner is no longer answering. Its session ended with it.
 				</p>
 			) : null}
-			{link === "opening" && entries.length === 0 ? (
+			{link === "opening" && entries.length === 0 && tail === undefined ? (
 				<p className="detail-note">Attaching to the agent.</p>
 			) : null}
-			{link === "attached" && entries.length === 0 ? (
+			{link === "attached" && entries.length === 0 && tail === undefined ? (
 				<p className="detail-note">
 					Nothing has happened yet. Tell the agent what to do.
 				</p>
@@ -72,18 +74,33 @@ export function AgentChat({
 }
 
 // Rail is the transcript itself, pinned to the bottom while it grows.
-function Rail({ entries }: { entries: TranscriptEntry[] }) {
+function Rail({
+	entries,
+	tail,
+}: {
+	entries: TranscriptEntry[];
+	tail?: AgentTail;
+}) {
 	const end = useRef<HTMLDivElement>(null);
 	// Whether the reader is at the bottom. Scrolling on every append would yank somebody out of
 	// the middle of a tool result they had scrolled back to read, which is the commonest reason to
 	// scroll back at all.
 	const pinned = useRef(true);
 
+	// Follows both a new entry and a growing tail. It used to have an empty dependency list, which
+	// meant it scrolled once on mount and then never again: the transcript grew below the fold and
+	// the page sat still. Invisible while answers arrived whole every few seconds; impossible to
+	// miss once text streams in a character at a time.
+	//
+	// The two lengths are triggers rather than values the body reads, which is what the rule below
+	// objects to. They are the whole mechanism: scrolling is a response to the content having
+	// grown, and there is nothing else in scope that changes when it does.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the lengths are the trigger, not an input
 	useEffect(() => {
 		if (pinned.current) {
 			end.current?.scrollIntoView({ block: "end" });
 		}
-	}, []);
+	}, [entries.length, tail?.text.length]);
 
 	return (
 		<ol
@@ -104,6 +121,17 @@ function Rail({ entries }: { entries: TranscriptEntry[] }) {
 					<Entry entry={entry} />
 				</li>
 			))}
+			{tail === undefined ? null : (
+				<li className={`chat-entry is-${tail.kind} is-streaming`}>
+					{tail.kind === "thought" ? (
+						// Open while it is being written, then folded away by the transcript once it
+						// lands. Thinking is worth watching and rarely worth re-reading.
+						<p className="chat-text chat-thinking">{tail.text}</p>
+					) : (
+						<AgentProse streaming text={tail.text} />
+					)}
+				</li>
+			)}
 			<div ref={end} />
 		</ol>
 	);
