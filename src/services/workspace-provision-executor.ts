@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
+import { seedFileContents } from "../db/seed-file-repository";
 import {
 	advanceWorkspaceProvision,
 	advanceWorkspaceStatus,
@@ -48,6 +49,7 @@ import { poolContainsVMID } from "./proxmox-pool";
 import { runningCloneTask } from "./proxmox-task";
 import { forgetHost, type SshRunner, type SshTarget } from "./ssh";
 import { checkoutRepository } from "./workspace-checkout";
+import { seedWorkspace } from "./workspace-seed";
 import {
 	awaitTask,
 	proxmoxCredentials,
@@ -127,6 +129,8 @@ export async function executeWorkspaceProvision(
 				ssh,
 			);
 		case "checked-out":
+			return seedWorkspaceFiles(db, config, lease, workspace, now, ssh);
+		case "seeded":
 			return startAgentRunner(db, config, lease, workspace, now, ssh);
 		case "runner-started":
 			return briefAgent(db, config, lease, workspace, now, ssh);
@@ -426,6 +430,71 @@ function githubAppCredentials(
 // Installing on every pass rather than once: writing one file is cheaper than recording whether it
 // was written, and it means a controller deploy reaches a workspace whose runner died and is about
 // to be restarted.
+// seedWorkspaceFiles writes the operator's uploaded files into the workspace.
+//
+// Its own phase rather than part of the bootstrap, because a repo-rooted file has to land after the
+// checkout: `git clone` populates AGENT_CWD and would race anything written into it beforehand.
+// Home-rooted files do not care, so one phase covers all three roots.
+//
+// Before the runner starts, which is what makes the files count. The SDK reads its user and project
+// settings when `query()` is created, so a file that arrives after that is a file the agent will
+// not see until the container is rebuilt.
+async function seedWorkspaceFiles(
+	db: Database.Database,
+	config: ControllerConfig,
+	lease: OperationLease,
+	workspace: WorkspaceProvision,
+	now: Date,
+	ssh: SshRunner,
+): Promise<WorkspaceOperationRun> {
+	const files = seedFileContents(db);
+	// No connection at all when there is nothing to write, which is the common case. Opening one to
+	// do nothing is a round trip on every provision forever.
+	if (files.length > 0) {
+		const target = workspaceSsh(config, workspace);
+		if (target === undefined) {
+			failWorkspaceProvision(
+				db,
+				lease,
+				"ssh_key_missing",
+				"WORKSPACE_SSH_KEY_PATH is not configured",
+				now,
+			);
+
+			return { processed: 1, status: "task_failed" };
+		}
+
+		const seeded = await seedWorkspace(target, files, ssh);
+		if (seeded.kind === "failed") {
+			return retry(db, lease, now, {
+				message: seeded.message,
+				status: "request_failed",
+			});
+		}
+	}
+
+	advanceWorkspaceProvision(
+		db,
+		lease,
+		{
+			event: {
+				message:
+					files.length === 0
+						? "no seed files configured"
+						: `seeded ${files.length} ${files.length === 1 ? "file" : "files"}`,
+				type: "workspace.seeded",
+			},
+			phase: "seeded",
+			status: "bootstrapping",
+			step: "seed files written",
+		},
+		now,
+	);
+	releaseWorkspaceOperation(db, lease, 0, now);
+
+	return { processed: 1, status: "seeded" };
+}
+
 async function startAgentRunner(
 	db: Database.Database,
 	config: ControllerConfig,

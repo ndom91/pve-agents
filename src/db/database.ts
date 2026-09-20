@@ -164,6 +164,29 @@ const migrations = [
 			ALTER TABLE workspaces DROP COLUMN herdr_session;
 		`,
 	},
+	{
+		// Files an operator uploads once and every new workspace is seeded with.
+		//
+		// Their own table rather than rows in controller_settings, which is key/value text behind a
+		// fixed schema: a file has a destination, a size and a body, and none of those survive being
+		// flattened into one string.
+		//
+		// The unique index is the load-bearing part. Two rows claiming the same destination is a
+		// silent last-writer-wins during provisioning, and the operator would have no way to see
+		// which of the two actually landed.
+		version: 14,
+		sql: `
+			CREATE TABLE workspace_seed_files (
+				id TEXT PRIMARY KEY,
+				root TEXT NOT NULL,
+				path TEXT NOT NULL,
+				content TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			);
+			CREATE UNIQUE INDEX workspace_seed_files_place
+				ON workspace_seed_files (root, path);
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

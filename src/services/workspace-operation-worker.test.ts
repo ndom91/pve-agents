@@ -230,6 +230,9 @@ describe("runWorkspaceOperations", () => {
 				workspace.ssh,
 			),
 		).toEqual({ processed: 1, status: "checked_out" });
+		// No seed files are configured here, so this pass writes nothing and opens no connection.
+		// The phase still happens, because the next one is keyed on it.
+		expect(await step(345_000)).toEqual({ processed: 1, status: "seeded" });
 		// The server is launched detached, so the pass that starts it cannot also confirm it. It
 		// takes a second pass to observe the socket listening.
 		expect(await step(360_000)).toEqual({
@@ -262,6 +265,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.reachable",
 			"workspace.bootstrapped",
 			"workspace.checked_out",
+			"workspace.seeded",
 			"workspace.session_started",
 			"workspace.ready",
 		]);
@@ -295,6 +299,7 @@ describe("runWorkspaceOperations", () => {
 			"workspace.reachable",
 			"workspace.bootstrapped",
 			"workspace.checked_out",
+			"workspace.seeded",
 			"workspace.session_started",
 			"workspace.ready",
 		]);
@@ -330,6 +335,7 @@ describe("runWorkspaceOperations", () => {
 		await tick(db, proxmox, dead); // addressed -> reachable
 		await tick(db, proxmox, dead); // -> bootstrapped
 		await tick(db, github, dead); // -> checked-out
+		await tick(db, proxmox, dead); // -> seeded
 		const waiting = await tick(db, proxmox, dead);
 
 		// Held, not failed: a runner can legitimately be slow to bind, and the operation deadline
@@ -379,6 +385,7 @@ describe("runWorkspaceOperations", () => {
 		await tick(db, proxmox, dead); // addressed -> reachable
 		await tick(db, proxmox, dead); // -> bootstrapped
 		await tick(db, github, dead); // -> checked-out
+		await tick(db, proxmox, dead); // -> seeded
 		const waiting = await tick(db, proxmox, dead);
 
 		// Held, not failed: a runner can legitimately be slow to bind, and the operation deadline

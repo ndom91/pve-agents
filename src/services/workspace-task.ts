@@ -48,6 +48,7 @@ export type WorkspaceOperationRun = {
 		| "empty"
 		| "reachable"
 		| "request_failed"
+		| "seeded"
 		| "ssh_ready"
 		| "shutdown_submitted"
 		| "stale_operation"

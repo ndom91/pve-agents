@@ -269,7 +269,8 @@ button {
    put on `.button` itself, because `.changes-actions` is also a flex column and its buttons are
    meant to fill it. */
 .home-form .button,
-.settings-form .button {
+.settings-form .button,
+.settings-seed > .button {
 	align-self: start;
 }
 
@@ -481,6 +482,86 @@ dd {
 .settings-field small {
 	color: var(--fg-muted);
 	line-height: 1.5;
+}
+
+/* The seed-files tab. Its three controls are one row, because a root, a path and a file are one
+   decision and stacking them reads as three unrelated fields. */
+.settings-seed {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin-top: 8px;
+	max-width: 720px;
+}
+
+.settings-seed > p {
+	margin: 0;
+}
+
+.seed-add {
+	align-items: end;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+/* Wider than the numeric fields above, which are sized for three digits. A destination is a path
+   and the useful ones are longer than that. */
+.seed-add .settings-field input[type="text"] {
+	width: 260px;
+}
+
+.seed-add select {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	color: var(--fg-bright);
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	padding: 8px 10px;
+}
+
+.seed-add input[type="file"] {
+	background: none;
+	border: none;
+	color: var(--fg-muted);
+	font-size: var(--text-md);
+	padding: 0;
+}
+
+.seed-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.seed-list li {
+	align-items: center;
+	border-top: 1px solid var(--border);
+	display: flex;
+	gap: 12px;
+	padding: 8px 0;
+}
+
+/* The path takes the room and the size does not, so a long destination does not push the size and
+   the control off the end of the row. */
+.seed-list code {
+	color: var(--fg-bright);
+	flex: 1 1 auto;
+	font-size: var(--text-md);
+	overflow-wrap: anywhere;
+}
+
+.seed-list span {
+	color: var(--fg-dim);
+	flex: none;
+	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-size: var(--text-sm);
+}
+
+.seed-list .button {
+	flex: none;
 }
 
 /* The one consequence of the blocked exemption that is worth stating up front rather than being
@@ -1617,10 +1698,11 @@ dd {
 	padding: 8px 10px;
 }
 
-/* The rail's two halves. Placement is reference material; the diff is the workspace's output. */
-/* Scrolls sideways rather than wrapping. Wrapping would change the rail's height as files are
-   opened, moving everything below it every time. */
-.rail-tabs {
+/* Shared by the workspace rail and the settings page.
+ *
+ * Scrolls sideways rather than wrapping. Wrapping changes the strip's height as tabs appear, which
+ * moves everything below it. */
+.tabs {
 	border-bottom: 1px solid var(--border);
 	display: flex;
 	flex: 0 0 auto;
@@ -1632,7 +1714,7 @@ dd {
 	scrollbar-width: none;
 }
 
-.rail-tabs::-webkit-scrollbar {
+.tabs::-webkit-scrollbar {
 	display: none;
 }
 
@@ -1648,7 +1730,7 @@ dd {
 
 /* Roomy enough to read as separate tabs. They were 2px of padding and a 4px gap, which put eight
    pixels between one label and the next and made four tabs read as one run of words. */
-.rail-tab {
+.tab {
 	background: none;
 	border: none;
 	border-bottom: 2px solid transparent;
@@ -1661,12 +1743,12 @@ dd {
 	white-space: nowrap;
 }
 
-.rail-tab:hover {
+.tab:hover {
 	border-bottom-color: var(--border-dim);
 	color: var(--fg-bright);
 }
 
-.rail-tab[aria-selected="true"] {
+.tab[aria-selected="true"] {
 	border-bottom-color: var(--accent);
 	color: var(--fg-bright);
 }

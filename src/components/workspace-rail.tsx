@@ -7,6 +7,7 @@ import { useRailWidth } from "../lib/use-rail-width";
 import { workspaceBranch } from "../services/workspace-changes";
 import { CopyButton } from "./copy-button";
 import { RailResizer } from "./rail-resizer";
+import { type Tab, TabStrip } from "./tab-strip";
 
 // RailWorkspace is the placement detail the rail reads. Structural rather than the full record, so
 // this does not have to move every time the workspace type grows a field it does not show.
@@ -240,7 +241,7 @@ function Tabs({
 }) {
 	// Diff only for a workspace that has one. A destroyed container cannot be inspected, and a tab
 	// that answers nothing is worse than an absent one.
-	const fixed: { label: string; value: RailTab }[] = [
+	const fixed: Tab<RailTab>[] = [
 		{ label: "Details", value: { kind: "details" } },
 		...(changes === undefined
 			? []
@@ -254,22 +255,14 @@ function Tabs({
 	];
 
 	return (
-		// Scrolls sideways rather than wrapping, so the rail's height cannot change underneath the
-		// panel below it on a narrow rail.
-		<div className="rail-tabs" role="tablist">
-			{fixed.map(({ label, value }) => (
-				<button
-					aria-selected={tab.kind === value.kind}
-					className="rail-tab"
-					key={label}
-					onClick={() => onTab?.(value)}
-					role="tab"
-					type="button"
-				>
-					{label}
-				</button>
-			))}
-		</div>
+		<TabStrip
+			current={tab}
+			onSelect={onTab}
+			// Compared by kind rather than by identity, because the tab arrives as a fresh object
+			// on every render and no two would ever be the same reference.
+			sameTab={(a, b) => a.kind === b.kind}
+			tabs={fixed}
+		/>
 	);
 }
 

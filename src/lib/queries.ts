@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { workspaceChanges, workspaceFileDiff } from "../server/agent.functions";
+import { listSeedFiles } from "../server/seed-files.functions";
 import { workspaceSettings } from "../server/settings.functions";
 import { controllerStatus } from "../server/status.functions";
 import { listWorkspaces, workspaceDetail } from "../server/workspace.functions";
@@ -25,6 +26,7 @@ export const workspaceKeys = {
 	detail: (id: string) => ["workspace", id] as const,
 	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
+	seedFiles: () => ["seed-files"] as const,
 	settings: () => ["settings"] as const,
 	status: () => ["controller-status"] as const,
 };
@@ -118,5 +120,16 @@ export function settingsQuery() {
 	return queryOptions({
 		queryFn: () => workspaceSettings(),
 		queryKey: workspaceKeys.settings(),
+	});
+}
+
+// seedFilesQuery is what every new workspace will be seeded with.
+//
+// No interval. Nothing changes this but the operator sitting in front of it, and the mutations
+// invalidate the key themselves.
+export function seedFilesQuery() {
+	return queryOptions({
+		queryFn: () => listSeedFiles(),
+		queryKey: workspaceKeys.seedFiles(),
 	});
 }
