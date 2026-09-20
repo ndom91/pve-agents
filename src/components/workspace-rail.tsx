@@ -1,19 +1,31 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { useRailWidth } from "../lib/use-rail-width";
+// Type-only in this module's own imports, so nothing server-side follows it into the bundle. Taken
+// from there rather than rebuilt here because a second copy of the branch prefix is a second thing
+// that has to stay true, and the one the pushes actually use is that one.
+import { workspaceBranch } from "../services/workspace-changes";
+import { CopyButton } from "./copy-button";
 import { RailResizer } from "./rail-resizer";
 
 // RailWorkspace is the placement detail the rail reads. Structural rather than the full record, so
 // this does not have to move every time the workspace type grows a field it does not show.
 type RailWorkspace = {
+	activityObservedAt?: string;
 	createdAt?: string;
 	currentStep?: string;
+	desiredState?: string;
+	hostname?: string;
+	id?: string;
 	ip?: string;
 	lastActivityAt?: string;
 	node?: string;
 	provisionPhase?: string;
+	readyAt?: string;
 	ref?: string;
 	repository?: string;
+	taskUPID?: string;
+	updatedAt?: string;
 	vmid?: number;
 };
 
@@ -131,20 +143,59 @@ export function WorkspaceRail({
 					timeline={timeline}
 				/>
 			)}
-			<dl>
-				<Fact label="Repository" value={workspace.repository} />
-				<Fact label="Ref" value={workspace.ref} />
-				<Fact label="Node" value={workspace.node} />
-				<Fact label="VMID" value={workspace.vmid?.toString()} />
-				<Fact label="Address" value={workspace.ip} />
-				<Fact label="Phase" value={workspace.provisionPhase} />
-				<Fact label="Step" value={workspace.currentStep} />
-				<Fact label="Created" value={workspace.createdAt?.slice(0, 19)} />
-				<Fact
-					label="Last active"
-					value={workspace.lastActivityAt?.slice(0, 19)}
-				/>
-			</dl>
+			<div className="rail-facts">
+				<Group title="Source">
+					<Fact label="Repository" value={workspace.repository} wide />
+					<Fact label="Ref" value={workspace.ref} />
+					<Fact
+						label="Branch"
+						value={
+							workspace.hostname === undefined
+								? undefined
+								: workspaceBranch(workspace.hostname)
+						}
+						wide
+					/>
+				</Group>
+
+				<Group title="Placement">
+					<Fact label="Node" value={workspace.node} />
+					<Fact label="VMID" value={workspace.vmid?.toString()} />
+					<Fact label="Address" value={workspace.ip} />
+					{/* The line somebody was assembling by hand out of the two rows above it every
+					    time they wanted a shell outside the browser. */}
+					<Fact
+						copy
+						label="SSH"
+						value={
+							workspace.ip === undefined
+								? undefined
+								: `ssh agent@${workspace.ip}`
+						}
+						wide
+					/>
+				</Group>
+
+				<Group title="Progress">
+					<Fact label="Phase" value={workspace.provisionPhase} />
+					<Fact label="Step" value={workspace.currentStep} />
+					<Fact label="Created" value={stamp(workspace.createdAt)} />
+					<Fact label="Ready" value={stamp(workspace.readyAt)} />
+					<Fact
+						label="Took"
+						value={took(workspace.createdAt, workspace.readyAt)}
+					/>
+					<Fact label="Last active" value={stamp(workspace.lastActivityAt)} />
+					<Fact label="Checked" value={stamp(workspace.activityObservedAt)} />
+					<Fact label="Updated" value={stamp(workspace.updatedAt)} />
+				</Group>
+
+				<Group title="Identity">
+					<Fact copy label="Workspace" value={workspace.id} wide />
+					<Fact label="Wanted" value={workspace.desiredState} />
+					<Fact copy label="Task" value={workspace.taskUPID} wide />
+				</Group>
+			</div>
 		</aside>
 	);
 }
@@ -226,15 +277,78 @@ function Tabs({
 //
 // A workspace acquires these as it provisions, so a missing one means "not there yet" rather than
 // "empty", and an empty row would read as a problem.
-function Fact({ label, value }: { label: string; value?: string }) {
+function Fact({
+	copy = false,
+	label,
+	value,
+	wide = false,
+}: {
+	copy?: boolean;
+	label: string;
+	value?: string;
+	wide?: boolean;
+}) {
 	if (value === undefined || value === "") {
 		return null;
 	}
 
 	return (
-		<div>
+		<div className={wide ? "rail-fact rail-fact-wide" : "rail-fact"}>
 			<dt>{label}</dt>
-			<dd>{value}</dd>
+			<dd>
+				<span>{value}</span>
+				{copy ? (
+					<CopyButton label={`Copy ${label.toLowerCase()}`} text={value} />
+				) : null}
+			</dd>
 		</div>
 	);
+}
+
+// Group is a heading and the facts under it.
+//
+// A group whose facts are all absent is hidden in CSS rather than here. Every Fact is an element
+// either way — it decides to render nothing only once React asks it to — so counting children here
+// would count the ones that are about to disappear. `.rail-group:not(:has(.rail-fact))` asks the
+// question after the fact, which is the only point at which the answer is known.
+function Group({
+	children,
+	title,
+}: {
+	children: ReactNode;
+	title: string;
+}): ReactNode {
+	return (
+		<section className="rail-group">
+			<h3 className="rail-group-title">{title}</h3>
+			<dl>{children}</dl>
+		</section>
+	);
+}
+
+// stamp trims an ISO timestamp to the second. The zone is UTC for every row and the milliseconds
+// are noise in a column somebody reads rather than sorts.
+function stamp(value?: string): string | undefined {
+	return value?.slice(0, 19).replace("T", " ");
+}
+
+// took is how long provisioning ran, for the workspaces that have a ready_at.
+//
+// Undefined rather than "0s" when it does not: ready_at was never written before it was plumbed
+// in, and every workspace older than that would otherwise claim to have been built instantly.
+function took(createdAt?: string, readyAt?: string): string | undefined {
+	if (createdAt === undefined || readyAt === undefined) {
+		return undefined;
+	}
+
+	const ms = Date.parse(readyAt) - Date.parse(createdAt);
+	if (!Number.isFinite(ms) || ms < 0) {
+		return undefined;
+	}
+
+	const seconds = Math.round(ms / 1000);
+	if (seconds < 60) {
+		return `${seconds}s`;
+	}
+	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }

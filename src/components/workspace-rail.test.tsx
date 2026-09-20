@@ -45,6 +45,58 @@ describe("WorkspaceRail", () => {
 		expect(container.querySelectorAll("dd")).toHaveLength(0);
 	});
 
+	it("derives the branch a push would land on from the hostname", () => {
+		// Taken from the same helper the push uses. A second copy of the prefix would keep passing
+		// here and quietly stop matching the branch anybody could actually find on GitHub.
+		render(<WorkspaceRail workspace={{ hostname: "agent-c824" }} />);
+
+		expect(screen.getByText("pve-agents/agent-c824")).toBeDefined();
+	});
+
+	it("builds the ssh command nobody should have to assemble by hand", () => {
+		render(<WorkspaceRail workspace={{ ip: "10.0.3.119" }} />);
+
+		expect(screen.getByText("ssh agent@10.0.3.119")).toBeDefined();
+	});
+
+	it("says how long provisioning took, and stays quiet when it cannot", () => {
+		render(
+			<WorkspaceRail
+				workspace={{
+					createdAt: "2026-09-20T11:10:09.000Z",
+					readyAt: "2026-09-20T11:11:36.000Z",
+				}}
+			/>,
+		);
+
+		expect(screen.getByText("1m 27s")).toBeDefined();
+
+		// Every workspace created before ready_at was written has no ready_at, and "0s" would
+		// claim those were built instantly rather than admitting it does not know.
+		cleanup();
+		render(
+			<WorkspaceRail workspace={{ createdAt: "2026-09-20T11:10:09.000Z" }} />,
+		);
+
+		expect(screen.queryByText("Took")).toBeNull();
+		expect(screen.queryByText("0s")).toBeNull();
+	});
+
+	it("drops a group heading when every fact under it is absent", () => {
+		// Identity has no rows on a workspace that never got a container, and a heading with
+		// nothing under it reads as a panel that failed to load.
+		const { container } = render(
+			<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />,
+		);
+
+		const headings = [...container.querySelectorAll(".rail-group")].filter(
+			(group) => group.querySelector(".rail-fact") !== null,
+		);
+
+		expect(headings).toHaveLength(1);
+		expect(headings[0]?.textContent).toContain("Source");
+	});
+
 	it("offers no diff tab for a workspace that has nothing to show in one", () => {
 		// A workspace still provisioning has no changes to list, and a tab that answers nothing is
 		// worse than no tab.

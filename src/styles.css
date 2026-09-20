@@ -1255,11 +1255,57 @@ dd {
 	outline: none;
 }
 
-.dashboard-rail dl {
+.rail-facts {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 20px;
+}
+
+.rail-group-title {
+	border-bottom: 1px solid var(--border);
+	color: var(--fg-soft);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	margin: 0 0 10px;
+	padding-bottom: 6px;
+	text-transform: uppercase;
+}
+
+/* A group with nothing in it. Identity has no rows on a workspace that never got a container, and
+   a heading with no facts under it reads as a panel that failed to load rather than as an absence.
+   Asked in CSS because a Fact decides to render nothing only once React runs it, so counting the
+   children in the component would count the ones about to vanish. */
+.rail-group:not(:has(.rail-fact)) {
+	display: none;
+}
+
+/* auto-fit rather than a fixed count: the rail is a handle somebody drags, so the number of
+   columns has to follow the width rather than a breakpoint chosen here. */
+.dashboard-rail dl {
+	display: grid;
+	gap: 12px 16px;
+	/* 150px is the width of a timestamp in this monospace at this size. Below it the grid fitted
+	   another column and every date wrapped onto two lines to pay for it. */
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 	margin: 0;
+}
+
+/* Values with no natural stopping point — a repository url, an ssh command, a Proxmox UPID. In a
+   132px cell they would push the rail wider than the operator dragged it. */
+.rail-fact-wide {
+	grid-column: 1 / -1;
+}
+
+.rail-fact-wide dd {
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+.dashboard-rail dd {
+	align-items: center;
+	display: flex;
+	gap: 6px;
 }
 
 .dashboard-rail dt {

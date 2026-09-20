@@ -419,6 +419,7 @@ export function advanceWorkspaceProvision(
 			 SET current_task_upid = NULL, current_task_expires_at = NULL, current_step = ?,
 				provision_phase = ?, status = COALESCE(?, status), ip = COALESCE(?, ip),
 				git_credential_at = COALESCE(?, git_credential_at),
+				ready_at = COALESCE(ready_at, CASE WHEN ? = 'ready' THEN ? END),
 				updated_at = ?
 			 WHERE id = ?`,
 		).run(
@@ -427,6 +428,11 @@ export function advanceWorkspaceProvision(
 			input.status ?? null,
 			input.ip ?? null,
 			input.credentialAt ?? null,
+			// The one transition into "ready" runs through here. COALESCE on the column rather
+			// than on the status, so a second pass through the same transition cannot move a
+			// timestamp somebody is reading a duration from.
+			input.status ?? null,
+			nowText,
 			nowText,
 			workspaceId,
 		);
@@ -1253,6 +1259,11 @@ export type WorkspaceDetail = Workspace & {
 	lastActivityAt?: string;
 	node?: string;
 	provisionPhase?: string;
+	readyAt?: string;
+	// Absent on a settled workspace. Every task completion clears the column, so this is here for
+	// the workspace that is mid-clone or stuck on one, which is when somebody goes looking for the
+	// task in Proxmox.
+	taskUPID?: string;
 	unsavedWork?: boolean;
 	vmid?: number;
 };
@@ -1266,7 +1277,7 @@ export function workspaceDetail(
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
 				created_at, updated_at, current_step, node, vmid, ip,
-				provision_phase, error_code, error_message,
+				provision_phase, error_code, error_message, current_task_upid, ready_at,
 				last_activity_at, activity_observed_at, unsaved_work
 			 FROM workspaces WHERE id = ?`,
 		)
@@ -1286,6 +1297,8 @@ export function workspaceDetail(
 		lastActivityAt: row.last_activity_at,
 		node: row.node,
 		provisionPhase: row.provision_phase,
+		readyAt: row.ready_at,
+		taskUPID: row.current_task_upid,
 		vmid: row.vmid,
 	};
 	// A flag rather than a value: 1 means the last check found work, 0 means it found none, and
