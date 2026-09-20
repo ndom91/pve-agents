@@ -35,15 +35,11 @@ export function WorkspaceTerminal({
 
 	return (
 		<Suspense fallback={<PanelSpinner label="Loading the terminal." />}>
-			{/* Keyed, so switching workspaces builds a new terminal rather than re-running an
-			    effect inside the old one.
-
-			    The rail keeps an opened terminal mounted on purpose -- unmounting it closes the
-			    socket and kills the shell -- and the selected tab survives a click to another
-			    workspace. Between them, the same TerminalView instance would otherwise be handed a
-			    new `workspaceId` and tear one shell down and open another in place. That is a
-			    second shell in a div that belonged to the first; keying it removes the question. */}
-			<TerminalView key={workspaceId} workspaceId={workspaceId} />
+			{/* Deliberately not keyed by workspace. One terminal, reused, with a different shell
+			    wired to it -- see the note in TerminalView. Keying it here forced a rebuild per
+			    workspace, and a rebuild means ghostty reloading its WASM, which is two and a half
+			    seconds of staring at nothing on every switch. */}
+			<TerminalView workspaceId={workspaceId} />
 		</Suspense>
 	);
 }

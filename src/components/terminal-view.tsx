@@ -11,9 +11,32 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 //
 // Loaded on demand by its wrapper. It draws to a canvas and measures real glyphs, so it cannot be
 // server-rendered, and it is the largest thing on a page most visits never open.
+//
+// The terminal is built once and kept; switching workspaces changes which shell is on the other end
+// of it, not which terminal you are looking at. That distinction is worth about two and a half
+// seconds: `dispose()` drops ghostty's cached WASM instance, so the next terminal has to load and
+// compile the whole module again before it can show anything.
 export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 	const host = useRef<HTMLDivElement>(null);
+	// The terminal, and whichever socket is currently wired to it. Refs rather than state because
+	// nothing renders from them: they are the machinery, not the picture.
+	const screen = useRef<{ fit: FitAddon; terminal: Terminal } | null>(null);
+	const wire = useRef<WebSocket | null>(null);
 	const [state, setState] = useState<"closed" | "live" | "opening">("opening");
+
+	// Disposed once, when the page is finished with this terminal entirely.
+	//
+	// Deferred, because tearing one down is seconds of work inside the WASM and doing it inline
+	// blocks the navigation that asked for it. Nothing reads it afterwards: the element it drew
+	// into has already gone.
+	useEffect(
+		() => () => {
+			const built = screen.current;
+			screen.current = null;
+			setTimeout(() => built?.terminal.dispose(), 0);
+		},
+		[],
+	);
 
 	useEffect(() => {
 		const element = host.current;
@@ -28,37 +51,57 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 
 		void (async () => {
 			await init();
-			if (stopped) {
+			if (stopped || host.current === null) {
 				return;
 			}
 
-			const terminal = new Terminal({
-				// Matches the palette the rest of the application uses, so a shell does not arrive
-				// as a black rectangle stapled to a green page.
-				fontFamily: '"SF Mono", "Roboto Mono", monospace',
-				fontSize: 12,
-				theme: {
-					background: "#10140f",
-					cursor: "#d6e2cf",
-					foreground: "#d6e2cf",
-				},
-			});
-			const fit = new FitAddon();
-			terminal.loadAddon(fit);
-			terminal.open(element);
-			fit.fit();
+			if (screen.current === null) {
+				const terminal = new Terminal({
+					// Matches the palette the rest of the application uses, so a shell does not
+					// arrive as a black rectangle stapled to a green page.
+					fontFamily: '"SF Mono", "Roboto Mono", monospace',
+					fontSize: 12,
+					// Bounded. Every line of it is memory the terminal has to free eventually, and
+					// a workspace shell is for short commands rather than for reading a log in.
+					scrollback: 1_000,
+					theme: {
+						background: "#10140f",
+						cursor: "#d6e2cf",
+						foreground: "#d6e2cf",
+					},
+				});
+				const fit = new FitAddon();
+				terminal.loadAddon(fit);
+				terminal.open(element);
 
-			// Start from an empty grid.
+				// Registered once, against whichever socket is current. Registering per connection
+				// would stack a listener for every workspace visited, and each would send the same
+				// keystroke again.
+				terminal.onData((data: string) => {
+					const live = wire.current;
+					if (live?.readyState === WebSocket.OPEN) {
+						live.send(new TextEncoder().encode(data));
+					}
+				});
+
+				screen.current = { fit, terminal };
+			}
+
+			const { fit, terminal } = screen.current;
+
+			// A clean screen for a new shell.
 			//
-			// A new Terminal in a new host element still came up holding the last session's
-			// screen: leave a workspace, come back, and the previous `ls` output was there with a
-			// fresh shell writing over it line by line -- a session that appeared to resume
-			// halfway through something it had never run.
-			//
-			// The SSH session is gone the moment the socket closes and cannot be picked up again,
-			// so the only honest thing to show is a clean one. `reset` rather than `clear`,
-			// because the scrollback is part of what survived.
+			// Whatever is up there was drawn by a session that has ended and cannot be picked up
+			// again -- it went with its socket. Left alone, the old output stays while the new
+			// shell writes over it from the top, which reads as a session resuming halfway through
+			// something it never ran. `reset` rather than `clear`, because the scrollback is part
+			// of what would otherwise survive.
 			terminal.reset();
+			// `reset` empties the buffer but leaves the last frame on the canvas, so the previous
+			// workspace's banner sat there until something happened to repaint. Refitting forces
+			// that repaint, and has to come after the reset rather than before it.
+			fit.fit();
+			setState("opening");
 
 			// The size travels with the connection so the remote tty is sized before the shell
 			// starts. Sent afterwards it would be typed at the prompt and echoed back.
@@ -68,22 +111,28 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 					`&cols=${terminal.cols}&rows=${terminal.rows}`,
 			);
 			socket.binaryType = "arraybuffer";
+			wire.current = socket;
 
 			socket.addEventListener("open", () => setState("live"));
 			socket.addEventListener("message", (event) => {
+				// Only from the live shell. One terminal is shared across workspaces now, so a
+				// message still in flight from the one being left would otherwise paint itself
+				// into the screen belonging to the one being opened.
+				if (wire.current !== socket) {
+					return;
+				}
+
 				terminal.write(
 					typeof event.data === "string"
 						? event.data
 						: new Uint8Array(event.data as ArrayBuffer),
 				);
 			});
-			socket.addEventListener("close", () => setState("closed"));
-
-			// Binary, so the server can tell a keystroke from a control message without a prefix
-			// somebody could type by accident.
-			terminal.onData((data: string) => {
-				if (socket.readyState === WebSocket.OPEN) {
-					socket.send(new TextEncoder().encode(data));
+			// Only while it is still the live one. A socket closed because the workspace changed
+			// would otherwise report the shell that replaced it as ended.
+			socket.addEventListener("close", () => {
+				if (wire.current === socket) {
+					setState("closed");
 				}
 			});
 
@@ -105,11 +154,11 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 			});
 			observer.observe(element);
 
+			// The shell goes; the terminal stays. That is the whole point of the split.
 			teardown = () => {
 				clearTimeout(pending);
 				observer.disconnect();
 				socket.close();
-				terminal.dispose();
 			};
 		})();
 
