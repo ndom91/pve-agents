@@ -1622,6 +1622,43 @@ dd {
 	color: var(--fg-bright);
 }
 
+/* Everything the diff tab says when it has no files to list.
+ *
+ * Centred in the panel rather than left at the top, where a single sentence under the tab strip
+ * read as a caption for content that had failed to load. */
+.changes-empty {
+	align-items: center;
+	display: flex;
+	flex: 1 1 auto;
+	justify-content: center;
+	min-height: 0;
+	padding: 24px 12px;
+}
+
+.changes-empty-card {
+	border-radius: 6px;
+	font-size: var(--text-md);
+	line-height: 1.5;
+	margin: 0;
+	max-width: 280px;
+	padding: 16px 18px;
+	text-align: center;
+}
+
+.changes-empty-card-muted {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	color: var(--fg-muted);
+}
+
+/* Amber, not grey. These two cards mean "there may be work here that this panel cannot show you",
+   and a muted card says the opposite to someone deciding whether to destroy the workspace. */
+.changes-empty-card-warn {
+	background: var(--warn-bg);
+	border: 1px solid var(--warn);
+	color: var(--warn-fg);
+}
+
 /* The change list: one row per file, and the diff that unfolds under it. */
 .changes-accordion {
 	display: flex;
