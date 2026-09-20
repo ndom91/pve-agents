@@ -805,15 +805,19 @@ dd {
 }
 
 /* A prompt is set apart because it is the one thing in the transcript a person wrote. Without it
-   the page reads as one long monologue with no turns in it. */
+   the page reads as one long monologue with no turns in it.
+ *
+ * A block rather than a rule down the side: in a long conversation the eye finds a filled shape
+ * from across the page, where a 2px line has to be looked for. The fill is the scrollbar's own
+ * colour, which is as far from the page as anything here gets without becoming a panel. */
 .chat-entry.is-prompt .chat-text {
+	background: var(--border);
 	border-left: 2px solid var(--accent);
 	color: var(--fg-bright);
-	padding-left: 10px;
+	padding: 9px 12px 9px 10px;
 }
 
-.chat-entry.is-thought .chat-text,
-.chat-entry.is-thought .chat-fold {
+.chat-entry.is-thought .chat-text {
 	color: var(--fg-muted);
 }
 
@@ -824,12 +828,16 @@ dd {
 }
 
 /* The disclosure. Deliberately the same shape as a row in the diff accordion, because they are the
-   same gesture and learning it twice is a cost for no benefit. */
+   same gesture and learning it twice is a cost for no benefit.
+ *
+ * Muted, at the same weight as a thought: both are things the agent did on the way to an answer,
+ * and the answer is what the eye should land on. Only the thought row used to be muted, so a turn
+ * with three tool calls in it read as three headings above the paragraph that mattered. */
 .chat-fold {
 	align-items: center;
 	background: none;
 	border: none;
-	color: var(--fg);
+	color: var(--fg-muted);
 	cursor: pointer;
 	display: flex;
 	font-family: "SF Mono", "Roboto Mono", monospace;
