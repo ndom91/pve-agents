@@ -135,4 +135,4 @@ implementation and documentation were all shaped through human-AI collaboration.
 
 ## 📝 License
 
-[AGPL-3.0-only](LICENSE)
+[AGPL-3.0](LICENSE)
