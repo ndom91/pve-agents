@@ -71,6 +71,20 @@ irreversibly. A workspace it cannot inspect is kept. This rule is why `UnsavedWo
 carrying `managed-by`, `controller-id` and an ownership token is the *only* thing authorising a
 destroy. Pool membership, hostname and tags are discovery aids, not authorisation.
 
+**A command that exits 0 has not necessarily done anything.** Learned twice, which is why it is
+here rather than in a comment. A tool once accepted a working directory that did not exist,
+reported success, and left a shell sitting in the wrong place with nothing in any log to say so.
+The runner caught us the same way: the script that launches it backgrounds the process and exits,
+so "launched" cannot mean "running". `startRunner` deliberately returns a type that cannot answer
+that question, and the caller polls the socket instead.
+
+**A state you infer from somebody else's classification is a state you cannot fix.** Claude
+Code's TUI had three first-run gates and the tool watching it labelled them inconsistently, so
+neither the status nor the screen text alone detected all three and the controller had to read
+both. The SDK has no such gates and the detection is gone, but `claudeSeed` in
+`src/services/claude-agent.ts` still writes the settings that skip them — see the comment there
+for why removing that unverified is not worth what it risks.
+
 **Settings that get tuned against a running fleet live in the database, not `.env`.** `.env` holds
 what the controller *is*; the database holds what it *does*. See "Configuration versus policy" in
 the architecture doc.

@@ -131,7 +131,7 @@ Avoid forwarding the user's general SSH agent into an autonomous workspace. It g
 
 Provider authentication is the largest unavoidable trade-off here, and the one that was settled least comfortably.
 
-**What is used: a Claude subscription OAuth token**, held in `.env` on the controller and written into each workspace as a file the agent pane's shell sources. It arrives over stdin, never as an argument. An API key was available and was deliberately not chosen.
+**What is used: a Claude subscription OAuth token**, held in `.env` on the controller and written into each workspace as `~/.config/agent-env`, which the runner sources explicitly. It arrives over stdin, never as an argument. An API key was available and was deliberately not chosen.
 
 It is the fourth option on the list below, and it is chosen knowingly: this is a single-operator deployment, the token is reusable rather than task-scoped, and any workspace that gets it can spend against the subscription. The container being disposable is what bounds that, not the credential.
 
@@ -153,4 +153,4 @@ The web UI is the interactive path, so the controller holds more than a provisio
 - **The agent's screen is rendered as parsed spans, never as HTML.** An agent echoes file contents, diffs, and whatever a prompt told it to print. Handing that to an HTML converter would let any repository script the controller's own origin, where the operator's session cookie lives.
 - **`ssh` does not preserve argument boundaries.** It joins the command and the remote shell splits it again, so every argument is quoted before it leaves. Without that, a repository name or an agent prompt carrying a semicolon is remote code execution under the controller's key.
 
-A local Herdr bridge was specified here and never built. The web UI removed the reason for it, and Herdr itself is no longer part of the system: an operator watches and drives the agent in the browser. See `docs/herdr-integration.md`.
+A local Herdr bridge was specified here and never built. The web UI removed the reason for it, and Herdr itself is no longer part of the system: an operator watches and drives the agent in the browser.

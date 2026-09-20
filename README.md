@@ -73,13 +73,15 @@ To go past the queue and build real containers:
 
 ## 🏔️ Environment
 
-Copy `.env.example` to `.env`. Twenty-one variables, of which four decide whether anything happens:
+Copy `.env.example` to `.env`. Thirty variables, of which these decide whether anything happens:
 
 | | |
 |---|---|
 | `CONTROLLER_AUTH_SECRET` | Turns authentication on. **Unset means the controller answers anyone who can reach it.** Set it. |
 | `PROVISIONING_ENABLED` | Gates every Proxmox write. Off by default. |
-| `PROXMOX_*` | URL, token, node, pool, template VMID, bridge. |
+| `PROXMOX_*` | URL, token, node, pool, template VMID, bridge, VMID floor. |
+| `GITHUB_APP_*` | Id, installation id and key path. How the controller clones and pushes. Distinct from `GITHUB_CLIENT_*`, which is only how you sign in. |
+| `WORKSPACE_CLAUDE_OAUTH_TOKEN` | From `claude setup-token`. Without it a workspace builds and the agent step fails. |
 | `WORKER_ENABLED` | Runs the operation worker in the server process. Off by default, so the first clone and destroy can be stepped by hand with `pnpm worker:tick`. |
 
 [`docs/production-runbook.md`](docs/production-runbook.md) has the rest.
@@ -115,10 +117,10 @@ about it.
 | [`AGENTS.md`](AGENTS.md) | Start here to work on the code. Conventions, and the rules this codebase learned the hard way. |
 | [`docs/architecture.md`](docs/architecture.md) | The system as built, including where an earlier intention was abandoned and why. |
 | [`docs/http-api.md`](docs/http-api.md) | The HTTP API, for scripting the controller. |
+| [`docs/seed-files.md`](docs/seed-files.md) | Files every workspace is built with, and how MCP servers reach one. |
 | [`docs/production-runbook.md`](docs/production-runbook.md) | Deploying and operating it. |
 | [`docs/proxmox-lifecycle.md`](docs/proxmox-lifecycle.md) | Clone, boot, address, destroy, and reconcile. |
 | [`docs/security-and-networking.md`](docs/security-and-networking.md) | Network shape, credentials, and what is deliberately not trusted. |
-| [`docs/herdr-integration.md`](docs/herdr-integration.md) | Why Herdr left, and the two lessons that outlived it. |
 
 ## 🧑‍💻 Development
 

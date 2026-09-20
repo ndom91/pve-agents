@@ -110,13 +110,17 @@ The detail page streams over server-sent events, and Caddy buffers by default in
 proxy needs `flush_interval -1`, and the stream path must be excluded from compression:
 
 ```caddyfile
-reverse_proxy 127.0.0.1:3000 {
+# The controller's own address, not loopback: it binds CONTROLLER_HOST, which on a box with a
+# reverse proxy in front of it is the LAN address rather than 127.0.0.1.
+reverse_proxy 10.0.3.50:3000 {
 	flush_interval -1
 }
 
-@compressible not path /api/workspaces/*/stream /api/workspaces/*/agent
+@compressible not path /api/workspaces/*/agent
 encode @compressible gzip
 ```
+
+`deploy/Caddyfile` is the copy that is actually deployed, and the one to change.
 
 `encode` rejects `not` in a response matcher, which is why the exclusion is a named request matcher
 on the path. This works perfectly against the port directly and fails only behind the proxy, so

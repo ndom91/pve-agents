@@ -35,8 +35,8 @@ So the centre column is a conversation rather than a terminal emulator, and appr
 decision with a visible subject rather than a keystroke aimed at a box of text.
 
 **Herdr is gone.** Its pane was the only thing it was still providing, and the Terminal tab was
-already a plain `ssh -tt` rather than a Herdr session. `docs/herdr-integration.md` records what it
-taught us and why it left.
+already a plain `ssh -tt` rather than a Herdr session. The two lessons that outlived it are in
+`AGENTS.md`, under what this codebase has already learned.
 
 ## Planes
 
@@ -57,9 +57,13 @@ from memory, so a controller that stops mid-clone picks up where it left off.
 
 ```text
 requested → clone-submitted → clone-confirmed → start-submitted → booted
-          → addressed → reachable → bootstrapped → checked-out
+          → addressed → reachable → bootstrapped → checked-out → seeded
           → runner-started → briefed
 ```
+
+`seeded` writes the operator's own files into the container — see `docs/seed-files.md`. It sits
+after the checkout and before the runner deliberately: the files may be configuration the agent
+reads on the way up, and one of them is merged into a file the bootstrap wrote two phases earlier.
 
 Three phases became one when Herdr went. Starting a server, creating a workspace in it, and
 starting an agent in a pane were three round trips with three distinct failure vocabularies
@@ -79,6 +83,22 @@ the workspace id, and an ownership token, written atomically during the clone.
 tags are discovery aids. Nothing is deleted without re-reading the marker immediately beforehand —
 including an orphan the operator clicked, because a VMID arriving in a form is a request rather
 than authorisation.
+
+## What a workspace is called
+
+Two names, for two readers. The **hostname** — `agent-c397` — is the container's, generated from
+the workspace id, and it is what appears in Proxmox, in the branch a push lands on, and in an SSH
+command. The **title** is the agent's own six-word summary of what it was asked to do, which is
+what the sidebar shows.
+
+Asked for and stored once rather than recomputed. It rides back on the same round trip as the
+activity reading the scheduler already makes, so it costs nothing extra, and
+`recordWorkspaceTitle` writes it at most once per workspace: a name that changed as the work went
+on would make the sidebar a thing you have to re-read rather than scan.
+
+Absent is a normal state. A workspace whose agent has not answered yet, one requested without a
+purpose, and every workspace that predates naming all have none, and the UI falls back to the
+hostname rather than inventing anything.
 
 ## The scheduler
 
@@ -135,7 +155,7 @@ workspace back from reaping, so a patch-shaped answer would have shown that case
 
 Two things can be done with it:
 
-- **Push** commits everything and sends it to `herdr/<hostname>`, never the checked-out ref.
+- **Push** commits everything and sends it to `pve-agents/<hostname>`, never the checked-out ref.
   Unreviewed agent output must not reach `main` because somebody clicked quickly, and a side branch
   is what makes the button safe enough to need no confirmation. A confirmation people learn to
   dismiss protects nothing.
@@ -233,7 +253,7 @@ server function. A socket becomes right when there is keystroke-level input to s
 |---|---|---|
 | Proxmox API token | `.env` | never leaves the controller |
 | GitHub App key | file on disk, `0600` | a repo-scoped token, renewed hourly |
-| Claude subscription token | `.env` | a file the pane's shell sources |
+| Claude subscription token | `.env` | `~/.config/agent-env`, sourced by the runner |
 
 Both workspace credentials arrive **on stdin**, never as arguments, so neither appears in the
 process list. Git reads its credential from a store rather than a URL, because git repeats the
