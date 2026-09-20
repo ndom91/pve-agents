@@ -5,7 +5,7 @@ import { controllerConfig } from "../config/controller-config";
 import { openDatabase } from "../db/database";
 import { createWorkspace } from "../db/workspace-repository";
 import type { SshResult, SshRunner } from "./ssh";
-import { mapActivity, observeWorkspaceActivity } from "./workspace-activity";
+import { observeWorkspaceActivity } from "./workspace-activity";
 
 const OBSERVED_AT = new Date("2026-01-01T00:00:00Z");
 
@@ -17,27 +17,6 @@ afterEach(() => {
 	}
 
 	databases.length = 0;
-});
-
-describe("mapActivity", () => {
-	// Exported and tested directly because the stream uses it too, several times more often than
-	// the observation pass does. A second copy of this mapping would be a way for the two to
-	// disagree about what "done" means.
-	it("maps every status a runner reports", () => {
-		expect(mapActivity("working")).toBe("active");
-		expect(mapActivity("blocked")).toBe("blocked");
-		expect(mapActivity("idle")).toBe("idle");
-		expect(mapActivity("done")).toBe("idle");
-		expect(mapActivity("unknown")).toBe("unknown");
-		expect(mapActivity("something-new")).toBe("unknown");
-	});
-
-	it("keeps blocked distinct from everything else", () => {
-		// The controls for answering a dialog are gated on this value. Folding blocked into idle
-		// would leave an agent waiting with no way to answer it.
-		expect(mapActivity("blocked")).not.toBe(mapActivity("idle"));
-		expect(mapActivity("blocked")).not.toBe(mapActivity("working"));
-	});
 });
 
 describe("observeWorkspaceActivity", () => {

@@ -7,6 +7,32 @@ export const DEFAULT_WORKSPACE_STATUS = "requested";
 // WorkspaceActivity describes the latest activity the workspace's agent runner reported.
 export type WorkspaceActivity = "active" | "blocked" | "idle" | "unknown";
 
+// mapActivity translates a runner's status into the four states the controller reports.
+//
+// Here, in the domain, because three places need it and two of them write into the same cache
+// entry: the observation pass, the stream route, and the browser hook that corrects an optimistic
+// guess. It lived in the service module and was copied by hand into the hook, which meant two
+// spellings of "blocked" one import away from disagreeing — and the controls that gate on it
+// flickering when they did.
+//
+// "done" is still accepted alongside "idle" because Herdr used to report both and a database
+// restored from that era can hold either; they meant the same thing. "unknown" is passed through
+// rather than flattened into idle, which is the rule the reaper depends on: a status nobody could
+// read is not evidence that anything finished.
+export function mapActivity(status: string): WorkspaceActivity {
+	switch (status) {
+		case "working":
+			return "active";
+		case "blocked":
+			return "blocked";
+		case "done":
+		case "idle":
+			return "idle";
+		default:
+			return "unknown";
+	}
+}
+
 // WorkspaceStatus describes the controller-observed provisioning lifecycle.
 export type WorkspaceStatus =
 	| "booting"

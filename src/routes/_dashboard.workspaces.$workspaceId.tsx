@@ -88,11 +88,7 @@ function WorkspaceDetail() {
 			// it is waiting.
 			if (result.kind !== "sent") {
 				rollback?.();
-				setNote(
-					result.kind === "blocked"
-						? "The agent is waiting for input. Answer it first."
-						: result.reason,
-				);
+				setNote(result.reason);
 
 				return;
 			}

@@ -5,7 +5,7 @@ import {
 	recordWorkspaceActivity,
 	staleWorkspaceActivity,
 } from "../db/workspace-repository";
-import type { WorkspaceActivity } from "../domain/workspace";
+import { mapActivity, type WorkspaceActivity } from "../domain/workspace";
 import { runnerStatus } from "./agent-runner";
 import { runSsh, type SshRunner } from "./ssh";
 
@@ -70,27 +70,4 @@ async function readActivity(
 			ssh,
 		),
 	);
-}
-
-// mapActivity translates a runner's status into the four states the controller reports.
-//
-// Exported because the agent stream observes the same states far more often than this pass does,
-// and a second copy of this mapping is a way for the two to disagree.
-//
-// "done" is still accepted alongside "idle" because Herdr used to report both and a database
-// restored from that era can hold either; they meant the same thing. "unknown" is passed through
-// rather than flattened into idle, which is the rule the reaper depends on: a status nobody could
-// read is not evidence that anything finished.
-export function mapActivity(status: string): WorkspaceActivity {
-	switch (status) {
-		case "working":
-			return "active";
-		case "blocked":
-			return "blocked";
-		case "done":
-		case "idle":
-			return "idle";
-		default:
-			return "unknown";
-	}
 }

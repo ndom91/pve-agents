@@ -22,33 +22,6 @@ import {
 import { workspaceUnsavedWork } from "../services/workspace-git";
 import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 
-// sendRunnerPrompt gives a runner-backed agent its next turn.
-//
-// A connection per prompt rather than a held one. The page already holds an attachment for reading;
-// a second, shared, writable one would have to be kept alive across reloads and reconnections for
-// something that happens when a person types a paragraph.
-async function sendRunnerPrompt(id: string, text: string): Promise<AgentInput> {
-	const target = agentTarget(id);
-	if (target.kind === "unavailable") {
-		return target;
-	}
-
-	if ((await promptRunner(target.ssh, text, runSsh)) === "failed") {
-		return { kind: "unavailable", reason: "the agent runner did not answer" };
-	}
-
-	// Truncated: a prompt may run to thousands of characters and the timeline shows one line.
-	recordWorkspaceNote(
-		controllerDatabase(),
-		id,
-		"workspace.prompted",
-		text.length > 160 ? `${text.slice(0, 160)}...` : text,
-	);
-	recordWorkspaceInteraction(controllerDatabase(), id);
-
-	return { kind: "sent" };
-}
-
 // answerApproval allows or denies one tool call an agent is suspended on.
 //
 // The decision the whole refactor exists for. Under Herdr this was a keystroke aimed at a rendered
@@ -82,7 +55,7 @@ export async function answerApproval(
 }
 
 // AgentTarget is a workspace that can be spoken to, or the reason it cannot.
-type AgentTarget =
+export type AgentTarget =
 	| { hostname: string; kind: "ready"; ssh: SshTarget }
 	| { kind: "unavailable"; reason: string };
 
@@ -91,7 +64,7 @@ type AgentTarget =
 // Every operator-driven call goes through this, so the guard cannot be forgotten on the next one
 // added. Refusing before any connection is attempted keeps these endpoints from being usable to
 // probe half-built containers.
-function agentTarget(id: string): AgentTarget {
+export function agentTarget(id: string): AgentTarget {
 	const config = controllerRuntimeConfig();
 	const workspace = workspaceDetail(controllerDatabase(), id);
 	if (workspace === undefined) {
@@ -128,16 +101,37 @@ function agentTarget(id: string): AgentTarget {
 
 // AgentInput is what happened to something an operator sent the agent.
 export type AgentInput =
-	| { kind: "blocked" }
 	| { kind: "sent" }
 	| { kind: "unavailable"; reason: string };
 
 // sendAgentPrompt gives the agent its next turn.
+//
+// A connection per prompt rather than a held one. The page already holds an attachment for reading;
+// a second, shared, writable one would have to be kept alive across reloads and reconnections for
+// something that happens when a person types a paragraph.
 export async function sendAgentPrompt(
 	id: string,
 	text: string,
 ): Promise<AgentInput> {
-	return await sendRunnerPrompt(id, text);
+	const target = agentTarget(id);
+	if (target.kind === "unavailable") {
+		return target;
+	}
+
+	if ((await promptRunner(target.ssh, text, runSsh)) === "failed") {
+		return { kind: "unavailable", reason: "the agent runner did not answer" };
+	}
+
+	// Truncated: a prompt may run to thousands of characters and the timeline shows one line.
+	recordWorkspaceNote(
+		controllerDatabase(),
+		id,
+		"workspace.prompted",
+		text.length > 160 ? `${text.slice(0, 160)}...` : text,
+	);
+	recordWorkspaceInteraction(controllerDatabase(), id);
+
+	return { kind: "sent" };
 }
 
 export async function readWorkspaceChanges(id: string): Promise<ChangedFiles> {

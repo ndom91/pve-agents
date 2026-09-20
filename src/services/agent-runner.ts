@@ -1,5 +1,14 @@
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
+import type {
+	RunnerEvent,
+	RunnerRequest,
+	RunnerSnapshot,
+	RunnerStatus,
+} from "../domain/runner-protocol";
+import { readEvent } from "../domain/runner-protocol";
 import { AGENT_CWD } from "../domain/workspace-layout";
 import { knownHostsPath, type SshRunner, type SshTarget } from "./ssh";
 
@@ -71,6 +80,14 @@ const INSTALL_SCRIPT = [
 	'cat > "$1/agent-runner.mjs"',
 ].join("\n");
 
+// PROBE asks whether anything is listening on a socket, rather than whether the file exists.
+//
+// One string because two callers depend on it answering the same way: `runnerState` reports the
+// truth to the provisioning phase, and START_SCRIPT uses it as its own "already running?" guard.
+// If those two ever disagreed, a pass would start a second runner over a live one — two processes
+// on one socket and two Claude sessions billing the same subscription.
+const PROBE = `require("net").connect(process.argv[1]).on("connect",()=>process.exit(0)).on("error",()=>process.exit(1))`;
+
 // START_SCRIPT launches the runner so it outlives the connection that started it.
 //
 // setsid is what makes that true. Without it the runner dies with the ssh session, which would
@@ -86,7 +103,7 @@ const INSTALL_SCRIPT = [
 // perfectly, listens perfectly, accepts a prompt, and answers every one of them with
 // "Not logged in · Please run /login".
 const START_SCRIPT = [
-	'if [ -S "$2" ] && node -e \'require("net").connect(process.argv[1]).on("connect",()=>process.exit(0)).on("error",()=>process.exit(1))\' "$2"; then',
+	`if [ -S "$2" ] && node -e '${PROBE}' "$2"; then`,
 	"  echo already-running",
 	"  exit 0",
 	"fi",
@@ -126,6 +143,27 @@ export async function installRunner(
 	return { kind: "installed" };
 }
 
+// runnerSource reads the runner this controller ships.
+//
+// From disk rather than bundled into the build, so the file sent to a container is the one beside
+// the running controller. A copy frozen at build time looks current and is the kind of thing that
+// costs an afternoon.
+//
+// Here rather than beside the provisioning phase that first needed it, because the probe CLI ships
+// the same file and had its own spelling of this path. Two spellings of one deployment fact is
+// exactly the stale-runner failure this comment warns about, arriving by a different door.
+//
+// Cached after the first read: this runs on every provisioning pass for every workspace.
+let cachedRunner: string | undefined;
+export function runnerSource(): string {
+	cachedRunner ??= readFileSync(
+		join(process.cwd(), "runner", "agent-runner.mjs"),
+		"utf8",
+	);
+
+	return cachedRunner;
+}
+
 // startRunner launches the runner if it is not already answering.
 //
 // Idempotent, because a provisioning pass that started a runner and then lost its lease has to be
@@ -163,12 +201,7 @@ export async function runnerState(
 	target: SshTarget,
 	ssh: SshRunner,
 ): Promise<RunnerState> {
-	const result = await ssh(target, [
-		"node",
-		"-e",
-		'require("net").connect(process.argv[1]).on("connect",()=>process.exit(0)).on("error",()=>process.exit(1))',
-		RUNNER_SOCKET,
-	]);
+	const result = await ssh(target, ["node", "-e", PROBE, RUNNER_SOCKET]);
 	if (result.kind !== "ran") {
 		return "failed";
 	}
@@ -186,7 +219,7 @@ export async function runnerState(
 // A malformed line is dropped rather than thrown. The alternative is tearing down a working
 // attachment, and with it the operator's view of a running agent, over one bad event.
 export function framer(
-	onEvent: (event: unknown) => void,
+	onEvent: (event: RunnerEvent) => void,
 ): (chunk: string) => void {
 	let buffer = "";
 
@@ -198,7 +231,10 @@ export function framer(
 			buffer = buffer.slice(cut + 1);
 			if (line.trim() !== "") {
 				try {
-					onEvent(JSON.parse(line));
+					const event = readEvent(JSON.parse(line));
+					if (event !== undefined) {
+						onEvent(event);
+					}
 				} catch {
 					// Dropped on purpose. See above.
 				}
@@ -225,9 +261,9 @@ const EXCHANGE_SCRIPT = `nc -U "$1" | head -1`;
 // a hopeful write.
 async function exchange(
 	target: SshTarget,
-	messages: unknown[],
+	messages: RunnerRequest[],
 	ssh: SshRunner,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<RunnerSnapshot | undefined> {
 	const payload = `${[...messages, { type: "attach" }]
 		.map((message) => JSON.stringify(message))
 		.join("\n")}\n`;
@@ -241,11 +277,16 @@ async function exchange(
 		return undefined;
 	}
 
+	let event: unknown;
 	try {
-		return JSON.parse(result.stdout.trim()) as Record<string, unknown>;
+		event = JSON.parse(result.stdout.trim());
 	} catch {
 		return undefined;
 	}
+
+	const parsed = readEvent(event);
+
+	return parsed?.type === "snapshot" ? parsed : undefined;
 }
 
 // promptRunner delivers one prompt and confirms the runner took it.
@@ -284,61 +325,31 @@ export async function decideRunner(
 		return "failed";
 	}
 
-	const pending = Array.isArray(snapshot.approvals)
-		? (snapshot.approvals as { id?: string }[])
-		: [];
-
-	return pending.some((approval) => approval.id === id) ? "failed" : "sent";
+	return snapshot.approvals.some((approval) => approval.id === id)
+		? "failed"
+		: "sent";
 }
-
-// STATUS_SCRIPT asks the runner for a snapshot and takes the first line of the answer.
-//
-// `head -1` rather than a netcat timeout: it closes the pipe as soon as the snapshot arrives, and
-// nc exits on the broken pipe. Waiting instead would add its delay to every workspace on every
-// observation pass, for a reply that has already been received.
-const STATUS_SCRIPT = `printf '{"type":"attach"}\\n' | nc -U "$1" | head -1`;
 
 // runnerStatus asks one runner what its agent is doing.
 //
-// One command over the ordinary SSH runner rather than a long-lived attachment, so the observation
-// pass stays injectable and a test never spawns a client. The snapshot already carries the status,
-// so this is a connect, a line, and a disconnect.
+// An exchange with nothing to send: `exchange` asks for a snapshot behind whatever it is given, so
+// given nothing it is a bare status probe. This used to be its own script, ssh call, parse and
+// error handling — four copies of what the other two calls already do, differing only in putting
+// the attach in a printf instead of on stdin.
 //
 // "unknown" for anything that does not answer, and the word is load-bearing: the reaper refuses to
 // destroy a workspace it cannot inspect, so a failed reading must never be read as an idle one.
 export async function runnerStatus(
 	target: SshTarget,
 	ssh: SshRunner,
-): Promise<"blocked" | "idle" | "unknown" | "working"> {
-	const result = await ssh(target, [
-		"sh",
-		"-c",
-		STATUS_SCRIPT,
-		"sh",
-		RUNNER_SOCKET,
-	]);
-	if (result.kind !== "ran" || result.code !== 0) {
-		return "unknown";
-	}
-
-	let snapshot: { status?: unknown; type?: unknown };
-	try {
-		snapshot = JSON.parse(result.stdout.trim()) as typeof snapshot;
-	} catch {
-		return "unknown";
-	}
-
-	return snapshot.status === "blocked" ||
-		snapshot.status === "idle" ||
-		snapshot.status === "working"
-		? snapshot.status
-		: "unknown";
+): Promise<RunnerStatus | "unknown"> {
+	return (await exchange(target, [], ssh))?.status ?? "unknown";
 }
 
 // RunnerAttachment is a live connection to one workspace's runner.
 export type RunnerAttachment = {
 	close: () => void;
-	send: (message: unknown) => void;
+	send: (message: RunnerRequest) => void;
 };
 
 // attachRunner opens a long-lived connection to a workspace's runner.
@@ -353,7 +364,7 @@ export function attachRunner(
 	target: SshTarget,
 	handlers: {
 		onClose: () => void;
-		onEvent: (event: unknown) => void;
+		onEvent: (event: RunnerEvent) => void;
 	},
 ): RunnerAttachment {
 	const ssh = spawn(

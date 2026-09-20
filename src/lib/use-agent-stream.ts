@@ -1,17 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import type { ApprovalRequest, RunnerEvent } from "../domain/runner-protocol";
+import { readEvent } from "../domain/runner-protocol";
+import { mapActivity } from "../domain/workspace";
 import { workspaceKeys } from "./queries";
 
 // Approval is one tool call the agent is suspended on.
-export type Approval = {
-	decisionReason?: string;
-	displayName?: string;
-	id: string;
-	input: Record<string, unknown>;
-	title?: string;
-	toolName: string;
-};
+//
+// The runner's own shape rather than a copy of it. It was a hand-written twin, which meant a field
+// added on one side arrived as undefined on the other with nothing to say so.
+export type Approval = ApprovalRequest;
 
 // AgentState is everything a page knows about one workspace's agent.
 export type AgentState = {
@@ -19,7 +18,6 @@ export type AgentState = {
 	link: "attached" | "gone" | "opening";
 	messages: unknown[];
 	permissionMode?: string;
-	sessionId?: string;
 	status?: string;
 };
 
@@ -57,7 +55,7 @@ export function useAgentStream(
 				return;
 			}
 
-			if (typeof value.status === "string") {
+			if (value.type === "snapshot" || value.type === "status") {
 				// The observed status replaces whatever the last optimistic guess was, which is how
 				// a prediction gets corrected rather than left standing.
 				queryClient.setQueryData(
@@ -65,7 +63,7 @@ export function useAgentStream(
 					(previous: { activity: string } | undefined) =>
 						previous === undefined
 							? previous
-							: { ...previous, activity: activityOf(value.status as string) },
+							: { ...previous, activity: mapActivity(value.status) },
 				);
 			}
 
@@ -82,18 +80,17 @@ export function useAgentStream(
 }
 
 // reduce folds one event into what the page knows.
-function reduce(state: AgentState, event: Record<string, unknown>): AgentState {
+function reduce(state: AgentState, event: RunnerEvent): AgentState {
 	if (event.type === "snapshot") {
 		// A replacement, not a merge. The snapshot is the runner's whole truth, and it arrives
 		// again on every reconnection: merging would double the transcript each time the
 		// connection blipped.
 		return {
-			approvals: (event.approvals as Approval[]) ?? [],
+			approvals: event.approvals,
 			link: "attached",
-			messages: (event.messages as unknown[]) ?? [],
-			permissionMode: event.permissionMode as string | undefined,
-			sessionId: event.sessionId as string | undefined,
-			status: event.status as string | undefined,
+			messages: event.messages,
+			permissionMode: event.permissionMode,
+			status: event.status,
 		};
 	}
 
@@ -102,10 +99,7 @@ function reduce(state: AgentState, event: Record<string, unknown>): AgentState {
 	}
 
 	if (event.type === "approval") {
-		return {
-			...state,
-			approvals: [...state.approvals, event.approval as Approval],
-		};
+		return { ...state, approvals: [...state.approvals, event.approval] };
 	}
 
 	if (event.type === "resolved") {
@@ -118,7 +112,7 @@ function reduce(state: AgentState, event: Record<string, unknown>): AgentState {
 	}
 
 	if (event.type === "status") {
-		return { ...state, status: event.status as string };
+		return { ...state, status: event.status };
 	}
 
 	if (event.type === "detached") {
@@ -130,26 +124,9 @@ function reduce(state: AgentState, event: Record<string, unknown>): AgentState {
 	return state;
 }
 
-// activityOf maps the runner's words onto the workspace vocabulary the rest of the page reads.
-//
-// The same mapping the server does, because the cache it writes into is the same one the server's
-// own writes land in, and two spellings of "blocked" would make the controls flicker.
-function activityOf(status: string): string {
-	switch (status) {
-		case "working":
-			return "active";
-		case "blocked":
-			return "blocked";
-		case "idle":
-			return "idle";
-		default:
-			return "unknown";
-	}
-}
-
-function parse(data: string): Record<string, unknown> | undefined {
+function parse(data: string): RunnerEvent | undefined {
 	try {
-		return JSON.parse(data) as Record<string, unknown>;
+		return readEvent(JSON.parse(data));
 	} catch {
 		return undefined;
 	}

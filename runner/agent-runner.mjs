@@ -101,6 +101,10 @@ function main() {
 			input,
 			title: options?.title,
 			toolName,
+			// The id of the tool_use block this call belongs to. Forwarded so the UI can mark the
+			// row that is actually waiting rather than guessing at the most recent one with a
+			// matching name, which picks the wrong one whenever two calls run at once.
+			toolUseId: options?.toolUseID,
 		};
 
 		return await new Promise((resolve) => {

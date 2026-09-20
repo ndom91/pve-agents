@@ -1,14 +1,11 @@
-import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 
-import { workspaceDetail } from "../db/workspace-repository";
-import {
-	controllerDatabase,
-	controllerRuntimeConfig,
-} from "../server/controller";
+import type { RunnerEvent } from "../domain/runner-protocol";
+import { agentTarget } from "../server/agent-operations";
 import {
 	attachRunner,
 	installRunner,
+	runnerSource,
 	runnerState,
 	startRunner,
 } from "../services/agent-runner";
@@ -40,11 +37,10 @@ function main(): void {
 
 	void (async () => {
 		if (action === "install") {
-			// Read from the deployment rather than bundled into this file, so the runner shipped to
-			// a container is the one on disk beside the controller and not a copy frozen at build
-			// time. A stale runner that looks current is a long afternoon.
-			const source = readFileSync("runner/agent-runner.mjs", "utf8");
-			const installed = await installRunner(target, source, runSsh);
+			// The same source the provisioning phase ships, read the same way. This used to spell
+			// the path itself, which is two spellings of one deployment fact and exactly the
+			// stale-runner failure it was trying to avoid.
+			const installed = await installRunner(target, runnerSource(), runSsh);
 			if (installed.kind === "failed") {
 				process.stderr.write(`install failed: ${installed.message}\n`);
 				process.exit(1);
@@ -114,51 +110,44 @@ function attach(target: SshTarget): void {
 //
 // Deliberately lossy. The point is to watch the mechanism work, and a raw dump of every partial
 // message scrolls the thing you were waiting for off the screen.
-function report(event: unknown): void {
-	const value = event as Record<string, unknown>;
-
-	if (value.type === "snapshot") {
-		const messages = value.messages as unknown[];
-		const approvals = value.approvals as unknown[];
+function report(event: RunnerEvent): void {
+	if (event.type === "snapshot") {
 		process.stdout.write(
-			`[snapshot] session=${String(value.sessionId)} status=${String(
-				value.status,
-			)} mode=${String(value.permissionMode)} messages=${messages.length} pending=${
-				approvals.length
-			}\n`,
+			`[snapshot] session=${event.sessionId ?? "none"} status=${event.status}` +
+				` mode=${event.permissionMode} messages=${event.messages.length}` +
+				` pending=${event.approvals.length}\n`,
 		);
-		for (const approval of approvals) {
+		for (const approval of event.approvals) {
 			report({ approval, type: "approval" });
 		}
 
 		return;
 	}
 
-	if (value.type === "approval") {
-		const approval = value.approval as Record<string, unknown>;
+	if (event.type === "approval") {
+		const { displayName, id, title, toolName } = event.approval;
 		process.stdout.write(
-			`[approval ${String(approval.id)}] ${String(
-				approval.title ?? approval.toolName,
-			)}\n  /approve ${String(approval.id)}   /deny ${String(approval.id)}\n`,
+			`[approval ${id}] ${title ?? displayName ?? toolName}\n` +
+				`  /approve ${id}   /deny ${id}\n`,
 		);
 
 		return;
 	}
 
-	if (value.type === "status" || value.type === "resolved") {
-		process.stdout.write(`[${value.type}] ${JSON.stringify(value)}\n`);
+	if (event.type === "status" || event.type === "resolved") {
+		process.stdout.write(`[${event.type}] ${JSON.stringify(event)}\n`);
 
 		return;
 	}
 
-	if (value.type === "fatal") {
-		process.stdout.write(`[fatal] ${String(value.message)}\n`);
+	if (event.type === "fatal") {
+		process.stdout.write(`[fatal] ${event.message}\n`);
 
 		return;
 	}
 
-	if (value.type === "message") {
-		describe(value.message as Record<string, unknown>);
+	if (event.type === "message") {
+		describe(event.message as Record<string, unknown>);
 	}
 }
 
@@ -193,31 +182,19 @@ function describe(message: Record<string, unknown>): void {
 	}
 }
 
-// resolve turns a workspace id into something reachable, refusing anything half-built.
+// resolve turns a workspace id into something reachable, or says why it is not.
 //
-// The same three checks the server operations make, and separate for the same reason: a ready
-// workspace with no address once reported "workspace is ready, not ready".
+// The controller's own guard rather than a second copy of it. The CLI keeps its own presentation —
+// a line on stderr and a non-zero exit, rather than a typed refusal a caller pattern-matches — but
+// the lookup and its three checks are the server's.
 function resolve(id: string): SshTarget {
-	const config = controllerRuntimeConfig();
-	const workspace = workspaceDetail(controllerDatabase(), id);
-	if (workspace === undefined) {
-		process.stderr.write("workspace not found\n");
-		process.exit(1);
-	}
-	if (workspace.ip === undefined) {
-		process.stderr.write("workspace has no address\n");
-		process.exit(1);
-	}
-	if (config.WORKSPACE_SSH_KEY_PATH === undefined) {
-		process.stderr.write("WORKSPACE_SSH_KEY_PATH is not configured\n");
+	const target = agentTarget(id);
+	if (target.kind === "unavailable") {
+		process.stderr.write(`${target.reason}\n`);
 		process.exit(1);
 	}
 
-	return {
-		address: workspace.ip,
-		keyPath: config.WORKSPACE_SSH_KEY_PATH,
-		user: config.WORKSPACE_SSH_USER,
-	};
+	return target.ssh;
 }
 
 main();

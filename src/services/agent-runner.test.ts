@@ -37,9 +37,12 @@ describe("framer", () => {
 		const seen: unknown[] = [];
 		const feed = framer((event) => seen.push(event));
 
-		feed('{"type":"a"}\n{"type":"b"}\n');
+		feed('{"type":"status","status":"idle"}\n{"type":"detached"}\n');
 
-		expect(seen).toEqual([{ type: "a" }, { type: "b" }]);
+		expect(seen).toEqual([
+			{ status: "idle", type: "status" },
+			{ type: "detached" },
+		]);
 	});
 
 	it("joins an event split across chunks", () => {
@@ -58,9 +61,21 @@ describe("framer", () => {
 		const seen: unknown[] = [];
 		const feed = framer((event) => seen.push(event));
 
-		feed('{"type":"a"}\n{"type":"b"');
+		feed('{"type":"detached"}\n{"type":"stat');
 
-		expect(seen).toEqual([{ type: "a" }]);
+		expect(seen).toEqual([{ type: "detached" }]);
+	});
+
+	it("drops an event kind it has no opinion about", () => {
+		// The runner is a separate deployable shipped by the controller, but a container can be
+		// running an older or newer one than the page attached to it. Something it says that this
+		// side has never heard of is dropped rather than passed along as a half-typed object.
+		const seen: unknown[] = [];
+		const feed = framer((event) => seen.push(event));
+
+		feed('{"type":"invented_next_release"}\n{"type":"detached"}\n');
+
+		expect(seen).toEqual([{ type: "detached" }]);
 	});
 
 	it("drops a malformed line and keeps the attachment", () => {
@@ -69,9 +84,9 @@ describe("framer", () => {
 		const seen: unknown[] = [];
 		const feed = framer((event) => seen.push(event));
 
-		feed('not json\n{"type":"a"}\n');
+		feed('not json\n{"type":"detached"}\n');
 
-		expect(seen).toEqual([{ type: "a" }]);
+		expect(seen).toEqual([{ type: "detached" }]);
 	});
 });
 

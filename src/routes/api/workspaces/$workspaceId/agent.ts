@@ -5,13 +5,14 @@ import {
 	recordWorkspaceInteraction,
 	workspaceDetail,
 } from "../../../../db/workspace-repository";
+import type { RunnerEvent } from "../../../../domain/runner-protocol";
+import { mapActivity } from "../../../../domain/workspace";
 import { requireOperator } from "../../../../server/authorize";
 import {
 	controllerDatabase,
 	controllerRuntimeConfig,
 } from "../../../../server/controller";
 import { attachRunner } from "../../../../services/agent-runner";
-import { mapActivity } from "../../../../services/workspace-activity";
 
 type WorkspaceParams = { workspaceId: string };
 
@@ -174,15 +175,12 @@ export const Route = createFileRoute("/api/workspaces/$workspaceId/agent")({
 //
 // It also means the reaper's view of a blocked agent is as fresh as the operator's, which matters
 // because that is the flag standing between an agent waiting for an answer and destruction.
-function record(id: string, event: unknown): void {
-	const value = event as { status?: unknown; type?: unknown };
-	const status =
-		value.type === "status" || value.type === "snapshot"
-			? value.status
-			: undefined;
-	if (typeof status !== "string") {
+function record(id: string, event: RunnerEvent): void {
+	if (event.type !== "status" && event.type !== "snapshot") {
 		return;
 	}
+
+	const { status } = event;
 
 	recordWorkspaceActivity(controllerDatabase(), {
 		activity: mapActivity(status),

@@ -67,11 +67,7 @@ type Message = {
 // no opinion about is worse than one that shows what it understands.
 export function readTranscript(
 	messages: unknown[],
-	pending: {
-		id: string;
-		input: Record<string, unknown>;
-		toolName: string;
-	}[] = [],
+	pending: { toolUseId?: string }[] = [],
 ): TranscriptEntry[] {
 	const entries: TranscriptEntry[] = [];
 	// Where each tool call landed, so its result can be written into the row that asked for it
@@ -149,12 +145,16 @@ export function readTranscript(
 		}
 	}
 
-	// A parked approval belongs on the row that is waiting for it, which is how one reads as a
+	// A parked approval belongs on the row that is waiting for it, which is how it reads as a
 	// question about a specific call rather than as a banner about the workspace.
+	//
+	// Matched by the tool_use id the SDK hands the callback, not by tool name. Name matching picked
+	// the most recent call with that name, which is the wrong row the moment an agent runs two
+	// Bash calls at once — and marks one as waiting while the one actually suspended looks busy.
+	// An approval whose id matches nothing marks nothing, because a wrong row is worse than none.
 	for (const request of pending) {
-		const row = [...rows.values()]
-			.reverse()
-			.find((candidate) => candidate.name === request.toolName);
+		const row =
+			request.toolUseId === undefined ? undefined : rows.get(request.toolUseId);
 		if (row !== undefined && row.state === "running") {
 			row.state = "awaiting-approval";
 		}

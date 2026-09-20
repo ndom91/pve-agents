@@ -130,10 +130,40 @@ describe("readTranscript", () => {
 		// workspace, which is the whole reason the old answer-key row was hard to act on.
 		const entries = readTranscript(
 			[assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
-			[{ id: "a1", input: {}, toolName: "Write" }],
+			[{ toolUseId: "t1" }],
 		);
 
 		expect(entries[0]).toMatchObject({ state: "awaiting-approval" });
+	});
+
+	it("marks the call that is waiting, not the newest one with the same name", () => {
+		// The failure name matching produced. An agent running two Bash calls at once has two
+		// rows with the same name, and marking the most recent one points the reader at a call
+		// that is running fine while the one actually suspended looks busy.
+		const entries = readTranscript(
+			[
+				assistant({ id: "first", input: {}, name: "Bash", type: "tool_use" }),
+				assistant({ id: "second", input: {}, name: "Bash", type: "tool_use" }),
+			],
+			[{ toolUseId: "first" }],
+		);
+
+		expect(entries[0]).toMatchObject({
+			id: "first",
+			state: "awaiting-approval",
+		});
+		expect(entries[1]).toMatchObject({ id: "second", state: "running" });
+	});
+
+	it("marks nothing when an approval names a call it cannot find", () => {
+		// A wrong row is worse than none: it says "this is waiting on you" about something that
+		// is not.
+		const entries = readTranscript(
+			[assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
+			[{ toolUseId: "gone" }],
+		);
+
+		expect(entries[0]).toMatchObject({ state: "running" });
 	});
 
 	it("ignores message types it has no opinion about", () => {
