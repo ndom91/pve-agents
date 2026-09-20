@@ -357,7 +357,16 @@ export async function decideRunner(
 		: "sent";
 }
 
-// runnerStatus asks one runner what its agent is doing.
+// RunnerReading is what one look at a workspace's runner tells us.
+//
+// Two facts from one round trip, because the snapshot already carries both. Asking separately
+// would be a second ssh per workspace per pass for a value that was already on the wire.
+export type RunnerReading = {
+	status: RunnerStatus | "unknown";
+	title?: string;
+};
+
+// runnerReading asks one runner what its agent is doing, and what it calls itself.
 //
 // An exchange with nothing to send: `exchange` asks for a snapshot behind whatever it is given, so
 // given nothing it is a bare status probe. This used to be its own script, ssh call, parse and
@@ -366,11 +375,13 @@ export async function decideRunner(
 //
 // "unknown" for anything that does not answer, and the word is load-bearing: the reaper refuses to
 // destroy a workspace it cannot inspect, so a failed reading must never be read as an idle one.
-export async function runnerStatus(
+export async function runnerReading(
 	target: SshTarget,
 	ssh: SshRunner,
-): Promise<RunnerStatus | "unknown"> {
-	return (await exchange(target, [], ssh))?.status ?? "unknown";
+): Promise<RunnerReading> {
+	const snapshot = await exchange(target, [], ssh);
+
+	return { status: snapshot?.status ?? "unknown", title: snapshot?.title };
 }
 
 // RunnerAttachment is a live connection to one workspace's runner.

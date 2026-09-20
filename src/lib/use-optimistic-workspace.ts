@@ -12,6 +12,9 @@ export type WorkspacePatch = {
 	errorCode?: string | undefined;
 	errorMessage?: string | undefined;
 	status?: string;
+	// Empty means cleared, which is a real value here rather than an absent one: the heading falls
+	// back to the hostname and the prediction has to show that immediately.
+	title?: string;
 };
 
 // Rollback restores what was on screen before a prediction was made.

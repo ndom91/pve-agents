@@ -9,6 +9,7 @@ type SidebarWorkspace = {
 	id: string;
 	repository: string;
 	status: string;
+	title?: string;
 };
 
 // SidebarEntry is one workspace in the navigation list.
@@ -30,7 +31,12 @@ export function SidebarEntry({
 				params={{ workspaceId: workspace.id }}
 				to="/workspaces/$workspaceId"
 			>
-				<span className="sidebar-name">{workspace.hostname}</span>
+				{/* The name the agent gave the work, falling back to the container's. `agent-c824`
+				    identifies a machine; a column of them is a column of nothing to choose
+				    between, which is the whole reason a title exists. */}
+				<span className="sidebar-name">
+					{workspace.title ?? workspace.hostname}
+				</span>
 				<span className="sidebar-repo">
 					{shortRepository(workspace.repository)}
 				</span>

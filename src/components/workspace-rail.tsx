@@ -215,6 +215,10 @@ export function WorkspaceRail({
 				</Group>
 
 				<Group title="Identity">
+					{/* The container's name. It led the page until the agent started naming its own
+					    work; it is still what the push branch is built from, so it belongs
+					    somewhere readable rather than nowhere. */}
+					<Fact copy label="Name" value={workspace.hostname} />
 					<Fact copy label="Workspace" value={workspace.id} wide />
 					<Fact label="Wanted" value={workspace.desiredState} />
 					<Fact copy label="Task" value={workspace.taskUPID} wide />

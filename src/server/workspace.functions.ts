@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { renameWorkspace } from "../db/workspace-repository";
+import { readTitle } from "../domain/workspace-title";
 import {
 	checkWorkspaceRequest,
 	destroyWorkspace,
@@ -79,6 +81,24 @@ export const workspaceDetail = createServerFn({ method: "GET" })
 		}
 
 		return workspace;
+	});
+
+// renameWorkspaceTitle sets the name a person typed, or clears it.
+//
+// Unconditional, unlike the generated title the observation pass records: a person editing the
+// heading is the authority on what it says. An empty field clears the name and the heading falls
+// back to the hostname, which is why this is one control rather than a Save and a Clear.
+//
+// The same guard the generated title goes through runs here too. A person can paste a paragraph.
+export const renameWorkspaceTitle = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(
+		z.object({ id: z.string().trim().min(1), title: z.string().max(4_000) }),
+	)
+	.handler(({ data }) => {
+		renameWorkspace(controllerDatabase(), data.id, readTitle(data.title));
+
+		return { kind: "renamed" as const };
 	});
 
 // retryWorkspaceRequest queues a fresh provision for a workspace that failed.

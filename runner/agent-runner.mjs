@@ -44,6 +44,21 @@ const MODE = process.env.RUNNER_PERMISSION_MODE ?? "auto";
 // own, and an agent in a loop would otherwise run until the container is destroyed.
 const MAX_TURNS = Number(process.env.RUNNER_MAX_TURNS ?? "200");
 
+// TITLE_MODEL names the workspace, and is deliberately not whichever model is doing the work.
+//
+// The session's model is chosen for writing code; this is six words about code already written,
+// asked once per workspace. Named rather than inherited so the choice is visible and changing it
+// is one line.
+const TITLE_MODEL = process.env.RUNNER_TITLE_MODEL ?? "claude-sonnet-5";
+
+// TITLE_PROMPT asks for the name. Every constraint in it was earned by a model ignoring the last
+// one: length, no quotes, no trailing stop, no preamble.
+const TITLE_PROMPT = [
+	"Below is the opening of a session between an engineer and a coding agent.",
+	"Reply with a title of at most six words naming the task being worked on.",
+	"Reply with the title alone: no quotes, no full stop, no preamble, no explanation.",
+].join(" ");
+
 function main() {
 	const turns = queue();
 	const clients = new Set();
@@ -56,6 +71,10 @@ function main() {
 
 	let sessionId;
 	let working = false;
+	// The workspace's name, once the agent has been asked for one. Generated exactly once: a name
+	// that moves under somebody using it to find a tab is worse than one that is slightly stale.
+	let title;
+	let naming = false;
 
 	// keep records one message and tells every listener about it.
 	//
@@ -71,6 +90,97 @@ function main() {
 		const stamped = { ...message, controller_at: new Date().toISOString() };
 		transcript.push(stamped);
 		broadcast({ message: stamped, type: "message" });
+	}
+
+	// name asks a model what this workspace is about, once.
+	//
+	// A second, short-lived query rather than a turn in the session. Asking the agent to summarise
+	// itself would put "reply with a title" and its answer in the transcript the operator reads,
+	// and leave both in the model's context for everything after.
+	//
+	// Failure is silent and total: the workspace simply has no title and the controller keeps
+	// showing its hostname. Nothing here is worth a visible error, and a naming call that broke a
+	// session would be far worse than an unnamed workspace.
+	async function name() {
+		if (title !== undefined || naming) {
+			return;
+		}
+
+		const opening = read();
+		if (opening === undefined) {
+			return;
+		}
+
+		naming = true;
+		try {
+			const asking = query({
+				prompt: `${TITLE_PROMPT}\n\n${opening}`,
+				options: {
+					// No tools. A summary needs none, and a tool call here would be a bug that
+					// touched the workspace.
+					allowedTools: [],
+					maxTurns: 1,
+					model: TITLE_MODEL,
+					// Not the default. The default loads user, project and local settings, which
+					// is right for the session -- the checked-out repository's own CLAUDE.md is
+					// instructions for doing the work. It is wrong here: those instructions are
+					// not about naming, and some of them are long.
+					settingSources: [],
+				},
+			});
+
+			let said = "";
+			for await (const message of asking) {
+				if (message.type !== "assistant") {
+					continue;
+				}
+				for (const block of message.message?.content ?? []) {
+					if (block.type === "text") {
+						said += block.text;
+					}
+				}
+			}
+
+			const trimmed = said.trim();
+			if (trimmed !== "") {
+				// Sent as the model wrote it. The controller runs the authoritative guard --
+				// quotes, length, trailing punctuation -- because that rule has to live in one
+				// place and this file has no build step to share it from.
+				title = trimmed;
+			}
+		} catch {
+			// Nothing. See above.
+		} finally {
+			naming = false;
+		}
+	}
+
+	// read returns the opening of the conversation, for something to name it from.
+	//
+	// The first prompt and the first answer, and nothing else: a title is about what was asked, and
+	// feeding a long session to summarise costs more and says less.
+	function read() {
+		const first = (role) =>
+			transcript.find((message) => message.type === role)?.message?.content;
+		const asked = first("user");
+		const answered = first("assistant");
+		if (asked === undefined) {
+			return undefined;
+		}
+
+		// A user turn's content is a bare string; an assistant's is an array of blocks.
+		const text = (content) =>
+			typeof content === "string"
+				? content
+				: (content ?? [])
+						.filter((block) => block.type === "text")
+						.map((block) => block.text)
+						.join("\n");
+
+		return `Engineer: ${text(asked)}\n\nAgent: ${text(answered)}`.slice(
+			0,
+			4000,
+		);
 	}
 
 	function status() {
@@ -201,6 +311,7 @@ function main() {
 					permissionMode: MODE,
 					sessionId,
 					status: status(),
+					title,
 					type: "snapshot",
 				})}\n`,
 			);
@@ -282,6 +393,10 @@ function main() {
 				}
 				if (message.type === "result") {
 					working = false;
+					// After the first answer, not before it: a title drawn from the request alone
+					// would just be the request. Detached, because a slow naming call must never
+					// hold up the turn that finished.
+					void name();
 				}
 
 				keep(message);

@@ -98,7 +98,7 @@ describe("server function methods", () => {
 		// keystroke were two of them, and answering an approval replaced both. The number is here
 		// so that losing one to a bad import fails loudly rather than quietly shrinking what the
 		// loop above covers.
-		expect(declaredMethods().length).toBe(17);
+		expect(declaredMethods().length).toBe(18);
 	});
 });
 

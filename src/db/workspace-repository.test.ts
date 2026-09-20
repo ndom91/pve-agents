@@ -15,9 +15,12 @@ import {
 	noteWorkspaceIssue,
 	prepareWorkspaceProvision,
 	recordWorkspaceTask,
+	recordWorkspaceTitle,
 	releaseWorkspaceCandidateVMID,
 	releaseWorkspaceOperation,
+	renameWorkspace,
 	requestWorkspaceOperation,
+	workspaceById,
 	workspaceEventTimelines,
 } from "./workspace-repository";
 
@@ -574,6 +577,7 @@ describe("openDatabase", () => {
 			{ version: 12 },
 			{ version: 13 },
 			{ version: 14 },
+			{ version: 15 },
 		]);
 	});
 });
@@ -622,6 +626,17 @@ function input(idempotencyKey: string) {
 		repository: "https://github.com/plainhq/plain.git",
 		ref: "main",
 	};
+}
+
+// workspace creates one and hands back its id, for tests whose subject is a later write rather
+// than the creation itself.
+function workspace(db: ReturnType<typeof openDatabase>): string {
+	const created = createWorkspace(db, input(`request-${databases.length}`));
+	if (created.kind !== "created") {
+		throw new Error("expected workspace creation");
+	}
+
+	return created.workspace.id;
 }
 
 describe("workspace timeline", () => {
@@ -801,5 +816,54 @@ describe("workspaceEventTimelines", () => {
 		const db = database();
 
 		expect(workspaceEventTimelines(db, 50).size).toBe(0);
+	});
+});
+
+describe("recordWorkspaceTitle", () => {
+	it("refuses to overwrite a name a person chose", () => {
+		// The rule this whole feature rests on. The observation pass carries a generated title on
+		// every sweep, so without the guard the sweep after a rename would put the agent's name
+		// back and the operator would watch their own edit disappear.
+		const db = database();
+		const id = workspace(db);
+
+		renameWorkspace(db, id, "What I called it");
+		recordWorkspaceTitle(db, id, "What the agent called it");
+
+		expect(workspaceById(db, id)?.title).toBe("What I called it");
+	});
+
+	it("names a workspace that has no name yet", () => {
+		const db = database();
+		const id = workspace(db);
+
+		recordWorkspaceTitle(db, id, "Fix the flaky login test");
+
+		expect(workspaceById(db, id)?.title).toBe("Fix the flaky login test");
+	});
+
+	it("leaves a named workspace's updated_at alone", () => {
+		// Every sweep carries a title. Writing one each time would touch updated_at on every
+		// workspace every thirty seconds and make a settled fleet look permanently busy.
+		const db = database();
+		const id = workspace(db);
+		recordWorkspaceTitle(db, id, "First");
+		const before = workspaceById(db, id)?.updatedAt;
+
+		recordWorkspaceTitle(db, id, "Second", new Date(Date.now() + 60_000));
+
+		expect(workspaceById(db, id)?.updatedAt).toBe(before);
+	});
+});
+
+describe("renameWorkspace", () => {
+	it("clears the name when given nothing, so the hostname comes back", () => {
+		const db = database();
+		const id = workspace(db);
+		renameWorkspace(db, id, "Something");
+
+		renameWorkspace(db, id, undefined);
+
+		expect(workspaceById(db, id)?.title).toBeUndefined();
 	});
 });

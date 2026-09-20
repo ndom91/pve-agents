@@ -187,6 +187,17 @@ const migrations = [
 				ON workspace_seed_files (root, path);
 		`,
 	},
+	{
+		// What the workspace is called, as opposed to what its container is called.
+		//
+		// Nullable, and its absence is meaningful rather than a gap to backfill: every workspace
+		// that existed before this, and every one whose naming failed, falls back to its hostname.
+		// A default would have to be invented and would be worse than the hostname it replaced.
+		version: 15,
+		sql: `
+			ALTER TABLE workspaces ADD COLUMN title TEXT;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

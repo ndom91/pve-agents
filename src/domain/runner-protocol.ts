@@ -61,6 +61,10 @@ export type RunnerSnapshot = {
 	permissionMode: string;
 	sessionId?: string;
 	status: RunnerStatus;
+	// What the agent called this piece of work, once it has been asked. Absent on a runner
+	// installed before naming shipped, and absent when the naming call failed -- both of which the
+	// controller shows as no title rather than as an error.
+	title?: string;
 	type: "snapshot";
 };
 

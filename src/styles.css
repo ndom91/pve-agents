@@ -1091,6 +1091,46 @@ dd {
 	margin: 0 0 4px;
 }
 
+/* The heading, which is also the control that renames it.
+ *
+ * A button wrapping the h1 rather than a heading with a pencil beside it: the heading is the only
+ * thing on this page anybody would rename, so a separate control would be one pointing at its only
+ * possible subject. It looks like text until it is hovered. */
+.workspace-title {
+	background: none;
+	border: 1px solid transparent;
+	display: block;
+	margin: -3px -7px 0;
+	padding: 2px 6px;
+	text-align: left;
+	width: fit-content;
+}
+
+.workspace-title:hover {
+	background: var(--surface);
+	border-color: var(--border);
+}
+
+.workspace-title.is-editing {
+	align-items: center;
+	display: flex;
+	gap: 6px;
+	margin-bottom: 4px;
+	padding: 0;
+}
+
+/* Sized and set as the heading it replaces, so the line does not move when the two swap. */
+.workspace-title input {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	color: var(--fg-bright);
+	font-size: var(--text-xl);
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	padding: 2px 6px;
+	width: 22rem;
+}
+
 .centre-head p {
 	color: var(--fg-muted);
 	margin: 0;

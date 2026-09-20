@@ -33,6 +33,10 @@ export type Workspace = {
 	repository: string;
 	ref: string;
 	status: WorkspaceStatus;
+	// What the work is, in a few words, as opposed to what the container is called. Absent until
+	// the agent has named it, and absent for good on a workspace whose naming failed -- callers
+	// fall back to the hostname rather than inventing anything.
+	title?: string;
 	updatedAt: string;
 };
 
@@ -122,6 +126,7 @@ type WorkspaceRow = {
 	repository: string;
 	ref: string;
 	status: WorkspaceStatus;
+	title: string | null;
 	updated_at: string;
 };
 
@@ -934,6 +939,49 @@ export function recordWorkspaceCredential(
 	).run(nowText, nowText, id);
 }
 
+// recordWorkspaceTitle stores the name the agent gave this workspace.
+//
+// `AND title IS NULL` is the whole safety rule of this feature, and it is here rather than at the
+// caller because here is the only place it cannot be forgotten. An operator can rename a workspace
+// by hand, and the observation pass carries a generated title on every sweep; without this guard
+// the next sweep after a rename would quietly put the machine's name back.
+//
+// Once a row has a title it is never a candidate again, so a generated name cannot overwrite a
+// chosen one now or later. Clearing a title deliberately does not re-open the door: the runner
+// names a workspace once, and by then it has already done so.
+//
+// No lease, like the other observations of a settled workspace.
+export function recordWorkspaceTitle(
+	db: Database.Database,
+	id: string,
+	title: string,
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		"UPDATE workspaces SET title = ?, updated_at = ? WHERE id = ? AND title IS NULL",
+	).run(title, nowText, id);
+}
+
+// renameWorkspace sets the name a person typed, or clears it.
+//
+// Unconditional, which is the difference from `recordWorkspaceTitle` above: a person editing the
+// heading is the authority on what it says. `undefined` clears it, and the heading falls back to
+// the hostname.
+export function renameWorkspace(
+	db: Database.Database,
+	id: string,
+	title: string | undefined,
+	now: Date = new Date(),
+): void {
+	const nowText = now.toISOString();
+
+	db.prepare(
+		"UPDATE workspaces SET title = ?, updated_at = ? WHERE id = ?",
+	).run(title ?? null, nowText, id);
+}
+
 // recordWorkspaceInteraction marks that someone gave this workspace work to do.
 //
 // Ground truth, unlike the sampled activity beside it. The observer reads every thirty seconds and
@@ -1233,7 +1281,7 @@ export function requestWorkspaceOperation(
 export function listWorkspaces(db: Database.Database): Workspace[] {
 	const rows = db
 		.prepare(
-			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
+			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
 				created_at, updated_at, current_step
 			 FROM workspaces ORDER BY created_at DESC`,
 		)
@@ -1275,7 +1323,7 @@ export function workspaceDetail(
 ): WorkspaceDetail | undefined {
 	const row = db
 		.prepare(
-			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
+			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
 				created_at, updated_at, current_step, node, vmid, ip,
 				provision_phase, error_code, error_message, current_task_upid, ready_at,
 				last_activity_at, activity_observed_at, unsaved_work
@@ -1325,7 +1373,7 @@ export function workspaceById(
 ): Workspace | undefined {
 	const row = db
 		.prepare(
-			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname,
+			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
 				created_at, updated_at, current_step
 			 FROM workspaces WHERE id = ?`,
 		)
@@ -1354,6 +1402,9 @@ function workspaceFromRow(row: WorkspaceRow): Workspace {
 
 	if (row.purpose !== null) {
 		workspace.purpose = row.purpose;
+	}
+	if (row.title !== null) {
+		workspace.title = row.title;
 	}
 
 	return workspace;

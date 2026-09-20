@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
 	framer,
 	installRunner,
+	runnerReading,
 	runnerState,
-	runnerStatus,
 	startRunner,
 } from "./agent-runner";
 import type { SshResult, SshRunner, SshTarget } from "./ssh";
@@ -210,7 +210,7 @@ describe("runnerState", () => {
 	});
 });
 
-describe("runnerStatus", () => {
+describe("runnerReading", () => {
 	function answering(stdout: string) {
 		return recorder({ code: 0, kind: "ran", stderr: "", stdout });
 	}
@@ -226,7 +226,7 @@ describe("runnerStatus", () => {
 				}),
 			);
 
-			expect(await runnerStatus(TARGET, ssh)).toBe(status);
+			expect((await runnerReading(TARGET, ssh)).status).toBe(status);
 		}
 	});
 
@@ -235,7 +235,7 @@ describe("runnerStatus", () => {
 		// The one-shot makes the runner hang up, which is what lets this read to end of stream.
 		const { calls, ssh } = answering('{"type":"snapshot","status":"idle"}');
 
-		await runnerStatus(TARGET, ssh);
+		await runnerReading(TARGET, ssh);
 
 		expect(calls[0]?.input).toContain('{"type":"snapshot"}');
 		expect(calls[0]?.input).not.toContain('{"type":"attach"}');
@@ -252,13 +252,41 @@ describe("runnerStatus", () => {
 		]) {
 			const { ssh } = answering(stdout);
 
-			expect(await runnerStatus(TARGET, ssh)).toBe("unknown");
+			expect((await runnerReading(TARGET, ssh)).status).toBe("unknown");
 		}
 	});
 
 	it("refuses to guess when the workspace could not be reached at all", async () => {
 		const { ssh } = recorder({ kind: "refused" });
 
-		expect(await runnerStatus(TARGET, ssh)).toBe("unknown");
+		expect((await runnerReading(TARGET, ssh)).status).toBe("unknown");
+	});
+
+	it("carries the title back on the same round trip as the status", async () => {
+		// The whole reason the title rides on the snapshot: asking for it separately would double
+		// the SSH connections the observation pass makes, for a value already on the wire.
+		const { calls, ssh } = answering(
+			JSON.stringify({
+				approvals: [],
+				messages: [],
+				status: "idle",
+				title: "Fix the flaky login test",
+				type: "snapshot",
+			}),
+		);
+
+		expect(await runnerReading(TARGET, ssh)).toEqual({
+			status: "idle",
+			title: "Fix the flaky login test",
+		});
+		expect(calls).toHaveLength(1);
+	});
+
+	it("has no title for a runner that predates naming", async () => {
+		// Those runners are still running and will not be replaced until their workspace is. Their
+		// snapshots have no title field at all, which must read as "no name" and not as an error.
+		const { ssh } = answering('{"type":"snapshot","status":"idle"}');
+
+		expect((await runnerReading(TARGET, ssh)).title).toBeUndefined();
 	});
 });

@@ -10,6 +10,7 @@ import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
+import { WorkspaceTitle } from "../components/workspace-title";
 import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
@@ -23,6 +24,7 @@ import {
 } from "../server/agent.functions";
 import {
 	destroyWorkspaceRequest,
+	renameWorkspaceTitle,
 	retryWorkspaceRequest,
 } from "../server/workspace.functions";
 
@@ -174,6 +176,16 @@ function WorkspaceDetail() {
 		onSuccess: refresh,
 	});
 
+	// Optimistic, so the heading and the sidebar change together on the click rather than a round
+	// trip later, and roll back as one if the write fails.
+	const rename = useMutation({
+		mutationFn: (title: string) =>
+			renameWorkspaceTitle({ data: { id: workspaceId, title } }),
+		onMutate: (title: string) => predict({ title: title.trim() }),
+		onError: (_error, _title, rollback) => rollback?.(),
+		onSuccess: refresh,
+	});
+
 	const destroy = useMutation({
 		mutationFn: () => destroyWorkspaceRequest({ data: { id: workspaceId } }),
 		onMutate: () =>
@@ -201,7 +213,11 @@ function WorkspaceDetail() {
 			<main className="dashboard-main dashboard-main-fixed">
 				<header className="centre-head">
 					<div>
-						<h1>{workspace.hostname}</h1>
+						<WorkspaceTitle
+							hostname={workspace.hostname}
+							onRename={(title) => rename.mutate(title)}
+							title={workspace.title}
+						/>
 						<p>{workspace.purpose || "No purpose supplied"}</p>
 					</div>
 					<div className="centre-head-actions">
