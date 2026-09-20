@@ -1,6 +1,8 @@
 import { Check, Copy } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { IconButton } from "./icon-button";
+
 // CONFIRM_MS is how long the tick stays up after a copy.
 //
 // Long enough to be seen, short enough that the button is ready again before anyone wants it. The
@@ -9,9 +11,9 @@ const CONFIRM_MS = 1_500;
 
 // CopyButton puts text on the clipboard and says that it did.
 //
-// Its own component rather than an IconButton with an onClick, because the whole of it is the
-// state: which icon, for how long, and what the accessible name says while the tick is up. A
-// caller should not have to own a timer to copy a paragraph.
+// An IconButton for the appearance, and its own component for the rest: which icon, for how long,
+// and what the accessible name says while the tick is up. A caller should not have to own a timer
+// to copy a paragraph.
 export function CopyButton({
 	label,
 	text,
@@ -41,20 +43,16 @@ export function CopyButton({
 	}
 
 	return (
-		<button
+		<IconButton
+			className="copy-button"
+			icon={copied ? Check : Copy}
 			// The name changes with the state, so a screen reader is told the copy happened rather
 			// than being left with a button whose label never reacts.
-			aria-label={copied ? "Copied" : label}
-			className="copy-button"
+			label={copied ? "Copied" : label}
 			onClick={() => void copy()}
-			title={copied ? "Copied" : label}
-			type="button"
-		>
-			{copied ? (
-				<Check aria-hidden size={14} strokeWidth={2} />
-			) : (
-				<Copy aria-hidden size={14} strokeWidth={1.75} />
-			)}
-		</button>
+			size={14}
+			strokeWidth={copied ? 2 : 1.75}
+			variant="tertiary"
+		/>
 	);
 }

@@ -8,7 +8,7 @@ import {
 import { Bell, LogOut, Settings } from "lucide-react";
 import { useState } from "react";
 
-import { IconButton } from "../components/icon-button";
+import { IconButton, IconLink } from "../components/icon-button";
 import { SidebarEntry } from "../components/sidebar-entry";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
@@ -109,16 +109,9 @@ function Dashboard() {
 						+ New workspace
 					</Link>
 					<div className="sidebar-tools">
-						{/* An anchor rather than an IconButton because it navigates. It borrows
-						    the same class so the pair still reads as one control group. */}
-						<Link
-							aria-label="Settings"
-							className="icon-button"
-							title="Settings"
-							to="/settings"
-						>
-							<Settings aria-hidden size={16} strokeWidth={1.75} />
-						</Link>
+						{/* A link rather than a button because it navigates, and IconLink so the
+						    appearance comes from the same place as the buttons beside it. */}
+						<IconLink icon={Settings} label="Settings" to="/settings" />
 						{/* Offered only while it would do something. Browsers require a gesture to
 						    ask, so this is a button rather than a prompt on load, and it disappears
 						    once answered either way. */}

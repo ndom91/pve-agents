@@ -114,8 +114,6 @@ input {
 	padding: 40px 24px 80px;
 }
 
-.masthead,
-.section-heading,
 .masthead {
 	align-items: start;
 	border-bottom: 1px solid var(--border-strong);
@@ -163,17 +161,9 @@ h2 {
 	text-transform: uppercase;
 }
 
-.request-panel,
-.workspace-panel {
+.request-panel {
 	border-bottom: 1px solid var(--border-strong);
 	padding: 32px 0;
-}
-
-form {
-	display: grid;
-	gap: 16px;
-	grid-template-columns: 1.6fr 0.6fr;
-	margin-top: 24px;
 }
 
 label {
@@ -201,10 +191,6 @@ input:focus {
 	outline-offset: 2px;
 }
 
-.wide {
-	grid-column: span 2;
-}
-
 /* Deliberately almost nothing.
  *
  * The filled green appearance used to live on the bare `button` selector, so every control that
@@ -217,22 +203,54 @@ button {
 }
 
 /* Every text control, so the same button cannot read as mono in one place and body text in
-   another depending on which selector reached it first. */
+   another depending on which selector reached it first.
+ *
+ * Shape only. The three variants below supply the colour, and they all keep this border so that a
+ * filled button and an outlined one are the same height without anyone adjusting the padding. */
 .button {
-	background: var(--accent-fill);
-	border: 0;
-	color: var(--accent-ink);
+	background: none;
+	border: 1px solid transparent;
+	color: var(--fg);
 	font-weight: 700;
-	justify-self: start;
-	padding: 11px 16px;
+	padding: 10px 15px;
 	font-family: "SF Mono", "Roboto Mono", monospace;
 	font-size: var(--text-md);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
-.button:hover:not(:disabled) {
+/* Primary: the one obvious candidate in a view. */
+.button.is-primary {
+	background: var(--accent-fill);
+	color: var(--accent-ink);
+}
+
+.button.is-primary:hover:not(:disabled) {
 	background: var(--accent-fill-hover);
+}
+
+/* Secondary: the same shape outlined rather than filled, for an action worth offering beside a
+   primary without asking for the click. */
+.button.is-secondary {
+	border-color: var(--accent);
+	color: var(--accent-fill);
+}
+
+.button.is-secondary:hover:not(:disabled) {
+	background: var(--surface);
+	border-color: var(--accent-fill);
+}
+
+/* Tertiary: neither fill nor border, so it reads as an affordance rather than as a control sitting
+   beside the one that matters. Hover is a tint and brighter text, which is enough to say it is
+   live without drawing a box around it. */
+.button.is-tertiary {
+	color: var(--fg-soft);
+}
+
+.button.is-tertiary:hover:not(:disabled) {
+	background: var(--surface);
+	color: var(--fg-bright);
 }
 
 .button:disabled {
@@ -240,24 +258,23 @@ button {
 	opacity: 0.6;
 }
 
+/* Both forms are flex columns, where a child stretches to the full width unless told not to. Not
+   put on `.button` itself, because `.changes-actions` is also a flex column and its buttons are
+   meant to fill it. */
+.home-form .button,
+.settings-form .button {
+	align-self: start;
+}
+
 .error {
 	color: var(--danger-bright);
 	margin: 16px 0 0;
 }
 
-.section-heading {
-	align-items: end;
-}
-
-.section-heading > p,
 .empty,
 .workspace-purpose,
 dt {
 	color: var(--fg-soft);
-}
-
-.workspace-list {
-	margin-top: 24px;
 }
 
 .workspace-purpose {
@@ -418,20 +435,6 @@ dd {
 	right: 10px;
 }
 
-.masthead-link {
-	color: var(--fg-muted);
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	margin-left: auto;
-	margin-right: 16px;
-	text-decoration: none;
-	text-transform: uppercase;
-}
-
-.masthead-link:hover {
-	color: var(--fg-bright);
-}
-
 .settings-form {
 	display: flex;
 	flex-direction: column;
@@ -481,10 +484,6 @@ dd {
 	line-height: 1.6;
 	margin: 0;
 	padding-left: 12px;
-}
-
-.settings-form button {
-	align-self: flex-start;
 }
 
 .settings-maintenance {
@@ -1040,17 +1039,15 @@ dd {
 	min-height: 22px;
 }
 
-/* Tertiary: no border at any point, so it reads as an affordance on the text rather than as a
-   control sitting beside it. Hover is a tint and a brighter glyph, which is enough to say it is
-   live without drawing a box around something that is already hidden most of the time. */
+/* Everything here is size and presence. The colours come from `.icon-button.is-tertiary`, which
+   it also carries: borderless, so it reads as an affordance on the text rather than as a control
+   sitting beside it.
+ *
+ * Hidden until the answer is hovered, because one of these under every paragraph is a column of
+   buttons down the side of a transcript nobody asked for. */
 .copy-button {
-	align-items: center;
-	background: none;
-	border: none;
 	border-radius: 4px;
 	color: var(--fg-dim);
-	display: inline-flex;
-	justify-content: center;
 	height: 22px;
 	opacity: 0;
 	transition: opacity 120ms ease;
@@ -1060,11 +1057,6 @@ dd {
 .agent-answer:hover .copy-button,
 .copy-button:focus-visible {
 	opacity: 1;
-}
-
-.copy-button:hover {
-	background: var(--surface);
-	color: var(--fg-bright);
 }
 
 /* What the agent said, as markdown.
@@ -1205,19 +1197,6 @@ dd {
 	gap: 8px;
 }
 
-/* Declining is not the dangerous option -- the danger is on the other button -- so it is quiet
-   rather than red. A red Decline teaches people to click Allow to make the red thing go away. */
-.chat-decline {
-	background: transparent;
-	border: 1px solid var(--border-dim);
-	color: var(--fg-soft);
-}
-
-.chat-decline:hover:not(:disabled) {
-	background: var(--surface);
-	color: var(--fg-bright);
-}
-
 .dashboard-rail {
 	border-left: 1px solid var(--border);
 	display: flex;
@@ -1340,11 +1319,15 @@ dd {
 	}
 }
 
-/* Square, quiet, and the same whether it is a button or a link that looks like one. */
+/* Square, quiet, and the same whether it is a button or a link that looks like one.
+ *
+ * Shape only, and the same two variant names `.button` uses, so one word means one thing across
+ * both. The transparent border is what keeps an outlined icon button and a bare one the same
+ * size. */
 .icon-button {
 	align-items: center;
 	background: none;
-	border: 1px solid var(--border);
+	border: 1px solid transparent;
 	color: var(--fg-muted);
 	cursor: pointer;
 	display: inline-flex;
@@ -1354,9 +1337,17 @@ dd {
 	width: 32px;
 }
 
+.icon-button.is-secondary {
+	border-color: var(--border);
+}
+
+.icon-button.is-secondary:hover:not(:disabled) {
+	border-color: var(--line);
+}
+
+/* Tertiary needs no rule of its own: the base is already borderless. */
 .icon-button:hover:not(:disabled) {
 	background: var(--surface);
-	border-color: var(--line);
 	color: var(--fg-bright);
 }
 
@@ -1365,15 +1356,17 @@ dd {
 	opacity: 0.5;
 }
 
-/* One height governs the badges and the button beside them, rather than each being sized by its
-   own padding and font. Without this the badges sit short next to the control they line up with. */
 /* One rule for all three, covering type as well as size. The badges take the button's height,
    because the button is the control with a size worth keeping and a badge has no intrinsic one;
    the button takes the badges' typeface, because three controls in a row reading as one group is
-   the point, and the odd one out was the button in the body font. */
+   the point, and the odd one out was the button in the body font.
+ *
+ * Scoped to `.button` rather than to bare `button`. It used to be the latter, which reached any
+ * icon button placed here and had to be undone by a second `.icon-button` rule further down --
+ * an override guarding against a case that no call site has had for some time. */
 .centre-head-actions .status,
 .centre-head-actions .activity,
-.centre-head-actions button {
+.centre-head-actions .button {
 	align-items: center;
 	box-sizing: border-box;
 	display: inline-flex;
@@ -1384,12 +1377,6 @@ dd {
 	padding-block: 0;
 	padding-inline: 16px;
 	text-transform: uppercase;
-}
-
-/* The icon buttons opt out: an icon has no letter-spacing and nothing to uppercase. */
-.icon-button {
-	letter-spacing: normal;
-	text-transform: none;
 }
 
 /* The empty state is the whole content area, so the card is centred in it rather than sitting in
@@ -1926,11 +1913,6 @@ dd {
 	outline-offset: 2px;
 }
 
-/* The .button rule uses justify-self, which does nothing in a flex column, so the submit button
-   stretched the full width of the form. */
-.home-form .button {
-	align-self: start;
-}
 
 /* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
    where something is gone and nobody can get it back. */
