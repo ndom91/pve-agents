@@ -10,16 +10,19 @@
 # template's `@__base__` ZFS snapshot, not its live dataset. Mounting a template and writing to it
 # changes nothing that any future clone will ever see.
 #
-# 107 is the original base. 109 is an intermediate and is still cloneable: do not point
-# PROXMOX_TEMPLATE_VMID back at it, because it predates the non-login PATH fix below and every
-# tool check in a workspace built from it fails. Which template is current lives in .env, not
-# here, so that there is one answer rather than two that can disagree.
+# The default source is the template in service, so a rebuild starts from what is known to work
+# rather than from whichever ancestor happens to still exist. 107 and 114 were the earlier ones
+# and have been deleted; a template built by this script is a full clone, so nothing depended on
+# them once the current one existed.
 #
-#   SOURCE_VMID=107 NEW_VMID=120 ./build-workspace-template.sh
+# Which template is in service lives in .env, not here, so there is one answer rather than two
+# that can disagree. Keep this default in step with it after a rebuild.
+#
+#   NEW_VMID=121 ./build-workspace-template.sh
 #
 set -euo pipefail
 
-SOURCE_VMID="${SOURCE_VMID:-107}"
+SOURCE_VMID="${SOURCE_VMID:-120}"
 NEW_VMID="${NEW_VMID:-}"
 STORAGE="${STORAGE:-local-zfs}"
 WORKSPACE_USER="${WORKSPACE_USER:-agent}"
