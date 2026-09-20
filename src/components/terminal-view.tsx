@@ -48,6 +48,18 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 			terminal.open(element);
 			fit.fit();
 
+			// Start from an empty grid.
+			//
+			// A new Terminal in a new host element still came up holding the last session's
+			// screen: leave a workspace, come back, and the previous `ls` output was there with a
+			// fresh shell writing over it line by line -- a session that appeared to resume
+			// halfway through something it had never run.
+			//
+			// The SSH session is gone the moment the socket closes and cannot be picked up again,
+			// so the only honest thing to show is a clean one. `reset` rather than `clear`,
+			// because the scrollback is part of what survived.
+			terminal.reset();
+
 			// The size travels with the connection so the remote tty is sized before the shell
 			// starts. Sent afterwards it would be typed at the prompt and echoed back.
 			const socket = new WebSocket(
