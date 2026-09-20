@@ -322,6 +322,11 @@ textarea:focus-visible {
  * the back-to-terminal control turned pale-on-pale and unreadable. Appearance belongs to the
  * classes below, so a new button starts plain instead of starting wrong. */
 button {
+	/* `color` does not inherit into a button: the browser gives it `buttontext`, which is black.
+	   Every button here happens to set its own colour, so this looked like a rule nobody needed --
+	   until the editable workspace title wrapped an h1 in one and the heading turned black on a
+	   dark page. Inheriting is what a reader would assume is already true. */
+	color: inherit;
 	cursor: pointer;
 }
 
@@ -1095,8 +1100,11 @@ dd {
  *
  * A button wrapping the h1 rather than a heading with a pencil beside it: the heading is the only
  * thing on this page anybody would rename, so a separate control would be one pointing at its only
- * possible subject. It looks like text until it is hovered. */
-.workspace-title {
+ * possible subject. It looks like text until it is hovered.
+ *
+ * Scoped to the button, because the editing form carries the same class and wants none of it: a
+ * box around a field that already has one reads as a second, outer control. */
+button.workspace-title {
 	background: none;
 	border: 1px solid transparent;
 	display: block;
@@ -1106,17 +1114,17 @@ dd {
 	width: fit-content;
 }
 
-.workspace-title:hover {
+button.workspace-title:hover {
 	background: var(--surface);
 	border-color: var(--border);
 }
 
+/* A row, and nothing else. The field and its two controls each have their own edges. */
 .workspace-title.is-editing {
 	align-items: center;
 	display: flex;
 	gap: 6px;
 	margin-bottom: 4px;
-	padding: 0;
 }
 
 /* Sized and set as the heading it replaces, so the line does not move when the two swap. */
