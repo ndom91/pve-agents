@@ -82,3 +82,22 @@ Several comments here record a wrong assumption that cost real time; leave those
 
 Commit messages say what changed and what it was for, in prose. Tests carry the same burden: a test
 name should say which rule it protects, not which function it calls.
+
+### Interface
+
+**Appearance is a `variant`, never a class you pass in.** `Button`, `IconButton` and `Select` take
+`primary` | `secondary` | `tertiary`. `className` on those components is for layout only — where a
+control sits, never how it looks. A new quiet button that arrives as its own class is how the CSS
+grew three near-identical rules the last time.
+
+**Never style focus per control.** `styles.css` sets one ring on the bare `:focus-visible`, which
+reaches everything including whatever gets added next. This started as a list of selectors and was
+wrong twice: each time, a control nobody remembered kept the platform's bright blue ring, which on
+this palette is the loudest thing on the page. If a control needs something other than the ring, it
+*overrides* it — `.rail-resizer` and the code editor's textarea both do, and both say why.
+
+A `<select>` needs `appearance: none` before any of that works. Left at the platform default it
+keeps a system border and a system focus ring that no amount of `outline` reliably replaces.
+
+**Controls that sit in a row share `--field-height`.** A select, a text field and a button beside
+each other were 36, 34 and 36 pixels tall, which does not read as a size choice.
