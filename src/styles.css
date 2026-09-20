@@ -29,6 +29,13 @@
 	   fields were two pixels shorter, which is exactly enough to look like a mistake. */
 	--field-height: 36px;
 
+	/* The workspace heading, reading and editing alike. One width and one height because the two
+	   swap in place, and a box that changes size on click is a line that jumps under the pointer.
+	   The height governs the two icon buttons in the editing row as well: left at the ordinary 32px
+	   they made the row taller than the field inside it. */
+	--title-height: 30px;
+	--title-width: 24rem;
+
 	/* The palette, named for the job rather than the value.
 	 *
 	 * It was thirty-four unnamed hex literals, five of which were accidents: three input
@@ -1102,16 +1109,38 @@ dd {
  * thing on this page anybody would rename, so a separate control would be one pointing at its only
  * possible subject. It looks like text until it is hovered.
  *
- * Scoped to the button, because the editing form carries the same class and wants none of it: a
- * box around a field that already has one reads as a second, outer control. */
+ * TITLE_BOX is every measurement the two forms share, declared once. Reading and editing are two
+ * elements showing the same string, and each one that disagrees is a pixel the line jumps when
+ * they swap -- they were a different weight, a different letter-spacing and a different width, so
+ * the hover box hugged the text while the field was twice as wide. */
+.workspace-title,
+.workspace-title h1,
+.workspace-title input {
+	font-size: var(--text-xl);
+	font-weight: 500;
+	letter-spacing: -0.05em;
+	/* Not the 0.9 an h1 carries globally, which is set for a display heading two sizes up and
+	   leaves no room for a caret beside the glyphs. */
+	line-height: 1.35;
+}
+
+.workspace-title h1 {
+	margin: 0;
+}
+
+/* Scoped to the button, because the editing form carries the same class and wants none of it: a
+   box around a field that already has one reads as a second, outer control. */
 button.workspace-title {
 	background: none;
 	border: 1px solid transparent;
 	display: block;
-	margin: -3px -7px 0;
+	/* Pulled out by its own padding and border, so the text sits where it did before there was a
+	   box around it at all. */
+	height: var(--title-height);
+	margin: -3px -7px 4px;
 	padding: 2px 6px;
 	text-align: left;
-	width: fit-content;
+	width: var(--title-width);
 }
 
 button.workspace-title:hover {
@@ -1119,24 +1148,29 @@ button.workspace-title:hover {
 	border-color: var(--border);
 }
 
-/* A row, and nothing else. The field and its two controls each have their own edges. */
+/* A row, and nothing else. The field and its two controls each have their own edges.
+ *
+ * Pulled out by the same amounts as the button, so the text stays on the line it was on. Without
+ * the top offset the heading dropped four pixels the moment it was clicked. */
 .workspace-title.is-editing {
 	align-items: center;
 	display: flex;
 	gap: 6px;
-	margin-bottom: 4px;
+	margin: -3px 0 4px -7px;
 }
 
-/* Sized and set as the heading it replaces, so the line does not move when the two swap. */
 .workspace-title input {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	color: var(--fg-bright);
-	font-size: var(--text-xl);
-	font-weight: 600;
-	letter-spacing: -0.02em;
+	height: var(--title-height);
 	padding: 2px 6px;
-	width: 22rem;
+	width: var(--title-width);
+}
+
+.workspace-title .icon-button {
+	height: var(--title-height);
+	width: var(--title-height);
 }
 
 .centre-head p {
