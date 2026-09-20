@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 // FALLBACK_MS is used when the stylesheet has not answered.
 //
@@ -27,8 +27,32 @@ export function SwapText({
 	const [shown, setShown] = useState(value);
 	const [phase, setPhase] = useState<"enter-start" | "exit" | "rest">("rest");
 
+	// The newest value, readable from inside a timer that started before it arrived.
+	//
+	// A status can change twice inside one swap. Destroying a workspace does exactly that: the
+	// page predicts "destroying" the moment the button is pressed and the poll confirms a moment
+	// later, both well inside 150ms. The exit below commits whatever this holds when it fires
+	// rather than the value that was current when it started, so the badge lands on the truth.
+	const latest = useRef(value);
+	latest.current = value;
+
+	// Begin a swap when there is one owed and nothing is in flight.
 	useEffect(() => {
 		if (value === shown || phase !== "rest") {
+			return;
+		}
+		setPhase("exit");
+	}, [phase, shown, value]);
+
+	// Hold the exit for as long as the class takes, then commit.
+	//
+	// Keyed on the phase alone, and that is the fix rather than a detail. This used to hang off
+	// `value` too, so a second change mid-exit re-ran the effect, the cleanup cancelled the timer
+	// that was going to finish the swap, and the guard above then refused to start another
+	// because a swap was already "in flight". The phase stayed at exit, which is opacity zero,
+	// and the badge was an empty box until the page was reloaded.
+	useEffect(() => {
+		if (phase !== "exit") {
 			return;
 		}
 
@@ -39,14 +63,13 @@ export function SwapText({
 				),
 			) || FALLBACK_MS;
 
-		setPhase("exit");
 		const timer = setTimeout(() => {
-			setShown(value);
+			setShown(latest.current);
 			setPhase("enter-start");
 		}, duration);
 
 		return () => clearTimeout(timer);
-	}, [phase, shown, value]);
+	}, [phase]);
 
 	// Leaving the entry position, one painted frame after arriving at it.
 	//
