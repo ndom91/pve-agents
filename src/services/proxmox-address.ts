@@ -2,7 +2,8 @@ import {
 	type Fetcher,
 	type ProxmoxCredentials,
 	proxmoxHeaders,
-	proxmoxTimeout,
+	proxmoxRead,
+	proxmoxUnreadable,
 	proxmoxURL,
 } from "./proxmox-http";
 
@@ -25,44 +26,28 @@ export async function containerAddress(
 	subnet: string | undefined,
 	fetcher: Fetcher,
 ): Promise<ProxmoxAddress> {
-	let response: Response;
-	try {
-		response = await fetcher(
-			proxmoxURL(
-				api.apiURL,
-				`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/interfaces`,
-			),
-			{
-				headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
-				method: "GET",
-				signal: proxmoxTimeout(),
-			},
-		);
-	} catch {
-		return {
-			kind: "failed",
-			message: `proxmox interfaces request for ${vmid} failed`,
-		};
+	const label = `interfaces request for ${vmid}`;
+	const read = await proxmoxRead(
+		proxmoxURL(
+			api.apiURL,
+			`/nodes/${encodeURIComponent(api.node)}/lxc/${vmid}/interfaces`,
+		),
+		{
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
+			method: "GET",
+		},
+		label,
+		fetcher,
+	);
+	if (read.kind === "failed") {
+		return read;
 	}
-	if (!response.ok) {
-		return {
-			kind: "failed",
-			message: `proxmox interfaces request for ${vmid} returned HTTP ${response.status}`,
-		};
-	}
-
-	const result = (await response.json().catch(() => undefined)) as
-		| { data?: unknown }
-		| undefined;
-	if (!Array.isArray(result?.data)) {
-		return {
-			kind: "failed",
-			message: `proxmox interfaces request for ${vmid} returned invalid JSON`,
-		};
+	if (!Array.isArray(read.data)) {
+		return proxmoxUnreadable(label);
 	}
 
 	const candidates: Array<{ address: string; name: string }> = [];
-	for (const entry of result.data) {
+	for (const entry of read.data) {
 		if (typeof entry !== "object" || entry === null) {
 			continue;
 		}

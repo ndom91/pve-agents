@@ -5,7 +5,6 @@ import {
 	advanceWorkspaceDestroy,
 	completeWorkspaceDestroy,
 	haltWorkspaceDestroy,
-	noteWorkspaceIssue,
 	type OperationLease,
 	recordWorkspaceTask,
 	releaseWorkspaceOperation,
@@ -27,7 +26,7 @@ import { poolContainsVMID } from "./proxmox-pool";
 import { forgetHost } from "./ssh";
 import {
 	awaitTask,
-	POLL_INTERVAL_MS,
+	retry,
 	taskExpiry,
 	type WorkspaceOperationRun,
 	workspaceNode,
@@ -54,9 +53,7 @@ export async function executeWorkspaceDestroy(
 ): Promise<WorkspaceOperationRun> {
 	const workspace = workspaceTeardown(db, lease);
 	if (workspace === undefined) {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "stale_operation" };
+		return retry(db, lease, now, { status: "stale_operation" });
 	}
 
 	if (workspace.vmid === undefined) {
@@ -95,9 +92,7 @@ async function pollTeardownTask(
 		now,
 	);
 	if (task.kind === "pending") {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_task" };
+		return retry(db, lease, now, { status: "awaiting_task" });
 	}
 
 	if (workspace.phase === "shutdown-submitted") {
@@ -186,10 +181,10 @@ async function teardownContainer(
 
 	const container = await containerConfig(api, vmid, fetcher);
 	if (container.kind === "failed") {
-		noteWorkspaceIssue(db, lease, container.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_reconciliation" };
+		return retry(db, lease, now, {
+			message: container.message,
+			status: "awaiting_reconciliation",
+		});
 	}
 	if (container.kind === "missing") {
 		// Already gone, whether this controller removed it or someone else did. Destruction is
@@ -206,10 +201,10 @@ async function teardownContainer(
 			fetcher,
 		);
 		if (membership.kind === "failed") {
-			noteWorkspaceIssue(db, lease, membership.message, now);
-			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-			return { processed: 1, status: "awaiting_reconciliation" };
+			return retry(db, lease, now, {
+				message: membership.message,
+				status: "awaiting_reconciliation",
+			});
 		}
 		if (membership.kind === "inside") {
 			// In our pool but unreadable: a real permission problem, not an absent container.
@@ -257,10 +252,10 @@ async function teardownContainer(
 
 	const state = await containerState(api, vmid, fetcher);
 	if (state.kind === "failed") {
-		noteWorkspaceIssue(db, lease, state.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_reconciliation" };
+		return retry(db, lease, now, {
+			message: state.message,
+			status: "awaiting_reconciliation",
+		});
 	}
 	if (state.kind === "missing" || state.kind === "forbidden") {
 		completeWorkspaceDestroy(db, lease, "container was already absent", now);
@@ -313,10 +308,10 @@ function submitTeardownTask(
 	if (request.kind === "failed") {
 		// The action may still have been accepted, so the next pass re-inspects the container
 		// rather than assuming the request never landed.
-		noteWorkspaceIssue(db, lease, request.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: request.message,
+			status: "request_failed",
+		});
 	}
 
 	const recorded = recordWorkspaceTask(
@@ -335,7 +330,5 @@ function submitTeardownTask(
 		return { processed: 1, status: "stale_operation" };
 	}
 
-	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-	return { processed: 1, status };
+	return retry(db, lease, now, { status });
 }

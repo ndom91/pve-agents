@@ -3,7 +3,9 @@ import {
 	type ProxmoxCredentials,
 	type ProxmoxTaskRequest,
 	proxmoxHeaders,
+	proxmoxRead,
 	proxmoxTimeout,
+	proxmoxUnreadable,
 	proxmoxURL,
 	submitProxmoxTask,
 } from "./proxmox-http";
@@ -53,6 +55,9 @@ export async function allocateProxmoxVMID(
 			continue;
 		}
 
+		// Not `proxmoxRead`: this one never reads a body, and HTTP 400 is an answer rather than a
+		// failure -- it is Proxmox saying "that id is taken". Routing it through the shared read
+		// would turn the scan's ordinary case into an error.
 		let response: Response;
 		try {
 			response = await fetcher(
@@ -89,31 +94,24 @@ export async function nextProxmoxVMID(
 	api: ProxmoxCredentials,
 	fetcher: Fetcher,
 ): Promise<ProxmoxVMID> {
-	let response: Response;
-	try {
-		response = await fetcher(proxmoxURL(api.apiURL, "/cluster/nextid"), {
+	const label = "next VMID request";
+	const read = await proxmoxRead(
+		proxmoxURL(api.apiURL, "/cluster/nextid"),
+		{
 			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
 			method: "GET",
-			signal: proxmoxTimeout(),
-		});
-	} catch {
-		return { kind: "failed", message: "proxmox next VMID request failed" };
+		},
+		label,
+		fetcher,
+	);
+	if (read.kind === "failed") {
+		return read;
 	}
-	if (!response.ok) {
-		return {
-			kind: "failed",
-			message: `proxmox next VMID request returned HTTP ${response.status}`,
-		};
+	if (read.data === undefined) {
+		return proxmoxUnreadable(label);
 	}
 
-	const result = await response.json().catch(() => undefined);
-	if (typeof result !== "object" || result === null || !("data" in result)) {
-		return {
-			kind: "failed",
-			message: "proxmox next VMID request returned invalid JSON",
-		};
-	}
-	const vmid = Number(result.data);
+	const vmid = Number(read.data);
 	if (!Number.isSafeInteger(vmid) || vmid < 100) {
 		return {
 			kind: "failed",

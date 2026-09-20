@@ -1,4 +1,11 @@
+import type Database from "better-sqlite3";
+
 import type { ControllerConfig } from "../config/controller-config";
+import {
+	noteWorkspaceIssue,
+	type OperationLease,
+	releaseWorkspaceOperation,
+} from "../db/workspace-repository";
 
 import type { Fetcher, ProxmoxCredentials } from "./proxmox-http";
 import { proxmoxTaskStatus } from "./proxmox-task";
@@ -18,7 +25,6 @@ export type WorkspaceOperationRun = {
 	status:
 		| "address_found"
 		| "addressed"
-		| "agent_started"
 		| "attempts_exhausted"
 		| "awaiting_address"
 		| "awaiting_agent"
@@ -30,7 +36,6 @@ export type WorkspaceOperationRun = {
 		| "bootstrapped"
 		| "checked_out"
 		| "container_booted"
-		| "herdr_registered"
 		| "session_started"
 		| "workspace_ready"
 		| "clone_confirmed"
@@ -53,6 +58,29 @@ export type WorkspaceOperationRun = {
 		| "vmid_adopted"
 		| "vmid_released";
 };
+
+// retry puts an operation back on the queue after a setback it may recover from.
+//
+// It is here rather than spelled out at each of its eighteen call sites across the two executors,
+// because the two halves have to stay together: releasing without noting loses the reason, and
+// noting without releasing leaves the lease held for its full sixty seconds. That second one is
+// the dangerous direction, because it looks exactly like a slow Proxmox rather than like a bug.
+//
+// The message is optional, and its absence is a decision rather than an oversight. A workspace
+// that is merely still booting should not fill its own timeline with a note every five seconds.
+export function retry(
+	db: Database.Database,
+	lease: OperationLease,
+	now: Date,
+	outcome: { message?: string; status: WorkspaceOperationRun["status"] },
+): WorkspaceOperationRun {
+	if (outcome.message !== undefined) {
+		noteWorkspaceIssue(db, lease, outcome.message, now);
+	}
+	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
+
+	return { processed: 1, status: outcome.status };
+}
 
 // TaskOutcome is the controller's decision about a task it is waiting on.
 //

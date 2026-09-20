@@ -50,8 +50,8 @@ import { forgetHost, type SshRunner, type SshTarget } from "./ssh";
 import { checkoutRepository } from "./workspace-checkout";
 import {
 	awaitTask,
-	POLL_INTERVAL_MS,
 	proxmoxCredentials,
+	retry,
 	taskExpiry,
 	type WorkspaceOperationRun,
 	workspaceNode,
@@ -96,9 +96,7 @@ export async function executeWorkspaceProvision(
 ): Promise<WorkspaceOperationRun> {
 	const workspace = workspaceProvision(db, lease);
 	if (workspace === undefined) {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "stale_operation" };
+		return retry(db, lease, now, { status: "stale_operation" });
 	}
 
 	// Dispatch on the recorded phase, not on which columns happen to be set: current_task_upid is
@@ -200,9 +198,7 @@ async function checkReachable(
 	);
 
 	if (result.kind === "refused") {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_ssh" };
+		return retry(db, lease, now, { status: "awaiting_ssh" });
 	}
 	if (result.kind === "rejected") {
 		// A rejected key or a changed host key will not fix itself, and retrying buries the
@@ -212,9 +208,7 @@ async function checkReachable(
 		return { processed: 1, status: "task_failed" };
 	}
 	if (result.code !== 0) {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_ssh" };
+		return retry(db, lease, now, { status: "awaiting_ssh" });
 	}
 
 	advanceWorkspaceProvision(
@@ -279,10 +273,10 @@ async function bootstrapAgentHome(
 		ssh,
 	);
 	if (prepared.kind === "failed") {
-		noteWorkspaceIssue(db, lease, prepared.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: prepared.message,
+			status: "request_failed",
+		});
 	}
 
 	advanceWorkspaceProvision(
@@ -365,10 +359,10 @@ async function checkoutWorkspaceRepository(
 
 	const minted = await installationToken(credentials, repository, fetcher);
 	if (minted.kind === "failed") {
-		noteWorkspaceIssue(db, lease, minted.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: minted.message,
+			status: "request_failed",
+		});
 	}
 
 	const cloned = await checkoutRepository(
@@ -382,10 +376,10 @@ async function checkoutWorkspaceRepository(
 		ssh,
 	);
 	if (cloned.kind === "failed") {
-		noteWorkspaceIssue(db, lease, cloned.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: cloned.message,
+			status: "request_failed",
+		});
 	}
 
 	advanceWorkspaceProvision(
@@ -458,10 +452,10 @@ async function startAgentRunner(
 	if ((await runnerState(target, ssh)) !== "running") {
 		const installed = await installRunner(target, runnerSource(), ssh);
 		if (installed.kind === "failed") {
-			noteWorkspaceIssue(db, lease, installed.message, now);
-			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-			return { processed: 1, status: "awaiting_session" };
+			return retry(db, lease, now, {
+				message: installed.message,
+				status: "awaiting_session",
+			});
 		}
 
 		// "launched" is not "running": the start script backgrounds the process and exits, so a
@@ -475,9 +469,7 @@ async function startAgentRunner(
 		if (launched === "failed") {
 			noteWorkspaceIssue(db, lease, "could not launch the agent runner", now);
 		}
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_session" };
+		return retry(db, lease, now, { status: "awaiting_session" });
 	}
 
 	advanceWorkspaceProvision(
@@ -555,10 +547,10 @@ async function briefAgent(
 
 	const prompted = await promptRunner(target, purpose, ssh);
 	if (prompted === "failed") {
-		noteWorkspaceIssue(db, lease, "could not brief the agent", now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_agent" };
+		return retry(db, lease, now, {
+			message: "could not brief the agent",
+			status: "awaiting_agent",
+		});
 	}
 
 	// The briefing is work given to the agent, so it starts the idle clock. Otherwise a workspace
@@ -588,15 +580,13 @@ async function discoverAddress(
 		fetcher,
 	);
 	if (found.kind === "failed") {
-		noteWorkspaceIssue(db, lease, found.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_address" };
+		return retry(db, lease, now, {
+			message: found.message,
+			status: "awaiting_address",
+		});
 	}
 	if (found.kind === "pending") {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_address" };
+		return retry(db, lease, now, { status: "awaiting_address" });
 	}
 
 	advanceWorkspaceProvision(
@@ -630,10 +620,10 @@ async function submitStart(
 	const api = workspaceNode(config, workspace);
 	const start = await startContainer(api, workspace.vmid as number, fetcher);
 	if (start.kind === "failed") {
-		noteWorkspaceIssue(db, lease, start.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: start.message,
+			status: "request_failed",
+		});
 	}
 
 	const recorded = recordWorkspaceTask(
@@ -655,9 +645,7 @@ async function submitStart(
 	// Booting begins when the task is accepted, not when it finishes: the container is no longer
 	// merely provisioned from here.
 	advanceWorkspaceStatus(db, lease, "booting", now);
-	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-	return { processed: 1, status: "start_submitted" };
+	return retry(db, lease, now, { status: "start_submitted" });
 }
 
 // pollStart resolves the boot task.
@@ -677,9 +665,7 @@ async function pollStart(
 		now,
 	);
 	if (task.kind === "pending") {
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_task" };
+		return retry(db, lease, now, { status: "awaiting_task" });
 	}
 	if (task.kind !== "succeeded") {
 		failWorkspaceProvision(
@@ -750,9 +736,7 @@ async function pollClone(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-	return { processed: 1, status: "awaiting_task" };
+	return retry(db, lease, now, { status: "awaiting_task" });
 }
 
 // reconcileCandidate recovers from a lost clone response.
@@ -776,10 +760,10 @@ async function reconcileCandidate(
 	);
 
 	if (container.kind === "failed") {
-		noteWorkspaceIssue(db, lease, container.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_reconciliation" };
+		return retry(db, lease, now, {
+			message: container.message,
+			status: "awaiting_reconciliation",
+		});
 	}
 
 	if (container.kind === "forbidden") {
@@ -792,10 +776,10 @@ async function reconcileCandidate(
 			fetcher,
 		);
 		if (membership.kind === "failed") {
-			noteWorkspaceIssue(db, lease, membership.message, now);
-			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-			return { processed: 1, status: "awaiting_reconciliation" };
+			return retry(db, lease, now, {
+				message: membership.message,
+				status: "awaiting_reconciliation",
+			});
 		}
 		if (membership.kind === "outside") {
 			releaseWorkspaceCandidateVMID(
@@ -809,9 +793,7 @@ async function reconcileCandidate(
 			return { processed: 1, status: "vmid_released" };
 		}
 
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "awaiting_reconciliation" };
+		return retry(db, lease, now, { status: "awaiting_reconciliation" });
 	}
 
 	if (container.kind === "missing") {
@@ -824,9 +806,7 @@ async function reconcileCandidate(
 			fetcher,
 		);
 		if (running.kind === "failed") {
-			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-			return { processed: 1, status: "awaiting_reconciliation" };
+			return retry(db, lease, now, { status: "awaiting_reconciliation" });
 		}
 		if (running.kind === "found") {
 			// The lost UPID is recoverable after all. Resume polling it instead of cloning again.
@@ -841,9 +821,7 @@ async function reconcileCandidate(
 				},
 				now,
 			);
-			releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-			return { processed: 1, status: "task_recovered" };
+			return retry(db, lease, now, { status: "task_recovered" });
 		}
 
 		// Nothing was created and nothing is being created. Allocate a fresh candidate rather than
@@ -920,10 +898,10 @@ async function submitClone(
 			? await nextProxmoxVMID(api, fetcher)
 			: await allocateProxmoxVMID(api, fetcher, floor, reservedVMIDs(db));
 	if (vmid.kind === "failed") {
-		noteWorkspaceIssue(db, lease, vmid.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: vmid.message,
+			status: "request_failed",
+		});
 	}
 
 	const prepared = prepareWorkspaceProvision(
@@ -955,10 +933,10 @@ async function submitClone(
 	if (clone.kind === "failed") {
 		// The outcome is unknown: the clone may still have been accepted. The persisted VMID sends
 		// the next pass through reconciliation rather than blindly retrying the clone.
-		noteWorkspaceIssue(db, lease, clone.message, now);
-		releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-		return { processed: 1, status: "request_failed" };
+		return retry(db, lease, now, {
+			message: clone.message,
+			status: "request_failed",
+		});
 	}
 
 	const recorded = recordWorkspaceTask(
@@ -977,7 +955,5 @@ async function submitClone(
 		return { processed: 1, status: "stale_operation" };
 	}
 
-	releaseWorkspaceOperation(db, lease, POLL_INTERVAL_MS, now);
-
-	return { processed: 1, status: "clone_submitted" };
+	return retry(db, lease, now, { status: "clone_submitted" });
 }

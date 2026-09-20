@@ -2,7 +2,8 @@ import {
 	type Fetcher,
 	type ProxmoxCredentials,
 	proxmoxHeaders,
-	proxmoxTimeout,
+	proxmoxRead,
+	proxmoxUnreadable,
 	proxmoxURL,
 } from "./proxmox-http";
 
@@ -21,38 +22,23 @@ export async function poolMembers(
 	pool: string,
 	fetcher: Fetcher,
 ): Promise<ProxmoxPoolMembers> {
-	let response: Response;
-	try {
-		response = await fetcher(
-			proxmoxURL(api.apiURL, `/pools/${encodeURIComponent(pool)}`),
-			{
-				headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
-				method: "GET",
-				signal: proxmoxTimeout(),
-			},
-		);
-	} catch {
-		return {
-			kind: "failed",
-			message: `proxmox pool request for ${pool} failed`,
-		};
-	}
-	if (!response.ok) {
-		return {
-			kind: "failed",
-			message: `proxmox pool request for ${pool} returned HTTP ${response.status}`,
-		};
+	const label = `pool request for ${pool}`;
+	const read = await proxmoxRead(
+		proxmoxURL(api.apiURL, `/pools/${encodeURIComponent(pool)}`),
+		{
+			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
+			method: "GET",
+		},
+		label,
+		fetcher,
+	);
+	if (read.kind === "failed") {
+		return read;
 	}
 
-	const result = (await response.json().catch(() => undefined)) as
-		| { data?: { members?: unknown } }
-		| undefined;
-	const members = result?.data?.members;
+	const members = (read.data as { members?: unknown } | undefined)?.members;
 	if (!Array.isArray(members)) {
-		return {
-			kind: "failed",
-			message: `proxmox pool request for ${pool} returned invalid JSON`,
-		};
+		return proxmoxUnreadable(label);
 	}
 
 	const vmids = new Set<number>();
