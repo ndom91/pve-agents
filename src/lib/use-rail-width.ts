@@ -14,7 +14,7 @@ export const RAIL_DEFAULT = 380;
 // rail dragged over the top of it would be a worse view of both.
 const CENTRE_MIN = 420;
 
-const STORAGE_KEY = "herdr.rail-width";
+const STORAGE_KEY = "pve-agents.rail-width";
 
 // useRailWidth remembers how wide the operator dragged the rail.
 //

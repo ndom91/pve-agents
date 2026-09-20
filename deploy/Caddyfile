@@ -1,9 +1,10 @@
 # Caddy in front of the controller on LXC 108.
 #
-# Replace the two cert paths below. Everything else should work as-is.
+# The cert paths below are the ones on the controller. Replace them if yours differ; everything
+# else should work as-is.
 
-herdr-controller.puff.lan {
-	tls /etc/caddy/certs/herdr-controller.crt /etc/caddy/certs/herdr-controller.key
+pve-agents.puff.lan {
+	tls /etc/caddy/certs/pve-agents.puff.lan.crt /etc/caddy/certs/pve-agents.puff.lan.key
 
 	# flush_interval -1 disables response buffering. Without it Caddy holds the agent event
 	# stream in a buffer, and the detail page updates in bursts or not at all. This fails only
@@ -20,11 +21,11 @@ herdr-controller.puff.lan {
 
 	# The controller holds a Proxmox token that can purge containers. Keep the access log.
 	log {
-		output file /var/log/caddy/herdr-controller.log
+		output file /var/log/caddy/pve-agents.log
 	}
 }
 
 # Anything arriving on plain HTTP goes to TLS rather than being served twice.
-http://herdr-controller.puff.lan {
+http://pve-agents.puff.lan {
 	redir https://{host}{uri} permanent
 }

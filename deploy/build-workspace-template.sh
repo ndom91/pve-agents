@@ -18,7 +18,7 @@ SOURCE_VMID="${SOURCE_VMID:-107}"
 NEW_VMID="${NEW_VMID:-}"
 STORAGE="${STORAGE:-local-zfs}"
 WORKSPACE_USER="${WORKSPACE_USER:-agent}"
-CONTROLLER_PUBKEY="${CONTROLLER_PUBKEY:-/root/id_herdr_controller.pub}"
+CONTROLLER_PUBKEY="${CONTROLLER_PUBKEY:-/root/id_pve_agents_controller.pub}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
 
 log() { printf '\n==> %s\n' "$*"; }
@@ -64,7 +64,7 @@ log "full clone $SOURCE_VMID -> $NEW_VMID on $STORAGE"
 pct clone "$SOURCE_VMID" "$NEW_VMID" \
 	--full 1 \
 	--storage "$STORAGE" \
-	--hostname "herdr-template-build"
+	--hostname "pve-agents-template-build"
 SCRATCH_CREATED=1
 
 log "starting $NEW_VMID"
@@ -240,7 +240,7 @@ pct exec "$NEW_VMID" -- bash -eu -c "
 
 log "stopping and converting $NEW_VMID to a template"
 pct stop "$NEW_VMID"
-pct set "$NEW_VMID" --hostname "herdr-template"
+pct set "$NEW_VMID" --hostname "pve-agents-template"
 pct template "$NEW_VMID"
 SCRATCH_CREATED=
 PROVISIONED=
@@ -251,9 +251,9 @@ Template $NEW_VMID built from $SOURCE_VMID.
 
 Point the controller at it and restart:
 
-  ssh herdr-controller
-  sed -i 's/^PROXMOX_TEMPLATE_VMID=.*/PROXMOX_TEMPLATE_VMID=$NEW_VMID/' /opt/pve-herdr-agents/.env
-  systemctl restart pve-herdr-agents.service
+  ssh pve-agents-controller
+  sed -i 's/^PROXMOX_TEMPLATE_VMID=.*/PROXMOX_TEMPLATE_VMID=$NEW_VMID/' /opt/pve-agents/.env
+  systemctl restart pve-agents.service
 
 The Proxmox token needs VM.Audit and VM.Clone on /vms/$NEW_VMID; it currently holds them on
 /vms/$SOURCE_VMID only, so cloning will fail with 403 until that is granted.

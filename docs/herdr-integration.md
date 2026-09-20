@@ -1,8 +1,8 @@
 # Herdr, and why it left
 
 Herdr is no longer part of this system. This file is kept rather than deleted because the
-repository is named after it, because two of its lessons outlived it, and because "why is there no
-Herdr in pve-herdr-agents" is a question somebody will ask.
+repository was named after it until it became `pve-agents`, because two of its lessons outlived
+it, and because the name is still all over this project's history.
 
 ## What it did
 

@@ -1,6 +1,6 @@
 {
-  "name": "pve-herdr-agents",
-  "short_name": "pve-herdr-agents",
+  "name": "pve-agents",
+  "short_name": "pve-agents",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

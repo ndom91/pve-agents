@@ -18,7 +18,7 @@ describe("parseOwnershipMarker", () => {
 		expect(parseOwnershipMarker(ownershipMarker(OWNERSHIP))).toEqual({
 			"controller-id": OWNERSHIP.controllerID,
 			"created-at": OWNERSHIP.createdAt,
-			"managed-by": "pve-herdr-agents",
+			"managed-by": "pve-agents",
 			"ownership-token": OWNERSHIP.ownershipToken,
 			"workspace-id": OWNERSHIP.workspaceID,
 		});
@@ -26,8 +26,8 @@ describe("parseOwnershipMarker", () => {
 
 	it("tolerates blank lines and surrounding whitespace", () => {
 		expect(
-			parseOwnershipMarker("\n managed-by = pve-herdr-agents \n\nnoise\n"),
-		).toEqual({ "managed-by": "pve-herdr-agents" });
+			parseOwnershipMarker("\n managed-by = pve-agents \n\nnoise\n"),
+		).toEqual({ "managed-by": "pve-agents" });
 	});
 
 	it("returns nothing for an absent description", () => {

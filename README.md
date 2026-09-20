@@ -1,4 +1,6 @@
-# PVE Herdr Agents
+<img src="public/web-app-manifest-192x192.png" width="88" alt="">
+
+# PVE Agents
 
 A controller that turns a request for work into a disposable Proxmox LXC with a coding agent
 already working in it.

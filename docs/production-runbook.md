@@ -3,7 +3,7 @@
 ## Preflight
 
 1. Run `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` from a clean checkout.
-2. Create a dedicated service account and a writable persistent directory, for example `/var/lib/pve-herdr-agents`.
+2. Create a dedicated service account and a writable persistent directory, for example `/var/lib/pve-agents`.
 3. Put controller configuration in a root-readable environment file. Do not put Proxmox token secrets in the repository. Every `pnpm` entrypoint also loads a local `.env` through Node's `--env-file-if-exists`, which is for development only; `.env` is gitignored and a missing one is not an error. In production the systemd `EnvironmentFile` supplies the same variables. See `.env.example` for the full set.
 4. Bind the service only to localhost or a trusted LAN address. Put TLS at the reverse proxy before exposing the API beyond the controller host.
 5. Set `CONTROLLER_AUTH_SECRET` to at least 32 random characters and `CONTROLLER_URL` to the address the controller is reached on. Configuration validation refuses to start with `PROVISIONING_ENABLED=true` unless the secret is set.
@@ -27,14 +27,14 @@ The controller's migrations also run when the database is first opened, but that
 
 ```ini
 [Unit]
-Description=PVE Herdr Agents Controller
+Description=PVE Agents Controller
 After=network.target
 
 [Service]
 Type=simple
-User=pve-herdr-agents
-WorkingDirectory=/opt/pve-herdr-agents
-EnvironmentFile=/opt/pve-herdr-agents/.env
+User=pve-agents
+WorkingDirectory=/opt/pve-agents
+EnvironmentFile=/opt/pve-agents/.env
 ExecStart=/usr/bin/pnpm start
 Restart=on-failure
 RestartSec=5
@@ -43,7 +43,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Set `DATABASE_PATH=/var/lib/pve-herdr-agents/controller.db` in `/opt/pve-herdr-agents/.env`, owned by the service account and `0640`. One file, not two: a second copy under `/etc` existed briefly and was removed, because two sources of configuration is one more than can be kept in agreement.
+Set `DATABASE_PATH=/var/lib/pve-agents/controller.db` in `/opt/pve-agents/.env`, owned by the service account and `0640`. One file, not two: a second copy under `/etc` existed briefly and was removed, because two sources of configuration is one more than can be kept in agreement.
 
 `NODE_EXTRA_CA_CERTS` is the one setting that cannot live there. Node reads it before `--env-file` is processed, so the systemd unit sets it directly and `bin/controller-node.sh` exports it for commands run by hand. Set `CONTROLLER_HOST` and `CONTROLLER_PORT` there; the listener defaults to `127.0.0.1:3000`.
 
@@ -158,7 +158,7 @@ to be what corrected this, which meant every deploy fought itself and a failure 
 steps left the wrong answer in place. Not sending ownership removes the race; the `chown` stays as
 the thing that states the intended result rather than repairs an unintended one.
 
-**`chown -R root:pve-herdr-agents`.** The service user must be able to read its code and must not
+**`chown -R root:pve-agents`.** The service user must be able to read its code and must not
 own it.
 
 **Migrate before starting, not after.** The controller applies migrations lazily, on the first

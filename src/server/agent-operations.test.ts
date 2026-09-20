@@ -29,7 +29,7 @@ import {
 //
 // These handlers reach for process-wide state rather than taking it as an argument, and this is
 // the one scope a test and a handler share. Seeding it is what makes them runnable here at all.
-const STATE = Symbol.for("pve-herdr-agents.controller");
+const STATE = Symbol.for("pve-agents.controller");
 
 let db: Database.Database;
 

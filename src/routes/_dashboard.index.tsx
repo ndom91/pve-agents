@@ -51,7 +51,7 @@ function Dashboard() {
 		<main className="dashboard-main dashboard-main-wide dashboard-home">
 			<header className="home-head">
 				<div>
-					<p className="eyebrow">PVE / HERDR</p>
+					<p className="eyebrow">PVE / AGENTS</p>
 					<h1>Agent compute</h1>
 				</div>
 				{/* What the controller will actually do with a request. Provisioning off and the

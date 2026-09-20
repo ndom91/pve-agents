@@ -54,7 +54,7 @@ const DELETE_UPID =
 const SUBMITTED_AT = new Date("2026-01-01T00:00:00Z");
 const POLLED_AT = new Date("2026-01-01T00:00:10Z");
 
-const APP_KEY_PATH = join(tmpdir(), "pve-herdr-agents-worker-app.pem");
+const APP_KEY_PATH = join(tmpdir(), "pve-agents-worker-app.pem");
 
 const databases: Database.Database[] = [];
 let ticks = 0;

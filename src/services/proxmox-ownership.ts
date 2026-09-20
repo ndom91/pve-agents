@@ -1,5 +1,5 @@
 // MANAGED_BY is the marker value proving an LXC was created by this controller software.
-export const MANAGED_BY = "pve-herdr-agents";
+export const MANAGED_BY = "pve-agents";
 
 // WorkspaceOwnership is the identity written into a managed LXC description.
 export type WorkspaceOwnership = {

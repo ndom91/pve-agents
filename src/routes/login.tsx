@@ -30,7 +30,7 @@ function Login() {
 		<main className="shell">
 			<header className="masthead">
 				<div>
-					<p className="eyebrow">PVE / HERDR</p>
+					<p className="eyebrow">PVE / AGENTS</p>
 					<h1>Agent compute</h1>
 				</div>
 			</header>

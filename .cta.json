@@ -1,5 +1,5 @@
 {
-  "projectName": "pve-herdr-agents",
+  "projectName": "pve-agents",
   "mode": "file-router",
   "typescript": true,
   "tailwind": false,

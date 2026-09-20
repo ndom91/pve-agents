@@ -13,7 +13,7 @@ import { refreshWorkspaceCredentials } from "./workspace-credentials";
 
 const NOW = new Date("2026-01-01T12:00:00Z");
 
-const KEY_PATH = join(tmpdir(), "pve-herdr-agents-test-app.pem");
+const KEY_PATH = join(tmpdir(), "pve-agents-test-app.pem");
 
 const databases: Database.Database[] = [];
 

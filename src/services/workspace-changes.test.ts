@@ -233,7 +233,7 @@ describe("commitAndPush", () => {
 		const { commands, ssh } = runs();
 		await commitAndPush(
 			TARGET,
-			{ branch: "herdr/agent-bd48", cwd: CWD, message: "Agent work" },
+			{ branch: "pve-agents/agent-bd48", cwd: CWD, message: "Agent work" },
 			ssh,
 		);
 
@@ -241,7 +241,7 @@ describe("commitAndPush", () => {
 		expect(script).toContain('git push -u origin "$2"');
 		expect(script).toContain('git switch -C "$2"');
 		// The only branch named anywhere is the one passed in.
-		expect(commands[0]).toContain("herdr/agent-bd48");
+		expect(commands[0]).toContain("pve-agents/agent-bd48");
 		expect(script).not.toContain("main");
 	});
 
@@ -251,7 +251,7 @@ describe("commitAndPush", () => {
 		const { commands, ssh } = runs();
 		await commitAndPush(
 			TARGET,
-			{ branch: "herdr/agent-bd48", cwd: CWD, message: '"; rm -rf / #' },
+			{ branch: "pve-agents/agent-bd48", cwd: CWD, message: '"; rm -rf / #' },
 			ssh,
 		);
 
@@ -262,7 +262,7 @@ describe("commitAndPush", () => {
 	it("reports having nothing to push instead of making an empty commit", async () => {
 		const pushed = await commitAndPush(
 			TARGET,
-			{ branch: "herdr/agent-bd48", cwd: CWD, message: "Agent work" },
+			{ branch: "pve-agents/agent-bd48", cwd: CWD, message: "Agent work" },
 			runs({ code: 8 }).ssh,
 		);
 
@@ -272,7 +272,7 @@ describe("commitAndPush", () => {
 	it("reports a failing push rather than throwing", async () => {
 		const pushed = await commitAndPush(
 			TARGET,
-			{ branch: "herdr/agent-bd48", cwd: CWD, message: "Agent work" },
+			{ branch: "pve-agents/agent-bd48", cwd: CWD, message: "Agent work" },
 			runs({ code: 1, stderr: "permission denied" }).ssh,
 		);
 
@@ -312,7 +312,7 @@ describe("discardChanges", () => {
 
 describe("workspaceBranch", () => {
 	it("gives one workspace one branch, however often it is pushed", async () => {
-		expect(workspaceBranch("agent-bd48")).toBe("herdr/agent-bd48");
+		expect(workspaceBranch("agent-bd48")).toBe("pve-agents/agent-bd48");
 		expect(workspaceBranch("agent-bd48")).toBe(workspaceBranch("agent-bd48"));
 	});
 });

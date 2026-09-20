@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { installationToken, repositoryAccess } from "./github-app";
 
-const KEY_PATH = join(tmpdir(), "pve-herdr-agents-github-app.pem");
+const KEY_PATH = join(tmpdir(), "pve-agents-github-app.pem");
 
 const CREDENTIALS = {
 	appId: "123456",

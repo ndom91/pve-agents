@@ -12,9 +12,9 @@
 #
 set -euo pipefail
 
-HOST="${DEPLOY_HOST:-herdr-controller}"
-ROOT="${DEPLOY_ROOT:-/opt/pve-herdr-agents}"
-SERVICE="pve-herdr-agents.service"
+HOST="${DEPLOY_HOST:-pve-agents-controller}"
+ROOT="${DEPLOY_ROOT:-/opt/pve-agents}"
+SERVICE="pve-agents.service"
 
 cd "$(dirname "$0")/.."
 
@@ -33,9 +33,9 @@ EXCLUDES=(
 	--exclude '.nitro/'
 	--exclude '.output/'
 	--exclude '.DS_Store'
-	# The controller reads its SSH key from /var/lib/pve-herdr-agents/ssh, so a copy in the
+	# The controller reads its SSH key from /var/lib/pve-agents/ssh, so a copy in the
 	# checkout is a duplicate of a private key and nothing reads it.
-	--exclude 'id_herdr_controller*'
+	--exclude 'id_pve_agents_controller*'
 )
 
 # -a would carry the developer machine's uid and group across, so every deploy fought the chown at
@@ -96,7 +96,7 @@ corepack pnpm prune --prod >/dev/null
 # also preserves the developer machine's uid, so without this the tree ends up owned by whichever
 # local account happened to run the deploy.
 echo '==> permissions'
-chown -R root:pve-herdr-agents $ROOT
+chown -R root:pve-agents $ROOT
 chmod 640 $ROOT/.env
 
 echo '==> starting'
@@ -105,4 +105,4 @@ systemctl start $SERVICE
 
 sleep 4
 echo "==> verifying"
-ssh "$HOST" "systemctl is-active $SERVICE && curl -sS -o /dev/null -w 'https: %{http_code}\n' https://herdr-controller.puff.lan/"
+ssh "$HOST" "systemctl is-active $SERVICE && curl -sS -o /dev/null -w 'https: %{http_code}\n' https://pve-agents.puff.lan/"

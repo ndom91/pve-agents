@@ -60,7 +60,6 @@ export type ProvisionPhase =
 	| "checked-out"
 	| "clone-confirmed"
 	| "clone-submitted"
-	| "herdr-registered"
 	| "reachable"
 	| "runner-started"
 	| "session-started"

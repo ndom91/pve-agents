@@ -1,5 +1,5 @@
 {
-	"name": "pve-herdr-agents",
+	"name": "pve-agents",
 	"private": true,
 	"type": "module",
 	"imports": {

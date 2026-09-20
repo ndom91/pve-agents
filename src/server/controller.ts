@@ -4,7 +4,7 @@ import { openDatabase } from "../db/database";
 // Held on globalThis rather than in module scope because the server and the scheduler are built
 // as separate bundles. Module state is per-bundle, so a plain `let` gave one process two SQLite
 // connections and two parsed configurations. globalThis is the only scope both bundles share.
-const STATE = Symbol.for("pve-herdr-agents.controller");
+const STATE = Symbol.for("pve-agents.controller");
 
 type ControllerState = {
 	database?: ReturnType<typeof openDatabase>;

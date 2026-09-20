@@ -128,7 +128,7 @@ Use a dedicated pool and metadata on every managed LXC:
 pool=disposable-workspaces
 tag=workspace-controller
 description:
-  managed-by=pve-herdr-agents
+  managed-by=pve-agents
   controller-id=<deployment UUID>
   workspace-id=<workspace UUID>
   ownership-token=<random UUID>

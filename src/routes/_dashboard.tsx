@@ -64,7 +64,7 @@ function Dashboard() {
 	return (
 		<div className="dashboard">
 			<aside className="dashboard-sidebar">
-				<p className="eyebrow">PVE / HERDR</p>
+				<p className="eyebrow">PVE / AGENTS</p>
 
 				{blocked.length === 0 ? null : (
 					<p className="sidebar-waiting">

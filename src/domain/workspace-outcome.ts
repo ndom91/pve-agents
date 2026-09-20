@@ -1,7 +1,7 @@
 // WorkspaceOutcome is what became of a workspace's work, once the container is gone.
 //
 // Derived from the timeline rather than stored, because the timeline already records every one of
-// these and a second copy is a second thing to keep true. A push writes "pushed to herdr/<host>"
+// these and a second copy is a second thing to keep true. A push writes "pushed to pve-agents/<host>"
 // the moment it succeeds; the container it happened on can be deleted an hour later without that
 // sentence becoming any less accurate.
 export type WorkspaceOutcome =

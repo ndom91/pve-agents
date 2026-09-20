@@ -1,7 +1,7 @@
 # Working on this repository
 
 A controller that provisions disposable Proxmox LXC containers as coding-agent workspaces. It runs
-on LXC 108, behind Caddy at `https://herdr-controller.puff.lan`.
+on LXC 108, behind Caddy at `https://pve-agents.puff.lan`.
 
 Read `docs/architecture.md` first. It describes the system as built, including the places where an
 earlier intention was abandoned and why.

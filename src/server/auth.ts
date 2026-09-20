@@ -11,7 +11,7 @@ import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 //
 // better-auth scopes keys to a user. This controller has no human users, so one local service
 // account stands in as the owner. It has no credentials and cannot sign in.
-const SERVICE_ACCOUNT_EMAIL = "controller@pve-herdr-agents.local";
+const SERVICE_ACCOUNT_EMAIL = "controller@pve-agents.local";
 
 // API keys guard operations that clone and purge real containers, so the allowance is generous
 // enough for an operator driving the CLI but far from unlimited.
@@ -125,7 +125,7 @@ export async function issueControllerApiKey(
 				createdAt: now,
 				email: SERVICE_ACCOUNT_EMAIL,
 				emailVerified: true,
-				name: "pve-herdr-agents controller",
+				name: "pve-agents controller",
 				updatedAt: now,
 			},
 			model: "user",

@@ -12,13 +12,13 @@ describe("workspaceOutcome", () => {
 	it("finds the branch the work went to", () => {
 		expect(
 			workspaceOutcome({
-				events: [pushed("herdr/agent-8d1f")],
+				events: [pushed("pve-agents/agent-8d1f")],
 				repository: REPOSITORY,
 			}),
 		).toEqual({
-			branch: "herdr/agent-8d1f",
+			branch: "pve-agents/agent-8d1f",
 			kind: "pushed",
-			url: "https://github.com/ndom91/open-plan-annotator/tree/herdr/agent-8d1f",
+			url: "https://github.com/ndom91/open-plan-annotator/tree/pve-agents/agent-8d1f",
 		});
 	});
 
@@ -29,7 +29,7 @@ describe("workspaceOutcome", () => {
 		// produced exactly that pair on a real workspace.
 		expect(
 			workspaceOutcome({
-				events: [pushed("herdr/agent-8d1f")],
+				events: [pushed("pve-agents/agent-8d1f")],
 				repository: REPOSITORY,
 				unsavedWork: true,
 			}).kind,
@@ -40,11 +40,11 @@ describe("workspaceOutcome", () => {
 		// A workspace can push, carry on working, and push again. The branch named by the most
 		// recent one is where the work actually is.
 		const outcome = workspaceOutcome({
-			events: [pushed("herdr/old"), pushed("herdr/new")],
+			events: [pushed("pve-agents/old"), pushed("pve-agents/new")],
 			repository: REPOSITORY,
 		});
 
-		expect(outcome).toMatchObject({ branch: "herdr/new" });
+		expect(outcome).toMatchObject({ branch: "pve-agents/new" });
 	});
 
 	it("calls unpushed work lost rather than discarded", () => {
@@ -89,12 +89,12 @@ describe("workspaceOutcome", () => {
 	it("offers no link for a repository it cannot address", () => {
 		// A link that 404s is worse than a branch name alone, which at least says what to look for.
 		const outcome = workspaceOutcome({
-			events: [pushed("herdr/agent-1")],
+			events: [pushed("pve-agents/agent-1")],
 			repository: "gitlab.example.internal/team/thing",
 		});
 
 		expect(outcome).toEqual({
-			branch: "herdr/agent-1",
+			branch: "pve-agents/agent-1",
 			kind: "pushed",
 			url: undefined,
 		});
@@ -102,12 +102,12 @@ describe("workspaceOutcome", () => {
 
 	it("addresses an ssh remote and a .git suffix", () => {
 		const outcome = workspaceOutcome({
-			events: [pushed("herdr/agent-1")],
+			events: [pushed("pve-agents/agent-1")],
 			repository: "git@github.com:ndom91/thing.git",
 		});
 
 		expect(outcome).toMatchObject({
-			url: "https://github.com/ndom91/thing/tree/herdr/agent-1",
+			url: "https://github.com/ndom91/thing/tree/pve-agents/agent-1",
 		});
 	});
 });

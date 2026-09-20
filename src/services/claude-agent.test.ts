@@ -119,13 +119,13 @@ describe("agentEnvironment", () => {
 		// This line is sourced by a shell, so a quote in the value would end the string and leave
 		// the remainder running as commands. Checked by sourcing it in a real shell and reading
 		// the value back, because what is being tested is how a shell reads it.
-		const token = `tok'en; touch /tmp/pve-herdr-agents-should-not-exist`;
+		const token = `tok'en; touch /tmp/pve-agents-should-not-exist`;
 		const { stdout } = await run("sh", [
 			"-c",
 			`${agentEnvironment(token)}printf %s "$CLAUDE_CODE_OAUTH_TOKEN"`,
 		]);
 
 		expect(stdout).toBe(token);
-		expect(existsSync("/tmp/pve-herdr-agents-should-not-exist")).toBe(false);
+		expect(existsSync("/tmp/pve-agents-should-not-exist")).toBe(false);
 	});
 });

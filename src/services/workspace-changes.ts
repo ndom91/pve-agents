@@ -228,7 +228,7 @@ export async function discardChanges(
 // Derived from the hostname rather than chosen per push, so pushing twice updates one branch
 // instead of littering the repository with a branch per click.
 export function workspaceBranch(hostname: string): string {
-	return `herdr/${hostname}`;
+	return `pve-agents/${hostname}`;
 }
 
 // SideRead is one half of a file, or the reason there is no usable half.

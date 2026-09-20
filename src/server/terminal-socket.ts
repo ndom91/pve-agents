@@ -150,7 +150,7 @@ function open(connection: import("ws").WebSocket, session: Session): void {
 	//
 	// Left behind when the session ends. Removing it would cost another connection per close, and
 	// this is a disposable container whose /tmp goes with it.
-	const ttyFile = `/tmp/.herdr-tty-${randomUUID()}`;
+	const ttyFile = `/tmp/.pve-agents-tty-${randomUUID()}`;
 
 	const ssh = spawn(
 		"ssh",
