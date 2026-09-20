@@ -24,7 +24,11 @@ export function CodeBlock({
 			}
 		>
 			<code>
-				{tokenise(code, lang).map((token, index) =>
+				{/* trimEnd, because a <pre> honours the newline a model or a shell put at the end
+				    of its output and draws a blank line for it. Every thought in the transcript
+				    was a box one line taller than its text. Leading space is left alone: it is
+				    the first line's indentation. */}
+				{tokenise(code.trimEnd(), lang).map((token, index) =>
 					token.className === undefined ? (
 						// A plain run. Keyed by position because the same word legitimately appears
 						// many times in one block and tokens are never reordered.

@@ -137,6 +137,13 @@ p {
 	margin-top: 0;
 }
 
+/* A heading is short enough for the browser to weigh every line break in it, and a workspace
+   purpose wrapped with one word alone on the second line reads as a truncation. */
+h1,
+h2 {
+	text-wrap: balance;
+}
+
 h1 {
 	font-size: var(--text-display);
 	font-weight: 500;
@@ -1081,6 +1088,9 @@ dd {
 .agent-prose {
 	line-height: 1.5;
 	overflow-wrap: anywhere;
+	/* "pretty" rather than "balance": these paragraphs run to many lines, where balance does
+	   nothing past the last few, and the problem worth fixing here is the one-word last line. */
+	text-wrap: pretty;
 }
 
 .agent-prose > :first-child {
@@ -1189,16 +1199,20 @@ dd {
 	padding: 12px;
 }
 
+/* Balanced because both are one short sentence in a narrow card, and this is the sentence the
+   operator has to read properly before answering it. */
 .chat-approval-title {
 	color: var(--fg-bright);
 	font-weight: 600;
 	margin: 0;
+	text-wrap: balance;
 }
 
 .chat-approval-why {
 	color: var(--warn-fg);
 	font-size: var(--text-md);
 	margin: 0;
+	text-wrap: balance;
 }
 
 .chat-approval .chat-output {
@@ -1622,6 +1636,13 @@ dd {
 	color: var(--fg-bright);
 }
 
+/* The one-line answers scattered through the settings page, the timeline and the diff viewer.
+   Unstyled otherwise; they are ordinary paragraphs that happen to be short, and short is exactly
+   what balance is for. */
+.detail-note {
+	text-wrap: balance;
+}
+
 /* What a rail tab shows while it waits, or when it has nothing to show at all.
  *
  * Centred in the panel rather than left at the top, where a single sentence under the tab strip
@@ -1643,6 +1664,9 @@ dd {
 	max-width: 280px;
 	padding: 16px 18px;
 	text-align: center;
+	/* Two lines, centred, in a fixed-width card: without this the second line was routinely one
+	   word, which reads as a mistake rather than as a sentence. */
+	text-wrap: balance;
 }
 
 .panel-note-muted {
