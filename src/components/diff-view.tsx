@@ -7,6 +7,11 @@ import { MultiFileDiff } from "@pierre/diffs/react";
 // and two columns of source in what is left over is unreadable.
 const DIFF_OPTIONS = {
 	diffStyle: "unified",
+	// The renderer draws a filename bar of its own above the first line. Here that lands directly
+	// under the accordion row it was opened from, which is already the file's name, its status
+	// letter and its line counts -- so the panel said "README.md" twice, an inch apart, and the
+	// second one was the one that could not be clicked.
+	disableFileHeader: true,
 	theme: { dark: "pierre-dark", light: "pierre-light" },
 } as const;
 
