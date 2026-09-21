@@ -90,7 +90,14 @@
 	--line-raised: #1e241c;
 	--line-border-raised: #2f382c;
 	--text-tertiary: #8f9c88; /* a purpose beside a title, a hostname */
-	--text-metakey: #626e5d; /* the meta band's key, and nowhere else */
+	/* Below the 4.5:1 floor (3.5:1 on the band), and used anyway for one thing: the meta band's
+	   key. Section 6 of STYLE.md specifies this exact value there. It is a four-letter uppercase
+	   label sitting directly against the value it names, so the value carries the meaning if the
+	   label is hard to read -- the same argument section 7 makes for pairing a status dot with a
+	   word. That argument holds for a label beside its value and nowhere else, so nothing else may
+	   use this: a review found it on four more elements, one of them a standalone line of its own.
+	   Use --text-muted, which clears the floor on every surface in both themes. */
+	--text-metakey: #626e5d;
 	--text-control: #c9d6c2; /* label on an outlined button */
 	--text-on-quiet: #dbe8d2; /* on --sage-quiet */
 	--text-wordmark: #dbe4d3;

@@ -361,7 +361,7 @@ h2 {
  * To opt out, override it on the control -- `.rail-resizer` and the code editor's textarea both do,
  * because each has something better to show focus with. */
 :focus-visible {
-	outline: 2px solid var(--accent-ring);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 
@@ -371,7 +371,7 @@ h2 {
 input:focus,
 textarea:focus-visible {
 	border-color: var(--accent-fill);
-	outline: 2px solid var(--accent-ring);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 
@@ -3077,7 +3077,7 @@ button.workspace-title:hover {
 }
 
 .timeline-bar-key {
-	color: var(--text-metakey);
+	color: var(--text-muted);
 	font-family: var(--font-mono);
 	font-size: var(--text-label);
 	letter-spacing: 0.1em;
@@ -3521,7 +3521,7 @@ button.workspace-title:hover {
 	align-items: center;
 	background: var(--surface-raised);
 	border-bottom: 1px solid var(--line-hairline);
-	color: var(--text-metakey);
+	color: var(--text-muted);
 	display: flex;
 	font-family: var(--font-mono);
 	font-size: 9px;
@@ -3636,7 +3636,7 @@ button.workspace-title:hover {
 }
 
 .fleet-weak {
-	color: var(--text-metakey);
+	color: var(--text-muted);
 	font-family: var(--font-mono);
 	font-size: var(--text-label);
 	font-variant-numeric: tabular-nums;
@@ -3727,7 +3727,7 @@ button.workspace-title:hover {
 }
 
 .gone-row .fleet-col.is-state {
-	color: var(--text-metakey);
+	color: var(--text-muted);
 	font-size: var(--text-label);
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
