@@ -302,7 +302,16 @@ h2 {
 	padding: 32px 0;
 }
 
-label {
+/* The caption treatment for a form field, scoped to the wrappers that want it rather than applied
+   to every <label> in the application.
+ *
+ * As a bare element rule it reached the launch form too, which wants none of it -- so `.launch-field`
+ * restated display, `.launch-label` restated the whole type, and `.launch-hint` had to undo
+ * uppercase, tracking and the mono face to be a sentence again. Three rules fighting one.
+ *
+ * `:where()` so the weight stays at zero, which is what the bare selector had: every override
+ * further down still wins by exactly the margin it does today. */
+:where(.changes-message, .settings-field, .settings-field label, .settings-toggle) {
 	color: var(--fg-soft);
 	display: grid;
 	font-family: "SF Mono", "Roboto Mono", monospace;
@@ -312,7 +321,10 @@ label {
 	text-transform: uppercase;
 }
 
-input {
+/* The settings-screen field look, scoped the same way and for the same reason: as a bare `input`
+   rule it reached the launch form, which restated all four properties plus `outline: none` to get
+   out from under it. */
+:where(.changes-message, .settings-field, .settings-toggle) input {
 	background: var(--surface);
 	border: 1px solid var(--border-dim);
 	border-radius: 0;
@@ -457,31 +469,6 @@ dt {
 
 .workspace-purpose {
 	margin-bottom: 0;
-}
-
-dl {
-	align-items: start;
-	display: flex;
-	gap: 24px;
-	margin: 0;
-}
-
-/* Each term/description pair is its own column, so the labels share one top edge regardless of
-   how the values render. */
-dl > div {
-	display: flex;
-	flex-direction: column;
-}
-
-dt {
-	font-size: var(--text-sm);
-	margin-bottom: 4px;
-}
-
-dd {
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	margin: 0;
-	white-space: nowrap;
 }
 
 /* Status and action travel together at the right edge. As separate children of a
@@ -2373,11 +2360,7 @@ button.workspace-title:hover {
 	display: none;
 }
 
-/* `stretch`, against the global `dl { align-items: start }`. That rule is right for a definition
-   list whose values size to their text, and wrong for this one: the lifecycle strip has no
-   intrinsic width, so shrink-to-fit collapsed it to nothing at all. */
 .rail-group dl {
-	align-items: stretch;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -2396,13 +2379,9 @@ button.workspace-title:hover {
 /* The inline pair: a fixed key column, then the value. Fixed rather than sized to content so the
    values in a group start on one line -- a ragged left edge down a column of four is what makes a
    list of facts read as four separate statements. */
-/* `flex-direction` stated on all three of these, against the global `dl > div` rule that turns
-   every direct child of a definition list into a column. That rule is what makes an ordinary
-   term/value pair stack, and it is right for that -- these are rows. */
 .rail-fact {
 	align-items: baseline;
 	display: flex;
-	flex-direction: row;
 	gap: 12px;
 }
 
@@ -2480,7 +2459,6 @@ button.workspace-title:hover {
 	border: 1px solid var(--line-hairline);
 	border-radius: var(--radius-md);
 	display: flex;
-	flex-direction: row;
 	gap: 8px;
 	padding: 8px 10px;
 }
@@ -2498,7 +2476,6 @@ button.workspace-title:hover {
    says how far along it is without anybody reading a word. */
 .lifecycle {
 	display: flex;
-	flex-direction: row;
 	gap: 3px;
 }
 
@@ -3789,16 +3766,12 @@ button.workspace-title:hover {
 	border-color: var(--line-strong);
 }
 
-/* Every property stated. This is a `<small>` inside a `<label>`, and both pick up rules meant for
-   the uppercase mono field labels elsewhere on the page -- left alone it rendered as a shouted
-   caption of the sentence it is supposed to be. */
+/* A sentence, not a caption. It no longer has to say so in five properties: the field-caption rule
+   this was undoing is scoped to the settings wrappers now and does not reach here. */
 .launch-hint {
 	color: var(--text-dim);
-	font-family: var(--font-sans);
 	font-size: 11.5px;
-	letter-spacing: normal;
 	line-height: 1.5;
-	text-transform: none;
 }
 
 .launch-rule {
