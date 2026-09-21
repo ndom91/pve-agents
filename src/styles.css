@@ -3259,7 +3259,10 @@ button.workspace-title:hover {
 	display: flex;
 	flex-shrink: 0;
 	gap: 10px;
-	height: 34px;
+	/* The same height as the meta band across the column from it. Both sit directly under a 48px
+	   bar, so any difference here shows as two near-identical strips refusing to line up. The
+	   mockups draw this one at 34px and the band at 32; the mockups draw them on separate pages. */
+	height: var(--metaband-h);
 	padding: 0 16px;
 }
 
