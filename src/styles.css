@@ -3060,82 +3060,119 @@ button.workspace-title:hover {
 	padding: 0;
 }
 
-.change-entry {
-	border-bottom: 1px solid var(--border-dim);
+/* The change list: a header, then a row per file that unfolds its diff underneath.
+ *
+ * The diff itself is @pierre/diffs drawing into shadow DOM with its own theme, so the row tints,
+ * gutter and hunk strips the design specifies cannot be reached from this stylesheet. Replacing
+ * that renderer is not a refresh. What is reachable is everything around it. */
+.changes {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
 }
 
-/* The row itself. Monospace because it is a path, and paths line up. */
+.changes-bar {
+	align-items: center;
+	background: var(--surface-well);
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	gap: 10px;
+	height: 34px;
+	padding: 0 16px;
+}
+
+.changes-count {
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.changes-bar-spacer {
+	flex-grow: 1;
+}
+
+.changes-against {
+	color: var(--text-faint);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+}
+
 .change-row {
 	align-items: center;
 	background: none;
-	border: none;
-	color: var(--fg);
-	cursor: pointer;
+	border: 0;
 	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-md);
-	gap: 6px;
-	padding: 6px 4px;
+	gap: 10px;
+	padding: 8px 16px;
 	text-align: left;
+	transition: background var(--dur-fast) var(--ease);
 	width: 100%;
 }
 
 .change-row:hover {
-	background: var(--surface);
-	color: var(--fg-bright);
+	background: var(--surface-raised);
 }
 
-/* Points right when shut and down when open, so the state is legible without reading the row. */
-/* Deliberately quicker than the chat fold's caret, and deliberately not paired with a height
-   animation. The diff under this row is fetched over SSH when the row opens, so there is no
-   height to grow to at the moment of the click, and a panel that tweens to the size of a loading
-   state and then jumps is worse than one that simply appears. */
-.change-caret {
-	color: var(--fg-dim);
-	flex: none;
-	transition: transform 120ms ease;
+/* The open row is the one being read, so it takes the selected fill rather than the hover one and
+   keeps it while the pointer is elsewhere. */
+.change-row[aria-expanded="true"] {
+	background: var(--surface-select);
 }
 
-.change-row[aria-expanded="true"] .change-caret {
-	transform: rotate(90deg);
+/* One letter where a word used to be. "modified" spent a quarter of a 392px row saying what most
+   rows say; git's own letter says it in one glyph, and the word is still the row's accessible
+   name. */
+.change-mark {
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-weight: 600;
+	width: 14px;
 }
 
-/* Truncates from the left. The end of a path is the file name, which is the part worth keeping
-   when a deep path will not fit the rail. */
+.change-row.is-added .change-mark,
+.change-row.is-untracked .change-mark {
+	color: var(--green);
+}
+
+.change-row.is-modified .change-mark,
+.change-row.is-renamed .change-mark {
+	color: var(--amber);
+}
+
+.change-row.is-deleted .change-mark {
+	color: var(--red);
+}
+
+/* The whole path, with the directory dimmed so the eye lands on the name without losing the rest
+   of it. Clipped from the left would be better and is not worth a second element. */
 .change-path {
-	direction: rtl;
-	flex: 1 1 auto;
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	min-width: 0;
 	overflow: hidden;
-	text-align: left;
 	text-overflow: ellipsis;
-	unicode-bidi: plaintext;
 	white-space: nowrap;
 }
 
-/* The status, coloured rather than abbreviated: green for work that arrived, red for work that
-   went, amber for work that changed. */
-.change-status {
-	flex: none;
-	font-size: var(--text-xs);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
+.change-dir {
+	color: var(--text-dim);
 }
 
-.change-row.is-added .change-status,
-.change-row.is-untracked .change-status {
-	color: var(--accent);
+.change-name {
+	color: var(--text-secondary);
 }
 
-.change-row.is-modified .change-status {
-	color: var(--status-modified);
+.change-row[aria-expanded="true"] .change-name {
+	color: var(--text-primary);
 }
 
-.change-row.is-deleted .change-status {
-	color: var(--status-deleted);
-}
-
-.change-row.is-renamed .change-status {
-	color: var(--fg-muted);
+.change-entry {
+	border-bottom: 1px solid var(--border-dim);
 }
 
 /* Indented under its row so a long diff still reads as belonging to it, and capped in height so

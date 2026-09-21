@@ -10,9 +10,11 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 // ever deals with files. The commit and discard controls sit under the tabs rather than in here,
 // because they act on the workspace rather than on any one row.
 export function ChangesPanel({
+	against,
 	changes,
 	workspaceId,
 }: {
+	against?: string;
 	changes?: ChangedFiles;
 	workspaceId: string;
 }): ReactNode {
@@ -42,5 +44,11 @@ export function ChangesPanel({
 		);
 	}
 
-	return <ChangesAccordion files={changes.files} workspaceId={workspaceId} />;
+	return (
+		<ChangesAccordion
+			against={against}
+			files={changes.files}
+			workspaceId={workspaceId}
+		/>
+	);
 }

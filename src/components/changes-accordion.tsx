@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { fileDiffQuery } from "../lib/queries";
@@ -18,9 +17,14 @@ import { FileDiff } from "./file-diff";
 // the full path already says where each one lives. Nesting bought grouping at the cost of a
 // virtualising tree that could not host anything underneath a row, which is the whole feature.
 export function ChangesAccordion({
+	against,
 	files,
 	workspaceId,
 }: {
+	// What the changes are measured against, for the header. The branch the workspace was cut
+	// from, not the one it would push to. Not called `ref`: that is React's own prop name, and a
+	// component taking one by accident is a bug nobody reads twice.
+	against?: string;
 	files: ChangedFile[];
 	workspaceId: string;
 }): ReactNode {
@@ -29,37 +33,85 @@ export function ChangesAccordion({
 	const { isOpen, toggle } = useOpenRows();
 
 	return (
-		<ol className="changes-accordion">
-			{files.map((file) => {
-				const expanded = isOpen(file.path);
+		<div className="changes">
+			{/* How much there is, and what it is a change from. The mockup carries added and
+			    removed line counts here as well; this side counts files, not lines -- the status
+			    walk reports a path and a letter per file and never opens one -- so the numbers
+			    would have to be invented. */}
+			<div className="changes-bar">
+				<span className="changes-count">
+					{files.length === 1 ? "1 file" : `${files.length} files`}
+				</span>
+				<span className="changes-bar-spacer" />
+				{against === undefined ? null : (
+					<span className="changes-against">vs {against}</span>
+				)}
+			</div>
 
-				return (
-					<li className="change-entry" key={file.path}>
-						<button
-							aria-expanded={expanded}
-							className={`change-row is-${file.status}`}
-							onClick={() => toggle(file.path)}
-							type="button"
-						>
-							<ChevronRight
-								aria-hidden
-								className="change-caret"
-								size={12}
-								strokeWidth={2}
-							/>
-							{/* The whole path, not the file name. Two files called config.ts are told
-							    apart by reading rather than by hovering, which is what a tab needed. */}
-							<span className="change-path">{file.path}</span>
-							<span className="change-status">{file.status}</span>
-						</button>
-						{expanded ? (
-							<ChangeDiff path={file.path} workspaceId={workspaceId} />
-						) : null}
-					</li>
-				);
-			})}
-		</ol>
+			<ol className="changes-accordion">
+				{files.map((file) => {
+					const expanded = isOpen(file.path);
+
+					return (
+						<li className="change-entry" key={file.path}>
+							<button
+								aria-expanded={expanded}
+								// Stated, because the path is split across two spans to dim the
+								// directory and the accessible name computation joins them with a
+								// space -- "src/b/ config.ts" is not a path anybody can search for.
+								// It carries the status too, which the letter alone does not.
+								aria-label={`${file.path}, ${file.status}`}
+								className={`change-row is-${file.status}`}
+								onClick={() => toggle(file.path)}
+								type="button"
+							>
+								{/* One letter, coloured. The word it replaces spent a quarter of a
+							    392px row saying "modified" on every line of a list where most
+							    things are modified. The status is still the accessible name of the
+							    row, so nothing is lost to a reader who cannot see the colour. */}
+								<span aria-hidden="true" className="change-mark">
+									{MARKS[file.status]}
+								</span>
+								{/* The whole path, not the file name. Two files called config.ts are told
+							    apart by reading rather than by hovering, which is what a tab needed.
+							    The directory is dimmed so the eye lands on the name without losing
+							    the rest of it. */}
+								<span className="change-path">
+									<span className="change-dir">{directory(file.path)}</span>
+									<span className="change-name">{basename(file.path)}</span>
+								</span>
+							</button>
+							{expanded ? (
+								<ChangeDiff path={file.path} workspaceId={workspaceId} />
+							) : null}
+						</li>
+					);
+				})}
+			</ol>
+		</div>
 	);
+}
+
+// MARKS is git's own letter for each status. Renamed is R and untracked is A: an untracked file is
+// one git has not been told about yet, and to a reader it is a file that was not there before.
+const MARKS: Record<string, string> = {
+	added: "A",
+	deleted: "D",
+	modified: "M",
+	renamed: "R",
+	untracked: "A",
+};
+
+// directory is everything up to and including the last slash, or nothing for a file at the root.
+function directory(path: string): string {
+	const cut = path.lastIndexOf("/");
+
+	return cut === -1 ? "" : path.slice(0, cut + 1);
+}
+
+// basename is the part somebody is actually looking for.
+function basename(path: string): string {
+	return path.slice(path.lastIndexOf("/") + 1);
 }
 
 // ChangeDiff reads one file and renders its two sides.

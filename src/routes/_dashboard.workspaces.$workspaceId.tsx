@@ -422,6 +422,7 @@ function WorkspaceDetail() {
 				changes={
 					!ready ? undefined : (
 						<ChangesPanel
+							against={workspace.ref}
 							changes={changes}
 							key={discarded}
 							workspaceId={workspaceId}
