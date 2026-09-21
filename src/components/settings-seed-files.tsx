@@ -275,19 +275,6 @@ function SeedForm({
 
 	return (
 		<div className="seed-form">
-			{/* The destination, once, at the top where a file name belongs. It used to be printed
-			    again in the editor's status bar, which with the two an inch apart was the same
-			    string twice. */}
-			<p
-				className={
-					destination.kind === "valid" ? "seed-head" : "seed-head is-wrong"
-				}
-			>
-				{destination.kind === "invalid"
-					? destination.message
-					: resolveSeedPath(root, destination.path)}
-			</p>
-
 			<div className="seed-where">
 				<div className="settings-field">
 					<label htmlFor={rootId}>
@@ -333,7 +320,22 @@ function SeedForm({
 					// without anybody choosing a language.
 					lang={languageOfPath(path)}
 					onChange={onDraft}
-					status={<span>{languageOfPath(path)}</span>}
+					// Attached to the text it describes rather than floating above the fields as a
+					// line of its own: the destination on the left, the language on the right.
+					status={
+						<>
+							<span
+								className={
+									destination.kind === "valid" ? "is-path" : "is-wrong"
+								}
+							>
+								{destination.kind === "invalid"
+									? destination.message
+									: resolveSeedPath(root, destination.path)}
+							</span>
+							<span>{languageOfPath(path)}</span>
+						</>
+					}
 					value={content}
 				/>
 			)}
@@ -352,7 +354,7 @@ function SeedForm({
 					<Button
 						disabled={busy}
 						onClick={() => void remove()}
-						variant="tertiary"
+						variant="danger"
 					>
 						Remove
 					</Button>

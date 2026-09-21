@@ -430,6 +430,28 @@ button {
 
 /* Neither fill nor border, so it reads as an affordance rather than as a control sitting beside
    the one that matters. */
+/* Secondary's shape, in the destroy ramp. The same red as the destroy icon button, deliberately:
+   an irreversible control should look the same whether it is a glyph or a word, and Remove on the
+   seed files tab was wearing `tertiary` -- the quietest thing in the vocabulary -- for an action
+   that takes a file away from every workspace built from now on. */
+.button.is-danger {
+	border-color: var(--red-line);
+	color: var(--red);
+}
+
+.button.is-danger:hover:not(:disabled) {
+	background: var(--surface-raised);
+	border-color: var(--red-line-strong);
+	color: var(--red-ink);
+}
+
+/* Red ring on a destructive control, per section 5, and the same outline mechanism the icon
+   button uses so there is only one of them to remember. */
+.button.is-danger:focus-visible {
+	outline: 2px solid var(--red-line-strong);
+	outline-offset: 2px;
+}
+
 .button.is-tertiary {
 	color: var(--fg-soft);
 }
@@ -740,7 +762,10 @@ button {
 	caret-color: var(--fg-bright);
 	color: transparent;
 	display: block;
-	min-height: 180px;
+	/* Twice the old 180. The editor sits in a pinned pane beside a six-row index, so the column
+	   below it was empty down to the fold; the default now shows roughly a screenful of a seed
+	   file instead of a window onto one. Still `resize: vertical`, so it is a starting height. */
+	min-height: 360px;
 	outline: none;
 	position: relative;
 	resize: vertical;
@@ -943,21 +968,6 @@ button {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-}
-
-/* The destination, once, at the top where a file name belongs. It was printed again in the
-   editor's status bar until the two ended up an inch apart saying the same string. */
-.seed-head {
-	color: var(--text-primary);
-	font-family: var(--font-mono);
-	font-size: var(--text-mono-sm);
-	margin: 0;
-	overflow-wrap: anywhere;
-}
-
-/* The one state where this line reports a problem rather than a fact. */
-.seed-head.is-wrong {
-	color: var(--red-ink);
 }
 
 .seed-where {
@@ -1194,6 +1204,42 @@ button {
 .sidebar-nav {
 	display: flex;
 	flex-direction: column;
+}
+
+/* A destination, not a workspace. Shaped like `.sidebar-entry` -- same 14px gutter, same fill and
+   same 2px sage bar when it is the open page -- because it sits in the same column and a second
+   way of drawing "the row you are on" is a second thing to learn. One line rather than two: it
+   has no host, no repo and no age to carry. */
+.sidebar-link {
+	align-items: center;
+	color: var(--text-secondary);
+	display: flex;
+	font-size: var(--text-body-sm);
+	gap: 8px;
+	padding: 9px 14px;
+	position: relative;
+	text-decoration: none;
+	transition: background var(--dur-fast) var(--ease);
+}
+
+.sidebar-link:hover {
+	background: var(--surface-raised);
+	color: var(--text-primary);
+}
+
+.sidebar-link.is-active {
+	background: var(--surface-select);
+	color: var(--text-primary);
+}
+
+.sidebar-link.is-active::before {
+	background: var(--sage);
+	bottom: 0;
+	content: "";
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 2px;
 }
 
 /* The head's own padding, so the rule inside it stops 14px from the edge while the rows below it

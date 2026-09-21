@@ -5,7 +5,7 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
-import { Bell, ChevronRight, LogOut, Plus, Settings } from "lucide-react";
+import { Bell, ChevronRight, Home, LogOut, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 
 import { IconButton, IconLink } from "../components/icon-button";
@@ -90,6 +90,24 @@ function Dashboard() {
 				)}
 
 				<nav className="sidebar-nav">
+					{/* The fleet, above the two groups rather than inside either, because it is
+					    not one of them -- it is where you go to see all of them at once.
+					    `exact`, or it would light up on every workspace page nested under it.
+
+					    The footer's New button points here too. That is the same screen reached
+					    for two different reasons: this is navigation and that is an action, and
+					    an operator looking for the fleet should not have to read "new" to find
+					    it. */}
+					<Link
+						activeOptions={{ exact: true }}
+						activeProps={{ className: "sidebar-link is-active" }}
+						className="sidebar-link"
+						to="/"
+					>
+						<Home aria-hidden="true" size={13} strokeWidth={1.6} />
+						<span>Home</span>
+					</Link>
+
 					<div className="sidebar-section">
 						<SectionHead count={live.length} label="Running" />
 						{live.length === 0 ? (
