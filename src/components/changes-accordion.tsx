@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { fileDiffQuery } from "../lib/queries";
+import { fileDiffQuery, workspaceKeys } from "../lib/queries";
 import { useOpenRows } from "../lib/use-open-rows";
 import type { ChangedFile } from "../services/workspace-changes";
 import { FileDiff } from "./file-diff";
+import { IconButton } from "./icon-button";
 
 // ChangesAccordion is what the agent changed, as one page.
 //
@@ -31,21 +33,44 @@ export function ChangesAccordion({
 	// Held here rather than by the page, and it survives switching to another tab and back, because
 	// the rail keeps an opened panel mounted rather than unmounting it.
 	const { isOpen, toggle } = useOpenRows();
+	const queryClient = useQueryClient();
+	// By key rather than from the query itself, because this component is handed its files as a
+	// prop and never calls useQuery for them -- the page above owns that. Counting the fetches in
+	// flight against the key is how the button learns it is working.
+	const isFetching =
+		useIsFetching({ queryKey: workspaceKeys.changes(workspaceId) }) > 0;
 
 	return (
 		<div className="changes">
-			{/* How much there is, and what it is a change from. The mockup carries added and
-			    removed line counts here as well; this side counts files, not lines -- the status
-			    walk reports a path and a letter per file and never opens one -- so the numbers
-			    would have to be invented. */}
+			{/* How much there is, what it is a change from, and a way to ask again. */}
 			<div className="panel-bar">
 				<span className="changes-count">
 					{files.length === 1 ? "1 file" : `${files.length} files`}
 				</span>
+				{/* Summed from the rows rather than reported separately by the server, so the
+				    total and the numbers underneath it cannot disagree. */}
+				<Stat added={total(files, "added")} removed={total(files, "removed")} />
 				<span className="spacer" />
 				{against === undefined ? null : (
 					<span className="changes-against">vs {against}</span>
 				)}
+				{/* Not a new flow: the query behind this polls already, and this is the same
+				    refetch on demand. It earns its place because the poll is fifteen seconds and
+				    the question "did that land yet" is asked on a shorter clock than that. */}
+				<IconButton
+					className="changes-reload"
+					disabled={isFetching}
+					icon={RefreshCw}
+					label="Re-read the checkout"
+					onClick={() => {
+						void queryClient.invalidateQueries({
+							queryKey: workspaceKeys.changes(workspaceId),
+						});
+					}}
+					size={12}
+					strokeWidth={1.3}
+					variant="tertiary"
+				/>
 			</div>
 
 			<ol className="changes-accordion">
@@ -80,6 +105,10 @@ export function ChangesAccordion({
 									<span className="change-dir">{directory(file.path)}</span>
 									<span className="change-name">{basename(file.path)}</span>
 								</span>
+								{/* Absent, not zero, when git could not count -- a binary file, or
+								    a path the two walks disagreed about. "+0 −0" would read as a
+								    file that changed in no way, which is a different claim. */}
+								<Stat added={file.added} removed={file.removed} />
 							</button>
 							{expanded ? (
 								<ChangeDiff path={file.path} workspaceId={workspaceId} />
@@ -90,6 +119,46 @@ export function ChangesAccordion({
 			</ol>
 		</div>
 	);
+}
+
+// Stat is a pair of line counts, or nothing.
+//
+// Both halves are always drawn when either is known, including a zero, because the pair is read
+// as a shape -- a lone "+96" and a "+96 −0" look like different amounts of information about the
+// same file. Nothing at all is the separate case, and it means git could not count.
+function Stat({
+	added,
+	removed,
+}: {
+	added?: number;
+	removed?: number;
+}): ReactNode {
+	if (added === undefined && removed === undefined) {
+		return null;
+	}
+
+	return (
+		<span className="change-stat">
+			<span className="is-added">+{added ?? 0}</span>
+			{/* A minus sign, not a hyphen. It sits beside a plus and has to weigh the same. */}
+			<span className="is-removed">&minus;{removed ?? 0}</span>
+		</span>
+	);
+}
+
+// total adds one side of the counts across every file, and is undefined when nothing could be
+// counted at all -- a change list of nothing but binaries has no total to print.
+function total(
+	files: ChangedFile[],
+	side: "added" | "removed",
+): number | undefined {
+	const known = files
+		.map((file) => file[side])
+		.filter((count) => count !== undefined);
+
+	return known.length === 0
+		? undefined
+		: known.reduce((sum, count) => sum + count, 0);
 }
 
 // MARKS is git's own letter for each status. Renamed is R and untracked is A: an untracked file is

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { ChangedFile } from "../services/workspace-changes";
 import { ChangesAccordion } from "./changes-accordion";
+import { TooltipProvider } from "./tooltip";
 
 // Testing Library only registers its own afterEach with vitest globals enabled, which they are not.
 afterEach(cleanup);
@@ -21,7 +22,12 @@ function accordion(files: ChangedFile[]) {
 				new QueryClient({ defaultOptions: { queries: { retry: false } } })
 			}
 		>
-			<ChangesAccordion files={files} workspaceId="w1" />
+			{/* The bar's reload control is an IconButton, and those carry a Radix tooltip that
+			    throws without a provider above it. The application has one at the document root;
+			    a component rendered on its own has to bring its own. */}
+			<TooltipProvider>
+				<ChangesAccordion files={files} workspaceId="w1" />
+			</TooltipProvider>
 		</QueryClientProvider>
 	);
 }
@@ -91,5 +97,42 @@ describe("ChangesAccordion", () => {
 				name: /src\/a\/config\.ts/,
 			}),
 		).toBeDefined();
+	});
+
+	it("totals the line counts across the list", () => {
+		// Summed here rather than reported by the server, so the number in the bar and the numbers
+		// under it cannot drift apart.
+		const { container } = render(
+			accordion([
+				{ added: 96, path: "a.ts", removed: 0, status: "added" },
+				{ added: 26, path: "b.ts", removed: 18, status: "modified" },
+			]),
+		);
+
+		const bar = container.querySelector(".panel-bar .change-stat");
+		expect(bar?.textContent).toBe("+122−18");
+	});
+
+	it("prints nothing where git could not count", () => {
+		// A binary file. "+0 −0" would say it changed in no way, which is a different claim from
+		// "there are no lines here to count".
+		const { container } = render(
+			accordion([
+				{ added: 3, path: "a.ts", removed: 1, status: "modified" },
+				{ path: "logo.png", status: "modified" },
+			]),
+		);
+
+		const rows = [...container.querySelectorAll(".change-row")];
+		expect(rows[0]?.querySelector(".change-stat")?.textContent).toBe("+3−1");
+		expect(rows[1]?.querySelector(".change-stat")).toBeNull();
+	});
+
+	it("shows no total when nothing in the list could be counted", () => {
+		const { container } = render(
+			accordion([{ path: "logo.png", status: "modified" }]),
+		);
+
+		expect(container.querySelector(".panel-bar .change-stat")).toBeNull();
 	});
 });

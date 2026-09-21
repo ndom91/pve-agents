@@ -3082,6 +3082,15 @@ diffs-container {
 	min-height: 0;
 }
 
+/* Pinned to the bar's height rather than the icon button's standalone 32px, the same way the
+   screen bar's controls are, so the row does not grow to fit one glyph. */
+.changes-reload {
+	flex-shrink: 0;
+	height: 22px;
+	margin-left: 8px;
+	width: 22px;
+}
+
 .changes-count {
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
@@ -3115,6 +3124,43 @@ diffs-container {
    keeps it while the pointer is elsewhere. */
 .change-row[aria-expanded="true"] {
 	background: var(--surface-select);
+}
+
+/* Lines added and removed, at the end of a row and in the bar above the list.
+ *
+ * Tabular, and the two halves are fixed-width and right-aligned, so the plus column and the minus
+ * column each line up down the list -- these are read by comparing one row against another, which
+ * ragged numbers make impossible. */
+.change-stat {
+	display: flex;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-variant-numeric: tabular-nums;
+	gap: 10px;
+}
+
+.change-stat .is-added {
+	color: var(--green);
+	min-width: 26px;
+	text-align: right;
+}
+
+.change-stat .is-removed {
+	color: var(--red);
+	min-width: 26px;
+	text-align: right;
+}
+
+/* In the bar the pair sits next to the file count rather than at the far end, so "3 files" and
+   what those files cost read as one phrase. The row's own gap is enough between them. */
+.panel-bar .change-stat {
+	margin-left: 2px;
+}
+
+.panel-bar .change-stat .is-added,
+.panel-bar .change-stat .is-removed {
+	min-width: 0;
 }
 
 /* One letter where a word used to be. "modified" spent a quarter of a 392px row saying what most

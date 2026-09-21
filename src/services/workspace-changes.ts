@@ -12,7 +12,17 @@ export type FileStatus =
 	| "untracked";
 
 // ChangedFile is one entry in what the agent has done to the checkout.
-export type ChangedFile = { path: string; status: FileStatus };
+//
+// The two counts are optional and mean "not knowable", never zero. A binary file has no lines to
+// count and git says so with a dash; a path that porcelain lists and numstat does not is a file
+// the two walks disagreed about, which is a thing to print nothing for rather than a confident
+// "+0 −0" that reads as "nothing changed here".
+export type ChangedFile = {
+	added?: number;
+	path: string;
+	removed?: number;
+	status: FileStatus;
+};
 
 // ChangedFiles is what the agent has done, in both the places it can live.
 //
@@ -73,7 +83,31 @@ const STATUS = [
 	// positive ref to walk, so it counts zero however much is unpushed. It reported exactly that
 	// against a workspace holding a commit.
 	"git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0",
-	"git status --porcelain -z",
+	// Lines added and removed per file, into a throwaway index.
+	//
+	// GIT_INDEX_FILE is the whole trick. `add -A` is the only one of these that sees every kind
+	// of change at once -- `git diff --numstat HEAD` cannot see an untracked file, which is the
+	// commonest thing an agent does, and `add -N` picks those up but silently drops deletions.
+	// Pointed at a temp path it stages nothing the operator will ever see: their index is exactly
+	// as they left it. It does write blobs into the object store, which is ordinary loose-object
+	// churn for gc to collect.
+	//
+	// --no-renames keeps every record the same shape. With detection on, -z emits an empty path
+	// field and then two more, and the status walk below has already collapsed a rename to its
+	// new path, so there would be no pair left to match.
+	'IDX="$(mktemp -u)"',
+	'GIT_INDEX_FILE="$IDX" git read-tree HEAD 2>/dev/null',
+	'GIT_INDEX_FILE="$IDX" git add -A 2>/dev/null',
+	'GIT_INDEX_FILE="$IDX" git diff --cached --numstat -z --no-renames HEAD 2>/dev/null',
+	'rm -f "$IDX"',
+	// The boundary between the two NUL-separated blocks. A numstat record always carries two tabs
+	// before its path, so a field that is exactly this cannot be one -- a file actually named END
+	// still arrives as "1\t0\tEND".
+	"printf 'END\\0'",
+	// -uall, not the default. Without it an untracked directory collapses to "sub/" and the panel
+	// renders a directory as a file, offering a diff of something that cannot have one. It is also
+	// what makes these paths line up with numstat's.
+	"git status --porcelain -z -uall",
 ].join("\n");
 
 // BEFORE reads a file as it was at the last commit.
@@ -143,12 +177,59 @@ export async function changedFiles(
 	}
 
 	const newline = result.stdout.indexOf("\n");
+	// Everything after the count is two NUL-separated blocks with a sentinel between them. Split
+	// once, here, so neither parser below has to know the other exists.
+	const fields = result.stdout
+		.slice(newline + 1)
+		.split("\0")
+		.filter((field) => field !== "");
+	const boundary = fields.indexOf(SENTINEL);
+	const counted = parseNumstat(
+		boundary === -1 ? [] : fields.slice(0, boundary),
+	);
 
 	return {
-		files: parseStatus(result.stdout.slice(newline + 1)),
+		// Porcelain decides which files exist and what happened to them; numstat only supplies
+		// numbers. A path in one and not the other keeps its row and loses its counts, which is
+		// the honest way round -- the alternative hides a change because a count was missing.
+		files: parseStatus(fields.slice(boundary + 1)).map((file) => ({
+			...file,
+			...counted.get(file.path),
+		})),
 		kind: "changes",
 		unpushed: Number.parseInt(result.stdout.slice(0, newline).trim(), 10) || 0,
 	};
+}
+
+const SENTINEL = "END";
+
+// parseNumstat reads the line counts, keyed by path.
+//
+// Each record is "added\tremoved\tpath". A binary file has dashes where the numbers would be, and
+// those become no entry at all rather than zeroes: git is saying it cannot count, not that there
+// was nothing to count.
+function parseNumstat(
+	fields: string[],
+): Map<string, { added: number; removed: number }> {
+	const counts = new Map<string, { added: number; removed: number }>();
+
+	for (const record of fields) {
+		const first = record.indexOf("\t");
+		const second = record.indexOf("\t", first + 1);
+		if (first === -1 || second === -1) {
+			continue;
+		}
+
+		const added = Number.parseInt(record.slice(0, first), 10);
+		const removed = Number.parseInt(record.slice(first + 1, second), 10);
+		if (Number.isNaN(added) || Number.isNaN(removed)) {
+			continue;
+		}
+
+		counts.set(record.slice(second + 1), { added, removed });
+	}
+
+	return counts;
 }
 
 // fileSides reads one file as it was and as it is.
@@ -278,8 +359,7 @@ async function side(
 // Every record is a two-letter code, a space, then a path. A rename or a copy carries the original
 // path as the next record, which is consumed and dropped: the tree shows where a file is now, and
 // showing both would list a rename twice.
-function parseStatus(stdout: string): ChangedFile[] {
-	const fields = stdout.split("\0").filter((field) => field !== "");
+function parseStatus(fields: string[]): ChangedFile[] {
 	const files: ChangedFile[] = [];
 
 	for (let index = 0; index < fields.length; index += 1) {

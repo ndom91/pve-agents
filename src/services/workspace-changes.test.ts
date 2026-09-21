@@ -139,6 +139,98 @@ describe("changedFiles", () => {
 		});
 	});
 
+	it("puts each file's line counts on the file they belong to", async () => {
+		const listed = await changedFiles(
+			TARGET,
+			CWD,
+			status([" M src/index.ts", "?? NOTES.md", " D src/gone.ts"], 0, [
+				"12\t3\tsrc/index.ts",
+				"40\t0\tNOTES.md",
+				"0\t18\tsrc/gone.ts",
+			]),
+		);
+
+		expect(listed).toEqual({
+			files: [
+				{ added: 12, path: "src/index.ts", removed: 3, status: "modified" },
+				// The untracked case, which is the reason the script stages into a throwaway
+				// index at all: plain `git diff --numstat HEAD` cannot see this file.
+				{ added: 40, path: "NOTES.md", removed: 0, status: "untracked" },
+				// And the deletion, which is what `git add -N` silently dropped.
+				{ added: 0, path: "src/gone.ts", removed: 18, status: "deleted" },
+			],
+			kind: "changes",
+			unpushed: 0,
+		});
+	});
+
+	it("leaves a binary file without counts rather than calling it zero", async () => {
+		// git prints dashes here because it cannot count lines in a binary, which is a different
+		// statement from "nothing changed" and has to render as a different thing.
+		const listed = await changedFiles(
+			TARGET,
+			CWD,
+			status([" M logo.png"], 0, ["-\t-\tlogo.png"]),
+		);
+
+		expect(listed).toEqual({
+			files: [{ path: "logo.png", status: "modified" }],
+			kind: "changes",
+			unpushed: 0,
+		});
+	});
+
+	it("keeps a file the two walks disagree about, without numbers", async () => {
+		// The status walk decides what exists. A path it lists and numstat does not is still a
+		// change worth showing; dropping the row would hide it because a count was missing.
+		const listed = await changedFiles(
+			TARGET,
+			CWD,
+			status([" M src/index.ts", " M src/other.ts"], 0, ["1\t1\tsrc/index.ts"]),
+		);
+
+		expect(listed).toEqual({
+			files: [
+				{ added: 1, path: "src/index.ts", removed: 1, status: "modified" },
+				{ path: "src/other.ts", status: "modified" },
+			],
+			kind: "changes",
+			unpushed: 0,
+		});
+	});
+
+	it("survives the counts being missing altogether", async () => {
+		// The numstat commands are suppressed with 2>/dev/null, so a checkout where they fail
+		// reports an empty block. Every file keeps its row and loses only its numbers.
+		const listed = await changedFiles(TARGET, CWD, status([" M a.ts"], 0, []));
+
+		expect(listed).toEqual({
+			files: [{ path: "a.ts", status: "modified" }],
+			kind: "changes",
+			unpushed: 0,
+		});
+	});
+
+	it("asks for untracked files one by one, not as a directory", async () => {
+		// Without -uall an untracked directory collapses to "sub/", and the panel renders a
+		// directory as a file and then offers a diff of something that cannot have one.
+		const { commands, ssh } = runs();
+		await changedFiles(TARGET, CWD, ssh);
+
+		expect(commands[0]?.join(" ")).toContain("--porcelain -z -uall");
+	});
+
+	it("counts into a throwaway index, never the operator's", async () => {
+		// The whole reason `git add -A` is acceptable here. Staging the real index as a side
+		// effect of drawing a panel would change what a later commit picks up.
+		const { commands, ssh } = runs();
+		await changedFiles(TARGET, CWD, ssh);
+
+		const script = commands[0]?.join(" ") ?? "";
+		expect(script).toContain("GIT_INDEX_FILE");
+		expect(script).not.toMatch(/(^|\n)\s*git add -A/);
+	});
+
 	it("reports a broken checkout rather than an empty list", async () => {
 		// An empty list reads as "the agent changed nothing", which would be a lie about a
 		// workspace whose clone failed.
@@ -318,13 +410,19 @@ describe("workspaceBranch", () => {
 });
 
 // status fakes porcelain -z output, whose records are NUL-separated rather than newline-separated.
-function status(records: string[], unpushed = 0): SshRunner {
+function status(
+	records: string[],
+	unpushed = 0,
+	numstat: string[] = [],
+): SshRunner {
 	return async (): Promise<SshResult> => ({
 		code: 0,
 		kind: "ran",
 		stderr: "",
-		// The count on its own line first, then the NUL-separated file list, which is the shape the
-		// real script emits and the reason it is ordered that way: a path may contain a newline.
-		stdout: `${unpushed}\n${records.join("\0")}\0`,
+		// The count on its own line first -- a path may contain a newline, which is why everything
+		// after it is NUL-separated -- then the numstat block, the sentinel, and the file list.
+		// The real script's exact shape, so a change to the framing breaks these rather than
+		// passing against a fixture that no longer resembles it.
+		stdout: `${unpushed}\n${[...numstat, "END", ...records].join("\0")}\0`,
 	});
 }
