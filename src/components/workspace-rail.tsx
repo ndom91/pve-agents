@@ -6,6 +6,10 @@ import {
 	parseRepository,
 	repositoryPage,
 } from "../domain/repository";
+import {
+	LIFECYCLE_STEPS,
+	lifecycleReached,
+} from "../domain/workspace-lifecycle";
 import { formatStamp, UTC } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 import { useRailWidth } from "../lib/use-rail-width";
@@ -14,13 +18,17 @@ import { useRailWidth } from "../lib/use-rail-width";
 // that has to stay true, and the one the pushes actually use is that one.
 import { workspaceBranch } from "../services/workspace-changes";
 import { CopyButton } from "./copy-button";
+import { Elapsed } from "./elapsed";
 import { IconOutLink } from "./icon-button";
 import { RailResizer } from "./rail-resizer";
+import { SectionHead } from "./section-head";
+import { StatusDot } from "./status-dot";
 import { type Tab, TabStrip } from "./tab-strip";
 
 // RailWorkspace is the placement detail the rail reads. Structural rather than the full record, so
 // this does not have to move every time the workspace type grows a field it does not show.
 type RailWorkspace = {
+	activity?: string;
 	activityObservedAt?: string;
 	createdAt?: string;
 	currentStep?: string;
@@ -34,6 +42,7 @@ type RailWorkspace = {
 	readyAt?: string;
 	ref?: string;
 	repository?: string;
+	status?: string;
 	taskUPID?: string;
 	updatedAt?: string;
 	vmid?: number;
@@ -84,6 +93,7 @@ export function WorkspaceRail({
 		workspace.hostname === undefined
 			? undefined
 			: workspaceBranch(workspace.hostname);
+	const status = workspace.status;
 	// Links only for a repository that parses. A stored value that does not is a workspace that
 	// failed before it cloned, and a link built from it would go somewhere that is not there.
 	const source = sourceLinks(workspace.repository, branch);
@@ -152,9 +162,10 @@ export function WorkspaceRail({
 	return (
 		<aside className="dashboard-rail" style={sized}>
 			<RailResizer onResize={setWidth} width={width} />
-			{tabbed === undefined ? (
-				<p className="sidebar-label">Placement</p>
-			) : (
+			{/* A workspace with nothing but placement to show gets no tab strip -- a row of one
+			    tab is a label pretending to be a control. The 48px the strip would have taken goes
+			    to the panel instead. */}
+			{tabbed === undefined ? null : (
 				<Tabs
 					changes={changes}
 					onTab={onTab}
@@ -164,64 +175,121 @@ export function WorkspaceRail({
 				/>
 			)}
 			<div className="rail-facts">
-				<Group title="Source">
-					<Fact
-						copy
-						href={source?.repository}
-						label="Repository"
-						value={workspace.repository}
-						wide
+				{/* What the container is doing, before any of the reference material. It answers the
+				    question somebody opens this tab with; the sections below answer the ones they
+				    have after that. */}
+				<div className="rail-state">
+					<StatusDot
+						activity={workspace.activity}
+						status={status ?? "unknown"}
 					/>
+					<span className="rail-state-word">{status ?? "unknown"}</span>
+					{status === "ready" && workspace.activity !== undefined ? (
+						<span className="rail-state-sub">
+							&middot; {workspace.activity}
+						</span>
+					) : null}
+					<span className="rail-state-spacer" />
+					<span className="rail-state-up">
+						{workspace.readyAt === undefined ? null : (
+							<>
+								up <Elapsed of="uptime" since={workspace.readyAt} />
+							</>
+						)}
+					</span>
+				</div>
+
+				<Group
+					action={
+						source?.repository === undefined ? undefined : (
+							<IconOutLink
+								className="is-inline"
+								href={source.repository}
+								icon={ExternalLink}
+								label="Open repository on GitHub"
+								size={11}
+								variant="tertiary"
+							/>
+						)
+					}
+					title="Source"
+				>
+					<Fact label="Repository" value={workspace.repository} />
 					<Fact label="Ref" value={workspace.ref} />
-					<Fact copy href={source?.branch} label="Branch" value={branch} wide />
+					<Fact
+						href={source?.branch}
+						label="Branch"
+						linkLabel="Open branch on GitHub"
+						value={branch}
+					/>
 				</Group>
 
-				{/* Node, vmid and address used to lead this group. They are in the meta band
-				    under the top bar now, which is the point of the band -- they are the facts you
-				    reach for when something has gone wrong, and they were readable only with this
-				    panel open and on this tab. What is left is the line nobody can assemble from
-				    the band by eye. */}
+				{/* Node, vmid and address are in the meta band as well. That is deliberate and it is
+				    what the design draws: the band is the glance you get without opening anything,
+				    and this tab is the full record you come to when the glance was not enough. */}
 				<Group title="Placement">
-					<Fact
-						copy
-						label="SSH"
-						value={
-							workspace.ip === undefined
-								? undefined
-								: `ssh agent@${workspace.ip}`
-						}
-						wide
-					/>
+					<div className="rail-grid is-3up">
+						<Stack label="Node" value={workspace.node} />
+						<Stack label="VMID" value={workspace.vmid?.toString()} />
+						<Stack label="Address" value={workspace.ip} />
+					</div>
+					{/* The line somebody was assembling by hand out of the two cells above it every
+					    time they wanted a shell outside the browser. `reveals` because CopyButton
+					    hides itself until an ancestor is hovered or focused. */}
+					{workspace.ip === undefined ? null : (
+						<div className="rail-well reveals">
+							<span className="rail-well-text">{`ssh agent@${workspace.ip}`}</span>
+							<CopyButton
+								label="Copy SSH command"
+								text={`ssh agent@${workspace.ip}`}
+							/>
+						</div>
+					)}
 				</Group>
 
-				<Group title="Progress">
-					<Fact label="Phase" value={workspace.provisionPhase} />
-					<Fact label="Step" value={workspace.currentStep} />
-					<Fact label="Created" value={stamp(workspace.createdAt, mounted)} />
-					<Fact label="Ready" value={stamp(workspace.readyAt, mounted)} />
-					<Fact
-						label="Took"
-						value={took(workspace.createdAt, workspace.readyAt)}
-					/>
-					<Fact
-						label="Last active"
-						value={stamp(workspace.lastActivityAt, mounted)}
-					/>
-					<Fact
-						label="Checked"
-						value={stamp(workspace.activityObservedAt, mounted)}
-					/>
-					<Fact label="Updated" value={stamp(workspace.updatedAt, mounted)} />
+				<Group
+					title="Progress"
+					trailing={
+						took(workspace.createdAt, workspace.readyAt) ===
+						undefined ? undefined : (
+							<span className="rail-took">
+								ready in {took(workspace.createdAt, workspace.readyAt)}
+							</span>
+						)
+					}
+				>
+					<Lifecycle phase={workspace.provisionPhase} status={status} />
+					<div className="rail-grid is-2up">
+						<Stack label="Phase" value={workspace.provisionPhase} />
+						<Stack label="Step" value={workspace.currentStep} />
+						<Stack
+							label="Created"
+							value={stamp(workspace.createdAt, mounted)}
+						/>
+						<Stack label="Ready" value={stamp(workspace.readyAt, mounted)} />
+						<Stack
+							label="Last active"
+							value={stamp(workspace.lastActivityAt, mounted)}
+						/>
+						<Stack
+							label="Checked"
+							value={stamp(workspace.activityObservedAt, mounted)}
+						/>
+						<Stack
+							label="Updated"
+							value={stamp(workspace.updatedAt, mounted)}
+						/>
+					</div>
 				</Group>
 
 				<Group title="Identity">
 					{/* The container's name. It led the page until the agent started naming its own
 					    work; it is still what the push branch is built from, so it belongs
 					    somewhere readable rather than nowhere. */}
-					<Fact copy label="Name" value={workspace.hostname} />
-					<Fact copy label="Workspace" value={workspace.id} wide />
+					<Fact label="Name" value={workspace.hostname} />
+					<Fact copy label="Workspace" value={workspace.id} />
 					<Fact label="Wanted" value={workspace.desiredState} />
-					<Fact copy label="Task" value={workspace.taskUPID} wide />
+					<Fact copy label="Task" value={workspace.taskUPID} />
 				</Group>
 			</div>
 		</aside>
@@ -316,38 +384,34 @@ function sourceLinks(
 	};
 }
 
-// Fact renders one label and value, and nothing at all when there is no value yet.
+// Fact is one inline label-and-value row: a fixed 88px key, then the value.
 //
-// A workspace acquires these as it provisions, so a missing one means "not there yet" rather than
-// "empty", and an empty row would read as a problem.
+// Nothing at all when there is no value. A workspace acquires these as it provisions, so a missing
+// one means "not there yet" rather than "empty", and an empty row reads as a problem.
 function Fact({
 	copy = false,
 	href,
 	label,
+	linkLabel,
 	value,
-	wide = false,
 }: {
 	copy?: boolean;
-	// Somewhere to read this value that is not here. Only for the two that name something on
+	// Somewhere to read this value that is not here. Only for the ones that name something on
 	// GitHub; the rest are this controller's own facts and lead nowhere.
 	href?: string;
 	label: string;
+	linkLabel?: string;
 	value?: string;
-	wide?: boolean;
 }) {
 	if (value === undefined || value === "") {
 		return null;
 	}
 
 	return (
-		<div
-			className={
-				wide ? "rail-fact reveals rail-fact-wide" : "rail-fact reveals"
-			}
-		>
+		<div className="rail-fact reveals">
 			<dt>{label}</dt>
 			<dd>
-				<span>{value}</span>
+				<span className="rail-fact-value">{value}</span>
 				{copy ? (
 					<CopyButton label={`Copy ${label.toLowerCase()}`} text={value} />
 				) : null}
@@ -356,12 +420,8 @@ function Fact({
 						className="fact-open is-inline on-hover"
 						href={href}
 						icon={ExternalLink}
-						label={`Open ${label.toLowerCase()} on GitHub`}
-						// The same 14 as the copy button beside it. A pixel between two glyphs in a
-						// row is not read as a size, it is read as one of them being wrong.
-						size={14}
-						// Matching the copy button beside it. A bordered control next to a borderless
-						// one reads as two different kinds of thing rather than a pair.
+						label={linkLabel ?? `Open ${label.toLowerCase()} on GitHub`}
+						size={12}
 						variant="tertiary"
 					/>
 				)}
@@ -370,22 +430,77 @@ function Fact({
 	);
 }
 
-// Group is a heading and the facts under it.
+// Stack is the same pair with the label above the value, for a cell in a grid.
+//
+// Two shapes rather than one because the value decides: a repository URL wants the width of the
+// panel and a vmid wants a third of it, and forcing either into the other's shape wastes a column
+// or clips a string.
+function Stack({ label, value }: { label: string; value?: string }) {
+	if (value === undefined || value === "") {
+		return null;
+	}
+
+	return (
+		// dt/dd rather than two divs: these are the same term-and-description pairs as the inline
+		// rows above them, turned ninety degrees, and a screen reader should hear them that way.
+		<div className="rail-cell">
+			<dt className="rail-cell-key">{label}</dt>
+			<dd className="rail-cell-value">{value}</dd>
+		</div>
+	);
+}
+
+// Lifecycle is the six-segment strip, filled up to where provisioning has reached.
+//
+// One row of six rather than a percentage or a spinner, because the question is "how far along",
+// and six named steps answer it at a glance without anybody having to read a label. The names are
+// not drawn -- they are the accessible value, which is what a reader who cannot see the fill needs.
+function Lifecycle({ phase, status }: { phase?: string; status?: string }) {
+	const reached = lifecycleReached(phase, status);
+	const step = LIFECYCLE_STEPS[Math.max(0, reached - 1)];
+
+	return (
+		<div
+			aria-label={`Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`}
+			aria-valuemax={LIFECYCLE_STEPS.length}
+			aria-valuemin={0}
+			aria-valuenow={reached}
+			className="rail-life"
+			role="progressbar"
+		>
+			{LIFECYCLE_STEPS.map((name, index) => (
+				<span
+					className={
+						index < reached ? "rail-life-seg is-done" : "rail-life-seg"
+					}
+					key={name}
+				/>
+			))}
+		</div>
+	);
+}
+
+// Group is a section header and the facts under it.
 //
 // A group whose facts are all absent is hidden in CSS rather than here. Every Fact is an element
-// either way — it decides to render nothing only once React asks it to — so counting children here
-// would count the ones that are about to disappear. `.rail-group:not(:has(.rail-fact))` asks the
-// question after the fact, which is the only point at which the answer is known.
+// either way -- it decides to render nothing only once React asks it to -- so counting children
+// here would count the ones that are about to disappear.
 function Group({
+	action,
 	children,
 	title,
+	trailing,
 }: {
+	// A control on the far right of the header, past the rule.
+	action?: ReactNode;
 	children: ReactNode;
 	title: string;
+	// A value on the far right of the header. Loses to `action` if both are given.
+	trailing?: ReactNode;
 }): ReactNode {
 	return (
 		<section className="rail-group">
-			<h3 className="rail-group-title">{title}</h3>
+			<SectionHead label={title} trailing={action ?? trailing} />
 			<dl>{children}</dl>
 		</section>
 	);

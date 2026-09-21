@@ -12,10 +12,10 @@ import { WorkspaceRail } from "./workspace-rail";
 afterEach(cleanup);
 
 describe("WorkspaceRail", () => {
-	it("leaves node, vmid and address to the meta band", () => {
-		// They lead the page now, in the 32px band under the top bar, where they are readable
-		// without this panel being open and on this tab. Repeating them here would be two places
-		// to look for one fact.
+	it("shows the placement a workspace has reached", () => {
+		// Also in the meta band under the top bar, and deliberately: the band is the glance you get
+		// without opening anything, and this tab is the full record you come to when the glance was
+		// not enough.
 		render(
 			<WorkspaceRail
 				workspace={{
@@ -27,9 +27,9 @@ describe("WorkspaceRail", () => {
 			/>,
 		);
 
-		expect(screen.queryByText("10.0.3.110")).toBeNull();
-		expect(screen.queryByText("400")).toBeNull();
-		expect(screen.queryByText("nas")).toBeNull();
+		expect(screen.getByText("10.0.3.110")).toBeDefined();
+		expect(screen.getByText("400")).toBeDefined();
+		expect(screen.getByText("nas")).toBeDefined();
 	});
 
 	it("keeps the ssh line, which the band cannot be read off by eye", () => {
@@ -81,7 +81,9 @@ describe("WorkspaceRail", () => {
 			/>,
 		);
 
-		expect(screen.getByText("1m 27s")).toBeDefined();
+		// On the Progress header rather than in a row of its own, which is where the design puts
+		// it and where it reads as a summary of the strip under it.
+		expect(screen.getByText(/ready in 1m 27s/)).toBeDefined();
 
 		// Every workspace created before ready_at was written has no ready_at, and "0s" would
 		// claim those were built instantly rather than admitting it does not know.
@@ -90,7 +92,7 @@ describe("WorkspaceRail", () => {
 			<WorkspaceRail workspace={{ createdAt: "2026-09-20T11:10:09.000Z" }} />,
 		);
 
-		expect(screen.queryByText("Took")).toBeNull();
+		expect(screen.queryByText(/ready in/)).toBeNull();
 		expect(screen.queryByText("0s")).toBeNull();
 	});
 
