@@ -18,6 +18,7 @@ import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { WorkspaceTitle } from "../components/workspace-title";
 import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
+import { formatDuration } from "../lib/clock";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
 import { useAgentStream } from "../lib/use-agent-stream";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
@@ -432,7 +433,10 @@ function WorkspaceDetail() {
 				terminal={<WorkspaceTerminal ready={ready} workspaceId={workspaceId} />}
 				timeline={
 					<div className="rail-timeline">
-						<WorkspaceTimeline events={workspace.events} />
+						<WorkspaceTimeline
+							events={workspace.events}
+							readyIn={took(workspace.createdAt, workspace.readyAt)}
+						/>
 					</div>
 				}
 				workspace={workspace}
@@ -545,4 +549,16 @@ function Uptime({
 			waiting <Elapsed of="uptime" since={workspace.createdAt} />
 		</>
 	);
+}
+
+// took is how long provisioning ran, for the timeline's header.
+//
+// Undefined rather than "0s" when there is no ready_at: it was never written before it was plumbed
+// in, and every workspace older than that would otherwise claim to have been built instantly.
+function took(createdAt?: string, readyAt?: string): string | undefined {
+	if (createdAt === undefined || readyAt === undefined) {
+		return undefined;
+	}
+
+	return formatDuration(Date.parse(readyAt) - Date.parse(createdAt));
 }

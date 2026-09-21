@@ -3375,8 +3375,214 @@ button.workspace-title:hover {
 }
 
 
-/* The timeline in its tab. It was a section in the centre, sharing the column with the terminal;
-   it is reference material, read when something has gone wrong, which is what the rail is for. */
+/* The timeline in its tab: a rail with a dot per moment, and between the dots the gap since the
+ * last one.
+ *
+ * The gaps are the change. A flat column of timestamps makes the reader subtract in their head,
+ * and the question this tab is opened with is which step took the time. */
+.timeline {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* How much history there is, and the one number that summarises it. On the well surface so it
+   reads as a bar belonging to the tab rather than as the first row of the list. */
+.timeline-bar {
+	align-items: center;
+	background: var(--surface-well);
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	gap: 10px;
+	height: 34px;
+	padding: 0 16px;
+}
+
+.timeline-count {
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.timeline-bar-spacer {
+	flex-grow: 1;
+}
+
+.timeline-bar-key {
+	color: var(--text-metakey);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.timeline-bar-value {
+	color: var(--green);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.timeline-scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 18px 16px;
+}
+
+/* The rail itself. One continuous line behind every dot, drawn on the list rather than per item,
+   so it does not break at each gap. Inset 6px top and bottom so it starts and stops inside the
+   first and last dot instead of running past them. */
+.timeline-rail {
+	display: flex;
+	flex-direction: column;
+	list-style: none;
+	margin: 0;
+	padding: 0 0 0 26px;
+	position: relative;
+}
+
+.timeline-rail::before {
+	background: var(--line-divider);
+	bottom: 6px;
+	content: "";
+	left: 4px;
+	position: absolute;
+	top: 6px;
+	width: 1px;
+}
+
+.timeline-item {
+	position: relative;
+}
+
+/* The gap row, sitting on the rail between two dots. A short tick replaces the line behind it so
+   the number is not struck through. */
+.timeline-gap {
+	align-items: center;
+	display: flex;
+	height: 16px;
+	position: relative;
+}
+
+.timeline-gap-tick {
+	background: var(--line-divider);
+	height: 12px;
+	left: -22px;
+	position: absolute;
+	top: 2px;
+	width: 1px;
+}
+
+.timeline-gap-value {
+	color: var(--text-decorative);
+	font-family: var(--font-mono);
+	font-size: 9px;
+	font-variant-numeric: tabular-nums;
+}
+
+.timeline-moment {
+	padding: 8px 0 14px;
+	position: relative;
+}
+
+/* Filled with the panel's own surface, so the rail behind it is hidden rather than crossed. */
+.timeline-dot {
+	background: var(--surface-sunk);
+	border: 1.5px solid var(--green);
+	border-radius: 50%;
+	height: 9px;
+	left: -26px;
+	position: absolute;
+	top: 11px;
+	width: 9px;
+}
+
+.timeline-moment.is-problem .timeline-dot {
+	border-color: var(--red);
+}
+
+.timeline-head {
+	align-items: baseline;
+	display: flex;
+	gap: 10px;
+}
+
+.timeline-type {
+	color: var(--text-wordmark);
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: var(--text-label-lg);
+	font-weight: 600;
+	letter-spacing: var(--tracking-ui);
+	text-transform: uppercase;
+}
+
+.timeline-moment.is-problem .timeline-type {
+	color: var(--red);
+}
+
+/* The time is the secondary fact here: you scan the names, and reach for a time once something
+   looks wrong. */
+.timeline-at {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.timeline-message {
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: var(--leading-tight);
+	margin: 3px 0 0;
+}
+
+.timeline-moment.is-problem .timeline-message {
+	color: var(--red-ink);
+}
+
+/* Everything else that landed in the same second, under the moment that led it and without
+   repeating the second. Four rows each printing 22:41:50 is four copies of one fact. */
+.timeline-nest {
+	border-left: 1px solid var(--line-divider);
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0 0 0 12px;
+}
+
+.timeline-nest-row {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+}
+
+.timeline-nest-dot {
+	background: var(--line-strong);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+.timeline-nest-text {
+	color: var(--text-tertiary);
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	min-width: 0;
+}
+
+/* The panel the timeline sits in. It was a section in the centre, sharing the column with the
+   terminal; it is reference material, read when something has gone wrong, which is what the rail
+   is for. */
 .rail-timeline {
 	display: flex;
 	flex-direction: column;
@@ -3420,105 +3626,6 @@ button.workspace-title:hover {
 
 .rail-panel[hidden] {
 	display: none;
-}
-
-/* The timeline.
- *
- * A marked rule down the left, each entry naming itself and its time on one line with the message
- * under them. It was a two-column table whose fixed 148px type column left messages to wrap
- * against an arbitrary edge; in a rail that edge was most of the width. */
-.detail-timeline {
-	display: flex;
-	flex-direction: column;
-	list-style: none;
-	margin: 0;
-	padding: 0;
-}
-
-.timeline-entry {
-	display: grid;
-	gap: 10px;
-	grid-template-columns: 9px 1fr;
-	padding-bottom: 14px;
-	position: relative;
-}
-
-/* The rule, drawn by each entry rather than the list, so it stops at the last one instead of
-   trailing off under empty space.
- *
- * It overshoots into both dots, which are lifted above it to cover the overshoot. Landing it on
- * each dot's edge instead gives one of two bugs and no third option: short of the edge is a
- * visibly broken rule, and level with it puts a line across the dot's outline. */
-.timeline-entry:not(:last-child)::before {
-	background: var(--border);
-	bottom: -9px;
-	content: "";
-	left: 4px;
-	position: absolute;
-	top: 8px;
-	width: 1px;
-}
-
-/* Positioned so it sits above the rule rather than beside it. Without this the previous entry's
-   line paints over this dot, because a positioned element's own `::before` paints after the
-   non-positioned content of everything that follows it. */
-.timeline-mark {
-	background: var(--bg);
-	border: 1px solid var(--line);
-	border-radius: 50%;
-	height: 9px;
-	margin-top: 4px;
-	position: relative;
-	width: 9px;
-	z-index: 1;
-}
-
-.timeline-entry.is-problem .timeline-mark {
-	background: var(--danger);
-	border-color: var(--danger-fg);
-}
-
-.timeline-body {
-	min-width: 0;
-}
-
-.timeline-head {
-	align-items: baseline;
-	display: flex;
-	gap: 8px;
-	justify-content: space-between;
-}
-
-.timeline-type {
-	color: var(--fg-bright);
-	font-size: var(--text-sm);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-}
-
-.timeline-entry.is-problem .timeline-type {
-	color: var(--danger-fg);
-}
-
-/* The time is the secondary fact here: you scan the names, and reach for a time once something
-   looks wrong. */
-.timeline-head time {
-	color: var(--fg-dim);
-	flex-shrink: 0;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-xs);
-}
-
-.timeline-message {
-	color: var(--fg-muted);
-	font-size: var(--text-md);
-	line-height: 1.45;
-	margin: 2px 0 0;
-	overflow-wrap: anywhere;
-}
-
-.timeline-entry.is-problem .timeline-message {
-	color: var(--danger-soft);
 }
 
 /* ── transitions.dev ───────────────────────────────────────────────────────────────────────────
