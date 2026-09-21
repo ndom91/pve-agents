@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-
+import { shortRepository } from "../domain/repository";
 import {
 	LIFECYCLE_STEPS,
 	lifecycleReached,
@@ -138,10 +138,4 @@ function placement(workspace: { node?: string; vmid?: number }): string {
 	return workspace.vmid === undefined
 		? workspace.node
 		: `${workspace.node}·${workspace.vmid}`;
-}
-
-// shortRepository drops the host, which is github.com for every workspace here and therefore tells
-// nobody anything.
-function shortRepository(repository: string): string {
-	return repository.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
 }

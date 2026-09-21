@@ -42,6 +42,12 @@ export function MetaBand({
 					)}
 					<div className="meta-band-item">
 						<span className="meta-band-key">{fact.key}</span>
+						{fact.tone === undefined ? null : (
+							<span
+								aria-hidden="true"
+								className={`meta-band-dot is-${fact.tone}`}
+							/>
+						)}
 						<span className="meta-band-val">{fact.value}</span>
 					</div>
 				</Fragment>

@@ -3,6 +3,7 @@ import {
 	type ReactNode,
 	useEffect,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 } from "react";
@@ -47,7 +48,13 @@ export function AgentChat({
 	permissionMode?: string;
 	tail?: AgentTail;
 }): ReactNode {
-	const entries = readTranscript(messages, approvals);
+	// Memoised for the same reason the grouping below it is: this walks every message and every
+	// content block in it, and a streamed answer re-renders this component per token. Without the
+	// memo it also returns a new array each time, which would defeat the grouping's own memo.
+	const entries = useMemo(
+		() => readTranscript(messages, approvals),
+		[messages, approvals],
+	);
 
 	return (
 		<div className="agent-chat">
@@ -137,6 +144,12 @@ function Rail({
 		measured.current = box.scrollHeight;
 	}, [entries.length, tail?.text.length]);
 
+	// Memoised because the conversation re-renders on every streamed token, and the grouping walks
+	// the whole transcript. Without this, an answer arriving one word at a time rebuilds every
+	// group in the feed once per word -- and hands each one a fresh array, so nothing below can
+	// skip its own work either.
+	const items = useMemo(() => groupFeed(entries), [entries]);
+
 	return (
 		<ol
 			className="chat-entries"
@@ -148,7 +161,7 @@ function Rail({
 			}}
 			ref={list}
 		>
-			{groupFeed(entries).map((item, index) =>
+			{items.map((item, index) =>
 				item.kind === "tools" ? (
 					<li
 						className="chat-entry is-tools"
@@ -252,7 +265,7 @@ function ToolGroup({ rows }: { rows: (ThoughtEntry | ToolEntry)[] }) {
 			<div className="tool-group-head">
 				<span className="tool-group-title">Tool calls</span>
 				<span className="tool-group-count">{calls}</span>
-				<span className="tool-group-spacer" />
+				<span className="spacer" />
 				{errors === 0 ? null : (
 					<span className="tool-group-errors">
 						<span aria-hidden="true" className="tool-group-dot" />

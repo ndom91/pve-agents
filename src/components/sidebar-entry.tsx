@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { shortRepository } from "../domain/repository";
 import { Elapsed } from "./elapsed";
 import { StatusDot } from "./status-dot";
 
@@ -77,9 +78,4 @@ export function SidebarEntry({
 			</Link>
 		</li>
 	);
-}
-
-// shortRepository drops the host, which is the same for every workspace and so carries nothing.
-function shortRepository(repository: string): string {
-	return repository.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
 }

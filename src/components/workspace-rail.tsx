@@ -10,7 +10,7 @@ import {
 	LIFECYCLE_STEPS,
 	lifecycleReached,
 } from "../domain/workspace-lifecycle";
-import { formatStamp, UTC } from "../lib/clock";
+import { formatStamp, provisionTook, UTC } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 import { useRailWidth } from "../lib/use-rail-width";
 // Type-only in this module's own imports, so nothing server-side follows it into the bundle. Taken
@@ -94,6 +94,7 @@ export function WorkspaceRail({
 			? undefined
 			: workspaceBranch(workspace.hostname);
 	const status = workspace.status;
+	const readyIn = provisionTook(workspace.createdAt, workspace.readyAt);
 	// Links only for a repository that parses. A stored value that does not is a workspace that
 	// failed before it cloned, and a link built from it would go somewhere that is not there.
 	const source = sourceLinks(workspace.repository, branch);
@@ -191,7 +192,7 @@ export function WorkspaceRail({
 							&middot; {workspace.activity}
 						</span>
 					) : null}
-					<span className="rail-state-spacer" />
+					<span className="spacer" />
 					<span className="rail-state-up">
 						{workspace.readyAt === undefined ? null : (
 							<>
@@ -252,11 +253,8 @@ export function WorkspaceRail({
 				<Group
 					title="Progress"
 					trailing={
-						took(workspace.createdAt, workspace.readyAt) ===
-						undefined ? undefined : (
-							<span className="rail-took">
-								ready in {took(workspace.createdAt, workspace.readyAt)}
-							</span>
+						readyIn === undefined ? undefined : (
+							<span className="rail-took">ready in {readyIn}</span>
 						)
 					}
 				>
@@ -518,25 +516,4 @@ function Group({
 // the same tick as the effect.
 function stamp(value: string | undefined, local: boolean): string | undefined {
 	return formatStamp(value, local ? undefined : UTC);
-}
-
-// took is how long provisioning ran, for the workspaces that have a ready_at.
-//
-// Undefined rather than "0s" when it does not: ready_at was never written before it was plumbed
-// in, and every workspace older than that would otherwise claim to have been built instantly.
-function took(createdAt?: string, readyAt?: string): string | undefined {
-	if (createdAt === undefined || readyAt === undefined) {
-		return undefined;
-	}
-
-	const ms = Date.parse(readyAt) - Date.parse(createdAt);
-	if (!Number.isFinite(ms) || ms < 0) {
-		return undefined;
-	}
-
-	const seconds = Math.round(ms / 1000);
-	if (seconds < 60) {
-		return `${seconds}s`;
-	}
-	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }

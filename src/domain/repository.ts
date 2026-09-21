@@ -101,3 +101,16 @@ export function branchPage(
 
 	return `${repositoryPage(repository)}/tree/${path}`;
 }
+
+// shortRepository drops the host, which is github.com for every repository this controller will
+// clone and therefore tells a reader nothing.
+//
+// Here rather than beside the three lists that call it. It was copied into the sidebar entry, the
+// fleet row and the home screen's destroyed list, which is three chances for one of them to start
+// disagreeing about what a repository is called.
+//
+// Deliberately not `parseRepository`. That validates and rejects; this only shortens, and a stored
+// value that does not parse still has to appear in a list rather than vanish from it.
+export function shortRepository(repository: string): string {
+	return repository.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
+}

@@ -38,11 +38,11 @@ export function ChangesAccordion({
 			    removed line counts here as well; this side counts files, not lines -- the status
 			    walk reports a path and a letter per file and never opens one -- so the numbers
 			    would have to be invented. */}
-			<div className="changes-bar">
+			<div className="panel-bar">
 				<span className="changes-count">
 					{files.length === 1 ? "1 file" : `${files.length} files`}
 				</span>
-				<span className="changes-bar-spacer" />
+				<span className="spacer" />
 				{against === undefined ? null : (
 					<span className="changes-against">vs {against}</span>
 				)}

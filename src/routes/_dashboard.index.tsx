@@ -7,6 +7,7 @@ import { Elapsed } from "../components/elapsed";
 import { FleetRow } from "../components/fleet-row";
 import { MetaBand } from "../components/meta-band";
 import { SectionHead } from "../components/section-head";
+import { shortRepository } from "../domain/repository";
 import { fleetQuery, statusQuery, workspaceKeys } from "../lib/queries";
 import { requestId } from "../lib/request-id";
 import { createWorkspace } from "../server/workspace.functions";
@@ -227,8 +228,3 @@ function Dashboard() {
 // DESTROYED_SHOWN caps the recently-destroyed list. It is a reminder that work happened here, not
 // an archive -- the sidebar holds that.
 const DESTROYED_SHOWN = 5;
-
-// shortRepository drops the host, which is the same for every workspace and so carries nothing.
-function shortRepository(repository: string): string {
-	return repository.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
-}

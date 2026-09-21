@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode, useMemo } from "react";
 
 import { tokenise } from "../lib/highlight";
 
@@ -8,7 +8,12 @@ import { tokenise } from "../lib/highlight";
 // produced is ever handed to dangerouslySetInnerHTML. The library escapes correctly — checked
 // against `<img src=x onerror=...>` — but a page that never asks the question cannot get the
 // answer wrong later, and everything rendered here came out of a model or a command it ran.
-export function CodeBlock({
+// Memoised, and the highlighting memoised inside it, because of where this is mounted. An open
+// tool result sits inside the conversation, and the conversation re-renders on every streamed
+// token -- so without this, every block the reader has expanded is re-tokenised at the rate the
+// agent types. That is the single most expensive thing on the page, and it is doing it to produce
+// exactly the output it produced last frame.
+export const CodeBlock = memo(function CodeBlock({
 	className,
 	code,
 	lang,
@@ -17,6 +22,11 @@ export function CodeBlock({
 	code: string;
 	lang?: string;
 }): ReactNode {
+	// trimEnd, because a <pre> honours the newline a model or a shell put at the end of its output
+	// and draws a blank line for it. Every thought in the transcript was a box one line taller than
+	// its text. Leading space is left alone: it is the first line's indentation.
+	const tokens = useMemo(() => tokenise(code.trimEnd(), lang), [code, lang]);
+
 	return (
 		<pre
 			className={
@@ -24,11 +34,7 @@ export function CodeBlock({
 			}
 		>
 			<code>
-				{/* trimEnd, because a <pre> honours the newline a model or a shell put at the end
-				    of its output and draws a blank line for it. Every thought in the transcript
-				    was a box one line taller than its text. Leading space is left alone: it is
-				    the first line's indentation. */}
-				{tokenise(code.trimEnd(), lang).map((token, index) =>
+				{tokens.map((token, index) =>
 					token.className === undefined ? (
 						// A plain run. Keyed by position because the same word legitimately appears
 						// many times in one block and tokens are never reordered.
@@ -44,4 +50,4 @@ export function CodeBlock({
 			</code>
 		</pre>
 	);
-}
+});

@@ -82,6 +82,25 @@ export function formatUptime(ms: number): string | undefined {
 	return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
+// provisionTook is how long a workspace took to come up, or nothing if it never did.
+//
+// Undefined rather than "0s" when there is no ready_at: it was never written before it was plumbed
+// in, and every workspace older than that would otherwise claim to have been built instantly.
+//
+// One copy. It was written twice with two different bodies -- the rail inlined the arithmetic and
+// the workspace route called formatDuration -- which is two places for the same sentence to start
+// disagreeing about what "took" means.
+export function provisionTook(
+	createdAt?: string,
+	readyAt?: string,
+): string | undefined {
+	if (createdAt === undefined || readyAt === undefined) {
+		return undefined;
+	}
+
+	return formatDuration(Date.parse(readyAt) - Date.parse(createdAt));
+}
+
 // formatAge renders the same span in one unit, for a column that has room for three characters.
 //
 // The sidebar wants "how long has this been up" at a glance, next to a repository name that is

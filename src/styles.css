@@ -641,10 +641,6 @@ dd {
 	letter-spacing: 0;
 }
 
-.prompt-foot-spacer {
-	flex-grow: 1;
-}
-
 /* The page's one primary action, and the only sage fill on it. */
 .button.prompt-send {
 	background: var(--sage);
@@ -1600,6 +1596,8 @@ dd {
 	font-variant-numeric: tabular-nums;
 }
 
+/* Not `.spacer`: the band clips, so this keeps a floor under the gap before the tail rather than
+   letting the facts run into it. */
 .meta-band-spacer {
 	flex-grow: 1;
 	min-width: var(--space-6);
@@ -1872,10 +1870,6 @@ button.workspace-title:hover {
 	font-family: var(--font-mono);
 	font-size: var(--text-label);
 	font-variant-numeric: tabular-nums;
-}
-
-.tool-group-spacer {
-	flex-grow: 1;
 }
 
 /* The one thing worth knowing about a group you have not opened. */
@@ -2455,10 +2449,6 @@ button.workspace-title:hover {
 	font-size: var(--text-mono-sm);
 }
 
-.rail-state-spacer {
-	flex-grow: 1;
-}
-
 .rail-state-up {
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
@@ -2756,50 +2746,6 @@ button.workspace-title:hover {
 	opacity: 0.5;
 }
 
-.empty-field {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.empty-field span {
-	color: var(--line);
-	font-size: var(--text-sm);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-/* Full width inside the card, unlike the numeric settings inputs these otherwise share styling
-   with: a repository path is long and a purpose is a paragraph. */
-.empty-field input,
-.empty-field textarea {
-	background: var(--bg-sunken);
-	border: 1px solid var(--border);
-	box-sizing: border-box;
-	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-lg);
-	padding: 9px 10px;
-	width: 100%;
-}
-
-.empty-field textarea {
-	font-family: inherit;
-	font-size: var(--text-lg);
-	resize: none;
-}
-
-.empty-field input:focus,
-.empty-field textarea:focus {
-	border-color: var(--line);
-	outline: none;
-}
-
-.empty-field small {
-	color: var(--fg-dim);
-	line-height: 1.5;
-}
-
 /* ── Fixed-height detail layout ──────────────────────────────────────────────
    The screen and the timeline each scroll themselves, so the column never
    does. Without this the page grew with the transcript and the prompt walked
@@ -3063,26 +3009,11 @@ button.workspace-title:hover {
 	min-height: 0;
 }
 
-.changes-bar {
-	align-items: center;
-	background: var(--surface-well);
-	border-bottom: 1px solid var(--line-hairline);
-	display: flex;
-	flex-shrink: 0;
-	gap: 10px;
-	height: 34px;
-	padding: 0 16px;
-}
-
 .changes-count {
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
 	font-size: var(--text-mono-sm);
 	font-variant-numeric: tabular-nums;
-}
-
-.changes-bar-spacer {
-	flex-grow: 1;
 }
 
 .changes-against {
@@ -3249,28 +3180,11 @@ button.workspace-title:hover {
 	min-height: 0;
 }
 
-/* How much history there is, and the one number that summarises it. On the well surface so it
-   reads as a bar belonging to the tab rather than as the first row of the list. */
-.timeline-bar {
-	align-items: center;
-	background: var(--surface-well);
-	border-bottom: 1px solid var(--line-hairline);
-	display: flex;
-	flex-shrink: 0;
-	gap: 10px;
-	height: 34px;
-	padding: 0 16px;
-}
-
 .timeline-count {
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
 	font-size: var(--text-mono-sm);
 	font-variant-numeric: tabular-nums;
-}
-
-.timeline-bar-spacer {
-	flex-grow: 1;
 }
 
 .timeline-bar-key {
@@ -3456,15 +3370,30 @@ button.workspace-title:hover {
  *
  * The screen between them is ghostty drawing to a canvas, which this stylesheet cannot reach --
  * the terminal's colours are set in its own theme, on the same well surface as the box. */
-.terminal-bar {
+/* Pushes what follows it to the far end of a row. Five classes did exactly this -- one per bar --
+   which is five names for `flex-grow: 1`. */
+.spacer {
+	flex-grow: 1;
+}
+
+/* The bar above a panel's content: how much there is on the left, what it is measured against on
+   the right. The timeline, the change list and the terminal each had their own copy of this, two
+   of them byte-identical. */
+.panel-bar {
 	align-items: center;
 	background: var(--surface-well);
 	border-bottom: 1px solid var(--line-hairline);
 	display: flex;
 	flex-shrink: 0;
-	gap: 8px;
+	gap: 10px;
 	height: 34px;
-	padding: 0 10px 0 16px;
+	padding: 0 16px;
+}
+
+/* The terminal keeps a control on its right, so the padding on that side comes in to meet it. */
+.terminal-bar {
+	gap: 8px;
+	padding-right: 10px;
 }
 
 .terminal-who {

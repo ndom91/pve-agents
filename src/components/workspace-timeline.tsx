@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import type { TimelineEvent } from "../domain/workspace-timeline";
 import { groupTimeline } from "../domain/workspace-timeline";
 import { formatDuration } from "../lib/clock";
@@ -22,24 +22,28 @@ export function WorkspaceTimeline({
 	// How long provisioning took, for the header. Absent on a workspace that never got there.
 	readyIn?: string;
 }): ReactNode {
-	const shown = events.filter(
-		(event) => event.eventType !== "workspace.prompted",
+	// Both memoised. An opened panel stays mounted so the terminal's socket survives a glance at
+	// another tab, which means this keeps re-rendering with the rest of the page -- once per
+	// streamed token while an agent is answering. Filtering and grouping a few hundred events at
+	// that rate is work nobody asked for, and the result is identical every time.
+	const shown = useMemo(
+		() => events.filter((event) => event.eventType !== "workspace.prompted"),
+		[events],
 	);
+	const items = useMemo(() => groupTimeline(shown), [shown]);
 
 	if (shown.length === 0) {
 		return <p className="detail-note">Nothing has happened yet.</p>;
 	}
 
-	const items = groupTimeline(shown);
-
 	return (
 		<div className="timeline">
 			{/* How much there is, and the one number that summarises it. */}
-			<div className="timeline-bar">
+			<div className="panel-bar">
 				<span className="timeline-count">
 					{shown.length === 1 ? "1 event" : `${shown.length} events`}
 				</span>
-				<span className="timeline-bar-spacer" />
+				<span className="spacer" />
 				{readyIn === undefined ? null : (
 					<>
 						<span className="timeline-bar-key">Ready in</span>
