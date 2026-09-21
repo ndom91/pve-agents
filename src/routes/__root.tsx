@@ -23,21 +23,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 				{
 					title: "Proxmox Agents",
 				},
-				// Matches the page background, so the browser chrome on a phone does not frame a
-				// dark application in white -- or, since light mode, a light one in near-black.
-				// Two metas keyed on the OS preference rather than one: this is chrome outside the
-				// document and it cannot read data-theme, so it follows the same signal the boot
-				// script falls back to.
-				{
-					content: "#111411",
-					media: "(prefers-color-scheme: dark)",
-					name: "theme-color",
-				},
-				{
-					content: "#fbfcf9",
-					media: "(prefers-color-scheme: light)",
-					name: "theme-color",
-				},
 			],
 			// Icons and the manifest belong here rather than in `meta`, and the distinction is not
 			// pedantic: `meta` renders <meta> elements, and a rel on a <meta> means nothing at all.
@@ -99,6 +84,24 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				{/* Before HeadContent, so it runs before the stylesheet link is even parsed. */}
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no interpolation, and it has to be inline to beat first paint */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+				{/* The colour a phone paints its chrome, so it does not frame a dark application
+				    in white -- or, since light mode, a light one in near-black.
+				
+				    Written here rather than in the route's `meta`, which keys on `name` and keeps
+				    only the last of a pair: declared there, the two collapsed into one and every
+				    dark-mode phone got the light colour. This is also chrome outside the document,
+				    so it cannot read data-theme and follows the OS the way the boot script's
+				    fallback does. */}
+				<meta
+					content="#111411"
+					media="(prefers-color-scheme: dark)"
+					name="theme-color"
+				/>
+				<meta
+					content="#fbfcf9"
+					media="(prefers-color-scheme: light)"
+					name="theme-color"
+				/>
 				<HeadContent />
 			</head>
 			<body>
