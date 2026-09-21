@@ -3038,11 +3038,43 @@ button.workspace-title:hover {
 	padding: 0;
 }
 
-/* The change list: a header, then a row per file that unfolds its diff underneath.
+/* The change list: a header, then a row per file that unfolds its diff underneath. */
+
+/* The diff itself is @pierre/diffs, drawing into shadow DOM. A note here used to say its row
+ * tints, gutter and hunk strips could not be reached from this stylesheet. That was wrong:
+ * the renderer is built entirely on custom properties, and custom properties inherit through a
+ * shadow boundary like any other inherited value. Setting them on the host is all it takes.
  *
- * The diff itself is @pierre/diffs drawing into shadow DOM with its own theme, so the row tints,
- * gutter and hunk strips the design specifies cannot be reached from this stylesheet. Replacing
- * that renderer is not a refresh. What is reachable is everything around it. */
+ * Almost everything derives from two roots. The separator strips, the context rows, the gutter
+ * fill and the line numbers are each a `color-mix` of --diffs-bg toward --diffs-fg or toward
+ * --diffs-mixer, so pointing those two at our surface and our ink carries the whole chrome with
+ * them and we do not have to name the twenty shades in between.
+ *
+ * `color-scheme` is the other half and is not optional. The mix partner is `light-dark(#000,
+ * #fff)`, which resolves against the used color scheme -- left at `normal` it follows the
+ * operating system, so an operator on a dark machine who switched this app to light got a light
+ * page with a black diff in it. The renderer sets `light dark` on its own host, which beats
+ * inheritance, so it has to be overridden here by name rather than from :root.
+ *
+ * Still pierre's: the syntax token colours, which come from its shiki theme rather than from
+ * these variables and do not match `tokenise`'s palette elsewhere in the app. That wants
+ * `registerCustomCSSVariableTheme` and is a separate job. */
+diffs-container {
+	color-scheme: dark;
+
+	--diffs-bg: var(--surface-well);
+	--diffs-fg: var(--text-body);
+	/* Its own defaults are a neon green and a pure red that belong to no other surface here. */
+	--diffs-addition-base: var(--green);
+	--diffs-deletion-base: var(--red);
+	/* Both default to #009fff, which would be a second accent -- see STYLE.md §9. */
+	--diffs-modified-base: var(--sage);
+	--diffs-selection-base: var(--sage);
+}
+
+[data-theme="light"] diffs-container {
+	color-scheme: light;
+}
 .changes {
 	display: flex;
 	flex: 1 1 auto;
@@ -3156,8 +3188,11 @@ button.workspace-title:hover {
 	flex: 0 0 auto;
 	flex-direction: column;
 	gap: 8px;
-	margin-top: 16px;
-	padding-top: 16px;
+	/* 16px on every side, which is the rail's own gutter -- the same number the panel bar above
+	   uses, so the label and the buttons line up with "2 files" rather than running out to the
+	   window edge. It had padding on the top only, so this block was the one thing in the column
+	   with no margin at all. */
+	padding: 16px;
 }
 
 /* Narrower than the labels on the request form, because the rail is narrower and these sit against

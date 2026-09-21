@@ -73,14 +73,19 @@ export function ChangesActions({
 				{pushing ? "Pushing" : "Commit and push"}
 			</Button>
 
+			{/* Red, not sage. Both of these were the filled primary, which put "discard everything
+			    the agent wrote" in the same paint as "push it" and broke the rule that the accent
+			    is never the destructive action. */}
 			{count === 0 ? null : armed ? (
-				<Button disabled={discarding} onClick={onDiscard}>
+				<Button disabled={discarding} onClick={onDiscard} variant="danger">
 					{discarding
 						? "Discarding"
 						: `Discard ${count} ${count === 1 ? "file" : "files"}, permanently`}
 				</Button>
 			) : (
-				<Button onClick={() => setArmedFor(listed)}>Discard changes</Button>
+				<Button onClick={() => setArmedFor(listed)} variant="danger">
+					Discard changes
+				</Button>
 			)}
 
 			{note === "" ? null : <p className="detail-note">{note}</p>}

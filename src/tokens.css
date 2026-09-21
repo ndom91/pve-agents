@@ -20,6 +20,13 @@
 /* ══ DARK (default) ═══════════════════════════════════════════════════ */
 
 :root {
+	/* Declared, not left at `normal`, and it is load-bearing beyond the scrollbars and the
+     native controls it obviously governs. Anything drawing with `light-dark()` resolves it
+     against this, and with no value here that means the operating system's preference --
+     so a page toggled to light on a machine set to dark had a black diff in it. The theme
+     the operator chose is the one that should decide. */
+	color-scheme: dark;
+
 	/* Surfaces — four levels of depth. Wells recede, raised things lift. */
 	--surface-well: #0b0f0a; /* inputs, diff body, error output */
 	--surface-base: #111411; /* the page / the feed */
@@ -147,6 +154,8 @@
 /* ══ LIGHT ════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] {
+	color-scheme: light;
+
 	/* Surfaces — same four levels, inverted. Not pure white: the ground keeps
      the app's green tint so light mode is the same product, not a different
      one. Raised IS white — that is what makes a card read as lifted here,
