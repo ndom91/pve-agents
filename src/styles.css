@@ -3220,14 +3220,18 @@ diffs-container {
 	border: 0;
 }
 
-/* Indented under its row so a long diff still reads as belonging to it, and capped in height so
-   one large file cannot push every other row off the bottom of the rail. */
+/* Full width, and capped in height so one large file cannot push every other row off the bottom
+   of the rail.
+ *
+ * It used to be indented behind a left rule, on the theory that a long diff needs something
+ * saying which row it belongs to. It does not: the open row above it carries the selected fill
+ * and the renderer draws its own filename header on the first line. What the indent did do was
+ * take 17px off a panel already narrow enough that the diff scrolls sideways, and put a second
+ * vertical line beside the one the renderer draws. */
 .change-diff {
-	border-left: 1px solid var(--border);
-	margin-left: 9px;
 	max-height: 60vh;
 	overflow: auto;
-	padding: 4px 0 8px 8px;
+	padding: 4px 0 8px;
 }
 
 /* Below the tabs rather than inside one, and always in the same place, because these act on the
