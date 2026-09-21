@@ -3212,8 +3212,12 @@ diffs-container {
 	color: var(--text-primary);
 }
 
+/* No rule between rows. The mark, the hover fill and the selected fill already say where one row
+   ends, and a hairline under every line of a four-line list draws more furniture than list. The
+   open row keeps its own left border on the diff underneath it, which is the one place a boundary
+   is still doing work. */
 .change-entry {
-	border-bottom: 1px solid var(--border-dim);
+	border: 0;
 }
 
 /* Indented under its row so a long diff still reads as belonging to it, and capped in height so
