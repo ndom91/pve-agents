@@ -1305,6 +1305,9 @@ button {
 /* A secondary button that happens to be a link. 30px is the standalone control height, and the
    icon buttons beside it are pinned to the same number below rather than to their global 32 --
    two heights within two pixels of each other on one row reads as one of them being wrong. */
+/* Fills what the icon buttons beside it leave. A one-word label could shrink to its text, but a
+   short button floating beside a row of square ones reads as a fifth icon rather than as the
+   action the column is for. */
 .sidebar-new {
 	align-items: center;
 	border: 1px solid var(--line-border);
@@ -1314,7 +1317,7 @@ button {
 	flex: 1 1 auto;
 	font-family: var(--font-mono);
 	font-size: var(--text-mono-xs);
-	gap: 7px;
+	gap: 6px;
 	height: var(--control-h-md);
 	justify-content: center;
 	letter-spacing: 0.1em;
@@ -1417,10 +1420,12 @@ button {
 	color: var(--red-ink);
 }
 
-/* The focus ring is red on a destructive control, per section 5. */
+/* The focus ring is red on a destructive control, per section 5. An outline like every other
+   control's, not a shadow: outline follows the border radius and does not repaint on scroll, and
+   one control wearing a different mechanism is one more thing to remember. */
 .icon-button.is-danger:focus-visible {
-	box-shadow: 0 0 0 2px var(--red-line-strong);
-	outline: none;
+	outline: 2px solid var(--red-line-strong);
+	outline-offset: 2px;
 }
 
 /* Every icon button in the screen bar is a bar-height control, not the 32px standalone one. A

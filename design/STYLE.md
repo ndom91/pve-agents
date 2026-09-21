@@ -142,9 +142,12 @@ These apply to every interactive element unless a component below overrides.
   `--surface-hover`); a transparent control gains `--surface-raised`. Text
   color does not change. `transition: background var(--dur-fast) var(--ease)`.
 - **Active / pressed**: one more step up. No transform, no scale.
-- **Focus**: `box-shadow: 0 0 0 2px var(--line-strong)` — a ring, never an
-  `outline`, and never removed. On a destructive control the ring is
-  `--red-line`.
+- **Focus**: a 2px ring in `--focus-ring`, offset 2px from the control, and
+  never removed. On a destructive control the ring is `--red-line-strong`.
+  Drawn with `outline` and `outline-offset`. The rule used to say "never an
+  `outline`", which was aimed at the browser's default blue and is not the
+  constraint it was: an offset outline gives the same ring, follows the border
+  radius, and does not repaint on scroll the way a `box-shadow` does.
 - **Selected row**: `--surface-select` plus a 2px inset bar of `--sage` on the
   left edge. The bar replaces the focus ring while selected.
 - **Disabled**: keep opacity at 1. Drop the surface to `--surface-base` and the

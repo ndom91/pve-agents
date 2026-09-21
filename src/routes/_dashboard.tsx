@@ -134,9 +134,13 @@ function Dashboard() {
 				</nav>
 
 				<div className="sidebar-foot">
+					{/* "New", not "New workspace". The footer has gained an icon button each time
+					    one was needed -- settings, notifications, sign out, now the theme -- and
+					    the label was the only thing left that could give up room. The plus says
+					    what the word no longer has space to. */}
 					<Link className="sidebar-new" to="/">
-						<Plus aria-hidden="true" size={10} strokeWidth={1.3} />
-						<span>New workspace</span>
+						<Plus aria-hidden="true" size={12} strokeWidth={1.5} />
+						<span>New</span>
 					</Link>
 					<div className="sidebar-tools">
 						<ThemeToggle />
