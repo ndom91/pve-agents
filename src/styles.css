@@ -802,67 +802,32 @@ button {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
+	max-width: 1180px;
+}
+
+/* The prose stays at a readable measure even though the browser below it is wider. */
+.settings-seed > p {
+	margin: 0;
 	max-width: 720px;
 }
 
-.settings-seed > p {
-	margin: 0;
+/* An index on the left and one editor on the right, the same column-plus-panel shape as the
+ * workspace page.
+ *
+ * This replaced an accordion. Every row could unfold, which meant opening one pushed the rows
+ * below it down by the height of a code editor -- the list moved under the cursor while it was
+ * being read, and the editor was never twice in the same place. Here only the right half changes. */
+.seed-browser {
+	display: grid;
+	grid-template-columns: 300px minmax(0, 1fr);
 }
 
-/* One file. A row that unfolds, the same shape as a row in the diff accordion, because it is the
-   same gesture and learning it twice is a cost for no benefit. */
-.seed-entry {
-	border-top: 1px solid var(--border);
-}
-
-.seed-entry:last-child {
-	border-bottom: 1px solid var(--border);
-}
-
-.seed-row {
-	align-items: center;
-	background: none;
-	border: none;
-	color: var(--fg-bright);
+.seed-index {
 	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-md);
-	gap: 8px;
-	padding: 10px 0;
-	text-align: left;
-	width: 100%;
-}
-
-.seed-row:hover {
-	color: var(--fg);
-}
-
-/* Quieter than the files above it: adding one is available rather than the thing to do. */
-.seed-row.is-new {
-	color: var(--fg-muted);
-}
-
-.seed-caret {
-	color: var(--fg-dim);
-	flex: none;
-	transition: transform 120ms ease;
-}
-
-.seed-row[aria-expanded="true"] .seed-caret {
-	transform: rotate(90deg);
-}
-
-/* The path takes the room and the size does not, so a long destination does not push the size off
-   the end of the row. */
-.seed-path {
-	flex: 1 1 auto;
-	overflow-wrap: anywhere;
-}
-
-.seed-size {
-	color: var(--fg-dim);
-	flex: none;
-	font-size: var(--text-sm);
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+	padding-right: 20px;
 }
 
 .seed-list {
@@ -873,11 +838,126 @@ button {
 	padding: 0;
 }
 
+/* One file. Flush rather than spaced, the same as the sidebar's workspaces: a list to run an eye
+   down, not a stack of cards that each have to be read on their own. */
+.seed-row {
+	align-items: flex-start;
+	background: none;
+	border: none;
+	color: var(--text-primary);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	gap: 8px;
+	padding: 7px 10px;
+	position: relative;
+	text-align: left;
+	transition: background var(--dur-fast) var(--ease);
+	width: 100%;
+}
+
+.seed-row:hover {
+	background: var(--surface-raised);
+}
+
+.seed-row.is-active {
+	background: var(--surface-select);
+}
+
+/* The 2px bar marking the selected row, over the fill rather than as a border, so nothing inside
+   the row shifts when it is chosen. The sidebar's entries are marked the same way. */
+.seed-row.is-active::before {
+	background: var(--sage);
+	bottom: 0;
+	content: "";
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 2px;
+}
+
+/* The directory above and the file name below, the two-line shape the sidebar's entries use.
+   On one line a 300px column broke `$HOME/.claude/output-styles/attention-ste.md` mid-word, and
+   CSS cannot be told to break it at the slashes instead. The path takes the room and the size does
+   not, so a long destination cannot push the size off the end of the row. */
+.seed-path {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Dimmed and smaller, because six destinations that all begin $HOME/.claude/ differ only at the
+   end and that is where the eye should land. */
+.seed-dir {
+	color: var(--text-muted);
+	font-size: var(--text-mono-xs);
+}
+
+.seed-name {
+	color: var(--text-primary);
+}
+
+/* Pinned to the first line rather than centred against a row that is one line for some files and
+   two for others. */
+.seed-size {
+	color: var(--text-tertiary);
+	flex: none;
+	font-size: var(--text-mono-xs);
+	line-height: 1.5;
+}
+
+/* An edit held in the browser and not yet on the controller. Switching files keeps it, so without
+   this mark there is nothing to say which rows are still carrying one. */
+.seed-dot {
+	color: var(--sage);
+	flex: none;
+	line-height: 1;
+}
+
+.seed-blank,
+.seed-empty {
+	color: var(--text-muted);
+	margin: 0;
+	padding: 10px;
+}
+
+/* The glyph and the word on one line. `.button` is not a flex container, because every other
+   button in the app is text alone. */
+.seed-add {
+	align-items: center;
+	display: inline-flex;
+	gap: 6px;
+	justify-content: center;
+}
+
+.seed-pane {
+	border-left: 1px solid var(--line-hairline);
+	min-width: 0;
+	padding-left: 20px;
+}
+
 .seed-form {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	padding: 4px 0 16px 20px;
+}
+
+/* The destination, once, at the top where a file name belongs. It was printed again in the
+   editor's status bar until the two ended up an inch apart saying the same string. */
+.seed-head {
+	color: var(--text-primary);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* The one state where this line reports a problem rather than a fact. */
+.seed-head.is-wrong {
+	color: var(--red-ink);
 }
 
 .seed-where {
@@ -894,10 +974,10 @@ button {
 }
 
 .seed-destination input[type="text"] {
-	background: var(--bg);
-	border: 1px solid var(--border);
-	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	color: var(--text-primary);
+	font-family: var(--font-mono);
 	height: var(--field-height);
 	padding: 0 10px;
 	width: 100%;
@@ -2569,6 +2649,23 @@ button.workspace-title:hover {
 
 	.dashboard-main-wide {
 		grid-column: 2;
+	}
+
+	/* The seed browser stacks for the same reason the rail does, and the divider between the two
+	   panes turns with it. */
+	.seed-browser {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.seed-index {
+		padding-right: 0;
+	}
+
+	.seed-pane {
+		border-left: none;
+		border-top: 1px solid var(--line-hairline);
+		padding-left: 0;
+		padding-top: 16px;
 	}
 }
 

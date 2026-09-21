@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { Plus } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 
 import {
@@ -12,13 +12,13 @@ import {
 } from "../domain/seed-file";
 import { languageOfPath } from "../lib/highlight";
 import { seedFileQuery, seedFilesQuery, workspaceKeys } from "../lib/queries";
-import { useOpenRows } from "../lib/use-open-rows";
 import {
 	deleteWorkspaceSeedFile,
 	saveWorkspaceSeedFile,
 } from "../server/seed-files.functions";
 import { Button } from "./button";
 import { CodeEditor } from "./code-editor";
+import { SectionHead } from "./section-head";
 import { type Option, Select } from "./select";
 
 // The label is the root's own name: "home", "repo" and "absolute" say what they mean and a prettier
@@ -28,99 +28,167 @@ const ROOT_OPTIONS: Option<SeedRoot>[] = SEED_ROOTS.map((root) => ({
 	value: root,
 }));
 
+// NEW_FILE is the selection standing for the file being added.
+//
+// A sentinel rather than a separate `adding` boolean, because the pane shows exactly one thing and
+// two pieces of state that must never both be set is the shape that eventually sets both.
+const NEW_FILE = "new";
+
 // SettingsSeedFiles is what every new workspace is seeded with.
 //
-// A list of rows that unfold, the same gesture as the diff accordion, because the thing an operator
-// wants here is the same: see what is in one of several files without leaving the others. Adding a
-// file is that row with nothing in it, which is what removes the separate add-form the first
-// version had -- and with it the reason uploading and pasting were two different paths.
+// An index on the left and one editor on the right, the same column-plus-panel shape as the
+// workspace page. This replaced an accordion whose last row was a file that did not exist: adding
+// one looked like opening one, and unfolding any row pushed everything below it down by the height
+// of a code editor, so the list moved under the cursor while it was being read. Here the editor
+// stays where it is and only its contents change.
 export function SettingsSeedFiles(): ReactNode {
 	const { data: files = [] } = useQuery(seedFilesQuery());
-	const { isOpen, toggle } = useOpenRows();
+	const [selected, setSelected] = useState<string | undefined>(undefined);
+	// Edited-but-unsaved bodies, held here rather than inside the editor.
+	//
+	// This is what makes switching files safe. In an accordion, leaving a row meant deliberately
+	// collapsing it; here one click on something that looks like navigation would have thrown the
+	// edit away without saying so. Keyed by file id, or NEW_FILE for the one being added.
+	const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+	function forget(key: string): void {
+		setDrafts(({ [key]: _gone, ...rest }) => rest);
+	}
 
 	return (
 		<section className="settings-seed">
 			<p>
 				Text files written into every workspace as it is provisioned, before the
-				agent starts. Up to {MAX_SEED_BYTES / 1024} kB each.
-			</p>
-			<p className="settings-caveat">
-				Applied to new workspaces only. Nothing already running changes, because
-				an agent reads its settings once when its session begins and a file that
-				arrives afterwards would not be read until the container was rebuilt.
+				agent starts. Applied to new workspaces only. Up to{" "}
+				{MAX_SEED_BYTES / 1024} kB each.
 			</p>
 
-			<ol className="seed-list">
-				{files.map((file) => (
-					<SeedRow
-						file={file}
-						key={file.id}
-						onToggle={() => toggle(file.id)}
-						open={isOpen(file.id)}
-					/>
-				))}
-				<SeedRow
-					onToggle={() => toggle("new")}
-					open={isOpen("new")}
-					// Closed again once saved, so the row is ready for the next one rather than
-					// still holding the last file's text.
-					onSaved={() => toggle("new")}
-				/>
-			</ol>
+			<div className="seed-browser">
+				<div className="seed-index">
+					<SectionHead count={files.length} label="Seed files" />
+
+					{files.length === 0 ? (
+						<p className="seed-empty">No seed files yet.</p>
+					) : (
+						<ul className="seed-list">
+							{files.map((file) => (
+								<SeedIndexRow
+									edited={drafts[file.id] !== undefined}
+									file={file}
+									key={file.id}
+									onSelect={() => setSelected(file.id)}
+									selected={selected === file.id}
+								/>
+							))}
+						</ul>
+					)}
+
+					<Button
+						className="seed-add"
+						onClick={() => setSelected(NEW_FILE)}
+						variant="secondary"
+					>
+						<Plus aria-hidden size={12} strokeWidth={1.5} />
+						<span>Add file</span>
+					</Button>
+				</div>
+
+				<div className="seed-pane">
+					{selected === undefined ? (
+						<p className="seed-blank">Select a file, or add one.</p>
+					) : (
+						<SeedForm
+							draft={drafts[selected]}
+							file={files.find((file) => file.id === selected)}
+							// Remounted per selection, so the root, the destination and the last
+							// note belong to the file on screen. The body does not reset with it --
+							// that arrives as a prop from the map above.
+							key={selected}
+							onDraft={(content) =>
+								setDrafts((current) => ({ ...current, [selected]: content }))
+							}
+							onRemoved={() => {
+								forget(selected);
+								setSelected(undefined);
+							}}
+							onSaved={(saved) => {
+								forget(selected);
+								// Follows the file rather than closing the pane. Saving a new one
+								// gives it an id for the first time, and landing on the row that
+								// just appeared is what says the add worked.
+								setSelected(saved.id);
+							}}
+						/>
+					)}
+				</div>
+			</div>
 		</section>
 	);
 }
 
-// SeedRow is one file, or the row that makes a new one.
+// SeedIndexRow is one file in the index.
 //
-// The editor is mounted only while the row is open, which is what makes the body fetch lazy: a
-// page of twenty files costs twenty sizes until somebody opens one.
-function SeedRow({
+// The directory and the file name are separate spans because they are read differently: six
+// destinations that all begin `$HOME/.claude/` differ only at the end, so the front is dimmed and
+// the eye lands where the difference is.
+function SeedIndexRow({
+	edited,
 	file,
-	onSaved,
-	onToggle,
-	open,
+	onSelect,
+	selected,
 }: {
-	file?: SeedFile;
-	onSaved?: () => void;
-	onToggle: () => void;
-	open: boolean;
+	edited: boolean;
+	file: SeedFile;
+	onSelect: () => void;
+	selected: boolean;
 }): ReactNode {
+	const resolved = resolveSeedPath(file.root, file.path);
+	const cut = resolved.lastIndexOf("/") + 1;
+
 	return (
-		<li className="seed-entry">
+		<li>
 			<button
-				aria-expanded={open}
-				className={file === undefined ? "seed-row is-new" : "seed-row"}
-				onClick={onToggle}
+				// Not `aria-selected`, which needs a listbox around it, and not a link, which this
+				// is not. A pressed button is what a screen reader can be told about a control that
+				// chooses what the panel beside it shows.
+				aria-pressed={selected}
+				className={selected ? "seed-row is-active" : "seed-row"}
+				onClick={onSelect}
 				type="button"
 			>
-				<ChevronRight aria-hidden className="seed-caret" size={12} />
 				<span className="seed-path">
-					{file === undefined
-						? "Add a file"
-						: resolveSeedPath(file.root, file.path)}
+					<span className="seed-dir">{resolved.slice(0, cut)}</span>
+					<span className="seed-name">{resolved.slice(cut)}</span>
 				</span>
-				{file === undefined ? null : (
-					<span className="seed-size">
-						{Math.max(1, Math.round(file.bytes / 1024))} kB
+				{edited ? (
+					<span aria-label="unsaved changes" className="seed-dot" role="img">
+						•
 					</span>
-				)}
+				) : null}
+				<span className="seed-size">
+					{Math.max(1, Math.round(file.bytes / 1024))} kB
+				</span>
 			</button>
-			{open ? <SeedForm file={file} onSaved={onSaved} /> : null}
 		</li>
 	);
 }
 
 // SeedForm edits one file: where it goes, and what is in it.
 function SeedForm({
+	draft,
 	file,
+	onDraft,
+	onRemoved,
 	onSaved,
 }: {
+	draft?: string;
 	file?: SeedFile;
-	onSaved?: () => void;
+	onDraft: (content: string) => void;
+	onRemoved: () => void;
+	onSaved: (saved: SeedFile) => void;
 }): ReactNode {
 	const queryClient = useQueryClient();
-	// Only for a file that exists. `enabled` rather than a branch, so the new-file row asks for
+	// Only for a file that exists. `enabled` rather than a branch, so the new-file pane asks for
 	// nothing at all.
 	const { data: stored } = useQuery({
 		...seedFileQuery(file?.id ?? ""),
@@ -129,14 +197,13 @@ function SeedForm({
 
 	const [root, setRoot] = useState<SeedRoot>(file?.root ?? "home");
 	const [path, setPath] = useState(file?.path ?? "");
-	const [draft, setDraft] = useState<string | undefined>(undefined);
 	const [note, setNote] = useState("");
 	const [busy, setBusy] = useState(false);
 	// A file input cannot be driven from state, so clearing it after a load needs the node itself.
 	const picker = useRef<HTMLInputElement>(null);
 	const rootId = useId();
 
-	// The stored body until something is typed. Not seeded into state on load, because state
+	// The stored body until something is typed. Not copied into state on load, because state
 	// initialised from a query keeps whatever arrived first and the fetch resolves after the mount.
 	const content = draft ?? stored?.content ?? "";
 	const destination = readSeedPath(root, path);
@@ -155,7 +222,7 @@ function SeedForm({
 
 		// Into the editor rather than straight to the server, so it can be read and corrected
 		// before it is saved. This is what makes a pasted file and a chosen one the same thing.
-		setDraft(await chosen.text());
+		onDraft(await chosen.text());
 		if (path.trim() === "") {
 			setPath(chosen.name);
 		}
@@ -172,16 +239,15 @@ function SeedForm({
 		setBusy(true);
 		setNote("");
 		try {
-			await saveWorkspaceSeedFile({
+			const saved = await saveWorkspaceSeedFile({
 				data: { content, id: file?.id, path: destination.path, root },
 			});
-			// Invalidating the list key also reaches every open row's body, because the row keys
+			// Invalidating the list key also reaches the open file's body, because the row keys
 			// are nested under it.
 			await queryClient.invalidateQueries({
 				queryKey: workspaceKeys.seedFiles(),
 			});
-			setDraft(undefined);
-			onSaved?.();
+			onSaved(saved);
 			setNote("Saved. Applied to workspaces created from now on.");
 		} catch (cause) {
 			setNote(cause instanceof Error ? cause.message : "could not save");
@@ -201,6 +267,7 @@ function SeedForm({
 			await queryClient.invalidateQueries({
 				queryKey: workspaceKeys.seedFiles(),
 			});
+			onRemoved();
 		} finally {
 			setBusy(false);
 		}
@@ -208,6 +275,19 @@ function SeedForm({
 
 	return (
 		<div className="seed-form">
+			{/* The destination, once, at the top where a file name belongs. It used to be printed
+			    again in the editor's status bar, which with the two an inch apart was the same
+			    string twice. */}
+			<p
+				className={
+					destination.kind === "valid" ? "seed-head" : "seed-head is-wrong"
+				}
+			>
+				{destination.kind === "invalid"
+					? destination.message
+					: resolveSeedPath(root, destination.path)}
+			</p>
+
 			<div className="seed-where">
 				<div className="settings-field">
 					<label htmlFor={rootId}>
@@ -252,21 +332,8 @@ function SeedForm({
 					// From the destination, so a settings.json is JSON and a CLAUDE.md is markdown
 					// without anybody choosing a language.
 					lang={languageOfPath(path)}
-					onChange={setDraft}
-					status={
-						<>
-							<span
-								className={
-									destination.kind === "valid" ? "is-path" : "is-wrong"
-								}
-							>
-								{destination.kind === "invalid"
-									? destination.message
-									: resolveSeedPath(root, destination.path)}
-							</span>
-							<span>{languageOfPath(path)}</span>
-						</>
-					}
+					onChange={onDraft}
+					status={<span>{languageOfPath(path)}</span>}
 					value={content}
 				/>
 			)}
@@ -279,6 +346,9 @@ function SeedForm({
 					{busy ? "Saving" : "Save"}
 				</Button>
 				{file === undefined ? null : (
+					// Explicit rather than revealed on hover of the index row. It is the only
+					// irreversible control here, and the destroy button set the rule that those
+					// are always visible where the thing they act on is.
 					<Button
 						disabled={busy}
 						onClick={() => void remove()}
