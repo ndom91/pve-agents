@@ -515,21 +515,6 @@ button {
 	text-transform: uppercase;
 }
 
-.detail-error {
-	border: 1px solid var(--danger);
-	margin-top: 24px;
-	padding: 12px 16px;
-}
-
-.detail-error h2 {
-	color: var(--danger-fg);
-	margin: 0 0 6px;
-}
-
-.detail-error p {
-	margin: 0;
-}
-
 /* The composer. A well with a border, the field on top and a row of keyboard hints under it with
  * SEND pushed right.
  *
@@ -2846,23 +2831,6 @@ button.workspace-title:hover {
 	background: transparent;
 }
 
-/* A workspace exempt from reaping because it holds work. Stated rather than implied: the exemption
-   keeps a container alive indefinitely, which is only an acceptable trade if it is visible. */
-.detail-kept {
-	border: 1px solid var(--info);
-	margin-top: 24px;
-	padding: 12px 16px;
-}
-
-.detail-kept h2 {
-	color: var(--info-fg);
-	margin: 0 0 6px;
-}
-
-.detail-kept p {
-	margin: 0;
-}
-
 /* Shared by the workspace rail and the settings page.
  *
  * Scrolls sideways rather than wrapping. Wrapping changes the strip's height as tabs appear, which
@@ -3230,23 +3198,201 @@ diffs-container {
 	width: 100%;
 }
 
-/* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
-   where something is gone and nobody can get it back. */
-.detail-lost {
-	border-color: var(--danger);
+/* One thing that is true about a workspace. One component, two placements here, four severities.
+ *
+ * Replaced four bordered cards sitting in the column's padding, each with a bold heading over a
+ * paragraph, which is the left-border accent card STYLE.md section 9 forbids. */
+.notice {
+	align-items: center;
+	background: var(--notice-neutral-bg);
+	border: 1px solid var(--notice-neutral-line);
+	display: flex;
+	gap: 10px;
 }
 
-.detail-lost h2 {
-	color: var(--danger-fg);
+.notice-icon {
+	color: var(--notice-neutral-icon);
+	flex-shrink: 0;
 }
 
-.detail-kept a {
-	color: var(--accent-fill);
+.notice-text {
+	flex-grow: 1;
+	font-size: var(--text-body-md);
+	min-width: 0;
 }
 
-.detail-kept code {
-	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+/* Never coloured, in either half. The icon and the fill already carry the severity, and a third
+   copy of it in the text is what makes a red notice read as three different reds. */
+.notice-lead {
+	color: var(--text-primary);
+}
+
+.notice-rest {
+	color: var(--text-muted);
+}
+
+/* Literal, not "\2014": a CSS hex escape swallows one following whitespace character, so the
+   escaped form loses the space after the dash and the clause runs into it. */
+.notice-rest::before {
+	content: " — ";
+}
+
+/* Severity-tinted outline, never a fill: the one filled control on a surface is its primary
+   action, and a notice is not that. */
+.notice-action {
+	background: transparent;
+	border: 1px solid var(--notice-neutral-line);
+	border-radius: var(--radius-sm);
+	color: var(--notice-neutral-icon);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	height: 22px;
+	letter-spacing: 0.1em;
+	padding: 0 9px;
+	text-transform: uppercase;
+	transition: background var(--dur-fast) var(--ease);
+}
+
+.notice-action:hover {
+	background: var(--surface-hover);
+}
+
+.notice-dismiss {
+	background: none;
+	border: 0;
+	color: var(--text-dim);
+	display: flex;
+	flex-shrink: 0;
+	padding: 4px;
+}
+
+.notice-dismiss:hover {
+	color: var(--text-primary);
+}
+
+/* The strip. The meta band's own register, bleeding to the column's edges, with a bottom border
+   and no top one -- the band above already drew that line. One line, clipped rather than wrapped,
+   because a header that changes height as a message arrives moves the whole page under it. */
+.notice.is-strip {
+	border-left: 0;
+	border-right: 0;
+	border-top: 0;
+	flex-shrink: 0;
+	height: var(--notice-h);
+	padding: 0 var(--main-pad);
+}
+
+.notice.is-strip .notice-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The block. For a notice that needs more than one line or offers a real choice, and the only
+   placement that keeps a heading. In the column, so it scrolls away with the feed. */
+.notice.is-block {
+	align-items: flex-start;
+	border-radius: var(--radius-md);
+	line-height: 1.5;
+	padding: 12px 14px;
+}
+
+.notice.is-block .notice-icon {
+	margin-top: 3px;
+}
+
+.notice.is-block .notice-lead {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	margin-bottom: 5px;
+	text-transform: uppercase;
+}
+
+/* The heading is its own line here, so the dash that joins the two halves in a strip would be a
+   dash at the start of a sentence. */
+.notice.is-block .notice-rest::before {
+	content: none;
+}
+
+.notice.is-green {
+	background: var(--notice-green-bg);
+	border-color: var(--notice-green-line);
+}
+
+.notice.is-green .notice-icon,
+.notice.is-green .notice-action {
+	border-color: var(--notice-green-line);
+	color: var(--notice-green-icon);
+}
+
+.notice.is-amber {
+	background: var(--notice-amber-bg);
+	border-color: var(--notice-amber-line);
+}
+
+.notice.is-amber .notice-icon,
+.notice.is-amber .notice-action {
+	border-color: var(--notice-amber-line);
+	color: var(--notice-amber-icon);
+}
+
+.notice.is-red {
+	background: var(--notice-red-bg);
+	border-color: var(--notice-red-line);
+}
+
+.notice.is-red .notice-icon,
+.notice.is-red .notice-action {
+	border-color: var(--notice-red-line);
+	color: var(--notice-red-icon);
+}
+
+/* What is left when more than one notice is true. Two strips is the ceiling; past that the header
+   stops being chrome and starts being the page, so the rest cost a click. */
+.notice-more {
+	align-items: center;
+	background: none;
+	border: 0;
+	border-bottom: 1px solid var(--line-hairline);
+	color: var(--text-muted);
+	display: flex;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	gap: 8px;
+	height: 24px;
+	padding: 0 var(--main-pad);
+	width: 100%;
+}
+
+.notice-more:hover {
+	color: var(--text-primary);
+}
+
+.notice-more-dot {
+	border-radius: 50%;
+	height: 5px;
+	width: 5px;
+}
+
+.notice-more-dot.is-neutral {
+	background: var(--text-decorative);
+}
+
+.notice-more-dot.is-green {
+	background: var(--green-mark);
+}
+
+.notice-more-dot.is-amber {
+	background: var(--amber-mark);
+}
+
+.notice-more-dot.is-red {
+	background: var(--red-mark);
 }
 
 /* The timeline in its tab: a rail with a dot per moment, and between the dots the gap since the

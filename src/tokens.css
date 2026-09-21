@@ -112,6 +112,23 @@
 	--green-ring: rgba(127, 160, 106, 0.16);
 	--red-line-strong: #5a4440;
 
+	/* ── Notices ────────────────────────────────────────────────────────
+	   A fill at 7-8% of the severity and a border at 22-28%. The text is
+	   never coloured -- the icon and the fill carry the severity, which is
+	   what stops one red notice being three different reds. */
+	--notice-neutral-bg: var(--surface-raised);
+	--notice-neutral-line: var(--line-border);
+	--notice-neutral-icon: var(--text-secondary);
+	--notice-green-bg: rgba(127, 160, 106, 0.08);
+	--notice-green-line: rgba(127, 160, 106, 0.26);
+	--notice-green-icon: var(--green-mark);
+	--notice-amber-bg: rgba(212, 168, 95, 0.08);
+	--notice-amber-line: rgba(212, 168, 95, 0.26);
+	--notice-amber-icon: var(--amber-mark);
+	--notice-red-bg: rgba(217, 139, 125, 0.08);
+	--notice-red-line: rgba(217, 139, 125, 0.28);
+	--notice-red-icon: var(--red-mark);
+
 	/* ── The pre-refresh palette ────────────────────────────────────────
 	   Still read by ~230 declarations on the surfaces section 8 never
 	   covered: the settings screen, the transcript's syntax colours, the
@@ -239,6 +256,22 @@
 	--green-ring: rgba(95, 148, 64, 0.2);
 	--red-line-strong: #c08f83;
 
+	/* ── Notices ────────────────────────────────────────────────────────
+	   Opaque, not the alpha of the dark set: 8% of a signal colour over a
+	   near-white ground is invisible. These are the same tints mixed. */
+	--notice-neutral-bg: var(--surface-raised);
+	--notice-neutral-line: var(--line-border);
+	--notice-neutral-icon: var(--text-secondary);
+	--notice-green-bg: #eaf2e3;
+	--notice-green-line: #c9dcbc;
+	--notice-green-icon: var(--green);
+	--notice-amber-bg: #f7efdd;
+	--notice-amber-line: #e5d3a8;
+	--notice-amber-icon: var(--amber);
+	--notice-red-bg: #f9e9e5;
+	--notice-red-line: #e8c7bf;
+	--notice-red-icon: var(--red);
+
 	/* ── The pre-refresh palette, in light ──────────────────────────────
 	   Mapped by the job each one does rather than by hue, which is why
 	   --surface (a hover fill in dark) lands on the light hover and not
@@ -342,6 +375,9 @@
 	--control-h: 26px;
 	--control-h-md: 30px;
 	--control-h-lg: 34px;
+	/* The same register as the meta band it sits under, so a strip reads as more chrome rather
+	   than as the first message in the feed. */
+	--notice-h: 34px;
 
 	/* Motion — three durations, always ease-in-out */
 	--dur-fast: 75ms;

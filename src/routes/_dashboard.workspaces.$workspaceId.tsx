@@ -8,6 +8,8 @@ import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
 import { IconButton } from "../components/icon-button";
 import { MetaBand } from "../components/meta-band";
+import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
+import { outcomeNotice } from "../components/outcome-notice";
 import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -16,8 +18,6 @@ import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { WorkspaceTitle } from "../components/workspace-title";
 import { isConversing } from "../domain/workspace-lifecycle";
-import type { WorkspaceOutcome } from "../domain/workspace-outcome";
-import { workspaceOutcome } from "../domain/workspace-outcome";
 import { provisionTook } from "../lib/clock";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
@@ -210,6 +210,38 @@ function WorkspaceDetail() {
 	// transcript stays up to be read, and the field under it stops taking anything.
 	const promptable = ready && !busy;
 
+	// Everything currently true about this workspace that belongs in the header. `NoticeStack`
+	// ranks them and hides all but the loudest.
+	const strips: NoticeProps[] = [
+		...(blocked
+			? [
+					{
+						lead: "Waiting for you",
+						// No action. The allow and deny buttons are in the feed, on the question
+						// they answer, and a second copy up here is a second place to answer from.
+						rest: "the agent has asked a question and will not continue until it is answered.",
+						severity: "amber" as const,
+					},
+				]
+			: []),
+		...(workspace.unsavedWork === true && !finished
+			? [
+					{
+						action: {
+							label: "Open diff",
+							onClick: () => setTab({ kind: "diff" }),
+						},
+						lead: "Holding unsaved work",
+						rest: "uncommitted changes, so this workspace will not be destroyed automatically.",
+						severity: "amber" as const,
+					},
+				]
+			: []),
+		// What became of the work, once the container is gone. Derived from the timeline rather
+		// than stored: the push already writes the branch there.
+		...(finished ? outcomeNotice(workspace) : []),
+	];
+
 	// Shared by the button and the keyboard shortcut, so the two cannot diverge on what counts as
 	// an empty prompt.
 	function submitPrompt() {
@@ -274,51 +306,32 @@ function WorkspaceDetail() {
 					tail={<Uptime workspace={workspace} />}
 				/>
 
+				{/* Outside the column's padding, deliberately. A strip belongs to the same register
+				    as the band above it, and `screen-body` would inset it by 28px and make it read
+				    as the first message in the feed. */}
+				<NoticeStack notices={strips} />
+
 				{/* Everything the two bars sit above. The bars bleed to the column's edges, so the
 				    padding that used to belong to the column belongs to this instead. */}
 				<div className="screen-body">
-					{!blocked ? null : (
-						<section className="detail-blocked">
-							<h2>Waiting for you</h2>
-							<p>
-								The agent has asked a question and will not continue until it is
-								answered.
-							</p>
-						</section>
-					)}
-
-					{/* What became of the work, once the container is gone.
-				    Derived from the timeline rather than stored: the push already writes the
-				    branch there, and a second copy is a second thing to keep true. */}
-					{!finished ? null : <Outcome workspace={workspace} />}
-
-					{/* Only while the workspace still exists. On a destroyed one this used to say it
-				    "will not be destroyed automatically" and to open a Diff tab that is not there,
-				    which is advice about a container nobody can act on any more. */}
-					{workspace.unsavedWork !== true || finished ? null : (
-						<section className="detail-kept">
-							<h2>Holding unsaved work</h2>
-							<p>
-								The workspace has uncommitted or unpushed changes, so it will
-								not be destroyed automatically. Open the Diff tab to see what
-								changed and to push or discard it.
-							</p>
-						</section>
-					)}
-
+					{/* A block rather than a strip, on both of the counts that earn one: the message
+					    runs past a line, and Retry is a real choice. A strip would ellipsise the
+					    only place the failure is written down. */}
 					{workspace.errorMessage === undefined ? null : (
-						<section className="detail-error">
-							<h2>{workspace.errorCode ?? "error"}</h2>
-							<p>{workspace.errorMessage}</p>
-							{workspace.status !== "failed" ? null : (
-								<Button
-									disabled={retry.isPending}
-									onClick={() => retry.mutate()}
-								>
-									{retry.isPending ? "Queueing" : "Retry"}
-								</Button>
-							)}
-						</section>
+						<Notice
+							action={
+								workspace.status === "failed"
+									? {
+											label: retry.isPending ? "Queueing" : "Retry",
+											onClick: () => retry.mutate(),
+										}
+									: undefined
+							}
+							lead={workspace.errorCode ?? "error"}
+							placement="block"
+							rest={workspace.errorMessage}
+							severity="red"
+						/>
 					)}
 
 					{!conversing ? null : (
@@ -466,55 +479,3 @@ function suggestedMessage(purpose?: string): string {
 //
 // The container is gone and the timeline is sixteen entries long; this is the one sentence
 // somebody scrolling back through a destroyed workspace actually wants.
-function Outcome({
-	workspace,
-}: {
-	workspace: Parameters<typeof workspaceOutcome>[0];
-}) {
-	const outcome = workspaceOutcome(workspace);
-	if (outcome.kind === "nothing") {
-		return null;
-	}
-
-	return (
-		<section
-			className={
-				outcome.kind === "lost" ? "detail-kept detail-lost" : "detail-kept"
-			}
-		>
-			<h2>{HEADINGS[outcome.kind]}</h2>
-			<p>{body(outcome)}</p>
-		</section>
-	);
-}
-
-const HEADINGS: Record<WorkspaceOutcome["kind"], string> = {
-	discarded: "Changes discarded",
-	lost: "Ended holding unsaved work",
-	nothing: "",
-	pushed: "Work pushed",
-};
-
-function body(outcome: WorkspaceOutcome) {
-	if (outcome.kind === "pushed") {
-		return (
-			<>
-				The agent's work is on{" "}
-				{outcome.url === undefined ? (
-					<code>{outcome.branch}</code>
-				) : (
-					<a href={outcome.url} rel="noreferrer" target="_blank">
-						{outcome.branch}
-					</a>
-				)}
-				, not on the branch the workspace was cloned from. The container is
-				gone; the work is not.
-			</>
-		);
-	}
-	if (outcome.kind === "discarded") {
-		return "Everything in the working tree was deliberately thrown away before this workspace ended.";
-	}
-
-	return "This workspace was last seen holding uncommitted or unpushed changes. Its container has been deleted, so that work is gone.";
-}
