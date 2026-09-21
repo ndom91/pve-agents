@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { elapsedSince, formatAge, formatUptime } from "../lib/clock";
+import { elapsedSince, formatAge, formatSpan } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 
 // Elapsed is how long it has been since something, counted from now.
@@ -28,7 +28,7 @@ export function Elapsed({
 		return null;
 	}
 
-	const shown = of === "age" ? formatAge(ms) : formatUptime(ms);
+	const shown = of === "age" ? formatAge(ms) : formatSpan(ms);
 
 	// The string, not a span. Every call site already sits inside an element that styles it, and a
 	// wrapper with no rule of its own is an element nobody can target and everybody has to nest

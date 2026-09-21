@@ -5,8 +5,8 @@ import {
 	elapsedSince,
 	formatAge,
 	formatDuration,
+	formatSpan,
 	formatStep,
-	formatUptime,
 } from "./clock";
 
 const SECOND = 1000;
@@ -34,15 +34,15 @@ describe("formatDuration", () => {
 	});
 });
 
-describe("formatUptime", () => {
+describe("formatSpan", () => {
 	it("matches formatDuration below an hour", () => {
-		expect(formatUptime(9 * MINUTE + 22 * SECOND)).toBe("9m 22s");
+		expect(formatSpan(9 * MINUTE + 22 * SECOND)).toBe("9m 22s");
 	});
 
 	it("rolls into hours, and then days", () => {
 		// A container up since yesterday reading "2410m 8s" is a number nobody can parse.
-		expect(formatUptime(2 * HOUR + 22 * MINUTE)).toBe("2h 22m");
-		expect(formatUptime(3 * DAY + 4 * HOUR)).toBe("3d 4h");
+		expect(formatSpan(2 * HOUR + 22 * MINUTE)).toBe("2h 22m");
+		expect(formatSpan(3 * DAY + 4 * HOUR)).toBe("3d 4h");
 	});
 });
 

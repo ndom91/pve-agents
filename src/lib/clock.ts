@@ -71,13 +71,17 @@ export function formatStep(ms: number): string | undefined {
 	return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : formatDuration(ms);
 }
 
-// formatUptime renders a span that may run for days, for the meta band's "up 2h 22m".
+// formatSpan renders a span that may run for hours or days: "9m 22s", then "2h 22m", then "3d 4h".
 //
 // Separate from formatDuration because that one deliberately has no hours tier -- it is `took`,
 // which has said "74m 12s" since it was written and should not start saying something else as a
-// side effect of a visual refresh. This is a new call site with no history to preserve, and a
-// container that has been up since yesterday reading "2410m 8s" is a number nobody can parse.
-export function formatUptime(ms: number): string | undefined {
+// side effect of a visual refresh. Both of this one's callers are new and have no history to
+// preserve: a container up since yesterday reading "2410m 8s", or a timeline gap reading
+// "353m 5s", is a number nobody can parse.
+//
+// Named for the shape rather than for its first caller. It was `formatUptime` until the timeline
+// wanted it too, at which point the name was describing one of two jobs.
+export function formatSpan(ms: number): string | undefined {
 	if (!Number.isFinite(ms) || ms < 0) {
 		return undefined;
 	}

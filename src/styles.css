@@ -3124,33 +3124,20 @@ button.workspace-title:hover {
 	position: relative;
 }
 
-/* The gap row, sitting on the rail between two dots. A short tick replaces the line behind it so
-   the number is not struck through. */
-.timeline-gap {
-	align-items: center;
-	display: flex;
-	height: 16px;
-	position: relative;
-}
-
-.timeline-gap-tick {
-	background: var(--line-divider);
-	height: 12px;
-	left: -22px;
-	position: absolute;
-	top: 2px;
-	width: 1px;
-}
-
-.timeline-gap-value {
+/* The gap since the previous moment, beside the time rather than on a row of its own. It reads as
+   a fact about this entry, which a rail row between two dots did not -- sitting between them it
+   was nearer the entry above, the one it is not about. Quiet, because the heading and the time are
+   what the eye is scanning. */
+.timeline-since {
 	color: var(--text-decorative);
+	flex-shrink: 0;
 	font-family: var(--font-mono);
 	font-size: 9px;
 	font-variant-numeric: tabular-nums;
 }
 
 .timeline-moment {
-	padding: 8px 0 14px;
+	padding: 8px 0 18px;
 	position: relative;
 }
 

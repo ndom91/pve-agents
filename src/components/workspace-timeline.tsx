@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from "react";
 import type { TimelineEvent } from "../domain/workspace-timeline";
 import { groupTimeline } from "../domain/workspace-timeline";
-import { formatDuration } from "../lib/clock";
+import { formatSpan } from "../lib/clock";
 import { Timestamp } from "./timestamp";
 
 // WorkspaceTimeline renders a workspace's history, oldest first.
@@ -56,21 +56,6 @@ export function WorkspaceTimeline({
 				<ol className="timeline-rail">
 					{items.map((item) => (
 						<li className="timeline-item" key={item.lead.id}>
-							{/* The gap since the previous moment, on the rail between the two dots.
-							    Not rendered for the first, which has nothing to be measured from,
-							    and not for anything under a second: two moments 200ms apart land
-							    in different seconds often enough, and "+0s" is a row of noise
-							    claiming a wait that did not happen. */}
-							{item.sincePrevious === undefined ||
-							item.sincePrevious < 1000 ? null : (
-								<div className="timeline-gap">
-									<span aria-hidden="true" className="timeline-gap-tick" />
-									<span className="timeline-gap-value">
-										+{formatDuration(item.sincePrevious)}
-									</span>
-								</div>
-							)}
-
 							<div
 								className={
 									isProblem(item.lead.eventType)
@@ -83,6 +68,21 @@ export function WorkspaceTimeline({
 								<span aria-hidden="true" className="timeline-dot" />
 								<div className="timeline-head">
 									<span className="timeline-type">{label(item.lead)}</span>
+									{/* How long after the previous moment this one landed, beside
+									    the time rather than on a row of its own. It is a fact
+									    about this entry, and a rail of its own put it nearer the
+									    entry above -- which is the one it is not about.
+									
+									    Absent on the first, which has nothing to measure from, and
+									    on anything under a second: two moments 200ms apart land in
+									    different seconds often enough, and "+0s" claims a wait
+									    that did not happen. */}
+									{item.sincePrevious === undefined ||
+									item.sincePrevious < 1000 ? null : (
+										<span className="timeline-since">
+											+{formatSpan(item.sincePrevious)}
+										</span>
+									)}
 									<span className="timeline-at">
 										<Timestamp iso={item.lead.createdAt} of="time" />
 									</span>
