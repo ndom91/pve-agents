@@ -7,6 +7,7 @@ import {
 	repositoryPage,
 } from "../domain/repository";
 import type { ProvisionPhase } from "../domain/workspace";
+import { isProvisioning } from "../domain/workspace-lifecycle";
 import { formatStamp, provisionTook, UTC } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 import { useRailWidth } from "../lib/use-rail-width";
@@ -251,7 +252,11 @@ export function WorkspaceRail({
 						)
 					}
 				>
-					<LifecycleStrip phase={workspace.provisionPhase} status={status} />
+					{/* Only while there is a climb to draw. The strip was unconditional, so the
+					    details tab of a destroyed workspace showed six empty segments. */}
+					{!isProvisioning(status) ? null : (
+						<LifecycleStrip phase={workspace.provisionPhase} status={status} />
+					)}
 					<div className="rail-grid is-2up">
 						<Stack label="Phase" value={workspace.provisionPhase} />
 						<Stack label="Step" value={workspace.currentStep} />

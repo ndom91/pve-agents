@@ -44,23 +44,6 @@
 	   they made the row taller than the field inside it. */
 	--title-width: 24rem;
 
-	/* The palette, named for the job rather than the value.
-	 *
-	 * It was thirty-four unnamed hex literals, five of which were accidents: three input
-	 * backgrounds within three points of each other, two page backgrounds within two, three dim
-	 * borders within three. Those are collapsed. Everything else keeps its exact value and gains a
-	 * name, so this pass changes the vocabulary and almost no pixels.
-	 *
-	 * Greys are a real ramp rather than duplicates. Each step below is fifteen to twenty points
-	 * from its neighbours and does distinct work, which is why they are named rather than merged. */
-
-
-
-	/* A tint rather than a fill: it has to be findable from across a long transcript without
-	   becoming a panel in its own right. Grey at this weight read as a block of UI. */
-
-
-
 	/* Five sizes and a display size, replacing eleven. 9px became 10, 14 became 13, and 17/20
 	   became 18; the display heading was clamp(36px, 6vw, 64px), written for a marketing page that
 	   no longer exists and the reason Settings read as a different application. */
@@ -331,11 +314,20 @@ h2 {
  * chevron drawn as a background below. Without it the control keeps a system border and a system
  * focus ring that no amount of `outline` reliably replaces, which is how the first one in this
  * codebase ended up with a bright blue halo among soft green ones. */
+/* The caption rule that dresses a settings field is now a class selector, not `label`, so it
+   reaches a `<div className="settings-field">` and everything inside it -- including this. Stated
+   here because a dropdown's options are values, not captions: without it the seed-files Root
+   picker rendered HOME / REPO / ABSOLUTE with tracking. */
 .select {
+	letter-spacing: normal;
+	text-transform: none;
 	appearance: none;
 	background-color: var(--bg);
 	/* A chevron, as two strokes. An inline SVG rather than an icon component because a background
 	   cannot be a React element, and the alternative is absolutely positioning one over the field. */
+	/* The stroke is baked into the data URL, so it cannot use a token and does not follow the
+	   theme. Light gets its own copy below: at the dark grey it measured 2.9:1 on the light page,
+	   under the 3:1 floor for a control indicator, and the arrow effectively vanished. */
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%238a9a83' stroke-width='1.5'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
 	background-position: right 10px center;
 	background-repeat: no-repeat;
@@ -348,6 +340,10 @@ h2 {
 	/* Room for the chevron, so a long option does not run underneath it. */
 	padding: 0 30px 0 10px;
 	width: 100%;
+}
+
+[data-theme="light"] .select {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%235d6855' stroke-width='1.5'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
 }
 
 /* One ring, for anything at all that takes focus.
@@ -454,8 +450,7 @@ button {
 }
 
 .empty,
-.workspace-purpose,
-dt {
+.workspace-purpose {
 	color: var(--fg-soft);
 }
 
@@ -1342,7 +1337,6 @@ dt {
 .sidebar-new:hover {
 	background: var(--surface-raised);
 }
-
 
 .dashboard-main {
 	/* Named because the chat has to cancel it. A scrolling child inside a padded column puts its
@@ -3036,7 +3030,6 @@ button.workspace-title:hover {
 	width: 100%;
 }
 
-
 /* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
    where something is gone and nobody can get it back. */
 .detail-lost {
@@ -3055,7 +3048,6 @@ button.workspace-title:hover {
 	color: var(--fg-bright);
 	font-family: "SF Mono", "Roboto Mono", monospace;
 }
-
 
 /* The timeline in its tab: a rail with a dot per moment, and between the dots the gap since the
  * last one.
@@ -3129,7 +3121,7 @@ button.workspace-title:hover {
    was nearer the entry above, the one it is not about. Quiet, because the heading and the time are
    what the eye is scanning. */
 .timeline-since {
-	color: var(--text-decorative);
+	color: var(--text-dim);
 	flex-shrink: 0;
 	font-family: var(--font-mono);
 	font-size: 9px;
@@ -3267,6 +3259,18 @@ button.workspace-title:hover {
 }
 
 /* The terminal keeps a control on its right, so the padding on that side comes in to meet it. */
+/* Dark in both themes, so the ink on it is pinned too. These are the dark-theme values of the
+   tokens each rule below would otherwise inherit -- in light mode the muted grey dropped to 3.3:1
+   on black, and the decorative grey used for the detached dot came out at 10.5:1, twice as bright
+   as the green that means "attached". The light signalled the opposite of the truth. */
+.terminal-bar,
+.terminal-overlay {
+	--surface: #1c211a;
+	--text-muted: #7d8b76;
+	--text-decorative: #3b4636;
+	--accent-fill: #b5cda9;
+}
+
 .terminal-bar {
 	background: var(--terminal-bg);
 	border-bottom-color: var(--line-border);
@@ -3381,7 +3385,6 @@ button.workspace-title:hover {
 	inset: 0;
 	position: absolute;
 }
-
 
 /* A kept panel. The hidden ones stay mounted so the terminal's session survives a glance at
    another tab; display:none is what keeps them out of the layout while they do. */
@@ -3809,6 +3812,9 @@ button.workspace-title:hover {
    this was undoing is scoped to the settings wrappers now and does not reach here. */
 .launch-hint {
 	color: var(--text-dim);
+	/* Stated, not inherited: the field's own textarea is on --font-sans and these two sit
+	   together. Inherited, the hint fell to the body stack and the pair was in two faces. */
+	font-family: var(--font-sans);
 	font-size: 11.5px;
 	line-height: 1.5;
 }

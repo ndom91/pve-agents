@@ -41,6 +41,29 @@ const REACHED: Record<ProvisionPhase, number> = {
 	briefed: 6,
 };
 
+// PROVISIONING is the set of statuses a workspace passes through on its way up.
+//
+// Exported so the strip's callers can ask "is this still being built" positively, rather than
+// inferring it from `lifecycleReached(...) < 6`. That inference was wrong at the other end: the
+// function returns 0 for a destroyed container on purpose, and 0 is also less than 6 -- so a
+// workspace being torn down grew an empty six-segment progress bar announcing itself as
+// "Provisioning: 0 of 6".
+const PROVISIONING = new Set([
+	"booting",
+	"bootstrapping",
+	"provisioning",
+	"registering",
+	"requested",
+]);
+
+// isProvisioning reports whether there is progress worth drawing.
+//
+// A failed workspace is excluded as well as a destroyed one: its bar would sit half-filled for
+// ever, describing a climb that has stopped.
+export function isProvisioning(status?: string): boolean {
+	return status !== undefined && PROVISIONING.has(status);
+}
+
 // lifecycleReached is how many of the six segments are filled.
 //
 // Status wins over phase at both ends. A ready workspace is complete whatever its last recorded

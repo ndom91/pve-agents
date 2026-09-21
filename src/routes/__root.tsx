@@ -24,9 +24,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 					title: "Proxmox Agents",
 				},
 				// Matches the page background, so the browser chrome on a phone does not frame a
-				// dark application in white.
+				// dark application in white -- or, since light mode, a light one in near-black.
+				// Two metas keyed on the OS preference rather than one: this is chrome outside the
+				// document and it cannot read data-theme, so it follows the same signal the boot
+				// script falls back to.
 				{
 					content: "#111411",
+					media: "(prefers-color-scheme: dark)",
+					name: "theme-color",
+				},
+				{
+					content: "#fbfcf9",
+					media: "(prefers-color-scheme: light)",
 					name: "theme-color",
 				},
 			],
@@ -74,13 +83,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 // A stored choice wins; with none, follow the OS. Wrapped in try/catch because reading
 // localStorage throws outright in some privacy modes, and a throw here would take the document
 // with it before anything had rendered.
-const THEME_BOOT = `try{var t=localStorage.getItem('pve-agents.theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}`;
+export const THEME_BOOT = `try{var t=localStorage.getItem('pve-agents.theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}`;
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		// `dark` as the served default, so the markup the server sends already says what it is and
 		// the script below only has to change it for the minority who chose otherwise.
-		<html data-theme="dark" lang="en">
+		//
+		// `suppressHydrationWarning` because the script deliberately mutates this attribute before
+		// React hydrates -- which is the whole point of it running inline. Without this React
+		// compares the two and warns on every light-mode load about the one attribute the entire
+		// stylesheet hangs off.
+		<html data-theme="dark" lang="en" suppressHydrationWarning>
 			<head>
 				{/* Before HeadContent, so it runs before the stylesheet link is even parsed. */}
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no interpolation, and it has to be inline to beat first paint */}

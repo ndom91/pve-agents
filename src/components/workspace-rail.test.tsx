@@ -47,7 +47,11 @@ describe("WorkspaceRail", () => {
 		// row would read as a problem instead of as nothing.
 		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
 
-		expect(screen.queryByText("SSH")).toBeNull();
+		// By the rendered text, not by "SSH" -- that string only exists on the copy button's
+		// aria-label, which queryByText does not match, so the assertion passed either way.
+		expect(screen.queryByText(/ssh agent@/)).toBeNull();
+		expect(screen.queryByText("VMID")).toBeNull();
+		expect(screen.queryByText("Address")).toBeNull();
 		expect(screen.getByText("Repository")).toBeDefined();
 	});
 

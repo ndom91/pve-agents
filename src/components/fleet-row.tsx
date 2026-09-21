@@ -2,10 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { shortRepository } from "../domain/repository";
 import type { ProvisionPhase } from "../domain/workspace";
-import {
-	LIFECYCLE_STEPS,
-	lifecycleReached,
-} from "../domain/workspace-lifecycle";
+import { isProvisioning } from "../domain/workspace-lifecycle";
 import { Elapsed } from "./elapsed";
 import { LifecycleStrip } from "./lifecycle-strip";
 import { StatusDot } from "./status-dot";
@@ -49,9 +46,7 @@ export function FleetRow({
 	// Whether the agent has named its own work yet. Until it has, the title line falls back to the
 	// container's name -- and then the repo column must not repeat it underneath.
 	const named = workspace.title !== undefined && workspace.title !== "";
-	const building =
-		lifecycleReached(workspace.provisionPhase, workspace.status) <
-		LIFECYCLE_STEPS.length;
+	const building = isProvisioning(workspace.status);
 
 	return (
 		<div className="fleet-row">

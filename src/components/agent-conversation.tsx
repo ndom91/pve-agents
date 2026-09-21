@@ -21,15 +21,17 @@ import { AgentChat } from "./agent-chat";
 export function AgentConversation({
 	busy,
 	onDecide,
-	ready,
 	workspaceId,
 }: {
 	busy: boolean;
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
-	ready: boolean;
 	workspaceId: string;
 }): ReactNode {
-	const agent = useAgentStream(workspaceId, ready);
+	// `true`, not a prop. The caller only renders this once the workspace is ready, so a `ready`
+	// prop here looked like a gate and gated nothing -- the second argument could never be false,
+	// and unmounting is what actually stops the stream. A prop that cannot change is worse than
+	// no prop: the next person passes `false` and is surprised.
+	const agent = useAgentStream(workspaceId, true);
 
 	return (
 		<AgentChat

@@ -24,11 +24,17 @@ export function LifecycleStrip({
 	status?: string;
 }): ReactNode {
 	const reached = lifecycleReached(phase, status);
-	const step = LIFECYCLE_STEPS[Math.max(0, reached - 1)];
+	// Nothing reached means no step to name. `LIFECYCLE_STEPS[Math.max(0, -1)]` is "requested",
+	// which announced a container that had got nowhere as having completed the first step.
+	const step = reached === 0 ? undefined : LIFECYCLE_STEPS[reached - 1];
 
 	return (
 		<div
-			aria-label={`Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`}
+			aria-label={
+				step === undefined
+					? `Provisioning: not started, 0 of ${LIFECYCLE_STEPS.length}`
+					: `Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`
+			}
 			aria-valuemax={LIFECYCLE_STEPS.length}
 			aria-valuemin={0}
 			aria-valuenow={reached}

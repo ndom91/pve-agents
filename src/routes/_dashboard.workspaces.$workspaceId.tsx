@@ -321,7 +321,6 @@ function WorkspaceDetail() {
 								onDecide={(approvalId, behavior) =>
 									decide.mutate({ approvalId, behavior })
 								}
-								ready={ready}
 								workspaceId={workspaceId}
 							/>
 

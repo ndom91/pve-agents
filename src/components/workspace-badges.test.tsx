@@ -32,12 +32,16 @@ describe("WorkspaceBadges", () => {
 		// blocked is the one activity that needs a person. It is amber and alone in it, while a
 		// ready workspace getting on with its work is green -- coloured for that reason rather than
 		// for decoration.
-		const { container } = render(
-			<WorkspaceBadges activity="blocked" status="ready" />,
-		);
+		render(<WorkspaceBadges activity="blocked" status="ready" />);
 
-		expect(container.querySelectorAll(".chip.is-green")).toHaveLength(1);
-		expect(container.querySelectorAll(".chip.is-amber")).toHaveLength(1);
+		// Bound to the words, not just counted. Counting tones passes just as well if the two
+		// mappings are swapped and a blocked agent goes green.
+		expect(screen.getByText("ready").closest(".chip")?.className).toContain(
+			"is-green",
+		);
+		expect(screen.getByText("blocked").closest(".chip")?.className).toContain(
+			"is-amber",
+		);
 	});
 
 	it("keeps a failed workspace red and a destroyed one quiet", () => {

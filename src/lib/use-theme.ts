@@ -3,8 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 // Theme is what the page is painted in. No "system" member on purpose -- see below.
 export type Theme = "dark" | "light";
 
-// STORED is where a chosen theme lives between visits.
-const STORED = "pve-agents.theme";
+// THEME_KEY is where a chosen theme lives between visits.
+//
+// Exported because the inline boot script in `__root.tsx` has to read the same key before React
+// exists, and a second spelling of it would not fail anything -- the toggle would still work for
+// the session and silently stop persisting across reloads. A test asserts the script contains it.
+export const THEME_KEY = "pve-agents.theme";
 
 // useTheme reads and sets the theme, which lives on <html data-theme>.
 //
@@ -33,7 +37,7 @@ export function useTheme(): { setTheme: (next: Theme) => void; theme: Theme } {
 		document.documentElement.dataset.theme = next;
 		setState(next);
 		try {
-			localStorage.setItem(STORED, next);
+			localStorage.setItem(THEME_KEY, next);
 		} catch {
 			// Private browsing, or storage full. The theme still applies for this visit; it just
 			// will not be remembered, which is a better outcome than the toggle throwing.
