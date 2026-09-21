@@ -30,5 +30,8 @@ export function Elapsed({
 
 	const shown = of === "age" ? formatAge(ms) : formatUptime(ms);
 
-	return shown === undefined ? null : <span className="elapsed">{shown}</span>;
+	// The string, not a span. Every call site already sits inside an element that styles it, and a
+	// wrapper with no rule of its own is an element nobody can target and everybody has to nest
+	// inside.
+	return shown ?? null;
 }

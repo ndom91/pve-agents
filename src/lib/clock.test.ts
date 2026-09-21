@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { elapsedSince, formatAge, formatDuration, formatUptime } from "./clock";
+import {
+	elapsedBetween,
+	elapsedSince,
+	formatAge,
+	formatDuration,
+	formatStep,
+	formatUptime,
+} from "./clock";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -60,5 +67,52 @@ describe("elapsedSince", () => {
 		expect(elapsedSince(undefined)).toBeUndefined();
 		expect(elapsedSince("")).toBeUndefined();
 		expect(elapsedSince("not a date")).toBeUndefined();
+	});
+});
+
+describe("formatStep", () => {
+	it("keeps one decimal below ten seconds", () => {
+		// The range almost every tool call lands in. Whole seconds turn "0.3s, 0.9s, 1.1s" into
+		// "0s, 1s, 1s", which is a column that has stopped saying anything.
+		expect(formatStep(300)).toBe("0.3s");
+		expect(formatStep(900)).toBe("0.9s");
+		expect(formatStep(1100)).toBe("1.1s");
+		expect(formatStep(9900)).toBe("9.9s");
+	});
+
+	it("hands over to formatDuration once the decimal is noise", () => {
+		expect(formatStep(31 * SECOND)).toBe("31s");
+		expect(formatStep(9 * MINUTE + 22 * SECOND)).toBe("9m 22s");
+	});
+
+	it("refuses a span it cannot trust", () => {
+		expect(formatStep(-1)).toBeUndefined();
+		expect(formatStep(Number.NaN)).toBeUndefined();
+	});
+});
+
+describe("elapsedBetween", () => {
+	it("measures two recorded instants", () => {
+		expect(
+			elapsedBetween("2026-09-21T10:00:00.000Z", "2026-09-21T10:00:02.500Z"),
+		).toBe(2500);
+	});
+
+	it("has nothing to measure from a missing or unreadable end", () => {
+		// A tool call still running has no end, and a runner from before controller_at stamps
+		// neither. Both render an empty column rather than a duration of zero.
+		expect(
+			elapsedBetween("2026-09-21T10:00:00.000Z", undefined),
+		).toBeUndefined();
+		expect(
+			elapsedBetween(undefined, "2026-09-21T10:00:00.000Z"),
+		).toBeUndefined();
+		expect(elapsedBetween("nope", "2026-09-21T10:00:00.000Z")).toBeUndefined();
+	});
+
+	it("says nothing rather than something negative", () => {
+		expect(
+			elapsedBetween("2026-09-21T10:00:02.000Z", "2026-09-21T10:00:00.000Z"),
+		).toBeUndefined();
 	});
 });

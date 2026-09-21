@@ -3,8 +3,11 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 // `Button`'s vocabulary without "primary": an icon alone cannot carry being the obvious candidate
-// in a view, and no call site has wanted one.
-export type IconVariant = "secondary" | "tertiary";
+// in a view, and no call site has wanted one. "danger" is here because one does -- destroy is the
+// only irreversible control in the application and it needs a red outline, which arrived first as
+// a doubled selector on the instance because a one-class override cannot beat the two classes this
+// component always emits.
+export type IconVariant = "danger" | "secondary" | "tertiary";
 
 type IconStyle = {
 	// Layout only: where the control sits, never how it looks.

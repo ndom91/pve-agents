@@ -6,10 +6,7 @@ import {
 	parseRepository,
 	repositoryPage,
 } from "../domain/repository";
-import {
-	LIFECYCLE_STEPS,
-	lifecycleReached,
-} from "../domain/workspace-lifecycle";
+import type { ProvisionPhase } from "../domain/workspace";
 import { formatStamp, provisionTook, UTC } from "../lib/clock";
 import { useMounted } from "../lib/use-mounted";
 import { useRailWidth } from "../lib/use-rail-width";
@@ -18,12 +15,13 @@ import { useRailWidth } from "../lib/use-rail-width";
 // that has to stay true, and the one the pushes actually use is that one.
 import { workspaceBranch } from "../services/workspace-changes";
 import { CopyButton } from "./copy-button";
-import { Elapsed } from "./elapsed";
 import { IconOutLink } from "./icon-button";
+import { LifecycleStrip } from "./lifecycle-strip";
 import { RailResizer } from "./rail-resizer";
 import { SectionHead } from "./section-head";
 import { StatusDot } from "./status-dot";
 import { type Tab, TabStrip } from "./tab-strip";
+import { Uptime } from "./uptime";
 
 // RailWorkspace is the placement detail the rail reads. Structural rather than the full record, so
 // this does not have to move every time the workspace type grows a field it does not show.
@@ -38,7 +36,7 @@ type RailWorkspace = {
 	ip?: string;
 	lastActivityAt?: string;
 	node?: string;
-	provisionPhase?: string;
+	provisionPhase?: ProvisionPhase;
 	readyAt?: string;
 	ref?: string;
 	repository?: string;
@@ -163,9 +161,8 @@ export function WorkspaceRail({
 	return (
 		<aside className="dashboard-rail" style={sized}>
 			<RailResizer onResize={setWidth} width={width} />
-			{/* A workspace with nothing but placement to show gets no tab strip -- a row of one
-			    tab is a label pretending to be a control. The 48px the strip would have taken goes
-			    to the panel instead. */}
+			{/* A workspace with nothing but placement to show gets no tab strip -- a row of one tab
+			    is a label pretending to be a control, and the panel gets the height back. */}
 			{tabbed === undefined ? null : (
 				<Tabs
 					changes={changes}
@@ -194,11 +191,7 @@ export function WorkspaceRail({
 					) : null}
 					<span className="spacer" />
 					<span className="rail-state-up">
-						{workspace.readyAt === undefined ? null : (
-							<>
-								up <Elapsed of="uptime" since={workspace.readyAt} />
-							</>
-						)}
+						<Uptime workspace={workspace} />
 					</span>
 				</div>
 
@@ -258,7 +251,7 @@ export function WorkspaceRail({
 						)
 					}
 				>
-					<Lifecycle phase={workspace.provisionPhase} status={status} />
+					<LifecycleStrip phase={workspace.provisionPhase} status={status} />
 					<div className="rail-grid is-2up">
 						<Stack label="Phase" value={workspace.provisionPhase} />
 						<Stack label="Step" value={workspace.currentStep} />
@@ -446,36 +439,6 @@ function Stack({ label, value }: { label: string; value?: string }) {
 		<div className="rail-cell">
 			<dt className="rail-cell-key">{label}</dt>
 			<dd className="rail-cell-value">{value}</dd>
-		</div>
-	);
-}
-
-// Lifecycle is the six-segment strip, filled up to where provisioning has reached.
-//
-// One row of six rather than a percentage or a spinner, because the question is "how far along",
-// and six named steps answer it at a glance without anybody having to read a label. The names are
-// not drawn -- they are the accessible value, which is what a reader who cannot see the fill needs.
-function Lifecycle({ phase, status }: { phase?: string; status?: string }) {
-	const reached = lifecycleReached(phase, status);
-	const step = LIFECYCLE_STEPS[Math.max(0, reached - 1)];
-
-	return (
-		<div
-			aria-label={`Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`}
-			aria-valuemax={LIFECYCLE_STEPS.length}
-			aria-valuemin={0}
-			aria-valuenow={reached}
-			className="rail-life"
-			role="progressbar"
-		>
-			{LIFECYCLE_STEPS.map((name, index) => (
-				<span
-					className={
-						index < reached ? "rail-life-seg is-done" : "rail-life-seg"
-					}
-					key={name}
-				/>
-			))}
 		</div>
 	);
 }

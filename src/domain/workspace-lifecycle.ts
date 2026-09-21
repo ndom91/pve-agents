@@ -1,3 +1,5 @@
+import type { ProvisionPhase } from "./workspace";
+
 // LIFECYCLE_STEPS is the six-segment strip a provisioning workspace is read against.
 //
 // Six, against the eleven phases the provisioner actually walks. That is the point: the phases are
@@ -20,7 +22,12 @@ export const LIFECYCLE_STEPS = [
 // clone-submitted -> clone-confirmed -> start-submitted -> booted -> addressed -> reachable ->
 // bootstrapped -> checked-out -> seeded -> runner-started -> briefed. A phase means "this is done,
 // the next thing is what happens now", so each one counts the segment it completed.
-const REACHED: Record<string, number> = {
+//
+// Keyed by the union rather than by `string`, so the compiler refuses to build when the executor
+// gains a phase this does not place. As a Record<string, number> it fell through to the `?? 1`
+// below and the strip quietly showed "requested" for a workspace that was nearly ready -- no error,
+// no failing test, just a bar that had stopped being true.
+const REACHED: Record<ProvisionPhase, number> = {
 	addressed: 3,
 	"clone-submitted": 1,
 	"clone-confirmed": 2,
@@ -38,9 +45,17 @@ const REACHED: Record<string, number> = {
 //
 // Status wins over phase at both ends. A ready workspace is complete whatever its last recorded
 // phase was -- an older row may carry no phase at all -- and a destroyed one is not mid-provision,
-// it is over. Everything in between reads its phase, and a workspace that has one nobody recognises
-// counts as requested rather than as nothing: it exists, which is the first segment.
-export function lifecycleReached(phase?: string, status?: string): number {
+// it is over.
+//
+// A phase this does not place counts as requested rather than as nothing: it exists, which is the
+// first segment. The `?? 1` looks unreachable now that the map is keyed by the union, and it is not:
+// the type describes what this controller writes, and the value comes out of SQLite, which will
+// hand back whatever a newer controller put there. A column read across a version boundary is
+// exactly the case the fallback is for.
+export function lifecycleReached(
+	phase?: ProvisionPhase,
+	status?: string,
+): number {
 	if (status === "ready") {
 		return LIFECYCLE_STEPS.length;
 	}

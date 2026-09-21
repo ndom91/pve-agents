@@ -1,3 +1,5 @@
+import { elapsedBetween } from "../lib/clock";
+
 // TimelineEvent is one row of a workspace's history.
 export type TimelineEvent = {
 	createdAt: string;
@@ -45,7 +47,9 @@ export function groupTimeline(events: TimelineEvent[]): TimelineItem[] {
 			lead: event,
 			nested: [],
 			sincePrevious:
-				previous === undefined ? undefined : gap(previous.lead, event),
+				previous === undefined
+					? undefined
+					: elapsedBetween(previous.lead.createdAt, event.createdAt),
 		});
 	}
 
@@ -67,16 +71,4 @@ function second(iso: string): number | undefined {
 	const at = Date.parse(iso);
 
 	return Number.isNaN(at) ? undefined : Math.floor(at / 1000);
-}
-
-// gap is the span between two events, or nothing if either stamp will not parse or they run
-// backwards. A negative delta would render as "+-3s", which is worse than no delta at all.
-function gap(from: TimelineEvent, to: TimelineEvent): number | undefined {
-	const a = Date.parse(from.createdAt);
-	const b = Date.parse(to.createdAt);
-	if (Number.isNaN(a) || Number.isNaN(b) || b < a) {
-		return undefined;
-	}
-
-	return b - a;
 }

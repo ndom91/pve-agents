@@ -1,15 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 import { AgentChat } from "../components/agent-chat";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
-import { Elapsed } from "../components/elapsed";
 import { IconButton } from "../components/icon-button";
 import { MetaBand } from "../components/meta-band";
+import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
 import { WorkspaceRail } from "../components/workspace-rail";
@@ -241,7 +240,6 @@ function WorkspaceDetail() {
 					    page, which made the one irreversible action the most attractive. */}
 					{workspace.desiredState === "destroyed" ? null : (
 						<IconButton
-							className="screen-bar-destroy"
 							disabled={destroy.isPending}
 							icon={Trash2}
 							label={
@@ -250,10 +248,7 @@ function WorkspaceDetail() {
 							onClick={() => destroy.mutate()}
 							size={12}
 							strokeWidth={1.1}
-							// Tertiary because it brings its own border. The secondary variant
-							// sets a grey one, and a grey rule around a red glyph reads as a
-							// disabled control rather than a dangerous one.
-							variant="tertiary"
+							variant="danger"
 						/>
 					)}
 				</header>
@@ -524,37 +519,4 @@ function body(outcome: WorkspaceOutcome) {
 	}
 
 	return "This workspace was last seen holding uncommitted or unpushed changes. Its container has been deleted, so that work is gone.";
-}
-
-// Uptime is the meta band's right-hand summary: how long this container has been up.
-//
-// Counted from ready_at rather than created_at, because "up" means reachable and the gap between
-// the two is the provision. Before a workspace is ready there is no uptime to report, so the band
-// says how long it has been waiting instead -- which is the number you actually want while you are
-// watching one build.
-//
-// Nothing at all once it is gone. A destroyed container's uptime is a number that stopped being
-// true, and a band that keeps counting is a band that is lying.
-function Uptime({
-	workspace,
-}: {
-	workspace: { createdAt?: string; readyAt?: string; status: string };
-}): ReactNode {
-	if (workspace.status === "destroyed") {
-		return null;
-	}
-
-	if (workspace.readyAt !== undefined) {
-		return (
-			<>
-				up <Elapsed of="uptime" since={workspace.readyAt} />
-			</>
-		);
-	}
-
-	return (
-		<>
-			waiting <Elapsed of="uptime" since={workspace.createdAt} />
-		</>
-	);
 }

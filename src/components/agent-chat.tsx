@@ -14,6 +14,7 @@ import {
 	readTranscript,
 	type TranscriptEntry,
 } from "../domain/agent-transcript";
+import { elapsedBetween, formatStep } from "../lib/clock";
 import { languageOfOutput, languageOfPath } from "../lib/highlight";
 import type { AgentTail, Approval } from "../lib/use-agent-stream";
 import { AgentProse } from "./agent-prose";
@@ -300,6 +301,13 @@ function ToolRow({
 }) {
 	return (
 		<Fold
+			// How long the step took, or nothing. Nothing rather than a dash: a runner installed
+			// before controller_at shipped stamps no times at all, and an empty column is the
+			// truthful rendering of "never recorded" where an em dash reads as "measured, and
+			// unmeasurable".
+			duration={formatStep(
+				elapsedBetween(entry.at, entry.endedAt) ?? Number.NaN,
+			)}
 			lang={languageOfResult(entry)}
 			// Failures open on their own. A closed row saying "Error" asks the reader to go and
 			// find out what went wrong; the reason is the entire content of that row.
@@ -329,12 +337,14 @@ function languageOfResult(
 
 // Fold is the disclosure this page uses everywhere: a summary row, and content under it.
 function Fold({
+	duration,
 	lang,
 	open = false,
 	state,
 	summary,
 	text,
 }: {
+	duration?: string;
 	lang?: string;
 	open?: boolean;
 	state?: string;
@@ -373,6 +383,11 @@ function Fold({
 				<span className="chat-summary">{summary}</span>
 				{state === undefined ? null : (
 					<span className="chat-state">{label(state)}</span>
+				)}
+				{/* A fixed column whether or not there is a number in it, so the state words above
+				    and below stay in line. */}
+				{state === undefined ? null : (
+					<span className="chat-took">{duration}</span>
 				)}
 			</button>
 			{empty || !mounted ? null : (

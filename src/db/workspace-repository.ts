@@ -29,11 +29,15 @@ export type Workspace = {
 	desiredState: WorkspaceTarget;
 	hostname: string;
 	id: string;
-	// Placement, for the fleet table's own column. Three columns already on the row, read in the
+	// Placement and progress, for the fleet table's own columns. Already on the row, read in the
 	// same query rather than fetched per workspace -- the alternative to carrying them here is a
 	// detail call per row to fill one cell.
 	ip?: string;
 	node?: string;
+	// The union, not a string. The lifecycle strip maps each phase to a segment, and the first
+	// attempt at that strip read `currentStep` instead -- which is free text like "workspace
+	// persisted", so every row on the home screen filled exactly one segment for ever.
+	provisionPhase?: ProvisionPhase;
 	vmid?: number;
 	purpose?: string;
 	repository: string;
@@ -132,6 +136,7 @@ type WorkspaceRow = {
 	// one has the property missing rather than set to null.
 	ip?: string | null;
 	node?: string | null;
+	provision_phase?: ProvisionPhase | null;
 	purpose: string | null;
 	repository: string;
 	ref: string;
@@ -1293,7 +1298,7 @@ export function listWorkspaces(db: Database.Database): Workspace[] {
 	const rows = db
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
-				created_at, updated_at, current_step, node, vmid, ip
+				created_at, updated_at, current_step, node, vmid, ip, provision_phase
 			 FROM workspaces ORDER BY created_at DESC`,
 		)
 		.all() as WorkspaceRow[];
@@ -1317,7 +1322,10 @@ export type WorkspaceDetail = Workspace & {
 	ip?: string;
 	lastActivityAt?: string;
 	node?: string;
-	provisionPhase?: string;
+	// The union, not a string. Everything downstream branches on this -- the lifecycle strip maps
+	// each phase to a segment -- and as a bare string a phase added to the executor reached those
+	// consumers with no error and no failing test.
+	provisionPhase?: ProvisionPhase;
 	readyAt?: string;
 	// Absent on a settled workspace. Every task completion clears the column, so this is here for
 	// the workspace that is mid-clone or stuck on one, which is when somebody goes looking for the
@@ -1428,6 +1436,9 @@ function workspaceFromRow(row: WorkspaceRow): Workspace {
 	}
 	if (row.ip !== null && row.ip !== undefined) {
 		workspace.ip = row.ip;
+	}
+	if (row.provision_phase !== null && row.provision_phase !== undefined) {
+		workspace.provisionPhase = row.provision_phase;
 	}
 
 	return workspace;

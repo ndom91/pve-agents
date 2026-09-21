@@ -28,6 +28,18 @@ export type TranscriptEntry =
 	| { at?: string; kind: "thought"; text: string }
 	| { kind: "ended"; reason: string }
 	| {
+			// When the agent asked for the call, and when its result came back. Both are the
+			// runner's own `controller_at`, read off the message that carried each half.
+			//
+			// The gap between them is not the tool's execution time to the millisecond -- it is
+			// the time from the request being recorded to the result being recorded, which
+			// includes whatever the runner was doing in between. It is what "how long did this
+			// step take" means in a transcript, and it is the only answer this side has.
+			//
+			// Both optional: a runner installed before controller_at shipped stamps nothing, and a
+			// call still running has no end yet.
+			at?: string;
+			endedAt?: string;
 			id: string;
 			input: Record<string, unknown>;
 			kind: "tool";
@@ -100,6 +112,7 @@ export function readTranscript(
 				}
 				if (block.type === "tool_use" && block.id !== undefined) {
 					const row: Extract<TranscriptEntry, { kind: "tool" }> = {
+						at,
 						id: block.id,
 						input: block.input ?? {},
 						kind: "tool",
@@ -126,6 +139,7 @@ export function readTranscript(
 							? undefined
 							: rows.get(block.tool_use_id);
 					if (row !== undefined) {
+						row.endedAt = at;
 						row.result = flatten(block.content);
 						row.state = block.is_error === true ? "error" : "ok";
 					}

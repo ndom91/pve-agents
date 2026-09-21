@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { shortRepository } from "../domain/repository";
+import type { ProvisionPhase } from "../domain/workspace";
 import {
 	LIFECYCLE_STEPS,
 	lifecycleReached,
 } from "../domain/workspace-lifecycle";
 import { Elapsed } from "./elapsed";
+import { LifecycleStrip } from "./lifecycle-strip";
 import { StatusDot } from "./status-dot";
 import { WorkspaceBadges } from "./workspace-badges";
 
@@ -15,6 +17,7 @@ type FleetWorkspace = {
 	activity: string;
 	createdAt?: string;
 	currentStep?: string;
+	provisionPhase?: ProvisionPhase;
 	hostname: string;
 	id: string;
 	ip?: string;
@@ -46,8 +49,9 @@ export function FleetRow({
 	// Whether the agent has named its own work yet. Until it has, the title line falls back to the
 	// container's name -- and then the repo column must not repeat it underneath.
 	const named = workspace.title !== undefined && workspace.title !== "";
-	const reached = lifecycleReached(workspace.currentStep, workspace.status);
-	const building = reached < LIFECYCLE_STEPS.length;
+	const building =
+		lifecycleReached(workspace.provisionPhase, workspace.status) <
+		LIFECYCLE_STEPS.length;
 
 	return (
 		<div className="fleet-row">
@@ -112,16 +116,10 @@ export function FleetRow({
 			    green segments repeating what the word already said. */}
 			{!building ? null : (
 				<div className="fleet-progress">
-					<span className="fleet-strip">
-						{LIFECYCLE_STEPS.map((name, index) => (
-							<span
-								className={
-									index < reached ? "rail-life-seg is-done" : "rail-life-seg"
-								}
-								key={name}
-							/>
-						))}
-					</span>
+					<LifecycleStrip
+						phase={workspace.provisionPhase}
+						status={workspace.status}
+					/>
 					<span className="fleet-step">{workspace.currentStep ?? ""}</span>
 				</div>
 			)}

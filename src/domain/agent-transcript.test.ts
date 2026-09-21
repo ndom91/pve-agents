@@ -178,3 +178,66 @@ describe("readTranscript", () => {
 		).toEqual([]);
 	});
 });
+
+describe("tool call timings", () => {
+	it("carries the stamp from each half of the call", () => {
+		// Both endpoints are recorded by the runner and were being read and thrown away: the
+		// request's time came off the assistant message, the result's off the user message that
+		// answered it, and neither reached the row. The feed printed a hardcoded em dash instead.
+		const entries = readTranscript([
+			{
+				controller_at: "2026-09-21T10:00:00.000Z",
+				message: {
+					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+				},
+				type: "assistant",
+			},
+			{
+				controller_at: "2026-09-21T10:00:02.500Z",
+				message: {
+					content: [{ content: "ok", tool_use_id: "t1", type: "tool_result" }],
+				},
+				type: "user",
+			},
+		]);
+
+		expect(entries).toHaveLength(1);
+		expect(entries[0]).toMatchObject({
+			at: "2026-09-21T10:00:00.000Z",
+			endedAt: "2026-09-21T10:00:02.500Z",
+			kind: "tool",
+			state: "ok",
+		});
+	});
+
+	it("leaves a call still running with no end", () => {
+		const entries = readTranscript([
+			{
+				controller_at: "2026-09-21T10:00:00.000Z",
+				message: {
+					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+				},
+				type: "assistant",
+			},
+		]);
+
+		expect(entries[0]).toMatchObject({ state: "running" });
+		// Absent, not set-to-undefined: the end is only written when the result arrives.
+		expect(entries[0]).not.toHaveProperty("endedAt");
+	});
+
+	it("records nothing when the runner stamps nothing", () => {
+		// A runner installed before controller_at shipped. The column renders empty rather than
+		// claiming a duration of zero.
+		const entries = readTranscript([
+			{
+				message: {
+					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+				},
+				type: "assistant",
+			},
+		]);
+
+		expect(entries[0]).toMatchObject({ at: undefined });
+	});
+});

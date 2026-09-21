@@ -188,9 +188,9 @@ export default function TerminalView({
 
 	return (
 		<div className="terminal-view">
-			{/* Who and where, and the one control that acts on the screen rather than on the
-			    shell. The working directory is not here because this side cannot know it: the cwd
-			    lives inside the shell and only the prompt has it. */}
+			{/* Who, and the one control that acts on the screen rather than on the shell. Where it
+			    is runs along the footer. The working directory is in neither, because this side
+			    cannot know it: the cwd lives inside the shell and only the prompt has it. */}
 			<div className="panel-bar terminal-bar">
 				<span
 					aria-hidden="true"

@@ -57,6 +57,20 @@ export function formatDuration(ms: number): string | undefined {
 	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
+// formatStep renders how long one step of an agent's work took.
+//
+// One decimal below ten seconds, because that is the range almost every tool call lands in and
+// whole seconds throw the difference away -- a column reading "0s, 0s, 1s, 0s" says less than one
+// reading "0.3s, 0.9s, 1.1s, 0.4s", which is what the design draws. Above ten seconds the decimal
+// is noise and it hands over to `formatDuration`.
+export function formatStep(ms: number): string | undefined {
+	if (!Number.isFinite(ms) || ms < 0) {
+		return undefined;
+	}
+
+	return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : formatDuration(ms);
+}
+
 // formatUptime renders a span that may run for days, for the meta band's "up 2h 22m".
 //
 // Separate from formatDuration because that one deliberately has no hours tier -- it is `took`,
@@ -123,6 +137,25 @@ export function formatAge(ms: number): string | undefined {
 	}
 
 	return `${Math.floor(seconds / 86400)}d`;
+}
+
+// elapsedBetween is the span between two stored timestamps, or nothing if either will not parse or
+// they run backwards.
+//
+// Separate from `elapsedSince`, which measures against now. This one measures two recorded
+// instants, which is a different question and the one a transcript asks.
+export function elapsedBetween(from?: string, to?: string): number | undefined {
+	if (from === undefined || to === undefined) {
+		return undefined;
+	}
+
+	const a = Date.parse(from);
+	const b = Date.parse(to);
+	if (Number.isNaN(a) || Number.isNaN(b) || b < a) {
+		return undefined;
+	}
+
+	return b - a;
 }
 
 // elapsedSince is the span between a stored timestamp and now, or nothing if it will not parse.

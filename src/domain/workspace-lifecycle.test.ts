@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ProvisionPhase } from "./workspace";
 import { LIFECYCLE_STEPS, lifecycleReached } from "./workspace-lifecycle";
 
 describe("lifecycleReached", () => {
@@ -29,7 +30,7 @@ describe("lifecycleReached", () => {
 		// The one property worth asserting: the bar is read as progress, so a later phase must not
 		// fill fewer segments than an earlier one. The order here is the switch in
 		// workspace-provision-executor.ts, copied deliberately -- if that changes, this fails.
-		const order = [
+		const order: ProvisionPhase[] = [
 			"clone-submitted",
 			"clone-confirmed",
 			"start-submitted",
@@ -54,6 +55,12 @@ describe("lifecycleReached", () => {
 	it("treats a workspace with no phase, or an unknown one, as requested", () => {
 		// It exists, which is the first segment. Zero would read as nothing having happened.
 		expect(lifecycleReached(undefined, "requested")).toBe(1);
-		expect(lifecycleReached("something-new", "provisioning")).toBe(1);
+		// Cast, because the point of the case is a value the union does not contain: a row written
+		// by a newer controller and read by an older one. The typing cannot prevent that -- it
+		// describes what this build writes, not what is in the database -- which is why the
+		// fallback survives despite looking unreachable.
+		expect(
+			lifecycleReached("something-new" as ProvisionPhase, "provisioning"),
+		).toBe(1);
 	});
 });

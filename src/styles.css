@@ -1,7 +1,10 @@
-/* The refresh's design tokens. First line because @import has to precede every rule, including
- * the @font-face below. Nothing in this file reads them yet — they are landed on their own so the
- * surfaces that follow have a vocabulary to convert into, one at a time. None of their names
- * collide with the palette further down, so adding them changes no pixels. */
+/* The refresh's design tokens. First line because @import has to precede every rule, including the
+ * @font-face below.
+ *
+ * Most of this file now reads them. What is left on the palette declared underneath is the
+ * un-refreshed surfaces -- the settings screen, the transcript's syntax colours, the outcome
+ * panels -- which is roughly a quarter of the var() references here. That is a migration to finish
+ * surface by surface, not a second system to keep. */
 @import "./tokens.css";
 
 /* Geist Sans, self-hosted.
@@ -39,7 +42,6 @@
 	   swap in place, and a box that changes size on click is a line that jumps under the pointer.
 	   The height governs the two icon buttons in the editing row as well: left at the ordinary 32px
 	   they made the row taller than the field inside it. */
-	--title-height: 30px;
 	--title-width: 24rem;
 
 	/* The palette, named for the job rather than the value.
@@ -62,7 +64,6 @@
 
 	--fg: #e6e9df;
 	--fg-bright: #d6e2cf;
-	--fg-badge: #c4d1bd;
 	--fg-soft: #a9b8a2;
 	--fg-muted: #8a9a83;
 	--fg-dim: #6d7a67;
@@ -74,7 +75,6 @@
 	--accent-ring: #b5cda944;
 	/* A tint rather than a fill: it has to be findable from across a long transcript without
 	   becoming a panel in its own right. Grey at this weight read as a block of UI. */
-	--accent-wash: #7fa06a1a;
 
 	--warn: #b08a4a;
 	--warn-fg: #e0b36a;
@@ -87,7 +87,6 @@
 	--info-fg: #8fb4d9;
 
 	--status-modified: #c8b45f;
-	--status-deleted: #c97f6a;
 
 	/* Five sizes and a display size, replacing eleven. 9px became 10, 14 became 13, and 17/20
 	   became 18; the display heading was clamp(36px, 6vw, 64px), written for a marketing page that
@@ -121,21 +120,13 @@
  * block: a variable nothing reads is a tuning knob that does nothing, and the next person cannot
  * tell the difference between those and the live ones by looking.
  *
+ * The durations and easings this block used to declare have gone the same way. The refresh brought
+ * its own -- --dur-fast/base/slow and --ease in tokens.css, which also zero under
+ * prefers-reduced-motion -- and nothing had read these since.
+ *
  * Colour-bearing tokens are re-pointed at this palette. The snippets ship light-theme literals —
  * a white pill on #f1f1f1 — which would arrive in this page as a bright rectangle. */
 :root {
-	/* Durations */
-	--duration-stagger: 40ms;
-	--duration-quick: 150ms;
-	--duration-fast: 250ms;
-	--duration-slow: 400ms;
-	--duration-very-slow: 500ms;
-
-	/* Easings */
-	--ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
-	--ease-in-out: ease-in-out;
-	--ease-linear: linear;
-
 	/* Text states swap */
 	--text-swap-dur: 150ms;
 	--text-swap-translate-y: 4px;
@@ -173,7 +164,6 @@
 	--acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 	/* Streaming text */
-	--stream-gap: 60ms;
 	--stream-fade: 350ms;
 	--stream-blur: 1px;
 	--stream-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -1435,115 +1425,38 @@ dd {
 
 /* Outlined in red rather than filled in sage. This was the accent-filled primary, which made the
    one irreversible action on the page the brightest thing on it. */
-/* Doubled with `.icon-button` for specificity, not for emphasis. The base icon-button rules sit
-   further down the file, so at one class each they won on order and this rendered as a 32px grey
-   button -- exactly the thing the refresh is here to stop being. The control is also declared
-   `tertiary`, because the secondary variant sets a grey border at the same specificity as this
-   one and would win the same way. */
-/* The two state facts as one object rather than two. One border around the pair, a 1px rule
- * between them, and the corners clipped by the group so neither half rounds where it meets the
- * other.
+/* Destroy, and anything else irreversible. A variant on the component rather than a class on the
+ * instance: `IconButton` always emits two classes (`icon-button is-secondary`), so a one-class
+ * override could never beat it at any position in this file -- which is why this used to be
+ * written doubled and declared `tertiary` to dodge the border it did not want.
  *
- * Not a control, despite looking like the mockup's segmented one. Nothing here can be set: the
- * lifecycle is observed and the activity is reported. It borrows the shape and stays spans. */
-.state-group {
-	border: 1px solid var(--line-border);
-	border-radius: var(--radius-md);
-	display: flex;
-	flex-shrink: 0;
-	overflow: hidden;
-}
-
-.state-seg {
-	align-items: center;
-	color: var(--text-muted);
-	display: flex;
-	font-family: var(--font-mono);
-	font-size: var(--text-label);
-	gap: 6px;
-	height: var(--control-h);
-	letter-spacing: var(--tracking-ui);
-	padding: 0 12px;
-	text-transform: uppercase;
-	white-space: nowrap;
-}
-
-.state-div {
-	background: var(--line-border);
-	flex-shrink: 0;
-	width: 1px;
-}
-
-.state-dot {
-	border-radius: 50%;
-	flex-shrink: 0;
-	height: 5px;
-	width: 5px;
-}
-
-/* The lead segment is filled; the one beside it is not. */
-.state-seg.is-lead.is-green {
-	background: var(--chip-green-bg);
-	color: var(--chip-green-text);
-}
-
-.state-seg.is-lead.is-green .state-dot {
-	background: var(--green);
-}
-
-.state-seg.is-lead.is-amber {
-	background: var(--chip-amber-bg);
-	color: var(--chip-amber-text);
-}
-
-.state-seg.is-lead.is-amber .state-dot {
-	background: var(--amber);
-}
-
-.state-seg.is-lead.is-red {
-	background: var(--chip-red-bg);
-	color: var(--chip-red-text);
-}
-
-.state-seg.is-lead.is-red .state-dot {
-	background: var(--red);
-}
-
-.state-seg.is-lead.is-neutral {
-	background: var(--chip-neutral-bg);
-	color: var(--chip-neutral-text);
-}
-
-.state-seg.is-lead.is-neutral .state-dot {
-	background: var(--text-decorative);
-}
-
-/* Blocked is the one activity that gets a colour of its own, because it is the one that needs a
-   person. It takes the word rather than a fill -- a second filled half would leave the group with
-   nothing to read first. */
-.state-seg.is-amber:not(.is-lead) {
-	color: var(--chip-amber-text);
-}
-
-.icon-button.screen-bar-destroy {
+ * The component's own comment says className is layout only and appearance is the variant. This is
+ * the variant. */
+.icon-button.is-danger {
 	border-color: var(--red-line);
 	border-radius: var(--radius-md);
 	color: var(--red);
-	flex-shrink: 0;
-	height: var(--control-h);
-	width: var(--control-h);
 }
 
-.icon-button.screen-bar-destroy:hover:not(:disabled) {
+.icon-button.is-danger:hover:not(:disabled) {
 	background: var(--surface-raised);
 	border-color: var(--red-line-strong);
 	color: var(--red-ink);
 }
 
 /* The focus ring is red on a destructive control, per section 5. */
-.icon-button.screen-bar-destroy:focus-visible {
+.icon-button.is-danger:focus-visible {
 	box-shadow: 0 0 0 2px var(--red-line-strong);
 	outline: none;
+}
+
+/* Every icon button in the screen bar is a bar-height control, not the 32px standalone one. A
+   contextual rule rather than a class on the instance -- the base `.icon-button` sits further down
+   this file, so a single class on the element loses to it whatever the element is called. */
+.screen-bar .icon-button {
+	flex-shrink: 0;
+	height: var(--control-h);
+	width: var(--control-h);
 }
 
 /* The refresh's signature strip: every machine fact that used to fight the content, on one sunk
@@ -1947,11 +1860,7 @@ button.workspace-title:hover {
 	white-space: nowrap;
 }
 
-/* DONE / ERROR, and then a fixed 40px column for how long the call took. The column is empty for
-   now: the runner stamps a time on the message it records, but that stamp never reaches a tool
-   entry, so there is no duration to print. It reads as an em dash rather than being removed --
-   section 5's convention for a value that is not there yet -- and the column keeps its width so
-   the words above it stay in line. */
+/* DONE or ERROR, with the duration in its own column after it. */
 .chat-state {
 	color: var(--text-dim);
 	flex: none;
@@ -1976,20 +1885,16 @@ button.workspace-title:hover {
 	color: var(--text-dim);
 }
 
-/* The duration column, after the state word and always present. */
-.chat-fold::after {
+/* How long the call took, in a fixed column so the state words above and below stay in line.
+   Empty when the runner recorded no timestamps -- an em dash lived here while the data did not
+   exist, which read as "measured, and unmeasurable" rather than "never recorded". */
+.chat-took {
 	color: var(--text-faint);
-	content: "\2014";
 	flex: none;
 	font-size: var(--text-label);
 	font-variant-numeric: tabular-nums;
 	text-align: right;
 	width: 40px;
-}
-
-/* Except on a thought, which is not a call and never took a measurable amount of anything. */
-.chat-fold:not([class*="is-"])::after {
-	content: "";
 }
 
 /* Capped, because one `cat` of a large file would otherwise be the whole page. Scrolls rather than
@@ -2591,13 +2496,13 @@ button.workspace-title:hover {
 
 /* Six segments, filled to where provisioning has got to. The one place a container being built
    says how far along it is without anybody reading a word. */
-.rail-life {
+.lifecycle {
 	display: flex;
 	flex-direction: row;
 	gap: 3px;
 }
 
-.rail-life-seg {
+.lifecycle-seg {
 	background: var(--line-hairline);
 	border-radius: var(--radius-xs);
 	flex-grow: 1;
@@ -2605,7 +2510,7 @@ button.workspace-title:hover {
 	transition: background var(--dur-base) var(--ease);
 }
 
-.rail-life-seg.is-done {
+.lifecycle-seg.is-done {
 	background: var(--green);
 }
 
@@ -2624,32 +2529,13 @@ button.workspace-title:hover {
 	}
 
 	.dashboard-main,
+	.dashboard-main-fixed .centre-screen,
 	.dashboard-rail {
 		overflow-y: visible;
 	}
 
 	.dashboard-main-fixed {
 		overflow: visible;
-	}
-
-	/* Below this the column grows with its content and the page scrolls, so nothing has a definite
-	   height any more. The screen is fitted to width alone here: asking for a share of a height
-	   that does not exist resolves to nothing and pins the font to its smallest allowed size. */
-	.centre-screen {
-		container-type: inline-size;
-	}
-
-	.detail-screen {
-		font-size: clamp(
-			7px,
-			calc(100cqw / (var(--screen-cols, 100) * var(--screen-char))),
-			13px
-		);
-	}
-
-	.dashboard-main-fixed .centre-screen,
-		.dashboard-main-fixed .detail-timeline {
-		overflow-y: visible;
 	}
 
 	.dashboard-rail {
@@ -2756,8 +2642,8 @@ button.workspace-title:hover {
    so the only section with more content than space is the history, and it is the one that gets a
    scrollbar. Letting the column scroll instead pushed the terminal off the top of the window,
    which is the one thing on the page that should always be in view. */
-/* The workspace page. Its two bars reach the column's edges, so the column keeps no padding of its
-   own and no gap -- .screen-body carries both for everything underneath them. */
+/* The workspace page. Its two bars reach the column's edges, so the column keeps no gap and no
+   padding except at the foot -- .screen-body carries the rest for everything underneath them. */
 .dashboard-main-fixed {
 	gap: 0;
 	padding: 0;
@@ -2779,13 +2665,6 @@ button.workspace-title:hover {
 .dashboard-main-fixed .centre-screen {
 	flex: 1 1 0;
 	min-height: 0;
-}
-
-/* A fixed slice of the column rather than a share of it, so the terminal's size does not change
-   every time a workspace records another event. */
-.dashboard-main-fixed .dashboard-main-fixed .detail-timeline {
-	min-height: 0;
-	overflow-y: auto;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────────────────────────
@@ -2902,10 +2781,6 @@ button.workspace-title:hover {
 /* No border-bottom-color here any more. The open tab's underline is one element that travels
    between tabs rather than a border each tab lights on its own — see `.t-tabs-pill`. A border
    here as well would leave a second, stationary mark under the tab the bar has just left. */
-.tab[aria-selected="true"] {
-	color: var(--fg-bright);
-}
-
 /* The one-line answers scattered through the settings page, the timeline and the diff viewer.
    Unstyled otherwise; they are ordinary paragraphs that happen to be short, and short is exactly
    what balance is for. */
@@ -3137,16 +3012,6 @@ button.workspace-title:hover {
 	width: 100%;
 }
 
-
-.fleet-flag {
-	border: 1px solid var(--warn);
-	color: var(--warn-fg);
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-xs);
-	letter-spacing: 0.08em;
-	padding: 3px 6px;
-	text-transform: uppercase;
-}
 
 /* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
    where something is gone and nobody can get it back. */
@@ -3627,8 +3492,8 @@ button.workspace-title:hover {
 	font-size: inherit;
 }
 
-/* Doubled to beat `.fleet-col.is-up`, which sits further down the file and at the same weight was
-   giving the word "UP" the value colour and size rather than the heading's. */
+/* Qualified by the header rather than doubled: `.fleet-col.is-up` sits further down the file and
+   at equal weight was giving the word "UP" the value's colour and size instead of the heading's. */
 .fleet-head .fleet-col.is-up {
 	color: inherit;
 	font-family: inherit;
@@ -3791,10 +3656,8 @@ button.workspace-title:hover {
 	padding: 8px 12px 10px;
 }
 
-.fleet-strip {
-	display: flex;
+.fleet-progress .lifecycle {
 	flex-grow: 1;
-	gap: 3px;
 }
 
 .fleet-step {
