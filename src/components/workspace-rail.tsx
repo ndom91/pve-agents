@@ -196,22 +196,18 @@ export function WorkspaceRail({
 					</span>
 				</div>
 
-				<Group
-					action={
-						source?.repository === undefined ? undefined : (
-							<IconOutLink
-								className="is-inline"
-								href={source.repository}
-								icon={ExternalLink}
-								label="Open repository on GitHub"
-								size={11}
-								variant="tertiary"
-							/>
-						)
-					}
-					title="Source"
-				>
-					<Fact label="Repository" value={workspace.repository} />
+				{/* A link per row rather than one on the header. The header's link could only ever
+				    mean the repository, which left the branch -- the thing you actually go and
+				    look at -- with no way out at all, and put the one affordance furthest from
+				    either value it might belong to. Each now sits after the value it opens and
+				    appears on hover, like the copy buttons elsewhere in this panel. */}
+				<Group title="Source">
+					<Fact
+						href={source?.repository}
+						label="Repository"
+						linkLabel="Open repository on GitHub"
+						value={workspace.repository}
+					/>
 					<Fact label="Ref" value={workspace.ref} />
 					<Fact
 						href={source?.branch}
@@ -454,21 +450,20 @@ function Stack({ label, value }: { label: string; value?: string }) {
 // either way -- it decides to render nothing only once React asks it to -- so counting children
 // here would count the ones that are about to disappear.
 function Group({
-	action,
 	children,
 	title,
 	trailing,
 }: {
-	// A control on the far right of the header, past the rule.
-	action?: ReactNode;
 	children: ReactNode;
 	title: string;
-	// A value on the far right of the header. Loses to `action` if both are given.
+	// Anything on the far right of the header. There were two of these, `action` and `trailing`,
+	// collapsed into one slot by `action ?? trailing` -- one caller used each, and the one that
+	// wanted `action` now puts its links on the rows instead.
 	trailing?: ReactNode;
 }): ReactNode {
 	return (
 		<section className="rail-group">
-			<SectionHead label={title} trailing={action ?? trailing} />
+			<SectionHead label={title} trailing={trailing} />
 			<dl>{children}</dl>
 		</section>
 	);
