@@ -53,40 +53,13 @@
 	 *
 	 * Greys are a real ramp rather than duplicates. Each step below is fifteen to twenty points
 	 * from its neighbours and does distinct work, which is why they are named rather than merged. */
-	--bg-sunken: #0b0f0a;
-	--bg: #111411;
-	--surface: #161b14;
 
-	--border: #2c3428;
-	--border-strong: #384036;
-	--border-dim: #4a5545;
-	--line: #7b8b71;
 
-	--fg: #e6e9df;
-	--fg-bright: #d6e2cf;
-	--fg-soft: #a9b8a2;
-	--fg-muted: #8a9a83;
-	--fg-dim: #6d7a67;
 
-	--accent: #7fa06a;
-	--accent-fill: #b5cda9;
-	--accent-fill-hover: #d0e4c5;
-	--accent-ink: #172016;
-	--accent-ring: #b5cda944;
 	/* A tint rather than a fill: it has to be findable from across a long transcript without
 	   becoming a panel in its own right. Grey at this weight read as a block of UI. */
 
-	--warn: #b08a4a;
-	--warn-fg: #e0b36a;
-	--warn-bg: #2a2213;
-	--danger: #8c4a4a;
-	--danger-fg: #e08a8a;
-	--danger-soft: #e0a2a2;
-	--danger-bright: #ffb4a8;
-	--info: #5a7fa8;
-	--info-fg: #8fb4d9;
 
-	--status-modified: #c8b45f;
 
 	/* Five sizes and a display size, replacing eleven. 9px became 10, 14 became 13, and 17/20
 	   became 18; the display heading was clamp(36px, 6vw, 64px), written for a marketing page that
@@ -238,6 +211,8 @@ h2 {
  * always has its word printed beside it, so reading the dot aloud would just double it. */
 .chip {
 	align-items: center;
+	/* Transparent, so each tone only has to name a colour. */
+	border: 1px solid transparent;
 	border-radius: var(--radius-sm);
 	display: inline-flex;
 	flex-shrink: 0;
@@ -257,43 +232,60 @@ h2 {
 	width: 4px;
 }
 
-.chip.is-green {
+/* The four tones, shared by the chip and by the state group's lead segment.
+ *
+ * They were written twice -- eight blocks mapping the same four --chip-* triples -- because the
+ * group hand-rolls its own markup rather than nesting chips. Retuning a tone meant editing it in
+ * two places and hoping.
+ *
+ * The dots take the --*-mark tokens rather than the text ones. In dark they are the same colour;
+ * in light they are deliberately not, because a 4.9:1 text green is heavy as a 5px dot and the
+ * mark tokens are tuned for exactly that job. */
+.chip.is-green,
+.state-seg.is-lead.is-green {
 	background: var(--chip-green-bg);
-	border: 1px solid var(--chip-green-line);
+	border-color: var(--chip-green-line);
 	color: var(--chip-green-text);
 }
 
-.chip.is-green .chip-dot {
-	background: var(--green);
+.chip.is-green .chip-dot,
+.state-seg.is-lead.is-green .state-dot {
+	background: var(--green-mark);
 }
 
-.chip.is-amber {
+.chip.is-amber,
+.state-seg.is-lead.is-amber {
 	background: var(--chip-amber-bg);
-	border: 1px solid var(--chip-amber-line);
+	border-color: var(--chip-amber-line);
 	color: var(--chip-amber-text);
 }
 
-.chip.is-amber .chip-dot {
-	background: var(--amber);
+.chip.is-amber .chip-dot,
+.state-seg.is-lead.is-amber .state-dot {
+	background: var(--amber-mark);
 }
 
-.chip.is-red {
+.chip.is-red,
+.state-seg.is-lead.is-red {
 	background: var(--chip-red-bg);
-	border: 1px solid var(--chip-red-line);
+	border-color: var(--chip-red-line);
 	color: var(--chip-red-text);
 }
 
-.chip.is-red .chip-dot {
-	background: var(--red);
+.chip.is-red .chip-dot,
+.state-seg.is-lead.is-red .state-dot {
+	background: var(--red-mark);
 }
 
-.chip.is-neutral {
+.chip.is-neutral,
+.state-seg.is-lead.is-neutral {
 	background: var(--chip-neutral-bg);
-	border: 1px solid var(--chip-neutral-line);
+	border-color: var(--chip-neutral-line);
 	color: var(--chip-neutral-text);
 }
 
-.chip.is-neutral .chip-dot {
+.chip.is-neutral .chip-dot,
+.state-seg.is-lead.is-neutral .state-dot {
 	background: var(--text-decorative);
 }
 
@@ -1031,21 +1023,21 @@ dt {
 }
 
 .status-dot.is-live {
-	background: var(--green);
+	background: var(--green-mark);
 	box-shadow: 0 0 0 3px var(--green-ring);
 }
 
 .status-dot.is-waiting {
-	background: var(--amber);
+	background: var(--amber-mark);
 	box-shadow: 0 0 0 3px var(--chip-amber-bg);
 }
 
 .status-dot.is-pending {
-	background: var(--amber);
+	background: var(--amber-mark);
 }
 
 .status-dot.is-error {
-	background: var(--red);
+	background: var(--red-mark);
 }
 
 .status-dot.is-gone {
@@ -1446,6 +1438,61 @@ dt {
 	width: var(--control-h);
 }
 
+/* Outlined in red rather than filled in sage. This was the accent-filled primary, which made the
+   one irreversible action on the page the brightest thing on it. */
+/* Doubled with `.icon-button` for specificity, not for emphasis. The base icon-button rules sit
+   further down the file, so at one class each they won on order and this rendered as a 32px grey
+   button -- exactly the thing the refresh is here to stop being. The control is also declared
+   `tertiary`, because the secondary variant sets a grey border at the same specificity as this
+   one and would win the same way. */
+/* The two state facts as one object rather than two. One border around the pair, a 1px rule
+ * between them, and the corners clipped by the group so neither half rounds where it meets the
+ * other.
+ *
+ * Not a control, despite looking like the mockup's segmented one. Nothing here can be set: the
+ * lifecycle is observed and the activity is reported. It borrows the shape and stays spans. */
+.state-group {
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	display: flex;
+	flex-shrink: 0;
+	overflow: hidden;
+}
+
+.state-seg {
+	align-items: center;
+	color: var(--text-muted);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 6px;
+	height: var(--control-h);
+	letter-spacing: var(--tracking-ui);
+	padding: 0 12px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.state-div {
+	background: var(--line-border);
+	flex-shrink: 0;
+	width: 1px;
+}
+
+.state-dot {
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+/* Blocked is the one activity that gets a colour of its own, because it is the one that needs a
+   person. It takes the word rather than a fill -- a second filled half would leave the group with
+   nothing to read first. */
+.state-seg.is-amber:not(.is-lead) {
+	color: var(--chip-amber-text);
+}
+
 /* The refresh's signature strip: every machine fact that used to fight the content, on one sunk
  * 32px line that is readable without opening the panel. */
 .meta-band {
@@ -1783,7 +1830,7 @@ button.workspace-title:hover {
 }
 
 .tool-group-dot {
-	background: var(--red);
+	background: var(--red-mark);
 	border-radius: 50%;
 	height: 4px;
 	width: 4px;
@@ -2488,7 +2535,7 @@ button.workspace-title:hover {
 }
 
 .lifecycle-seg.is-done {
-	background: var(--green);
+	background: var(--green-mark);
 }
 
 .icon-button.fact-open {
@@ -3110,7 +3157,7 @@ button.workspace-title:hover {
 /* Filled with the panel's own surface, so the rail behind it is hidden rather than crossed. */
 .timeline-dot {
 	background: var(--surface-sunk);
-	border: 1.5px solid var(--green);
+	border: 1.5px solid var(--green-mark);
 	border-radius: 50%;
 	height: 9px;
 	left: -26px;
@@ -3120,7 +3167,7 @@ button.workspace-title:hover {
 }
 
 .timeline-moment.is-problem .timeline-dot {
-	border-color: var(--red);
+	border-color: var(--red-mark);
 }
 
 .timeline-head {
@@ -3234,12 +3281,14 @@ button.workspace-title:hover {
 
 /* The terminal keeps a control on its right, so the padding on that side comes in to meet it. */
 .terminal-bar {
+	background: var(--terminal-bg);
+	border-bottom-color: var(--line-border);
 	gap: 8px;
 	padding-right: 10px;
 }
 
 .terminal-who {
-	color: var(--text-secondary);
+	color: var(--terminal-fg);
 	flex-grow: 1;
 	font-family: var(--font-mono);
 	font-size: var(--text-mono-sm);
@@ -3267,7 +3316,7 @@ button.workspace-title:hover {
 }
 
 .terminal-led.is-live {
-	background: var(--green);
+	background: var(--green-mark);
 }
 
 .terminal-foot {
@@ -3327,8 +3376,11 @@ button.workspace-title:hover {
 	position: relative;
 }
 
+/* The terminal region overrides the well surface with its own, which does not change with the
+   theme. An integrated terminal stays dark on a light page for the same reason its colours are not
+   the brand's: it is a view onto a real shell, and recolouring `ls` output misrepresents it. */
 .terminal-host {
-	background: var(--surface-well);
+	background: var(--terminal-bg);
 	flex: 1 1 auto;
 	min-height: 240px;
 	padding: 12px 14px;
@@ -3337,7 +3389,7 @@ button.workspace-title:hover {
 /* Opaque, because the host underneath is a canvas mid-measurement and a shell that fades up
    through a spinner reads as two things loading rather than one. */
 .terminal-overlay {
-	background: var(--surface-well);
+	background: var(--terminal-bg);
 	display: flex;
 	inset: 0;
 	position: absolute;
@@ -3411,7 +3463,7 @@ button.workspace-title:hover {
 }
 
 .meta-band-dot.is-on {
-	background: var(--green);
+	background: var(--green-mark);
 }
 
 /* The fleet on the left, the launch form on the right. The right half of this screen used to be

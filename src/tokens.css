@@ -1,99 +1,65 @@
 /* pve-agents — design tokens
- * Single source of truth. Imported once, from the top of styles.css.
  *
- * This is the shipping copy; design/tokens.css is the design source and is
- * left alone. The two differ only in --font-mono / --font-sans, which point
- * at the faces this app loads rather than the mockups' stand-ins. A colour
- * the mockups use and this file lacks is a missing token: add it here, do
- * not inline the hex.
+ * Dark is the default (:root). Light is an override on [data-theme="light"].
+ * Everything outside the two theme blocks — type, radius, space, layout,
+ * motion, terminal — is shared and must not be redefined per theme.
  *
- * Every value below was sampled from the existing app or derived from it;
- * nothing here is a new brand decision.
+ * Every text token in both themes clears 4.5:1 against every surface it is
+ * allowed to sit on. --text-decorative is the only exception and is for
+ * non-text marks (dots, rails) only. Numbers were verified, not eyeballed;
+ * if you change a color, re-check it.
  *
- * Dark only for now. When light mode happens, redefine the --surface-*,
- * --line-* and --text-* groups under a [data-theme="light"] selector and
- * leave everything else alone.
+ * Switching themes: set data-theme on <html>. To follow the OS, run this
+ * before first paint (inline in <head>, not in a bundle, or you get a flash):
+ *
+ *   const saved = localStorage.getItem('theme');
+ *   const sys = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+ *   document.documentElement.dataset.theme = saved ?? sys;
  */
 
+/* ══ DARK (default) ═══════════════════════════════════════════════════ */
+
 :root {
-	/* ── Surfaces ───────────────────────────────────────────────────────
-     Four levels. The current app uses one (#111411) everywhere, which is
-     why nothing reads as a panel. Use exactly these four, in this order
-     of depth, and do not invent a fifth. */
-	--surface-well: #0b0f0a; /* inputs, terminal, code, error output */
-	--surface-base: #111411; /* the page itself */
+	/* Surfaces — four levels of depth. Wells recede, raised things lift. */
+	--surface-well: #0b0f0a; /* inputs, diff body, error output */
+	--surface-base: #111411; /* the page / the feed */
 	--surface-sunk: #0f120e; /* sidebar, right panel, meta band */
 	--surface-raised: #131713; /* cards, table rows, grouped lists */
-	--surface-hover: #1c211a; /* hover / pressed on a raised thing */
-	--surface-select: #171d15; /* selected row in a list */
+	--surface-hover: #1c211a;
+	--surface-select: #171d15;
 
-	/* The exception to the four. STYLE.md section 9 says not to add a fifth surface, and the
-	   mockups then use this one for exactly two things: the strip behind a diff hunk header, and
-	   an errored row in the tool-call log. Both are a band inside an already-bordered group rather
-	   than a panel, which is why it sits between well and sunk and is named for the job rather
-	   than given a number in the ramp. Do not reach for it as a general surface. */
-	--surface-strip: #12160f;
-
-	/* ── Lines ──────────────────────────────────────────────────────────
-     Hairline separates things inside a group; border wraps a group;
-     strong is focus only. */
-	--line-hairline: #1c221a;
-	--line-inner: #161b14; /* between rows inside one bordered group */
-	--line-divider: #232b21; /* the meta band's 11px ticks, and rules on a sunk surface */
-	--line-border: #2c3428;
+	/* Lines */
+	--line-hairline: #1c221a; /* separates regions */
+	--line-inner: #161b14; /* separates rows inside one group */
+	--line-border: #2c3428; /* wraps a group or a control */
 	--line-strong: #3b4636;
 
-	/* The same two jobs as hairline and border, one step brighter, for a group that already sits
-	   on a raised surface -- at which point the darker pair disappears into the fill. */
-	--line-raised: #1e241c;
-	--line-border-raised: #2f382c;
+	/* Ink */
+	--text-primary: #e6e9df; /* 13.9:1 */
+	--text-body: #d6e2cf; /* 13.8:1 */
+	--text-secondary: #a9b8a2; /*  8.0:1 */
+	--text-muted: #7d8b76; /*  5.2:1 — section labels */
+	--text-dim: #76826f; /*  4.6:1 — timestamps, counts, hints */
+	--text-faint: var(--text-dim);
+	--text-decorative: #3b4636; /* BELOW THRESHOLD — dots and rails only */
 
-	/* ── Ink ────────────────────────────────────────────────────────────
-     muted is the floor for anything readable — 5.1:1 on --surface-base.
-     The app's current label grey (#485145) is ~4.3:1 and fails; faint is
-     for non-text decoration only. */
-	--text-primary: #e6e9df; /* titles, live values */
-	--text-body: #d6e2cf; /* prose, answers */
-	--text-secondary: #a9b8a2; /* meta values */
-	--text-tertiary: #8f9c88; /* subtitles beside a title: a purpose, a hostname */
-	--text-muted: #7d8b76; /* section labels, key names */
-	--text-dim: #6b7766; /* timestamps, counts, hints */
-	--text-faint: #5f6b5a; /* keyboard hints, disabled */
-	--text-decorative: #4e5a49; /* dots, rails, gutters — never words */
-
-	/* Below the readable floor, and the mockups use it anyway for one thing: the meta band's key.
-	   Section 6 of STYLE.md hardcodes this exact value there. It is a four-letter uppercase label
-	   sat directly beside the value it names, so the value carries the meaning if the label is
-	   hard to read -- which is the same argument section 7 makes for a dot paired with a word.
-	   Nowhere else. */
-	--text-metakey: #626e5d;
-
-	/* Ink that belongs to a specific fill rather than to the ramp. */
-	--text-control: #c9d6c2; /* label on a secondary (outlined) button */
-	--text-on-quiet: #dbe8d2; /* on --sage-quiet: the active segment */
-	--text-wordmark: #dbe4d3; /* the sidebar wordmark */
-	--text-error-name: #e0d3cf; /* the name of a tool call that failed */
-
-	/* ── Signal ─────────────────────────────────────────────────────────
-     Sage = something you can do. Green = something that is true right
-     now. They are not interchangeable: a destroy button is never sage. */
-	--sage: #b5cda9;
-	--sage-ink: #101410; /* text on a sage fill */
-	--sage-hover: #cfe0c4; /* sage lifted: a hovered link or primary fill */
-	--sage-quiet: #26301f; /* sage at rest — active segment, monogram */
-	--sage-wash: rgba(181, 205, 169, 0.14); /* sage as a tint, not a fill */
-	--green: #7fa06a; /* live, ready, healthy, additions */
-	/* The ring on a live dot, per section 5. A shadow rather than a second element, and the one
-	   thing allowed to animate -- a slow opacity pulse on this, never on the dot. */
-	--green-ring: rgba(127, 160, 106, 0.16);
-	--amber: #d4a85f; /* provisioning, waiting, high priority */
-	--red: #d98b7d; /* error, destroy, removals */
-	--red-ink: #e0a094; /* red text on a dark well */
+	/* Signal */
+	--sage: #b5cda9; /* primary action fill */
+	--sage-ink: #101410; /* text on that fill */
+	--sage-quiet: #26301f; /* active segment, monogram, selected tint */
+	--green: #7fa06a; /* live / ready — text and marks */
+	--green-mark: #7fa06a; /* dots, progress segments */
+	--amber: #d4a85f;
+	--amber-mark: #d4a85f;
+	--red: #d98b7d;
+	--red-mark: #d98b7d;
+	--red-ink: #e0a094; /* red text inside a well */
 	--red-line: #4a2f29; /* destroy button border */
-	--red-line-strong: #5a4440; /* the same border, hovered or focused */
 	--red-well-line: #2a1f1c; /* border on an error well */
 
-	/* tinted chip fills — keep these exact, they are tuned for 4.5:1 */
+	--focus-ring: #8aa07d;
+
+	/* Chips — tinted fill + border + text, tuned as a set */
 	--chip-green-bg: rgba(127, 160, 106, 0.14);
 	--chip-green-line: rgba(127, 160, 106, 0.3);
 	--chip-green-text: #a5c493;
@@ -107,60 +73,243 @@
 	--chip-neutral-line: #2c3428;
 	--chip-neutral-text: #a9b8a2;
 
-	/* Terminal ANSI, and the one sanctioned exception to the palette (STYLE.md section 6).
-	 *
-	 * Real shell output, recoloured to the brand greens, would be a lie about what the shell
-	 * printed: `ls` colours a directory blue because it is a directory. These are tokens rather
-	 * than literals so the exception is findable, not so that it is adjustable. */
-	--ansi-blue: #8fb0d6; /* directories */
-	--ansi-teal: #7fd3c8; /* symlinks */
-
-	/* diff row tints */
+	/* Diff */
 	--diff-add-bg: rgba(127, 160, 106, 0.09);
 	--diff-del-bg: rgba(217, 139, 125, 0.09);
 	--diff-add-text: #cbdcc2;
 	--diff-del-text: #ddb7ae;
-	--diff-gutter: #4e5a49;
+	--diff-hunk-bg: #12160f;
+	--diff-gutter: #76826f;
 
-	/* ── Type ───────────────────────────────────────────────────────────
-     The mockups load JetBrains Mono and Geist as metric stand-ins. These
-     point at the faces this app actually ships, per STYLE.md §2: only the
-     role split and the sizes below are prescriptive.
+	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.45); /* dropdowns/popovers only */
 
-     --font-mono is the stack every mono rule in styles.css already spells
-     out by hand. --font-sans is Geist, which is self-hosted in
-     public/fonts and was until now scoped to the conversation as
-     --font-chat; the Avenir/Helvetica tail is the interface stack it
-     falls back to. */
+	/* ── Added by the refresh ───────────────────────────────────────────
+	   Colours the mockups use that the design's token file does not name. */
+	--surface-strip: #12160f; /* diff hunk header, errored tool row */
+	--line-divider: #232b21; /* the meta band's ticks, rules on a sunk surface */
+	--line-raised: #1e241c;
+	--line-border-raised: #2f382c;
+	--text-tertiary: #8f9c88; /* a purpose beside a title, a hostname */
+	--text-metakey: #626e5d; /* the meta band's key, and nowhere else */
+	--text-control: #c9d6c2; /* label on an outlined button */
+	--text-on-quiet: #dbe8d2; /* on --sage-quiet */
+	--text-wordmark: #dbe4d3;
+	--text-error-name: #e0d3cf;
+	--sage-hover: #cfe0c4;
+	--sage-wash: rgba(181, 205, 169, 0.14);
+	--green-ring: rgba(127, 160, 106, 0.16);
+	--red-line-strong: #5a4440;
+
+	/* ── The pre-refresh palette ────────────────────────────────────────
+	   Still read by ~230 declarations on the surfaces section 8 never
+	   covered: the settings screen, the transcript's syntax colours, the
+	   outcome panels. They live here rather than in styles.css so they
+	   follow the theme -- a toggle that leaves a whole screen dark is
+	   worse than no toggle. Dark keeps their exact previous values, so
+	   the default theme is unchanged to the pixel. Retire them surface by
+	   surface; do not add a reference. */
+	--bg: #111411;
+	--bg-sunken: #0b0f0a;
+	--surface: #161b14;
+	--border: #2c3428;
+	--border-strong: #384036;
+	--border-dim: #4a5545;
+	--line: #7b8b71;
+	--fg: #e6e9df;
+	--fg-bright: #d6e2cf;
+	--fg-soft: #a9b8a2;
+	--fg-muted: #8a9a83;
+	--fg-dim: #6d7a67;
+	--accent: #7fa06a;
+	--accent-fill: #b5cda9;
+	--accent-fill-hover: #d0e4c5;
+	--accent-ink: #172016;
+	--accent-ring: #b5cda944;
+	--warn: #b08a4a;
+	--warn-fg: #e0b36a;
+	--warn-bg: #2a2213;
+	--danger: #8c4a4a;
+	--danger-fg: #e08a8a;
+	--danger-soft: #e0a2a2;
+	--danger-bright: #ffb4a8;
+	--info: #5a7fa8;
+	--info-fg: #8fb4d9;
+	--status-modified: #c8b45f;
+}
+
+/* ══ LIGHT ════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+	/* Surfaces — same four levels, inverted. Not pure white: the ground keeps
+     the app's green tint so light mode is the same product, not a different
+     one. Raised IS white — that is what makes a card read as lifted here,
+     the same job --surface-raised does by going lighter in dark mode. */
+	--surface-well: #eceee6;
+	--surface-base: #fbfcf9;
+	--surface-sunk: #f4f6f0;
+	--surface-raised: #ffffff;
+	--surface-hover: #f2f4ec;
+	--surface-select: #eaf0e3;
+
+	--line-hairline: #e6e9e0;
+	--line-inner: #eef0e9;
+	--line-border: #d8ddd0;
+	--line-strong: #b3bda9;
+
+	/* Ink. Note the ramp is COMPRESSED relative to dark: on a near-white
+     ground there is only about one stop of room between the muted label and
+     the 4.5:1 floor. Below --text-secondary, differentiate with size and
+     weight, not lightness. */
+	--text-primary: #1a1e16; /* 16.4:1 */
+	--text-body: #2b3127; /* 13.0:1 */
+	--text-secondary: #4b5546; /*  7.6:1 */
+	--text-muted: #5d6855; /*  5.7:1 */
+	--text-dim: #616c57; /*  4.7:1 */
+	--text-faint: var(--text-dim);
+	--text-decorative: #b9c2b0; /* BELOW THRESHOLD — dots and rails only */
+
+	/* Signal. The dark-mode sage (#b5cda9) is a pale mint on a white page —
+     it reads as a disabled button, so the primary fill goes deep and the
+     ink on it goes light. Same hue family, opposite end. --sage-quiet keeps
+     the pale tint for the active-segment / selected-row job. */
+	--sage: #52753e; /* fill: 5.1:1 vs base, 5.0:1 under its ink */
+	--sage-ink: #f6f9f2;
+	--sage-quiet: #e4ecd9;
+	--green: #45722f; /* 4.9:1 — text and icons */
+	--green-mark: #5f9440; /* 3.5:1 — dots, progress segments */
+	--amber: #836016; /* 4.9:1 */
+	--amber-mark: #b5851f; /* 3.2:1 */
+	--red: #a8402f; /* 5.2:1 */
+	--red-mark: #c25b45; /* 4.2:1 */
+	--red-ink: #8f3323;
+	--red-line: #d9b3aa;
+	--red-well-line: #e8cfc8;
+
+	--focus-ring: #6f8c5a; /* 3.7:1 vs base */
+
+	--chip-green-bg: #e4eedc;
+	--chip-green-line: #c3d9b5;
+	--chip-green-text: #3f6a2b; /* 5.3:1 on its fill */
+	--chip-amber-bg: #f5ead3;
+	--chip-amber-line: #e3cf9f;
+	--chip-amber-text: #7a5814; /* 5.4:1 */
+	--chip-red-bg: #f7e3de;
+	--chip-red-line: #e5bfb6;
+	--chip-red-text: #9b3a2a; /* 5.6:1 */
+	--chip-neutral-bg: #eef0e9;
+	--chip-neutral-line: #d8ddd0;
+	--chip-neutral-text: #4b5546;
+
+	--diff-add-bg: #e8f0e0;
+	--diff-del-bg: #f8e6e1;
+	--diff-add-text: #24401a;
+	--diff-del-text: #7a2b1e;
+	--diff-hunk-bg: #f1f3eb;
+	--diff-gutter: #6b7663;
+
+	--shadow-pop: 0 2px 8px rgba(32, 39, 44, 0.1);
+
+	/* ── Added by the refresh ───────────────────────────────────────────*/
+	--surface-strip: #f1f3eb;
+	--line-divider: #dde2d5;
+	--line-raised: #eef0e9;
+	--line-border-raised: #d8ddd0;
+	--text-tertiary: #566150;
+	--text-metakey: #6b7663;
+	--text-control: #2b3127;
+	--text-on-quiet: #2d4720;
+	--text-wordmark: #1a1e16;
+	--text-error-name: #7a2b1e;
+	--sage-hover: #3f5c30;
+	--sage-wash: rgba(82, 117, 62, 0.1);
+	--green-ring: rgba(95, 148, 64, 0.2);
+	--red-line-strong: #c08f83;
+
+	/* ── The pre-refresh palette, in light ──────────────────────────────
+	   Mapped by the job each one does rather than by hue, which is why
+	   --surface (a hover fill in dark) lands on the light hover and not
+	   on a "surface". */
+	--bg: #fbfcf9;
+	--bg-sunken: #eceee6;
+	--surface: #f2f4ec;
+	--border: #d8ddd0;
+	--border-strong: #c6cdba;
+	--border-dim: #b3bda9;
+	--line: #5d6855;
+	--fg: #1a1e16;
+	--fg-bright: #2b3127;
+	--fg-soft: #4b5546;
+	--fg-muted: #5d6855;
+	--fg-dim: #616c57;
+	--accent: #45722f;
+	--accent-fill: #52753e;
+	--accent-fill-hover: #3f5c30;
+	--accent-ink: #f6f9f2;
+	--accent-ring: rgba(82, 117, 62, 0.27);
+	--warn: #836016;
+	--warn-fg: #7a5814;
+	--warn-bg: #f5ead3;
+	--danger: #a8402f;
+	--danger-fg: #9b3a2a;
+	--danger-soft: #a8402f;
+	--danger-bright: #8f3323;
+	--info: #2f5b86;
+	--info-fg: #2f5b86;
+	--status-modified: #836016;
+}
+
+/* ══ TERMINAL — theme-invariant ═══════════════════════════════════════
+ * The terminal stays dark in light mode, the way an editor's integrated
+ * terminal does. It is a view onto a real shell, and its colors are the
+ * shell's, not the app's: recoloring `ls` output to the brand palette
+ * misrepresents what was printed. Give the terminal region its own
+ * --surface-well override of --terminal-bg. */
+
+:root,
+[data-theme="light"] {
+	--terminal-bg: #0b0f0a;
+	--terminal-fg: #8f9c88;
+	--terminal-bright: #d6e2cf;
+	--terminal-dim: #76826f;
+	--terminal-accent: #b5cda9; /* prompt user@host, cursor */
+	--terminal-dir: #8fb0d6;
+	--terminal-link: #7fd3c8; /* symlinks */
+}
+
+/* ══ SHARED ═══════════════════════════════════════════════════════════ */
+
+:root {
+	/* Type. Keep whichever faces the app already ships — the mockups use
+     these two only as metric stand-ins. Sizes and tracking are the
+     prescriptive part. */
 	--font-mono: "SF Mono", "Roboto Mono", monospace;
 	--font-sans: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
 
-	--text-label: 9.5px; /* uppercase mono section label */
-	--text-mono-xs: 10px; /* the sidebar's meta line, keyboard hints, tab labels */
-	--text-label-lg: 10.5px; /* uppercase mono tab / button label */
-	--text-mono-sm: 10.5px; /* dense mono values, log rows */
-	--text-mono: 11.5px; /* key/value mono values */
-	--text-mono-lg: 12.5px; /* emphasised mono value */
-	--text-body-sm: 12px; /* secondary prose, table cells */
-	--text-body-md: 12.5px; /* list rows, subtitles */
-	--text-body-lg: 13.5px; /* the conversation feed */
-	--text-title: 14px; /* screen title in the top bar */
-	--text-title-lg: 22px; /* page title (home) */
+	--text-label: 9.5px;
+	--text-mono-xs: 10px; /* the sidebar meta line, keyboard hints, tab labels */
+	--text-label-lg: 10.5px;
+	--text-mono-sm: 10.5px;
+	--text-mono: 11.5px;
+	--text-mono-lg: 12.5px;
+	--text-body-sm: 12px;
+	--text-body-md: 12.5px;
+	--text-body-lg: 13.5px;
+	--text-title: 14px;
+	--text-title-lg: 22px;
 
-	--tracking-label: 0.16em; /* section labels */
-	--tracking-ui: 0.12em; /* buttons, chips, tabs */
+	--tracking-label: 0.16em;
+	--tracking-ui: 0.12em;
 	--leading-prose: 1.6;
 	--leading-tight: 1.45;
 
-	/* ── Radius ─────────────────────────────────────────────────────────
-     Small and crisp. Nothing in this app is rounder than 7px. */
-	--radius-xs: 2px; /* progress segments */
-	--radius-sm: 3px; /* status chips */
-	--radius-md: 4px; /* buttons, inputs, wells */
-	--radius-lg: 5px; /* cards, grouped lists */
-	--radius-xl: 7px; /* nothing yet — reserved */
+	/* Radius — nothing in this app is rounder than 7px */
+	--radius-xs: 2px;
+	--radius-sm: 3px;
+	--radius-md: 4px;
+	--radius-lg: 5px;
+	--radius-xl: 7px;
 
-	/* ── Space ──────────────────────────────────────────────────────────*/
+	/* Space */
 	--space-1: 3px;
 	--space-2: 6px;
 	--space-3: 8px;
@@ -170,19 +319,17 @@
 	--space-7: 16px;
 	--space-8: 20px;
 
-	/* ── Layout ─────────────────────────────────────────────────────────*/
+	/* Layout */
 	--sidebar-w: 236px;
-	--panel-w: 392px; /* right panel; 400px when it has its own border */
+	--panel-w: 392px;
 	--topbar-h: 48px;
 	--metaband-h: 32px;
-	--row-h: 27px; /* group header strip */
-	--control-h: 26px; /* dense button in a bar */
-	--control-h-md: 30px; /* standalone button */
-	--control-h-lg: 34px; /* form input */
+	--row-h: 27px;
+	--control-h: 26px;
+	--control-h-md: 30px;
+	--control-h-lg: 34px;
 
-	/* ── Motion ─────────────────────────────────────────────────────────
-     Three durations, always ease-in-out. No springs, no transforms on
-     press — the surface steps up a level instead. */
+	/* Motion — three durations, always ease-in-out */
 	--dur-fast: 75ms;
 	--dur-base: 150ms;
 	--dur-slow: 300ms;
@@ -195,4 +342,12 @@
 		--dur-base: 1ms;
 		--dur-slow: 1ms;
 	}
+}
+
+/* Only put a transition on the theme swap if you want one, and keep it off
+   text so the switch doesn't smear. */
+:root[data-theme-transition] * {
+	transition:
+		background-color var(--dur-base) var(--ease),
+		border-color var(--dur-base) var(--ease);
 }

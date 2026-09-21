@@ -65,10 +65,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 	},
 );
 
+// THEME_BOOT sets data-theme before the browser paints anything.
+//
+// Inline in the head, not in the bundle, and that is the whole point: a theme applied by React runs
+// after first paint, so somebody who chose dark gets a white page for a frame on every single load.
+// Inline, the attribute is on <html> before any pixel of <body> exists.
+//
+// A stored choice wins; with none, follow the OS. Wrapped in try/catch because reading
+// localStorage throws outright in some privacy modes, and a throw here would take the document
+// with it before anything had rendered.
+const THEME_BOOT = `try{var t=localStorage.getItem('pve-agents.theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}`;
+
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		// `dark` as the served default, so the markup the server sends already says what it is and
+		// the script below only has to change it for the minority who chose otherwise.
+		<html data-theme="dark" lang="en">
 			<head>
+				{/* Before HeadContent, so it runs before the stylesheet link is even parsed. */}
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no interpolation, and it has to be inline to beat first paint */}
+				<script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
 				<HeadContent />
 			</head>
 			<body>

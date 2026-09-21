@@ -18,6 +18,24 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 // of it, not which terminal you are looking at. That distinction is worth about two and a half
 // seconds: `dispose()` drops ghostty's cached WASM instance, so the next terminal has to load and
 // compile the whole module again before it can show anything.
+// terminalTheme reads the --terminal-* tokens off the element the shell will draw into.
+//
+// Resolved once, at construction, which is all ghostty asks for. If the theme is ever switched
+// while a shell is open these will not follow -- and they should not: the terminal is deliberately
+// theme-invariant, so the only thing that could change here is a token edit, which needs a reload
+// anyway.
+function terminalTheme(element: Element) {
+	const style = getComputedStyle(element);
+	const token = (name: string, fallback: string) =>
+		style.getPropertyValue(name).trim() || fallback;
+
+	return {
+		background: token("--terminal-bg", "#0b0f0a"),
+		cursor: token("--terminal-accent", "#b5cda9"),
+		foreground: token("--terminal-bright", "#d6e2cf"),
+	};
+}
+
 export default function TerminalView({
 	hostname,
 	ip,
@@ -78,13 +96,12 @@ export default function TerminalView({
 					// Bounded. Every line of it is memory the terminal has to free eventually, and
 					// a workspace shell is for short commands rather than for reading a log in.
 					scrollback: 1_000,
-					theme: {
-						// The well surface, matching the box it sits in. It was two points lighter,
-						// which read as a panel inside a panel.
-						background: "#0b0f0a",
-						cursor: "#d6e2cf",
-						foreground: "#d6e2cf",
-					},
+					// Read off the stylesheet rather than written here, so the shell's colours
+					// stay in the token file with everything else. These are the one group that
+					// does not change with the theme: the terminal stays dark in light mode, the
+					// way an editor's integrated terminal does, because its colours are the
+					// shell's and not the application's.
+					theme: terminalTheme(element),
 				});
 				const fit = new FitAddon();
 				terminal.loadAddon(fit);

@@ -11,6 +11,7 @@ import { useState } from "react";
 import { IconButton, IconLink } from "../components/icon-button";
 import { SectionHead } from "../components/section-head";
 import { SidebarEntry } from "../components/sidebar-entry";
+import { ThemeToggle } from "../components/theme-toggle";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
 import { useBlockedAlerts } from "../lib/use-blocked-alerts";
@@ -138,6 +139,7 @@ function Dashboard() {
 						<span>New workspace</span>
 					</Link>
 					<div className="sidebar-tools">
+						<ThemeToggle />
 						<IconLink icon={Settings} label="Settings" to="/settings" />
 						{/* Offered only while it would do something. Browsers require a gesture to
 						    ask, so this is a button rather than a prompt on load, and it disappears
