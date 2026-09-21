@@ -527,7 +527,6 @@ button {
 	flex-direction: column;
 	flex-shrink: 0;
 	gap: 8px;
-	margin-top: 16px;
 }
 
 .prompt-field {
@@ -1733,7 +1732,10 @@ button.workspace-title:hover {
 	container-type: size;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	/* None. The composer sits directly on the feed's scroll edge; the space between the last line
+	   and the field is the scroller's own bottom padding, which is what lets the text run to the
+	   edge when there is more of it. */
+	gap: 0;
 }
 
 /* The conversation, where the terminal used to be.
@@ -1763,7 +1765,10 @@ button.workspace-title:hover {
 	margin: 0 calc(var(--main-pad) * -1) 0 0;
 	min-height: 0;
 	overflow-y: auto;
-	padding: 0 var(--main-pad) 0 0;
+	/* Vertical padding on the scroller, not on the box around it. Content passes through it on the
+	   way out, so the feed is clipped at the bar above and at the composer below rather than at a
+	   line some distance from either. */
+	padding: var(--space-8) var(--main-pad) 16px 0;
 }
 
 /* Spacing by relationship rather than by a single gap.
@@ -2787,13 +2792,22 @@ button.workspace-title:hover {
 
 /* Takes the space the fixed sections leave. Its font size is then computed against that space, so
    the grid fits it exactly rather than overflowing and being clipped. */
+/* No vertical padding. The feed inside this scrolls, and a padded box around a scrolling child is
+   a band the text slides under and vanishes at -- the conversation appeared to be cut off twenty
+   pixels below the bar rather than at it. The breathing room lives inside the scroller instead,
+   where it scrolls away with the content. */
 .screen-body {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
 	gap: var(--space-8);
 	min-height: 0;
-	padding: var(--space-8) var(--main-pad) 0;
+	padding: 0 var(--main-pad);
+}
+
+/* The one child that is not the feed, and the one that still wants the space the column gave up. */
+.screen-body > .notice.is-block {
+	margin-top: var(--space-8);
 }
 
 .dashboard-main-fixed .centre-screen {
