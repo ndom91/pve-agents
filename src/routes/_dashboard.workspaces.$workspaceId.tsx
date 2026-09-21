@@ -359,7 +359,11 @@ function WorkspaceDetail() {
 											}
 										}}
 										placeholder="Tell the agent what to do next"
-										rows={2}
+										// One row, and it grows with what is typed -- see
+										// `field-sizing` in the stylesheet. Two rows meant an
+										// empty second line sat under the placeholder whenever
+										// nobody was typing, which is most of the time.
+										rows={1}
 										value={prompt}
 									/>
 									{/* The two keys that do something here, written as the glyphs
@@ -367,12 +371,22 @@ function WorkspaceDetail() {
 									    the field -- it sits on this row, which is what gives the
 									    hints somewhere to be. */}
 									<div className="prompt-foot">
-										<span className="prompt-hint">&#8984;&#8629; send</span>
-										<span className="prompt-hint">&#8679;&#8629; newline</span>
+										<span className="prompt-hint">
+											<kbd className="prompt-key">&#8984;&#8629;</kbd> send
+										</span>
+										<span className="prompt-hint">
+											<kbd className="prompt-key">&#8679;&#8629;</kbd> newline
+										</span>
 										<span className="prompt-foot-spacer" />
 										<Button
 											className="prompt-send"
-											disabled={busy || prompt.trim() === ""}
+											// Only while a message is actually in flight. It was
+											// also disabled on an empty field, which meant the
+											// page's one primary action spent almost all of its
+											// life painted as a dead grey rectangle. Sending
+											// nothing is already a no-op in `submitPrompt`, so
+											// there is nothing for the disabled state to protect.
+											disabled={busy}
 											title="Send (Cmd or Ctrl + Enter)"
 											type="submit"
 										>

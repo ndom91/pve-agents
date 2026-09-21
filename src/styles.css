@@ -588,8 +588,15 @@ dd {
 	/* block, not the default inline-block. As an inline element the textarea leaves a baseline
 	   descender gap beneath it, which would show up as uneven padding at the bottom of the well. */
 	display: block;
+	/* One row at rest, growing to eight as the prompt does. A prompt is often a paragraph, so a
+	   field fixed at one line is too small to write in -- and a field fixed at the size of a
+	   paragraph is an empty second line sitting under the placeholder for as long as nobody is
+	   typing, which is most of the time. Where `field-sizing` is not supported this degrades to
+	   the single row and scrolls, which is the old behaviour one line shorter. */
+	field-sizing: content;
 	font-family: var(--font-sans);
 	font-size: 13px;
+	max-height: 8lh;
 	outline: none;
 	padding: 0;
 	/* Dragging the handle fought the fixed-height column: growing the field pushed the terminal
@@ -615,11 +622,27 @@ dd {
 }
 
 .prompt-hint {
+	align-items: center;
 	color: var(--text-faint);
+	display: inline-flex;
 	font-family: var(--font-mono);
-	font-size: var(--text-label);
+	font-size: var(--text-mono-xs);
+	gap: 5px;
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
+}
+
+/* The glyphs, a size up from the word beside them and a shade brighter.
+ *
+ * A symbol like the command key draws to a much smaller optical size than a capital letter at the
+ * same font-size, so matching the numbers makes them look half as big. At 9.5px they were a smudge
+ * on a real screen whatever the mockup's render suggested. No tracking either -- letter-spacing
+ * between two symbols is a gap, not rhythm. */
+.prompt-key {
+	color: var(--text-dim);
+	font-family: inherit;
+	font-size: 12px;
+	letter-spacing: 0;
 }
 
 .prompt-foot-spacer {
