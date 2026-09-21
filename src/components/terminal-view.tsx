@@ -122,18 +122,31 @@ export default function TerminalView({
 
 			const { fit, terminal } = screen.current;
 
-			// A clean screen for a new shell.
+			// Sized first, so the clean-up below covers the grid the shell will actually run at.
+			fit.fit();
+
+			// A clean screen for a new shell, in two steps, and both are load-bearing.
 			//
 			// Whatever is up there was drawn by a session that has ended and cannot be picked up
 			// again -- it went with its socket. Left alone, the old output stays while the new
 			// shell writes over it from the top, which reads as a session resuming halfway through
-			// something it never ran. `reset` rather than `clear`, because the scrollback is part
-			// of what would otherwise survive.
+			// something it never ran.
+			//
+			// `reset` drops the scrollback and the modes the last session left set. It rebuilds the
+			// terminal inside the WASM to do it.
 			terminal.reset();
-			// `reset` empties the buffer but leaves the last frame on the canvas, so the previous
-			// workspace's banner sat there until something happened to repaint. Refitting forces
-			// that repaint, and has to come after the reset rather than before it.
-			fit.fit();
+			// And that rebuild is why `clear` has to follow. A rebuilt terminal is handed a buffer
+			// out of the WASM allocator that still holds the previous one's cells, so a brand-new
+			// Terminal on a brand-new canvas can come up already showing the last shell's output --
+			// verified: a fresh mount, one socket, four hundred bytes of banner from the server, and
+			// a full screen of the previous session's `ls` underneath it. `clear` writes ED2 and
+			// CUP home through the parser, which erases the cells that are really there rather than
+			// trusting them to have been zeroed.
+			//
+			// This used to be a second `fit.fit()`, on the theory that refitting forces a repaint.
+			// It does, but `resize` returns early when the grid has not changed, and switching
+			// workspaces in a rail nobody dragged leaves it identical. The repaint never happened.
+			terminal.clear();
 			setSize({ cols: terminal.cols, rows: terminal.rows });
 			setState("opening");
 
