@@ -1,7 +1,37 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProvisionPhase } from "./workspace";
-import { LIFECYCLE_STEPS, lifecycleReached } from "./workspace-lifecycle";
+import {
+	isConversing,
+	LIFECYCLE_STEPS,
+	lifecycleReached,
+} from "./workspace-lifecycle";
+
+describe("isConversing", () => {
+	it("keeps the transcript up while a destroy is in flight", () => {
+		// The bug this exists for. Destroy predicts "destroying" on the click, so a feed gated on
+		// "ready" unmounted before the request was answered and took the stream with it. The
+		// messages are component state, so a destroy that then failed had nothing to restore.
+		expect(isConversing("destroying")).toBe(true);
+	});
+
+	it("shows it for a workspace that can be talked to", () => {
+		expect(isConversing("ready")).toBe(true);
+	});
+
+	it("drops it once there is no container behind it", () => {
+		// Nothing to stream from, and `Outcome` takes the space instead.
+		expect(isConversing("destroyed")).toBe(false);
+		expect(isConversing("failed")).toBe(false);
+	});
+
+	it("does not open a stream to a workspace still being built", () => {
+		// The runner is not up yet. This is the lifecycle strip's half of the screen.
+		expect(isConversing("provisioning")).toBe(false);
+		expect(isConversing("booting")).toBe(false);
+		expect(isConversing(undefined)).toBe(false);
+	});
+});
 
 describe("lifecycleReached", () => {
 	it("fills the strip for a ready workspace whatever its phase says", () => {

@@ -15,6 +15,7 @@ import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { WorkspaceTitle } from "../components/workspace-title";
+import { isConversing } from "../domain/workspace-lifecycle";
 import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
 import { provisionTook } from "../lib/clock";
@@ -54,6 +55,9 @@ function WorkspaceDetail() {
 	const [discarded, setDiscarded] = useState(0);
 
 	const ready = workspace?.status === "ready";
+	// The transcript outlives being able to add to it. Why, and why it is not `ready`, is in
+	// `isConversing`.
+	const conversing = isConversing(workspace?.status);
 	// Nothing can be done to it any more: no terminal, no prompt, no diff to push or discard.
 	const finished =
 		workspace?.status === "destroyed" || workspace?.status === "failed";
@@ -202,11 +206,14 @@ function WorkspaceDetail() {
 	}
 
 	const busy = send.isPending || decide.isPending;
+	// Whether a prompt can be sent. Separate from `conversing` above: during a destroy the
+	// transcript stays up to be read, and the field under it stops taking anything.
+	const promptable = ready && !busy;
 
 	// Shared by the button and the keyboard shortcut, so the two cannot diverge on what counts as
 	// an empty prompt.
 	function submitPrompt() {
-		if (!busy && prompt.trim() !== "") {
+		if (promptable && prompt.trim() !== "") {
 			send.mutate(prompt);
 		}
 	}
@@ -314,7 +321,7 @@ function WorkspaceDetail() {
 						</section>
 					)}
 
-					{!ready ? null : (
+					{!conversing ? null : (
 						<section className="centre-screen">
 							<AgentConversation
 								busy={busy}
@@ -333,7 +340,7 @@ function WorkspaceDetail() {
 							>
 								<div className="prompt-field">
 									<textarea
-										disabled={busy}
+										disabled={!promptable}
 										onChange={(event) => setPrompt(event.target.value)}
 										// Enter alone inserts a newline, because a prompt is often a
 										// paragraph and losing one to a stray keystroke is worse than
@@ -369,13 +376,13 @@ function WorkspaceDetail() {
 										<span className="spacer" />
 										<Button
 											className="prompt-send"
-											// Only while a message is actually in flight. It was
-											// also disabled on an empty field, which meant the
-											// page's one primary action spent almost all of its
-											// life painted as a dead grey rectangle. Sending
-											// nothing is already a no-op in `submitPrompt`, so
-											// there is nothing for the disabled state to protect.
-											disabled={busy}
+											// While a message is in flight, or while the workspace
+											// has stopped being able to take one. Not on an empty
+											// field, which it was: that painted the page's one
+											// primary action as a dead grey rectangle for almost
+											// all of its life, and sending nothing is already a
+											// no-op in `submitPrompt`.
+											disabled={!promptable}
 											title="Send (Cmd or Ctrl + Enter)"
 											type="submit"
 										>

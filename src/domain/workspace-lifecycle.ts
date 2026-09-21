@@ -64,6 +64,22 @@ export function isProvisioning(status?: string): boolean {
 	return status !== undefined && PROVISIONING.has(status);
 }
 
+// isConversing says whether the agent's transcript should be on screen.
+//
+// Wider than "ready" by exactly one status, and that one matters. Destroy predicts "destroying"
+// the moment it is clicked, so gating the feed on `ready` unmounted it before the request had been
+// answered -- which closed the EventSource and dropped the transcript, because those messages live
+// in component state rather than in the query cache. A destroy that then failed had nothing to put
+// back except whatever the runner would replay on reconnect, and a half-finished destroy is the
+// case where the runner may not be there to replay anything. It is also the case where somebody
+// most wants to read what the agent did.
+//
+// Being able to send a prompt is a separate question and stays on "ready": the transcript stays up
+// to be read while the field under it stops taking anything.
+export function isConversing(status?: string): boolean {
+	return status === "ready" || status === "destroying";
+}
+
 // lifecycleReached is how many of the six segments are filled.
 //
 // Status wins over phase at both ends. A ready workspace is complete whatever its last recorded
