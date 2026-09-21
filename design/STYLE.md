@@ -1,47 +1,31 @@
 # pve-agents — visual style guide
 
-A design refresh of the existing app. **Not a redesign**: same screens, same
-information, same flows. What changes is hierarchy, density, surface depth and
-the consistency of the small parts.
+The rules the app is built to. **Not a redesign brief**: this describes what
+shipped, and it is what a new surface should be measured against.
 
-Read this file, then open the mockups in `mockups/` — they are self-contained
-HTML with every value inline, so they are the precise spec. The PNGs in
-`screenshots/` are for eyeballing only; when a number is in question, read the
-HTML, not the picture.
+Two other things live beside it:
 
----
+- **`mockups/`** — self-contained HTML with every value inline. When a padding,
+  size, tracking or colour is in question, read the HTML. It is frozen at the
+  refresh and does not cover light mode, the settings tab or anything added
+  since, but the numbers it does carry are exact.
+- **`src/tokens.css`** — the tokens themselves, and the only copy. Read hexes
+  from there, never from this document.
 
-## 0. How to use this (read first if you are an agent)
-
-1. Land `tokens.css` first, as its own change. Import it once, globally.
-2. Then convert **one surface at a time**, in the order in §8. Do not attempt
-   the whole app in one pass.
-3. For each surface: open the matching file in `mockups/`, find the element you
-   are building, and copy the actual numbers — padding, font-size,
-   letter-spacing, border color. Do not round them to a 4/8px grid and do not
-   substitute a framework default.
-4. Replace hardcoded hexes with the `var(--token)` that matches. If a color in
-   the mockup has no token, that is a bug in `tokens.css` — add the token, do
-   not inline the hex.
-5. The mockups are static. Hover, focus, loading, empty and error states are
-   specified in §5 and §6 in words — implement them from there.
-
-**Where the mockups have placeholder data** (Linear ticket titles, destroyed
-workspace names, diff contents, `+128 −24` counts, "1 of 8" capacity) — that is
-filler to make the layout legible. Wire real data; do not ship the strings.
+Where the mockups show placeholder data — Linear ticket titles, invented
+workspace names, diff contents, `+128 −24` counts, "1 of 8" capacity — it is
+filler to make the layout legible, and none of it ships.
 
 ---
 
 ## 1. The ten rules
 
-1. **Four surfaces, not one.** The app currently paints `#111411` everywhere.
-   Wells recede (`--surface-well`), the page sits at `--surface-base`, chrome
-   sinks slightly (`--surface-sunk`), content groups lift
-   (`--surface-raised`).
+1. **Four surfaces, not one.** Wells recede (`--surface-well`), the page sits at
+   `--surface-base`, chrome sinks slightly (`--surface-sunk`), content groups
+   lift (`--surface-raised`). One flat colour everywhere is what this replaced.
 2. **Monospace is for machine facts only** — ids, paths, addresses, branches,
    states, durations, timestamps, counts, log lines, code. Anything a human or
-   the agent *wrote* is sans. The current app monospaces everything, which is
-   why nothing stands out.
+   the agent *wrote* is sans. Monospace everything and nothing stands out.
 3. **Labels are uppercase mono, 9.5px, `0.16em`, `--text-muted`.** Values sit
    directly under or beside them at 11.5px. This pair is the single most
    repeated unit in the app — get it right once.
@@ -66,20 +50,42 @@ filler to make the layout legible. Wire real data; do not ship the strings.
 
 ## 2. Tokens
 
-See `tokens.css`. Do not read hex values out of this document — read them from
-there, it is the source of truth. The groups are: surfaces, lines, ink, signal,
-type, radius, space, layout, motion.
+See `src/tokens.css`. Do not read hex values out of this document — read them
+from there, it is the source of truth. The groups are: surfaces, lines, ink,
+signal, type, radius, space, layout, motion.
 
-Two notes:
+Three notes:
 
-- **Contrast.** The current label grey `#485145` measures ~4.3:1 on the app
-  background and fails AA for small text. `--text-muted` (`#7d8b76`) is 5.1:1
-  and is the floor for anything that is words. `--text-decorative` is below the
-  floor on purpose and is only ever used for dots, rails and gutter numbers.
+- **Contrast.** `--text-muted` (`#7d8b76`, 5.1:1) is the floor for anything that
+  is words. Two tokens sit below it on purpose: `--text-decorative`, which is
+  only ever dots, rails and gutter numbers, and `--text-metakey`, which is words
+  — the meta band's key, drawn that way in the mockups so the key recedes behind
+  the value it labels. `--text-metakey` is for that one job and nothing else;
+  four other uses of it were moved to `--text-muted` once they were measured.
 - **Fonts.** The mockups load JetBrains Mono and Geist as *metric stand-ins*.
-  Keep whichever faces the app already ships — only the role split, sizes and
-  letter-spacing in §3 are prescriptive. Point `--font-mono` and `--font-sans`
-  at the real ones.
+  The app ships its own stacks and `--font-mono` / `--font-sans` point at those.
+  Only the role split, sizes and letter-spacing in §3 are prescriptive.
+- **Legacy names.** Roughly thirty pre-refresh token names (`--fg-bright`,
+  `--border`, `--surface`) are still defined, in both themes, because a handful
+  of surfaces were never converted. New work uses the names in this document.
+
+---
+
+## 2a. Themes
+
+Dark is `:root`; light is an override on `[data-theme="light"]`. The attribute
+goes on `<html>`, written before first paint by the inline `THEME_BOOT` script in
+`src/routes/__root.tsx` — after paint and the page flashes the wrong theme on
+every load.
+
+Every token name is defined in **both** blocks, legacy names included. That is
+what lets an un-refreshed surface follow the theme without being touched.
+
+One deliberate exception: **the terminal stays dark in light mode**, the way an
+editor's integrated terminal does, because its colours belong to the shell rather
+than to this application. `.terminal-bar` and `.terminal-overlay` therefore pin
+their ink instead of inheriting it — without that, the detached grey and the live
+green invert their relative contrast and the LED reads backwards.
 
 ---
 
@@ -123,14 +129,16 @@ prose; use `--text-primary` against `--text-body` for emphasis instead.
   edge toward the center. The center column is `--surface-base`. That one
   change does most of the work of making the app feel built.
 - The **meta band** (32px, `--surface-sunk`, mono facts separated by 1px ×
-  11px dividers) is the refresh's signature element. It appears on both the
-  home screen (controller status) and the workspace page (placement). It is
-  where every machine fact that used to fight the content now lives.
+  11px dividers) is the signature element. It appears on both the home screen
+  (controller status) and the workspace page (placement), and it is where every
+  machine fact that would otherwise fight the content lives.
 - Right panel: 392px inside the app shell. The tab mockups are drawn at 400px
   because they carry their own left border.
 - The workspace page should hold up between roughly 1100px and 1800px wide.
-  Below ~1100px, collapse the right panel behind a toggle; the tab bar becomes
-  the toggle's menu. Not designed yet — ask before inventing it.
+  Below ~1100px the panel stacks under the centre column and the page scrolls —
+  the pre-refresh behaviour, kept rather than replaced. The collapse-behind-a-
+  toggle idea the refresh sketched was never designed past a sentence, so it was
+  not built; anything narrower than a laptop is still unspecified.
 
 ---
 
@@ -216,7 +224,7 @@ values are numeric or the panel is narrow.
 .meta-band__item { display: flex; align-items: center; gap: 6px; }
 .meta-band__key {
   font: var(--text-label)/1 var(--font-mono);
-  letter-spacing: 0.14em; color: #626e5d;
+  letter-spacing: 0.14em; color: var(--text-metakey);
 }
 .meta-band__val {
   font: var(--text-mono-sm)/1 var(--font-mono);
@@ -242,7 +250,7 @@ a form's primary.
 .btn--primary { background: var(--sage); color: var(--sage-ink); border: 0; }
 .btn--secondary {
   background: transparent; border: 1px solid var(--line-border);
-  color: #c9d6c2; font-weight: 400;
+  color: var(--text-control); font-weight: 400;
 }
 .btn--danger {
   background: transparent; border: 1px solid var(--red-line);
@@ -250,30 +258,14 @@ a form's primary.
 }
 .btn--icon { width: 26px; padding: 0; } /* always needs aria-label */
 ```
-**Destroy is `--danger`, never primary.** In the current app it is the
-accent-filled button, which makes the most destructive action the most
-attractive thing on the screen.
-
-### Segmented control (wanted state)
-Replaces the loose `READY` / `IDLE` buttons. One bordered group, 1px internal
-divider, active segment filled `--sage-quiet` with a `--green` dot.
-
-```css
-.segmented { display: flex; border: 1px solid var(--line-border);
-  border-radius: var(--radius-md); overflow: hidden; }
-.segmented__item { height: var(--control-h); padding: 0 12px;
-  display: flex; align-items: center; gap: 6px;
-  font: var(--text-label)/1 var(--font-mono);
-  letter-spacing: var(--tracking-ui); color: var(--text-muted); }
-.segmented__item[aria-pressed="true"] { background: var(--sage-quiet); color: #dbe8d2; }
-.segmented__div { width: 1px; background: var(--line-border); }
-```
-Implement as `<button aria-pressed>` in a `role="group"` with an accessible
-group label ("Wanted state").
+**Destroy is `--danger`, never primary.** An accent-filled destroy makes the
+most destructive action the most attractive thing on the screen. It ships as a
+red-outlined icon button on the workspace page; `Button`'s `danger` variant is
+the same treatment for the places that need a word instead of a glyph.
 
 ### Status chip
 21px tall, dot + label, tinted fill + tinted border. Four kinds: green (ready),
-amber (provisioning), neutral (idle), red (error). Values in `tokens.css` under
+amber (provisioning), neutral (idle), red (error). Values in `src/tokens.css` under
 `--chip-*`. Chips are for *state*; they are never buttons.
 
 ### Lifecycle strip
@@ -308,13 +300,13 @@ button pushed right. Keyboard hints use real glyphs (⌘↵, ⇧↵, ⌃C), neve
 Line number gutter 46px right-aligned `--diff-gutter`, 12px sign column, then
 content. Added rows `--diff-add-bg` + `--diff-add-text`; removed
 `--diff-del-bg` + `--diff-del-text`; context transparent with
-`--text-secondary`. Hunk headers are a full-width `#12160f` strip. File list
+`--text-secondary`. Hunk headers are a full-width `--surface-strip` strip. File list
 above uses A/M/D single-letter markers in green/amber/red.
 
 ### Terminal
 `--surface-well`, mono 10px/1.6, `white-space: pre-wrap; word-break: break-all`
 so long `ls -l` lines wrap the way they actually do at 392px. **Terminal output
-keeps ANSI colors** — directories blue `#8fb0d6`, symlinks teal `#7fd3c8` —
+keeps ANSI colors** — directories blue `--ansi-blue`, symlinks teal `--ansi-teal` —
 because recoloring real shell output to the brand palette would misrepresent
 what the shell printed. This is the one sanctioned exception to the palette.
 Block cursor is a 6×13px `--sage` inline block.
@@ -332,45 +324,41 @@ Block cursor is a 6×13px `--sage` inline block.
 - Status is never color-only: every chip and dot is paired with a word
   (`READY`, `ERROR`, `DONE`).
 - `prefers-reduced-motion` collapses all three durations to 1ms — already
-  handled in `tokens.css`.
+  handled in `src/tokens.css`.
 
 ---
 
-## 8. Screens, and a suggested order
+## 8. The mockups
 
-| # | Mockup | Surface | Notes |
-| --- | --- | --- | --- |
-| 1 | — | `tokens.css` | Land alone, no visual change. |
-| 2 | `mockups/foundations.html` | reference | Not a screen. The ramp, type scale and control set in one place. Useful to diff against while building. |
-| 3 | `mockups/workspace.html` | agent page | Top bar, meta band, feed, tool log group, composer, right panel. The biggest win; do it first. |
-| 4 | `mockups/tab-details.html` | right panel | Sectioned key/values, copy buttons on ssh + uuid, timestamps in a 2-up grid. |
-| 5 | `mockups/tab-timeline.html` | right panel | Rail with elapsed deltas between events; the four events that share `22:41:50` nest as a sub-group instead of repeating the timestamp. |
-| 6 | `mockups/tab-terminal.html` | right panel | Path sub-bar with copy/clear/expand, attached state footer. |
-| 7 | `mockups/tab-diff.html` | right panel | File list + unified diff. Most new surface area — leave for last. |
-| 8 | `mockups/home.html` | home | Running workspaces as a table, controller status into a meta band, launch form in a fixed 392px panel, recently-destroyed below. |
+| File | Covers |
+| --- | --- |
+| `mockups/foundations.html` | Not a screen. The ramp, type scale and control set in one place — the thing to diff a new control against. |
+| `mockups/workspace.html` | Agent page: top bar, meta band, feed, tool log group, composer, right panel. |
+| `mockups/tab-details.html` | Sectioned key/values, copy buttons on ssh + uuid, timestamps in a 2-up grid. |
+| `mockups/tab-timeline.html` | Rail with elapsed deltas between events; events sharing a second nest instead of repeating the timestamp. |
+| `mockups/tab-terminal.html` | Path sub-bar, attached-state footer. |
+| `mockups/tab-diff.html` | File list + unified diff. |
+| `mockups/home.html` | Running workspaces as a table, controller status as a meta band, launch panel at 392px, recently-destroyed below. |
 
-### Specific fixes the mockups encode
-
-- Destroy is no longer the accent-filled primary button.
-- `READY` / `IDLE` become one segmented control labelled as wanted state,
-  instead of two buttons that look like the two status chips in the sidebar.
-- Placement facts (node, vmid, address, branch) leave the right panel's top and
-  become the meta band, so they are visible without the panel open.
-- The home screen's empty right half is filled by the launch panel; the running
-  list becomes a table that still reads with one row.
-- Timestamps that were a flat list in the timeline now show the gaps between
-  them, which is what you actually want to know.
-- Label grey moves from `#485145` to `#7d8b76` for contrast.
+They are frozen at the refresh. The settings page was never drawn, and nothing
+here shows light mode.
 
 ---
 
 ## 9. Don't
 
-- Don't introduce a fifth surface, a second accent, or a new radius.
+- Don't introduce a second accent or a new radius. Surfaces are the four in §2
+  plus `--surface-strip`, which exists for the errored tool row and the diff
+  hunk header and is not a licence for a sixth.
 - Don't use `--sage` for anything that is not an action.
 - Don't monospace prose or sans-serif an id.
 - Don't add gradients, glass, glow, drop shadows, or a left-border accent card.
 - Don't use Inter/Roboto/Arial as the sans if you are swapping the font.
 - Don't round the mockups' numbers to a grid or a framework default.
-- Don't ship the placeholder data in §0.
-- Don't build the mobile/narrow layout from guesswork — it isn't designed yet.
+- Don't ship the mockups' placeholder data.
+- Don't build a wanted-state control. The refresh drew `READY`/`IDLE` as one
+  segmented toggle; the app has observed `activity` and a `desiredState` that
+  only Destroy changes, so the toggle would be a new flow rather than a new
+  look. Status chips carry it instead.
+- Don't build the mobile/narrow layout from guesswork — below a laptop it still
+  isn't designed.
