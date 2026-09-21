@@ -578,7 +578,11 @@ dd {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	padding: 10px 12px 8px calc(var(--chat-gutter) - 1px);
+	/* Right matches bottom, so the send button sits in a corner with the same air on both sides of
+	   it rather than four pixels more to its right. The left is the odd one out on purpose: it is
+	   the conversation's own gutter, so the field's text starts on the same column as every answer
+	   above it. */
+	padding: 10px 8px 8px calc(var(--chat-gutter) - 1px);
 }
 
 .prompt-field textarea {
@@ -588,15 +592,16 @@ dd {
 	/* block, not the default inline-block. As an inline element the textarea leaves a baseline
 	   descender gap beneath it, which would show up as uneven padding at the bottom of the well. */
 	display: block;
-	/* One row at rest, growing to eight as the prompt does. A prompt is often a paragraph, so a
-	   field fixed at one line is too small to write in -- and a field fixed at the size of a
-	   paragraph is an empty second line sitting under the placeholder for as long as nobody is
-	   typing, which is most of the time. Where `field-sizing` is not supported this degrades to
-	   the single row and scrolls, which is the old behaviour one line shorter. */
+	/* Two rows at rest, growing to eight as the prompt does. A prompt is often a paragraph, so a
+	   field that cannot grow is either too small to write in or too tall when empty; this is
+	   neither. */
 	field-sizing: content;
 	font-family: var(--font-sans);
 	font-size: 13px;
 	max-height: 8lh;
+	/* Two lines to start in, then it grows. `field-sizing: content` ignores the rows attribute, so
+	   the floor has to be set here; rows={2} is what a browser without it falls back to. */
+	min-height: 2lh;
 	outline: none;
 	padding: 0;
 	/* Dragging the handle fought the fixed-height column: growing the field pushed the terminal

@@ -359,11 +359,11 @@ function WorkspaceDetail() {
 											}
 										}}
 										placeholder="Tell the agent what to do next"
-										// One row, and it grows with what is typed -- see
-										// `field-sizing` in the stylesheet. Two rows meant an
-										// empty second line sat under the placeholder whenever
-										// nobody was typing, which is most of the time.
-										rows={1}
+										// Two rows to start in, growing with what is typed --
+										// see `field-sizing` and `min-height` in the stylesheet.
+										// This attribute is the floor for a browser that does not
+										// support the former.
+										rows={2}
 										value={prompt}
 									/>
 									{/* The two keys that do something here, written as the glyphs
