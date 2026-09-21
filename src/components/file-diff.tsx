@@ -35,14 +35,12 @@ export function FileDiff({
 		[path, sides],
 	);
 
-	// The three waits are the panel's spinner, the same one the terminal and the change list use.
-	// They were sentences, and a sentence is what an answer looks like here -- "Reading README.md."
-	// sat where the diff was about to be and read as the reply rather than as the wait for one.
-	// The words are not lost: they are the spinner's label, which is all a screen reader ever had.
+	// The waits are the panel's spinner; the words survive as its label, which is all a screen
+	// reader ever had of them. A sentence here reads as the answer rather than as the wait for one.
 	if (sides === undefined) {
 		return <PanelSpinner label={`Reading ${path}.`} />;
 	}
-	// These three are answers. There is no diff coming, and saying so in words is the content.
+	// These three are answers, not waits: no diff is coming and the words are the content.
 	if (sides.kind === "failed") {
 		return <PanelNote tone="warn">{sides.message}</PanelNote>;
 	}

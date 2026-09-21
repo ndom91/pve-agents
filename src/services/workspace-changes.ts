@@ -13,10 +13,8 @@ export type FileStatus =
 
 // ChangedFile is one entry in what the agent has done to the checkout.
 //
-// The two counts are optional and mean "not knowable", never zero. A binary file has no lines to
-// count and git says so with a dash; a path that porcelain lists and numstat does not is a file
-// the two walks disagreed about, which is a thing to print nothing for rather than a confident
-// "+0 −0" that reads as "nothing changed here".
+// The counts are optional and mean "not knowable", never zero -- "+0 −0" would claim the file
+// changed in no way, which is a different thing from git being unable to count it.
 export type ChangedFile = {
 	added?: number;
 	path: string;
@@ -83,30 +81,27 @@ const STATUS = [
 	// positive ref to walk, so it counts zero however much is unpushed. It reported exactly that
 	// against a workspace holding a commit.
 	"git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0",
-	// Lines added and removed per file, into a throwaway index.
+	// Lines added and removed per file, staged into a throwaway index.
 	//
-	// GIT_INDEX_FILE is the whole trick. `add -A` is the only one of these that sees every kind
-	// of change at once -- `git diff --numstat HEAD` cannot see an untracked file, which is the
-	// commonest thing an agent does, and `add -N` picks those up but silently drops deletions.
-	// Pointed at a temp path it stages nothing the operator will ever see: their index is exactly
-	// as they left it. It does write blobs into the object store, which is ordinary loose-object
-	// churn for gc to collect.
+	// `add -A` is the only one of these that sees every kind of change at once: plain
+	// `git diff --numstat HEAD` cannot see an untracked file, and `add -N` picks those up but
+	// silently drops deletions. GIT_INDEX_FILE is what makes it safe -- the operator's index is
+	// untouched. It does write loose objects, which gc collects.
 	//
-	// --no-renames keeps every record the same shape. With detection on, -z emits an empty path
-	// field and then two more, and the status walk below has already collapsed a rename to its
-	// new path, so there would be no pair left to match.
+	// --no-renames keeps every record the same shape: with detection on, -z emits an empty path
+	// field and two more after it.
 	'IDX="$(mktemp -u)"',
 	'GIT_INDEX_FILE="$IDX" git read-tree HEAD 2>/dev/null',
 	'GIT_INDEX_FILE="$IDX" git add -A 2>/dev/null',
 	'GIT_INDEX_FILE="$IDX" git diff --cached --numstat -z --no-renames HEAD 2>/dev/null',
 	'rm -f "$IDX"',
 	// The boundary between the two NUL-separated blocks. A numstat record always carries two tabs
-	// before its path, so a field that is exactly this cannot be one -- a file actually named END
-	// still arrives as "1\t0\tEND".
+	// before its path, so a file named END still arrives as "1\t0\tEND" and cannot be mistaken
+	// for this.
 	"printf 'END\\0'",
-	// -uall, not the default. Without it an untracked directory collapses to "sub/" and the panel
-	// renders a directory as a file, offering a diff of something that cannot have one. It is also
-	// what makes these paths line up with numstat's.
+	// -uall, not the default. Without it an untracked directory collapses to "sub/", which the
+	// panel renders as a file and then offers a diff of. It is also what lines these paths up
+	// with numstat's.
 	"git status --porcelain -z -uall",
 ].join("\n");
 
@@ -177,8 +172,8 @@ export async function changedFiles(
 	}
 
 	const newline = result.stdout.indexOf("\n");
-	// Everything after the count is two NUL-separated blocks with a sentinel between them. Split
-	// once, here, so neither parser below has to know the other exists.
+	// Two NUL-separated blocks with a sentinel between them. Split once here, so neither parser
+	// below has to know the other exists.
 	const fields = result.stdout
 		.slice(newline + 1)
 		.split("\0")
@@ -189,9 +184,8 @@ export async function changedFiles(
 	);
 
 	return {
-		// Porcelain decides which files exist and what happened to them; numstat only supplies
-		// numbers. A path in one and not the other keeps its row and loses its counts, which is
-		// the honest way round -- the alternative hides a change because a count was missing.
+		// Porcelain decides which files exist; numstat only supplies numbers. A path in one and
+		// not the other keeps its row and loses its counts, rather than disappearing.
 		files: parseStatus(fields.slice(boundary + 1)).map((file) => ({
 			...file,
 			...counted.get(file.path),
@@ -205,9 +199,8 @@ const SENTINEL = "END";
 
 // parseNumstat reads the line counts, keyed by path.
 //
-// Each record is "added\tremoved\tpath". A binary file has dashes where the numbers would be, and
-// those become no entry at all rather than zeroes: git is saying it cannot count, not that there
-// was nothing to count.
+// Each record is "added\tremoved\tpath". A binary has dashes where the numbers go and gets no
+// entry: git is saying it cannot count, not that there was nothing to count.
 function parseNumstat(
 	fields: string[],
 ): Map<string, { added: number; removed: number }> {

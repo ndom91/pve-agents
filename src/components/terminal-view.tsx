@@ -122,30 +122,17 @@ export default function TerminalView({
 
 			const { fit, terminal } = screen.current;
 
-			// Sized first, so the clean-up below covers the grid the shell will actually run at.
+			// Sized first, so the clean screen below covers the grid the shell will run at.
 			fit.fit();
 
-			// A clean screen for a new shell, in two steps, and both are load-bearing.
+			// A clean screen for a new shell, and both steps are load-bearing.
 			//
-			// Whatever is up there was drawn by a session that has ended and cannot be picked up
-			// again -- it went with its socket. Left alone, the old output stays while the new
-			// shell writes over it from the top, which reads as a session resuming halfway through
-			// something it never ran.
-			//
-			// `reset` drops the scrollback and the modes the last session left set. It rebuilds the
-			// terminal inside the WASM to do it.
+			// `reset` drops the scrollback and the last session's modes by rebuilding the terminal
+			// inside the WASM -- and the rebuilt one is handed a buffer the allocator has not
+			// zeroed, so a brand-new Terminal on a brand-new canvas can come up already showing
+			// the previous shell's output. `clear` writes ED2 through the parser, which erases the
+			// cells that are really there rather than trusting them to be empty.
 			terminal.reset();
-			// And that rebuild is why `clear` has to follow. A rebuilt terminal is handed a buffer
-			// out of the WASM allocator that still holds the previous one's cells, so a brand-new
-			// Terminal on a brand-new canvas can come up already showing the last shell's output --
-			// verified: a fresh mount, one socket, four hundred bytes of banner from the server, and
-			// a full screen of the previous session's `ls` underneath it. `clear` writes ED2 and
-			// CUP home through the parser, which erases the cells that are really there rather than
-			// trusting them to have been zeroed.
-			//
-			// This used to be a second `fit.fit()`, on the theory that refitting forces a repaint.
-			// It does, but `resize` returns early when the grid has not changed, and switching
-			// workspaces in a rail nobody dragged leaves it identical. The repaint never happened.
 			terminal.clear();
 			setSize({ cols: terminal.cols, rows: terminal.rows });
 			setState("opening");

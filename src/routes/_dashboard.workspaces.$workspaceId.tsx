@@ -376,12 +376,10 @@ function WorkspaceDetail() {
 										<span className="spacer" />
 										<Button
 											className="prompt-send"
-											// While a message is in flight, or while the workspace
-											// has stopped being able to take one. Not on an empty
-											// field, which it was: that painted the page's one
-											// primary action as a dead grey rectangle for almost
-											// all of its life, and sending nothing is already a
-											// no-op in `submitPrompt`.
+											// In flight, or the workspace can no longer take one. Not
+											// on an empty field, which painted the page's one
+											// primary action grey for most of its life; sending
+											// nothing is already a no-op in `submitPrompt`.
 											disabled={!promptable}
 											title="Send (Cmd or Ctrl + Enter)"
 											type="submit"

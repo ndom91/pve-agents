@@ -419,10 +419,8 @@ function status(
 		code: 0,
 		kind: "ran",
 		stderr: "",
-		// The count on its own line first -- a path may contain a newline, which is why everything
-		// after it is NUL-separated -- then the numstat block, the sentinel, and the file list.
-		// The real script's exact shape, so a change to the framing breaks these rather than
-		// passing against a fixture that no longer resembles it.
+		// The real script's exact shape -- count, numstat, sentinel, file list -- so a change to
+		// the framing breaks these rather than passing against a fixture that no longer matches.
 		stdout: `${unpushed}\n${[...numstat, "END", ...records].join("\0")}\0`,
 	});
 }

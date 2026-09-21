@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 // How loud a control is. What each one looks like is in styles.css, beside the values.
 //
 // "danger" is secondary's shape in red, for an action that cannot be undone. Named to match
-// `IconVariant`'s member of the same name -- the two are the same idea and the same tokens, and
-// the word "warning" is already spoken for here by `--warn`, the amber the caveat bars use.
+// `IconVariant`'s member of the same name. Not "warning": `--warn` is the amber of the caveat bars.
 export type ButtonVariant = "danger" | "primary" | "secondary" | "tertiary";
 
 type ButtonProps = {

@@ -34,29 +34,26 @@ export function ChangesAccordion({
 	// the rail keeps an opened panel mounted rather than unmounting it.
 	const { isOpen, toggle } = useOpenRows();
 	const queryClient = useQueryClient();
-	// By key rather than from the query itself, because this component is handed its files as a
-	// prop and never calls useQuery for them -- the page above owns that. Counting the fetches in
-	// flight against the key is how the button learns it is working.
+	// By key, not from the query: this component is handed its files as a prop and the page above
+	// owns the fetch.
 	const isFetching =
 		useIsFetching({ queryKey: workspaceKeys.changes(workspaceId) }) > 0;
 
 	return (
 		<div className="changes">
-			{/* How much there is, what it is a change from, and a way to ask again. */}
 			<div className="panel-bar">
 				<span className="changes-count">
 					{files.length === 1 ? "1 file" : `${files.length} files`}
 				</span>
-				{/* Summed from the rows rather than reported separately by the server, so the
-				    total and the numbers underneath it cannot disagree. */}
+				{/* Summed from the rows rather than sent separately, so the total and the
+				    numbers under it cannot disagree. */}
 				<Stat added={total(files, "added")} removed={total(files, "removed")} />
 				<span className="spacer" />
 				{against === undefined ? null : (
 					<span className="changes-against">vs {against}</span>
 				)}
-				{/* Not a new flow: the query behind this polls already, and this is the same
-				    refetch on demand. It earns its place because the poll is fifteen seconds and
-				    the question "did that land yet" is asked on a shorter clock than that. */}
+				{/* The query polls on a fifteen-second interval, which is slower than somebody
+				    asking whether a change landed. */}
 				<IconButton
 					className="changes-reload"
 					disabled={isFetching}
@@ -105,9 +102,6 @@ export function ChangesAccordion({
 									<span className="change-dir">{directory(file.path)}</span>
 									<span className="change-name">{basename(file.path)}</span>
 								</span>
-								{/* Absent, not zero, when git could not count -- a binary file, or
-								    a path the two walks disagreed about. "+0 −0" would read as a
-								    file that changed in no way, which is a different claim. */}
 								<Stat added={file.added} removed={file.removed} />
 							</button>
 							{expanded ? (
@@ -123,9 +117,8 @@ export function ChangesAccordion({
 
 // Stat is a pair of line counts, or nothing.
 //
-// Both halves are always drawn when either is known, including a zero, because the pair is read
-// as a shape -- a lone "+96" and a "+96 −0" look like different amounts of information about the
-// same file. Nothing at all is the separate case, and it means git could not count.
+// Both halves are drawn when either is known, zero included: the pair is read as a shape, and a
+// lone "+96" looks like less information than "+96 −0". Nothing at all means git could not count.
 function Stat({
 	added,
 	removed,
@@ -146,8 +139,8 @@ function Stat({
 	);
 }
 
-// total adds one side of the counts across every file, and is undefined when nothing could be
-// counted at all -- a change list of nothing but binaries has no total to print.
+// total adds one side across every file, and is undefined when nothing could be counted -- a list
+// of nothing but binaries has no total to print.
 function total(
 	files: ChangedFile[],
 	side: "added" | "removed",

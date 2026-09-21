@@ -30,25 +30,21 @@ const ROOT_OPTIONS: Option<SeedRoot>[] = SEED_ROOTS.map((root) => ({
 
 // NEW_FILE is the selection standing for the file being added.
 //
-// A sentinel rather than a separate `adding` boolean, because the pane shows exactly one thing and
-// two pieces of state that must never both be set is the shape that eventually sets both.
+// A sentinel rather than a second `adding` boolean: the pane shows exactly one thing, and two
+// pieces of state that must never both be set is the shape that eventually sets both.
 const NEW_FILE = "new";
 
 // SettingsSeedFiles is what every new workspace is seeded with.
 //
-// An index on the left and one editor on the right, the same column-plus-panel shape as the
-// workspace page. This replaced an accordion whose last row was a file that did not exist: adding
-// one looked like opening one, and unfolding any row pushed everything below it down by the height
-// of a code editor, so the list moved under the cursor while it was being read. Here the editor
-// stays where it is and only its contents change.
+// An index on the left and one pinned editor on the right, the same column-plus-panel shape as
+// the workspace page.
 export function SettingsSeedFiles(): ReactNode {
 	const { data: files = [] } = useQuery(seedFilesQuery());
 	const [selected, setSelected] = useState<string | undefined>(undefined);
-	// Edited-but-unsaved bodies, held here rather than inside the editor.
+	// Edited-but-unsaved bodies, keyed by file id or NEW_FILE.
 	//
-	// This is what makes switching files safe. In an accordion, leaving a row meant deliberately
-	// collapsing it; here one click on something that looks like navigation would have thrown the
-	// edit away without saying so. Keyed by file id, or NEW_FILE for the one being added.
+	// Held here rather than inside the editor, which is what makes switching files safe: one click
+	// on something that looks like navigation would otherwise throw the edit away silently.
 	const [drafts, setDrafts] = useState<Record<string, string>>({});
 
 	function forget(key: string): void {
@@ -100,9 +96,8 @@ export function SettingsSeedFiles(): ReactNode {
 						<SeedForm
 							draft={drafts[selected]}
 							file={files.find((file) => file.id === selected)}
-							// Remounted per selection, so the root, the destination and the last
-							// note belong to the file on screen. The body does not reset with it --
-							// that arrives as a prop from the map above.
+							// Remounts per selection, so root, destination and note belong to the
+							// file on screen. The body does not reset with it; that is a prop.
 							key={selected}
 							onDraft={(content) =>
 								setDrafts((current) => ({ ...current, [selected]: content }))
@@ -113,9 +108,8 @@ export function SettingsSeedFiles(): ReactNode {
 							}}
 							onSaved={(saved) => {
 								forget(selected);
-								// Follows the file rather than closing the pane. Saving a new one
-								// gives it an id for the first time, and landing on the row that
-								// just appeared is what says the add worked.
+								// Follows the file. Saving a new one gives it an id for the first
+								// time, and landing on the row that just appeared says it worked.
 								setSelected(saved.id);
 							}}
 						/>
@@ -128,9 +122,8 @@ export function SettingsSeedFiles(): ReactNode {
 
 // SeedIndexRow is one file in the index.
 //
-// The directory and the file name are separate spans because they are read differently: six
-// destinations that all begin `$HOME/.claude/` differ only at the end, so the front is dimmed and
-// the eye lands where the difference is.
+// Directory and name are separate spans so the front can be dimmed: six destinations that all
+// begin `$HOME/.claude/` differ only at the end.
 function SeedIndexRow({
 	edited,
 	file,
@@ -149,8 +142,7 @@ function SeedIndexRow({
 		<li>
 			<button
 				// Not `aria-selected`, which needs a listbox around it, and not a link, which this
-				// is not. A pressed button is what a screen reader can be told about a control that
-				// chooses what the panel beside it shows.
+				// is not.
 				aria-pressed={selected}
 				className={selected ? "seed-row is-active" : "seed-row"}
 				onClick={onSelect}
@@ -320,8 +312,8 @@ function SeedForm({
 					// without anybody choosing a language.
 					lang={languageOfPath(path)}
 					onChange={onDraft}
-					// Attached to the text it describes rather than floating above the fields as a
-					// line of its own: the destination on the left, the language on the right.
+					// Attached to the text it describes, rather than floating above the fields as
+					// a line of its own.
 					status={
 						<>
 							<span
@@ -348,9 +340,8 @@ function SeedForm({
 					{busy ? "Saving" : "Save"}
 				</Button>
 				{file === undefined ? null : (
-					// Explicit rather than revealed on hover of the index row. It is the only
-					// irreversible control here, and the destroy button set the rule that those
-					// are always visible where the thing they act on is.
+					// Explicit rather than revealed on hover of the index row: it is the only
+					// irreversible control here, and destroy set the rule that those stay visible.
 					<Button
 						disabled={busy}
 						onClick={() => void remove()}

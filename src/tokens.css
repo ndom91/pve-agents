@@ -20,11 +20,9 @@
 /* ══ DARK (default) ═══════════════════════════════════════════════════ */
 
 :root {
-	/* Declared, not left at `normal`, and it is load-bearing beyond the scrollbars and the
-     native controls it obviously governs. Anything drawing with `light-dark()` resolves it
-     against this, and with no value here that means the operating system's preference --
-     so a page toggled to light on a machine set to dark had a black diff in it. The theme
-     the operator chose is the one that should decide. */
+	/* Declared, not left at `normal`. Beyond the scrollbars and native controls it obviously
+     governs, anything drawing with `light-dark()` resolves against it -- unset, that means the
+     OS preference, so light mode on a dark machine had a black diff in it. */
 	color-scheme: dark;
 
 	/* Surfaces — four levels of depth. Wells recede, raised things lift. */

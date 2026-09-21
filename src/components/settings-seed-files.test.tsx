@@ -12,9 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SeedFile } from "../domain/seed-file";
 
-// The server boundary is the seam. Everything above it -- the queries, the cache, the invalidation
-// after a save -- is the behaviour under test and is left real, because the thing worth asserting
-// is that a draft survives a switch, and a mocked query layer would not exercise that at all.
+// The server boundary is the seam. The queries, the cache and the invalidation after a save are
+// left real, because what is worth asserting is that a draft survives a switch.
 const listSeedFiles = vi.fn();
 const readSeedFile = vi.fn();
 const saveWorkspaceSeedFile = vi.fn();

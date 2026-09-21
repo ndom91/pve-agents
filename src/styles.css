@@ -430,10 +430,8 @@ button {
 
 /* Neither fill nor border, so it reads as an affordance rather than as a control sitting beside
    the one that matters. */
-/* Secondary's shape, in the destroy ramp. The same red as the destroy icon button, deliberately:
-   an irreversible control should look the same whether it is a glyph or a word, and Remove on the
-   seed files tab was wearing `tertiary` -- the quietest thing in the vocabulary -- for an action
-   that takes a file away from every workspace built from now on. */
+/* Secondary's shape in the destroy ramp, and the same red as the destroy icon button: an
+   irreversible control looks the same whether it is a glyph or a word. */
 .button.is-danger {
 	border-color: var(--red-line);
 	color: var(--red);
@@ -445,8 +443,7 @@ button {
 	color: var(--red-ink);
 }
 
-/* Red ring on a destructive control, per section 5, and the same outline mechanism the icon
-   button uses so there is only one of them to remember. */
+/* Red ring on a destructive control, per section 5. */
 .button.is-danger:focus-visible {
 	outline: 2px solid var(--red-line-strong);
 	outline-offset: 2px;
@@ -762,9 +759,8 @@ button {
 	caret-color: var(--fg-bright);
 	color: transparent;
 	display: block;
-	/* Twice the old 180. The editor sits in a pinned pane beside a six-row index, so the column
-	   below it was empty down to the fold; the default now shows roughly a screenful of a seed
-	   file instead of a window onto one. Still `resize: vertical`, so it is a starting height. */
+	/* A starting height, not a cap -- `resize: vertical` below. The editor sits in a pinned pane
+	   beside a short index, so the column under it was empty down to the fold. */
 	min-height: 360px;
 	outline: none;
 	position: relative;
@@ -836,12 +832,8 @@ button {
 	max-width: 720px;
 }
 
-/* An index on the left and one editor on the right, the same column-plus-panel shape as the
- * workspace page.
- *
- * This replaced an accordion. Every row could unfold, which meant opening one pushed the rows
- * below it down by the height of a code editor -- the list moved under the cursor while it was
- * being read, and the editor was never twice in the same place. Here only the right half changes. */
+/* An index on the left and one pinned editor on the right, the same column-plus-panel shape as
+ * the workspace page. Only the right half changes when a file is chosen. */
 .seed-browser {
 	display: grid;
 	grid-template-columns: 300px minmax(0, 1fr);
@@ -863,8 +855,8 @@ button {
 	padding: 0;
 }
 
-/* One file. Flush rather than spaced, the same as the sidebar's workspaces: a list to run an eye
-   down, not a stack of cards that each have to be read on their own. */
+/* Flush rather than spaced, like the sidebar's workspaces: a list to run an eye down, not a
+   stack of cards each read on its own. */
 .seed-row {
 	align-items: flex-start;
 	background: none;
@@ -889,8 +881,7 @@ button {
 	background: var(--surface-select);
 }
 
-/* The 2px bar marking the selected row, over the fill rather than as a border, so nothing inside
-   the row shifts when it is chosen. The sidebar's entries are marked the same way. */
+/* Over the fill rather than as a border, so nothing inside the row shifts when it is chosen. */
 .seed-row.is-active::before {
 	background: var(--sage);
 	bottom: 0;
@@ -901,10 +892,8 @@ button {
 	width: 2px;
 }
 
-/* The directory above and the file name below, the two-line shape the sidebar's entries use.
-   On one line a 300px column broke `$HOME/.claude/output-styles/attention-ste.md` mid-word, and
-   CSS cannot be told to break it at the slashes instead. The path takes the room and the size does
-   not, so a long destination cannot push the size off the end of the row. */
+/* Directory above, name below -- the sidebar's two-line shape. On one line a 300px column broke
+   long paths mid-word, and CSS cannot be told to break at the slashes instead. */
 .seed-path {
 	display: flex;
 	flex: 1 1 auto;
@@ -914,8 +903,7 @@ button {
 	overflow-wrap: anywhere;
 }
 
-/* Dimmed and smaller, because six destinations that all begin $HOME/.claude/ differ only at the
-   end and that is where the eye should land. */
+/* Dimmed and smaller: six destinations that all begin $HOME/.claude/ differ only at the end. */
 .seed-dir {
 	color: var(--text-muted);
 	font-size: var(--text-mono-xs);
@@ -925,8 +913,7 @@ button {
 	color: var(--text-primary);
 }
 
-/* Pinned to the first line rather than centred against a row that is one line for some files and
-   two for others. */
+/* Pinned to the first line: a row is one line for some files and two for others. */
 .seed-size {
 	color: var(--text-tertiary);
 	flex: none;
@@ -934,8 +921,8 @@ button {
 	line-height: 1.5;
 }
 
-/* An edit held in the browser and not yet on the controller. Switching files keeps it, so without
-   this mark there is nothing to say which rows are still carrying one. */
+/* An edit held in the browser and not yet saved. Switching files keeps it, so the rows still
+   carrying one need to say so. */
 .seed-dot {
 	color: var(--sage);
 	flex: none;
@@ -949,8 +936,7 @@ button {
 	padding: 10px;
 }
 
-/* The glyph and the word on one line. `.button` is not a flex container, because every other
-   button in the app is text alone. */
+/* `.button` is not a flex container: every other button in the app is text alone. */
 .seed-add {
 	align-items: center;
 	display: inline-flex;
@@ -1206,10 +1192,8 @@ button {
 	flex-direction: column;
 }
 
-/* A destination, not a workspace. Shaped like `.sidebar-entry` -- same 14px gutter, same fill and
-   same 2px sage bar when it is the open page -- because it sits in the same column and a second
-   way of drawing "the row you are on" is a second thing to learn. One line rather than two: it
-   has no host, no repo and no age to carry. */
+/* A destination, not a workspace, but shaped like `.sidebar-entry` so the column has one way of
+   drawing the row you are on. One line, since it has no host, repo or age to carry. */
 .sidebar-link {
 	align-items: center;
 	color: var(--text-secondary);
@@ -2697,8 +2681,7 @@ button.workspace-title:hover {
 		grid-column: 2;
 	}
 
-	/* The seed browser stacks for the same reason the rail does, and the divider between the two
-	   panes turns with it. */
+	/* Stacks for the same reason the rail does, and the divider turns with it. */
 	.seed-browser {
 		grid-template-columns: minmax(0, 1fr);
 	}
@@ -3040,25 +3023,19 @@ button.workspace-title:hover {
 
 /* The change list: a header, then a row per file that unfolds its diff underneath. */
 
-/* The diff itself is @pierre/diffs, drawing into shadow DOM. A note here used to say its row
- * tints, gutter and hunk strips could not be reached from this stylesheet. That was wrong:
- * the renderer is built entirely on custom properties, and custom properties inherit through a
- * shadow boundary like any other inherited value. Setting them on the host is all it takes.
+/* The diff is @pierre/diffs, drawing into shadow DOM -- reachable anyway, because it is built on
+ * custom properties and those inherit across a shadow boundary.
  *
- * Almost everything derives from two roots. The separator strips, the context rows, the gutter
- * fill and the line numbers are each a `color-mix` of --diffs-bg toward --diffs-fg or toward
- * --diffs-mixer, so pointing those two at our surface and our ink carries the whole chrome with
- * them and we do not have to name the twenty shades in between.
+ * Almost everything derives from two roots: the separators, context rows, gutter fill and line
+ * numbers are each a `color-mix` of --diffs-bg toward --diffs-fg, so setting those two carries
+ * the whole chrome and we never name the shades between.
  *
- * `color-scheme` is the other half and is not optional. The mix partner is `light-dark(#000,
- * #fff)`, which resolves against the used color scheme -- left at `normal` it follows the
- * operating system, so an operator on a dark machine who switched this app to light got a light
- * page with a black diff in it. The renderer sets `light dark` on its own host, which beats
- * inheritance, so it has to be overridden here by name rather than from :root.
+ * `color-scheme` is not optional. The mix partner is `light-dark(#000, #fff)`, and the renderer
+ * declares `light dark` on its own host, which beats inheritance from :root -- so without the
+ * override by name, the diff follows the OS rather than this app's theme.
  *
- * Still pierre's: the syntax token colours, which come from its shiki theme rather than from
- * these variables and do not match `tokenise`'s palette elsewhere in the app. That wants
- * `registerCustomCSSVariableTheme` and is a separate job. */
+ * Still pierre's: the syntax token colours come from its shiki theme, not these variables, so
+ * they do not match `tokenise` elsewhere. `registerCustomCSSVariableTheme` is the hook. */
 diffs-container {
 	color-scheme: dark;
 
@@ -3082,8 +3059,7 @@ diffs-container {
 	min-height: 0;
 }
 
-/* Pinned to the bar's height rather than the icon button's standalone 32px, the same way the
-   screen bar's controls are, so the row does not grow to fit one glyph. */
+/* Bar height, not the icon button's standalone 32px, so the row does not grow to fit one glyph. */
 .changes-reload {
 	flex-shrink: 0;
 	height: 22px;
@@ -3126,11 +3102,8 @@ diffs-container {
 	background: var(--surface-select);
 }
 
-/* Lines added and removed, at the end of a row and in the bar above the list.
- *
- * Tabular, and the two halves are fixed-width and right-aligned, so the plus column and the minus
- * column each line up down the list -- these are read by comparing one row against another, which
- * ragged numbers make impossible. */
+/* Lines added and removed. Fixed-width and right-aligned so both columns line up down the list:
+   these are read by comparing one row against another. */
 .change-stat {
 	display: flex;
 	flex-shrink: 0;
@@ -3152,8 +3125,7 @@ diffs-container {
 	text-align: right;
 }
 
-/* In the bar the pair sits next to the file count rather than at the far end, so "3 files" and
-   what those files cost read as one phrase. The row's own gap is enough between them. */
+/* In the bar it sits beside the file count, so "3 files +128 -24" reads as one phrase. */
 .panel-bar .change-stat {
 	margin-left: 2px;
 }
@@ -3212,22 +3184,15 @@ diffs-container {
 	color: var(--text-primary);
 }
 
-/* No rule between rows. The mark, the hover fill and the selected fill already say where one row
-   ends, and a hairline under every line of a four-line list draws more furniture than list. The
-   open row keeps its own left border on the diff underneath it, which is the one place a boundary
-   is still doing work. */
+/* No rule between rows: the mark and the two fills already say where one ends, and a hairline
+   under every line of a short list is more furniture than list. */
 .change-entry {
 	border: 0;
 }
 
-/* Full width, and capped in height so one large file cannot push every other row off the bottom
-   of the rail.
- *
- * It used to be indented behind a left rule, on the theory that a long diff needs something
- * saying which row it belongs to. It does not: the open row above it carries the selected fill
- * and the renderer draws its own filename header on the first line. What the indent did do was
- * take 17px off a panel already narrow enough that the diff scrolls sideways, and put a second
- * vertical line beside the one the renderer draws. */
+/* Full width -- the panel is narrow enough that the diff scrolls sideways, and the open row's
+   own fill already says which file this belongs to. Capped in height so one large file cannot
+   push every other row off the bottom of the rail. */
 .change-diff {
 	max-height: 60vh;
 	overflow: auto;
@@ -3242,10 +3207,8 @@ diffs-container {
 	flex: 0 0 auto;
 	flex-direction: column;
 	gap: 8px;
-	/* 16px on every side, which is the rail's own gutter -- the same number the panel bar above
-	   uses, so the label and the buttons line up with "2 files" rather than running out to the
-	   window edge. It had padding on the top only, so this block was the one thing in the column
-	   with no margin at all. */
+	/* The rail's own gutter, the same number the panel bar uses, so the label and buttons line up
+	   with the file count above them. */
 	padding: 16px;
 }
 
@@ -3951,9 +3914,7 @@ diffs-container {
 	width: 5px;
 }
 
-/* A link, but not dressed as one. Undecorated at rest so the list still reads as a list of names
-   rather than five blue-ish rules; the underline arrives on hover, which is where somebody is
-   already looking when they wonder whether a name can be clicked. */
+/* Undecorated at rest, so the list reads as names rather than as five underlined rules. */
 .gone-title {
 	color: var(--text-tertiary);
 	flex-grow: 1;

@@ -130,11 +130,8 @@ function Dashboard() {
 								{destroyed.slice(0, DESTROYED_SHOWN).map((workspace) => (
 									<div className="gone-row" key={workspace.id}>
 										<span aria-hidden="true" className="gone-dot" />
-										{/* The title carries the link, not the whole row as the running
-										    fleet above does. A destroyed workspace still has a
-										    timeline and an outcome worth reading, and the sidebar's
-										    archive has always let you open one -- this list was the
-										    only place naming them that did not. */}
+										{/* The title, not the whole row as the running fleet above does,
+										    so the other cells stay selectable. */}
 										<Link
 											className="gone-title"
 											params={{ workspaceId: workspace.id }}
