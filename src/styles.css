@@ -3871,6 +3871,55 @@ button.workspace-title:hover {
 	opacity: 1;
 }
 
+/* A tooltip, portalled to the end of <body> by Radix.
+ *
+ * Outside .dashboard, so nothing scoped there reaches it -- which is fine, because the theme lives
+ * on <html data-theme> and every token below resolves the same in the portal as it would in place.
+ *
+ * Sans, not mono: these are UI words a person wrote ("Sign out", "Copy SSH command"), and section 2
+ * reserves mono for machine facts.
+ *
+ * --shadow-pop is the one drop shadow this design sanctions, and its own comment says what for:
+ * dropdowns and popovers. Section 9's "no drop shadows" is about surfaces pretending to float; a
+ * tooltip genuinely does, and until now the token was declared and unread. */
+.tooltip {
+	background: var(--surface-raised);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-pop);
+	color: var(--text-body);
+	font-size: var(--text-body-sm);
+	line-height: 1.4;
+	max-width: var(--radix-tooltip-content-available-width, 260px);
+	padding: 5px 8px;
+	/* Radix computes this from the side it actually landed on after collision detection, so a
+	   tooltip that flipped to the other edge still grows out of the control rather than towards
+	   it. */
+	transform-origin: var(--radix-tooltip-content-transform-origin);
+	z-index: 40;
+}
+
+/* Only on the way in. A tooltip that animates out is one still on screen after the pointer has
+   moved on, which reads as lag rather than polish. */
+.tooltip[data-state="delayed-open"],
+.tooltip[data-state="instant-open"] {
+	animation: tooltip-in var(--dur-fast) var(--ease);
+}
+
+@keyframes tooltip-in {
+	from {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tooltip[data-state="delayed-open"],
+	.tooltip[data-state="instant-open"] {
+		animation: none;
+	}
+}
+
 /* ── transitions.dev ───────────────────────────────────────────────────────────────────────────
  *
  * Snippets from the transitions-dev skill, pasted as shipped except where noted. Each keeps its

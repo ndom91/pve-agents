@@ -4,6 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { AgentChat } from "./agent-chat";
+import { TooltipProvider } from "./tooltip";
 
 // Explicit cleanup, for the same reason the rail's tests carry it: Testing Library only registers
 // its own afterEach when vitest globals are enabled, and they are not here.
@@ -62,15 +63,19 @@ function bottom({
 	return scrollHeight - height;
 }
 
+// Wrapped because the fold's copy buttons are IconButtons, which carry a Radix tooltip and throw
+// without a provider. The application has one at the document root.
 function chat(messages: unknown[]) {
 	return (
-		<AgentChat
-			approvals={[]}
-			busy={false}
-			link="attached"
-			messages={messages}
-			onDecide={() => {}}
-		/>
+		<TooltipProvider>
+			<AgentChat
+				approvals={[]}
+				busy={false}
+				link="attached"
+				messages={messages}
+				onDecide={() => {}}
+			/>
+		</TooltipProvider>
 	);
 }
 

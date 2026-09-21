@@ -27,6 +27,7 @@
 		"@better-auth/api-key": "^1.7.4",
 		"@date-fns/tz": "^1.5.0",
 		"@pierre/diffs": "^1.4.3",
+		"@radix-ui/react-tooltip": "^1.2.16",
 		"@tanstack/highlight": "0.1.0",
 		"@tanstack/markdown": "0.0.15",
 		"@tanstack/react-query": "^5.103.1",

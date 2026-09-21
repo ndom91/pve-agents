@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Tooltip } from "./tooltip";
+
 // `Button`'s vocabulary without "primary": an icon alone cannot carry being the obvious candidate
 // in a view, and no call site has wanted one. "danger" is here because one does -- destroy is the
 // only irreversible control in the application and it needs a red outline, which arrived first as
@@ -31,6 +33,12 @@ function classes({ className, variant = "secondary" }: IconStyle): string {
 //
 // The label becomes both the accessible name and the tooltip, so the two cannot drift apart.
 //
+// The tooltip replaces the `title` attribute all three of these used to carry. `title` needed no
+// JavaScript, which is the one thing it had going for it; against that it waits about a second,
+// cannot be themed, renders in the operating system's own chrome rather than this application's,
+// and never appears on a touch device at all. `aria-label` is unchanged and is still what a screen
+// reader announces, so nothing about the accessible name depends on the tooltip rendering.
+//
 // `swapIcon` opts into the second icon. Both are mounted and stacked in one grid cell, and
 // `swapped` decides which is lit: a cross-fade needs the outgoing icon still there to fade, which
 // swapping one element's `icon` prop cannot give. Callers that never change icon pass neither and
@@ -52,31 +60,32 @@ export function IconButton({
 	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
 	return (
-		<button
-			aria-label={label}
-			className={classes(style)}
-			disabled={disabled}
-			onClick={onClick}
-			title={label}
-			type="button"
-		>
-			{SwapIcon === undefined ? (
-				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-			) : (
-				<span className="t-icon-swap" data-state={swapped ? "b" : "a"}>
-					<span className="t-icon" data-icon="a">
-						<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+		<Tooltip label={label}>
+			<button
+				aria-label={label}
+				className={classes(style)}
+				disabled={disabled}
+				onClick={onClick}
+				type="button"
+			>
+				{SwapIcon === undefined ? (
+					<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+				) : (
+					<span className="t-icon-swap" data-state={swapped ? "b" : "a"}>
+						<span className="t-icon" data-icon="a">
+							<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+						</span>
+						<span className="t-icon" data-icon="b">
+							<SwapIcon
+								aria-hidden
+								size={size}
+								strokeWidth={swapStrokeWidth ?? strokeWidth}
+							/>
+						</span>
 					</span>
-					<span className="t-icon" data-icon="b">
-						<SwapIcon
-							aria-hidden
-							size={size}
-							strokeWidth={swapStrokeWidth ?? strokeWidth}
-						/>
-					</span>
-				</span>
-			)}
-		</button>
+				)}
+			</button>
+		</Tooltip>
 	);
 }
 
@@ -92,9 +101,11 @@ export function IconLink({
 	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
 	return (
-		<Link aria-label={label} className={classes(style)} title={label} to={to}>
-			<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-		</Link>
+		<Tooltip label={label}>
+			<Link aria-label={label} className={classes(style)} to={to}>
+				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+			</Link>
+		</Tooltip>
 	);
 }
 
@@ -113,15 +124,16 @@ export function IconOutLink({
 	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
 	return (
-		<a
-			aria-label={label}
-			className={classes(style)}
-			href={href}
-			rel="noreferrer noopener"
-			target="_blank"
-			title={label}
-		>
-			<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-		</a>
+		<Tooltip label={label}>
+			<a
+				aria-label={label}
+				className={classes(style)}
+				href={href}
+				rel="noreferrer noopener"
+				target="_blank"
+			>
+				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+			</a>
+		</Tooltip>
 	);
 }

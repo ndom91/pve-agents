@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render as renderBare, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { TooltipProvider } from "./tooltip";
 import { WorkspaceRail } from "./workspace-rail";
 
 // Explicit cleanup. Testing Library only registers its own afterEach when vitest globals are
@@ -10,6 +11,13 @@ import { WorkspaceRail } from "./workspace-rail";
 // finds the previous test's output, which passes for the wrong reason until a test happens to
 // assert something is absent.
 afterEach(cleanup);
+
+// The rail's copy buttons are IconButtons, which carry a Radix tooltip, and Radix throws outright
+// without a provider above it. The application has one at the document root; a test rendering a
+// component on its own does not, so it brings its own.
+function render(ui: Parameters<typeof renderBare>[0]) {
+	return renderBare(<TooltipProvider>{ui}</TooltipProvider>);
+}
 
 describe("WorkspaceRail", () => {
 	it("shows the placement a workspace has reached", () => {

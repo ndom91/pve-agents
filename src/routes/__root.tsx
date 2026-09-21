@@ -5,6 +5,7 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 
+import { TooltipProvider } from "../components/tooltip";
 import appCss from "../styles.css?url";
 
 // The query client reaches loaders through route context, so a loader can prime the cache instead
@@ -105,7 +106,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				{children}
+				{/* One provider for the whole app, which is what carries the shared timings --
+				    notably the window in which a second tooltip opens at once instead of waiting
+				    again. Here rather than in the dashboard layout because icon buttons also
+				    appear on the settings screen. */}
+				<TooltipProvider>{children}</TooltipProvider>
 
 				<Scripts />
 			</body>
