@@ -3590,6 +3590,100 @@ button.workspace-title:hover {
 	overflow-y: auto;
 }
 
+/* The shell's own chrome: who and where above it, whether it is attached below.
+ *
+ * The screen between them is ghostty drawing to a canvas, which this stylesheet cannot reach --
+ * the terminal's colours are set in its own theme, on the same well surface as the box. */
+.terminal-bar {
+	align-items: center;
+	background: var(--surface-well);
+	border-bottom: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	gap: 8px;
+	height: 34px;
+	padding: 0 10px 0 16px;
+}
+
+.terminal-who {
+	color: var(--text-secondary);
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.icon-button.terminal-tool {
+	color: var(--text-muted);
+	flex-shrink: 0;
+	height: 24px;
+	width: 24px;
+}
+
+/* Green once there is a shell on the far side, and the decorative grey before and after. It takes
+   no ring: the word beside it already says which of the three it is. */
+.terminal-led {
+	background: var(--text-decorative);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+.terminal-led.is-live {
+	background: var(--green);
+}
+
+.terminal-foot {
+	align-items: center;
+	background: var(--surface-sunk);
+	border-top: 1px solid var(--line-hairline);
+	display: flex;
+	flex-shrink: 0;
+	gap: 10px;
+	height: 46px;
+	padding: 0 16px;
+}
+
+.terminal-foot-state {
+	align-items: center;
+	color: var(--text-secondary);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	gap: 7px;
+}
+
+.terminal-foot-sep {
+	background: var(--line-divider);
+	flex-shrink: 0;
+	height: 11px;
+	width: 1px;
+}
+
+.terminal-foot-where {
+	color: var(--text-dim);
+	flex-grow: 1;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.terminal-foot-hint {
+	align-items: center;
+	color: var(--text-faint);
+	display: inline-flex;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 5px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
 /* The shell, in its tab. The terminal sizes itself to whatever box it is given, so the box has to be a
    real one: a flex child with min-height 0 rather than a div that collapses to its content. */
 .terminal-view {
@@ -3601,14 +3695,16 @@ button.workspace-title:hover {
 }
 
 .terminal-host {
+	background: var(--surface-well);
 	flex: 1 1 auto;
 	min-height: 240px;
+	padding: 12px 14px;
 }
 
 /* Opaque, because the host underneath is a canvas mid-measurement and a shell that fades up
    through a spinner reads as two things loading rather than one. */
 .terminal-overlay {
-	background: var(--bg);
+	background: var(--surface-well);
 	display: flex;
 	inset: 0;
 	position: absolute;

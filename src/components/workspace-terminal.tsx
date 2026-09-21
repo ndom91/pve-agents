@@ -10,9 +10,13 @@ const TerminalView = lazy(() => import("./terminal-view"));
 
 // WorkspaceTerminal is an interactive shell in the workspace, or the reason there is not one.
 export function WorkspaceTerminal({
+	hostname,
+	ip,
 	ready,
 	workspaceId,
 }: {
+	hostname?: string;
+	ip?: string;
 	ready: boolean;
 	workspaceId: string;
 }): ReactNode {
@@ -39,7 +43,7 @@ export function WorkspaceTerminal({
 			    wired to it -- see the note in TerminalView. Keying it here forced a rebuild per
 			    workspace, and a rebuild means ghostty reloading its WASM, which is two and a half
 			    seconds of staring at nothing on every switch. */}
-			<TerminalView workspaceId={workspaceId} />
+			<TerminalView hostname={hostname} ip={ip} workspaceId={workspaceId} />
 		</Suspense>
 	);
 }

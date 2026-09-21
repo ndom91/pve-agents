@@ -1,6 +1,8 @@
 import { FitAddon, init, Terminal } from "ghostty-web";
+import { Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { IconButton } from "./icon-button";
 import { PanelNote, PanelSpinner } from "./panel-state";
 
 // TerminalView is a shell in the workspace.
@@ -16,13 +18,25 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 // of it, not which terminal you are looking at. That distinction is worth about two and a half
 // seconds: `dispose()` drops ghostty's cached WASM instance, so the next terminal has to load and
 // compile the whole module again before it can show anything.
-export default function TerminalView({ workspaceId }: { workspaceId: string }) {
+export default function TerminalView({
+	hostname,
+	ip,
+	workspaceId,
+}: {
+	hostname?: string;
+	ip?: string;
+	workspaceId: string;
+}) {
 	const host = useRef<HTMLDivElement>(null);
 	// The terminal, and whichever socket is currently wired to it. Refs rather than state because
 	// nothing renders from them: they are the machinery, not the picture.
 	const screen = useRef<{ fit: FitAddon; terminal: Terminal } | null>(null);
 	const wire = useRef<WebSocket | null>(null);
 	const [state, setState] = useState<"closed" | "live" | "opening">("opening");
+	// The grid the shell is actually running at, for the footer. Read off the terminal after each
+	// fit rather than computed here: the fit addon owns that arithmetic and a second copy of it
+	// would be a number that disagrees with the one the remote tty was told.
+	const [size, setSize] = useState<{ cols: number; rows: number } | null>(null);
 
 	// Disposed once, when the page is finished with this terminal entirely.
 	//
@@ -65,7 +79,9 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 					// a workspace shell is for short commands rather than for reading a log in.
 					scrollback: 1_000,
 					theme: {
-						background: "#10140f",
+						// The well surface, matching the box it sits in. It was two points lighter,
+						// which read as a panel inside a panel.
+						background: "#0b0f0a",
 						cursor: "#d6e2cf",
 						foreground: "#d6e2cf",
 					},
@@ -101,6 +117,7 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 			// workspace's banner sat there until something happened to repaint. Refitting forces
 			// that repaint, and has to come after the reset rather than before it.
 			fit.fit();
+			setSize({ cols: terminal.cols, rows: terminal.rows });
 			setState("opening");
 
 			// The size travels with the connection so the remote tty is sized before the shell
@@ -145,6 +162,7 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 				clearTimeout(pending);
 				pending = setTimeout(() => {
 					fit.fit();
+					setSize({ cols: terminal.cols, rows: terminal.rows });
 					if (socket.readyState === WebSocket.OPEN) {
 						socket.send(
 							JSON.stringify({ cols: terminal.cols, rows: terminal.rows }),
@@ -170,6 +188,31 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 
 	return (
 		<div className="terminal-view">
+			{/* Who and where, and the one control that acts on the screen rather than on the
+			    shell. The working directory is not here because this side cannot know it: the cwd
+			    lives inside the shell and only the prompt has it. */}
+			<div className="terminal-bar">
+				<span
+					aria-hidden="true"
+					className={state === "live" ? "terminal-led is-live" : "terminal-led"}
+				/>
+				<span className="terminal-who">
+					{hostname === undefined ? "agent" : `agent@${hostname}`}
+				</span>
+				<IconButton
+					className="terminal-tool"
+					disabled={state !== "live"}
+					icon={Eraser}
+					label="Clear the screen"
+					// The screen, not the session. The shell keeps running and whatever it prints
+					// next lands on a clean page; nothing is sent to the far side.
+					onClick={() => screen.current?.terminal.clear()}
+					size={12}
+					strokeWidth={1.1}
+					variant="tertiary"
+				/>
+			</div>
+
 			<div className="terminal-host" ref={host} />
 			{/* Over the host rather than under it. ghostty measures real glyphs against the
 			    element's own box, so the host has to keep its size while the WASM loads; laying
@@ -183,6 +226,37 @@ export default function TerminalView({ workspaceId }: { workspaceId: string }) {
 					)}
 				</div>
 			)}
+
+			{/* Whether there is a shell on the other end, where it is, and how to leave it. */}
+			<div className="terminal-foot">
+				<span className="terminal-foot-state">
+					<span
+						aria-hidden="true"
+						className={
+							state === "live" ? "terminal-led is-live" : "terminal-led"
+						}
+					/>
+					{state === "live"
+						? "attached"
+						: state === "opening"
+							? "attaching"
+							: "detached"}
+				</span>
+				<span aria-hidden="true" className="terminal-foot-sep" />
+				<span className="terminal-foot-where">
+					{[
+						ip,
+						size === undefined || size === null
+							? undefined
+							: `${size.cols}\u00d7${size.rows}`,
+					]
+						.filter((part) => part !== undefined)
+						.join(" \u00b7 ")}
+				</span>
+				<span className="terminal-foot-hint">
+					<kbd className="prompt-key">&#8963;C</kbd> detach
+				</span>
+			</div>
 		</div>
 	);
 }

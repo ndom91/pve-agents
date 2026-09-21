@@ -430,7 +430,14 @@ function WorkspaceDetail() {
 				}
 				onTab={setTab}
 				tab={tab}
-				terminal={<WorkspaceTerminal ready={ready} workspaceId={workspaceId} />}
+				terminal={
+					<WorkspaceTerminal
+						hostname={workspace.hostname}
+						ip={workspace.ip}
+						ready={ready}
+						workspaceId={workspaceId}
+					/>
+				}
 				timeline={
 					<div className="rail-timeline">
 						<WorkspaceTimeline
