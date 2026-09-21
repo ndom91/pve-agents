@@ -10,13 +10,11 @@ import {
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { FleetCard } from "./fleet-card";
+import { FleetRow } from "./fleet-row";
 
 afterEach(cleanup);
 
-function workspace(
-	over: Partial<Parameters<typeof FleetCard>[0]["workspace"]>,
-) {
+function workspace(over: Partial<Parameters<typeof FleetRow>[0]["workspace"]>) {
 	return {
 		activity: "idle",
 		hostname: "agent-8d1f",
@@ -31,7 +29,7 @@ function workspace(
 async function show(over: Parameters<typeof workspace>[0] = {}) {
 	const root = createRootRoute();
 	const index = createRoute({
-		component: () => <FleetCard workspace={workspace(over)} />,
+		component: () => <FleetRow workspace={workspace(over)} />,
 		getParentRoute: () => root,
 		path: "/",
 	});
@@ -49,19 +47,33 @@ async function show(over: Parameters<typeof workspace>[0] = {}) {
 	await screen.findByRole("link");
 }
 
-describe("FleetCard", () => {
-	it("leads with the purpose rather than the hostname", async () => {
+describe("FleetRow", () => {
+	it("leads with what the work is, not with the container's name", async () => {
 		// agent-8d1f distinguishes two workspaces and says nothing about either. Somebody scanning
 		// the fleet wants to know which of these is the one they asked to fix the login bug.
+		await show({
+			purpose: "Fix the login redirect loop",
+			title: "Login redirect",
+		});
+
+		const row = screen.getByRole("link");
+		const title = row.textContent?.indexOf("Login redirect") ?? -1;
+		const purpose =
+			row.textContent?.indexOf("Fix the login redirect loop") ?? -1;
+		const host = row.textContent?.indexOf("agent-8d1f") ?? -1;
+
+		expect(title).toBeGreaterThanOrEqual(0);
+		expect(title).toBeLessThan(purpose);
+		expect(purpose).toBeLessThan(host);
+	});
+
+	it("does not print the hostname twice on an unnamed workspace", async () => {
+		// The title falls back to the container's name until the agent has named its own work, and
+		// the repo column carries that name too.
 		await show({ purpose: "Fix the login redirect loop" });
 
-		const card = screen.getByRole("link");
-		const purpose =
-			card.textContent?.indexOf("Fix the login redirect loop") ?? -1;
-		const host = card.textContent?.indexOf("agent-8d1f") ?? -1;
-
-		expect(purpose).toBeGreaterThanOrEqual(0);
-		expect(purpose).toBeLessThan(host);
+		const row = screen.getByRole("link");
+		expect(row.textContent?.match(/agent-8d1f/g)).toHaveLength(1);
 	});
 
 	it("says so when a workspace was given no purpose", async () => {

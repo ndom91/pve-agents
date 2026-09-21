@@ -179,8 +179,10 @@ export function WorkspaceRail({
 				    question somebody opens this tab with; the sections below answer the ones they
 				    have after that. */}
 				<div className="rail-state">
+					{/* Silent: the word is printed beside it. */}
 					<StatusDot
 						activity={workspace.activity}
+						silent
 						status={status ?? "unknown"}
 					/>
 					<span className="rail-state-word">{status ?? "unknown"}</span>

@@ -454,15 +454,6 @@ button {
 	opacity: 0.6;
 }
 
-/* Both forms are flex columns, where a child stretches to the full width unless told not to. Not
-   put on `.button` itself, because `.changes-actions` is also a flex column and its buttons are
-   meant to fill it. */
-.home-form .button,
-.settings-form .button,
-.settings-seed > .button {
-	align-self: start;
-}
-
 .error {
 	color: var(--danger-bright);
 	margin: 16px 0 0;
@@ -3216,132 +3207,6 @@ button.workspace-title:hover {
 }
 
 
-/* The landing page.
- *
- * It was a request form centred in an empty viewport, and the sidebar was the only view of the
- * fleet. The form is still here and still the point on an empty controller, but it is no longer
- * the only thing the page says. */
-.dashboard-home {
-	display: flex;
-	flex-direction: column;
-	gap: 40px;
-	margin: 0 auto;
-	max-width: 900px;
-	overflow-y: auto;
-	padding: 32px 28px 64px;
-	width: 100%;
-}
-
-.home-head {
-	align-items: end;
-	border-bottom: 1px solid var(--border);
-	display: flex;
-	flex-wrap: wrap;
-	gap: 24px;
-	justify-content: space-between;
-	padding-bottom: 20px;
-}
-
-.home-head h1 {
-	margin: 0;
-}
-
-/* Reuses the rail's term-and-value shape, so the controller's own facts read the same way as a
-   workspace's do. */
-.home-status {
-	display: flex;
-	gap: 28px;
-}
-
-.home-health dt {
-	color: var(--fg-dim);
-	font-size: var(--text-xs);
-	letter-spacing: 0.08em;
-	margin-bottom: 4px;
-	text-transform: uppercase;
-}
-
-.home-health dd {
-	color: var(--fg-bright);
-	font-size: var(--text-lg);
-}
-
-/* Off is the state worth noticing: a controller that will not act on what you are about to ask it
-   for. Coloured rather than merely dimmer, because dimmer reads as less important. */
-.home-health.is-off dd {
-	color: var(--warn-fg);
-}
-
-.home-fleet h2,
-.home-request h2 {
-	align-items: baseline;
-	color: var(--fg-muted);
-	display: flex;
-	font-size: var(--text-sm);
-	gap: 8px;
-	letter-spacing: 0.08em;
-	margin: 0 0 16px;
-	text-transform: uppercase;
-}
-
-.home-count {
-	color: var(--fg-dim);
-}
-
-.fleet-grid {
-	display: grid;
-	gap: 12px;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-}
-
-.fleet-card {
-	background: var(--surface);
-	border: 1px solid var(--border);
-	color: inherit;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 14px;
-	text-decoration: none;
-}
-
-.fleet-card:hover {
-	border-color: var(--line);
-}
-
-/* The purpose leads and is allowed two lines. A workspace is a request for work, and this is the
-   only field that says which request. */
-.fleet-purpose {
-	color: var(--fg-bright);
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	font-size: var(--text-lg);
-	line-height: 1.4;
-	margin: 0;
-	overflow: hidden;
-}
-
-.fleet-meta {
-	color: var(--fg-dim);
-	display: flex;
-	flex-wrap: wrap;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-xs);
-	gap: 8px;
-}
-
-.fleet-host {
-	color: var(--fg-muted);
-}
-
-.fleet-badges {
-	align-items: center;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-}
-
 .fleet-flag {
 	border: 1px solid var(--warn);
 	color: var(--warn-fg);
@@ -3351,46 +3216,6 @@ button.workspace-title:hover {
 	padding: 3px 6px;
 	text-transform: uppercase;
 }
-
-.fleet-age {
-	color: var(--fg-dim);
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-xs);
-	margin-left: auto;
-}
-
-/* One column, because the request form is read top to bottom rather than scanned. The two-column
-   grid the bare `form` rule imposes is for the wider panels elsewhere. */
-.home-form {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	margin: 0;
-	max-width: 520px;
-}
-
-.home-purpose small {
-	color: var(--fg-dim);
-	font-size: var(--text-xs);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-}
-
-.home-form textarea {
-	background: var(--surface);
-	border: 1px solid var(--border-dim);
-	color: var(--fg);
-	font-family: inherit;
-	padding: 11px 12px;
-	resize: vertical;
-}
-
-.home-form textarea:focus {
-	border-color: var(--accent-fill);
-	outline: 2px solid var(--accent-ring);
-	outline-offset: 2px;
-}
-
 
 /* An outcome that is a loss reads as one. The other outcomes are reports; this is the only one
    where something is gone and nobody can get it back. */
@@ -3759,6 +3584,476 @@ button.workspace-title:hover {
 
 .rail-panel[hidden] {
 	display: none;
+}
+
+/* The settings forms still want their submit button hugging the left rather than stretching. The
+   home form no longer does -- its button sits on a footer row of its own. */
+.settings-form .button,
+.settings-seed > .button {
+	align-self: start;
+}
+
+/* ── Home ──────────────────────────────────────────────────────────────────────────────────── */
+
+/* Same shape as the workspace page: two bars at the top that reach the column's edges, and a body
+   that carries the padding. */
+.dashboard-home {
+	gap: 0;
+	overflow: hidden;
+	padding: 0;
+}
+
+.home-eyebrow {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.home-bar-sep {
+	background: var(--line-divider);
+	flex-shrink: 0;
+	height: 12px;
+	width: 1px;
+}
+
+.home-title {
+	color: var(--text-primary);
+	flex-grow: 1;
+	font-size: var(--text-title);
+	font-weight: 500;
+	letter-spacing: normal;
+	line-height: 1.35;
+	margin: 0;
+}
+
+/* A switch rather than a measurement: green when the thing is on, and the decorative grey when it
+   is not, because an off worker is a state somebody chose rather than a failure. */
+.meta-band-dot {
+	background: var(--text-decorative);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+.meta-band-dot.is-on {
+	background: var(--green);
+}
+
+/* The fleet on the left, the launch form on the right. The right half of this screen used to be
+   empty, which is what made one running workspace look like a mistake. */
+.home-body {
+	display: flex;
+	flex: 1 1 auto;
+	gap: var(--space-8);
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--space-8);
+}
+
+.home-main {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	gap: var(--space-8);
+	min-width: 0;
+}
+
+.home-section {
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+}
+
+.home-side {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 9px;
+	width: var(--panel-w);
+}
+
+/* ── The running table ─────────────────────────────────────────────────────────────────────── */
+
+/* A table rather than a grid of tiles. One workspace is the common case, and a grid of one is a
+   card floating in an empty half-screen; a table still reads with a single row in it. */
+.fleet-table {
+	background: var(--surface-sunk);
+	border: 1px solid var(--line-hairline);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+
+/* The header reuses the row's column classes for their widths, so it has to take its own type back
+   -- `is-up` sets a value colour and size, and left alone the word "UP" rendered brighter and
+   larger than the four headings beside it. */
+.fleet-head .fleet-col,
+.fleet-head .fleet-what {
+	color: inherit;
+	flex-direction: row;
+	font-family: inherit;
+	font-size: inherit;
+}
+
+/* Doubled to beat `.fleet-col.is-up`, which sits further down the file and at the same weight was
+   giving the word "UP" the value colour and size rather than the heading's. */
+.fleet-head .fleet-col.is-up {
+	color: inherit;
+	font-family: inherit;
+	font-size: inherit;
+	justify-content: flex-end;
+}
+
+.fleet-head {
+	align-items: center;
+	background: var(--surface-raised);
+	border-bottom: 1px solid var(--line-hairline);
+	color: var(--text-metakey);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: 9px;
+	gap: 12px;
+	height: var(--row-h);
+	letter-spacing: var(--tracking-label);
+	padding: 0 12px;
+	text-transform: uppercase;
+}
+
+.fleet-row {
+	background: var(--surface-raised);
+	border-bottom: 1px solid var(--line-hairline);
+}
+
+.fleet-row:last-child {
+	border-bottom: 0;
+}
+
+.fleet-cells {
+	align-items: center;
+	display: flex;
+	gap: 12px;
+	padding: 11px 12px;
+	text-decoration: none;
+	transition: background var(--dur-fast) var(--ease);
+}
+
+.fleet-cells:hover {
+	background: var(--surface-hover);
+}
+
+/* The columns. Fixed widths on everything but the first, so four rows line up and the one column
+   that can be any length is the one that takes the slack. */
+.fleet-what {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	gap: 3px;
+	min-width: 0;
+}
+
+.fleet-col {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 3px;
+	min-width: 0;
+}
+
+.fleet-col.is-repo {
+	width: 150px;
+}
+
+.fleet-col.is-where {
+	width: 84px;
+}
+
+/* Wide enough for both chips. The mockup draws one, because its segmented control is one object;
+   this shows the lifecycle and the activity, and at 78px the second was clipped by the column
+   after it. */
+.fleet-col.is-state {
+	align-items: center;
+	flex-direction: row;
+	gap: 6px;
+	width: 124px;
+}
+
+.fleet-col.is-up {
+	align-items: flex-end;
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	width: 48px;
+}
+
+.fleet-title-line {
+	align-items: center;
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+
+.fleet-title {
+	color: var(--text-primary);
+	font-size: 13px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Indented past the dot, so it hangs under the title rather than under the state. */
+.fleet-purpose {
+	color: var(--text-muted);
+	font-size: 12px;
+	overflow: hidden;
+	padding-left: 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fleet-strong {
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fleet-weak {
+	color: var(--text-metakey);
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	font-variant-numeric: tabular-nums;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fleet-flag {
+	color: var(--amber);
+	font-family: var(--font-mono);
+	font-size: 9px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.fleet-go {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-lg);
+	line-height: 1;
+	text-align: right;
+	width: 14px;
+}
+
+/* The lifecycle strip, under the row and only while there is something to watch. A full bar under
+   every row would be six green segments repeating what the state chip already said. */
+.fleet-progress {
+	align-items: center;
+	display: flex;
+	gap: 11px;
+	padding: 8px 12px 10px;
+}
+
+.fleet-strip {
+	display: flex;
+	flex-grow: 1;
+	gap: 3px;
+}
+
+.fleet-step {
+	color: var(--text-dim);
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+}
+
+/* ── Recently destroyed ────────────────────────────────────────────────────────────────────── */
+
+/* Quieter than the table above it, and unbordered: these are a reminder that work happened here,
+   not a thing to act on. The sidebar holds the archive. */
+.gone-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.gone-row {
+	align-items: center;
+	border-bottom: 1px solid var(--line-inner);
+	display: flex;
+	gap: 12px;
+	padding: 8px 12px;
+}
+
+.gone-dot {
+	background: var(--line-border-raised);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+.gone-title {
+	color: var(--text-tertiary);
+	flex-grow: 1;
+	font-size: var(--text-body-md);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.gone-row .fleet-col {
+	color: var(--text-dim);
+	flex-direction: row;
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.gone-row .fleet-col.is-state {
+	color: var(--text-metakey);
+	font-size: var(--text-label);
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+/* ── The launch form ───────────────────────────────────────────────────────────────────────── */
+
+/* A card on the raised surface, filling the half of this screen that used to be empty. */
+.launch {
+	background: var(--surface-raised);
+	border: 1px solid var(--line-hairline);
+	border-radius: var(--radius-lg);
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	padding: 16px;
+}
+
+.launch-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.launch-field.is-ref {
+	width: 140px;
+}
+
+.launch-label {
+	align-items: baseline;
+	color: var(--text-muted);
+	display: flex;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 8px;
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+}
+
+.launch-optional {
+	color: var(--text-faint);
+	letter-spacing: normal;
+	margin-left: auto;
+	text-transform: none;
+}
+
+.launch-field input,
+.launch-field textarea {
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-md);
+	box-sizing: border-box;
+	color: var(--text-body);
+	outline: none;
+	width: 100%;
+}
+
+.launch-field input {
+	font-family: var(--font-mono);
+	font-size: 12px;
+	height: var(--control-h-lg);
+	padding: 0 11px;
+}
+
+.launch-field textarea {
+	font-family: var(--font-sans);
+	font-size: var(--text-body-md);
+	line-height: 1.55;
+	padding: 10px 11px;
+	resize: none;
+}
+
+.launch-field input:focus,
+.launch-field textarea:focus {
+	border-color: var(--line-strong);
+}
+
+/* Every property stated. This is a `<small>` inside a `<label>`, and both pick up rules meant for
+   the uppercase mono field labels elsewhere on the page -- left alone it rendered as a shouted
+   caption of the sentence it is supposed to be. */
+.launch-hint {
+	color: var(--text-dim);
+	font-family: var(--font-sans);
+	font-size: 11.5px;
+	letter-spacing: normal;
+	line-height: 1.5;
+	text-transform: none;
+}
+
+.launch-rule {
+	background: var(--line-hairline);
+	height: 1px;
+}
+
+.launch-foot {
+	align-items: center;
+	display: flex;
+	gap: 12px;
+}
+
+.launch-error {
+	color: var(--red-ink);
+	flex-grow: 1;
+	font-size: var(--text-body-sm);
+	margin: 0;
+}
+
+/* The one primary action on this screen. */
+.button.launch-send {
+	background: var(--sage);
+	border: 0;
+	border-radius: var(--radius-md);
+	color: var(--sage-ink);
+	font-size: var(--text-label-lg);
+	font-weight: 600;
+	height: 32px;
+	letter-spacing: var(--tracking-ui);
+	margin-left: auto;
+	min-height: 0;
+	padding: 0 16px;
+}
+
+.button.launch-send:hover:not(:disabled) {
+	background: var(--sage-hover);
+}
+
+/* Only while a request is in flight. Disabled on an empty repository as well would leave this
+   painted dead for as long as nobody is typing, which is the same mistake the composer's send
+   button made -- and the form already refuses to submit without one. */
+.button.launch-send:disabled {
+	background: var(--surface-base);
+	color: var(--text-faint);
+	cursor: not-allowed;
+	opacity: 1;
 }
 
 /* ── transitions.dev ───────────────────────────────────────────────────────────────────────────

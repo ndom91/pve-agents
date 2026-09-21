@@ -17,12 +17,21 @@ type DotTone = "error" | "gone" | "live" | "pending" | "waiting";
 // why the word is not simply printed.
 export function StatusDot({
 	activity,
+	silent = false,
 	status,
 }: {
 	activity?: string;
+	// The word is already on screen beside this dot, so do not carry a second copy of it. A row
+	// that prints "booting" next to a dot whose hidden text also says "booting" reads it twice to
+	// a screen reader, and makes the word ambiguous to a test looking for one of them.
+	silent?: boolean;
 	status: string;
 }): ReactNode {
 	const { tone, word } = read(status, activity);
+
+	if (silent) {
+		return <span aria-hidden="true" className={`status-dot is-${tone}`} />;
+	}
 
 	return (
 		<span className={`status-dot is-${tone}`} title={word}>

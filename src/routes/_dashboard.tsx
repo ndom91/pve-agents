@@ -58,9 +58,12 @@ function Dashboard() {
 	const live = workspaces.filter(
 		(workspace) => workspace.status !== "destroyed",
 	);
-	const destroyed = workspaces
-		.filter((workspace) => workspace.status === "destroyed")
-		.slice(0, DESTROYED_SHOWN);
+	const gone = workspaces.filter(
+		(workspace) => workspace.status === "destroyed",
+	);
+	// The list is capped; the count is not. It said 15 on a controller that had destroyed forty-
+	// five, because it was counting the slice rather than the fleet.
+	const destroyed = gone.slice(0, DESTROYED_SHOWN);
 
 	return (
 		<div className="dashboard">
@@ -99,12 +102,12 @@ function Dashboard() {
 						)}
 					</div>
 
-					{destroyed.length === 0 ? null : (
+					{gone.length === 0 ? null : (
 						<div className="sidebar-section">
 							{/* The head stays put and the list folds under it, rather than the head
 							    itself being the control. A count that only appears once you have
 							    opened the thing it counts is not much of a count. */}
-							<SectionHead count={destroyed.length} label="Destroyed" />
+							<SectionHead count={gone.length} label="Destroyed" />
 							<details className="sidebar-archive">
 								<summary className="sidebar-archive-toggle">
 									<ChevronRight

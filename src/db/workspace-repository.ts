@@ -29,6 +29,12 @@ export type Workspace = {
 	desiredState: WorkspaceTarget;
 	hostname: string;
 	id: string;
+	// Placement, for the fleet table's own column. Three columns already on the row, read in the
+	// same query rather than fetched per workspace -- the alternative to carrying them here is a
+	// detail call per row to fill one cell.
+	ip?: string;
+	node?: string;
+	vmid?: number;
 	purpose?: string;
 	repository: string;
 	ref: string;
@@ -122,12 +128,17 @@ type WorkspaceRow = {
 	desired_state: WorkspaceTarget;
 	hostname: string;
 	id: string;
+	// Optional as well as nullable: the narrower selects never ask for these three, so a row from
+	// one has the property missing rather than set to null.
+	ip?: string | null;
+	node?: string | null;
 	purpose: string | null;
 	repository: string;
 	ref: string;
 	status: WorkspaceStatus;
 	title: string | null;
 	updated_at: string;
+	vmid?: number | null;
 };
 
 type WorkspaceOperationRow = {
@@ -1282,7 +1293,7 @@ export function listWorkspaces(db: Database.Database): Workspace[] {
 	const rows = db
 		.prepare(
 			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
-				created_at, updated_at, current_step
+				created_at, updated_at, current_step, node, vmid, ip
 			 FROM workspaces ORDER BY created_at DESC`,
 		)
 		.all() as WorkspaceRow[];
@@ -1405,6 +1416,18 @@ function workspaceFromRow(row: WorkspaceRow): Workspace {
 	}
 	if (row.title !== null) {
 		workspace.title = row.title;
+	}
+	// Guarded individually and against undefined as well as null: `workspaceFromRow` is also given
+	// rows from the narrower selects, where these columns were never asked for and are absent
+	// rather than null.
+	if (row.node !== null && row.node !== undefined) {
+		workspace.node = row.node;
+	}
+	if (row.vmid !== null && row.vmid !== undefined) {
+		workspace.vmid = row.vmid;
+	}
+	if (row.ip !== null && row.ip !== undefined) {
+		workspace.ip = row.ip;
 	}
 
 	return workspace;

@@ -15,7 +15,14 @@ export function MetaBand({
 	facts,
 	tail,
 }: {
-	facts: { key: string; value?: string }[];
+	facts: {
+		key: string;
+		// A dot between the key and the value, for a fact that is a switch rather than a
+		// measurement. Green when the thing is on; the decorative grey when it is not, because an
+		// off worker is a state somebody chose rather than a failure.
+		tone?: "off" | "on";
+		value?: string;
+	}[];
 	// The "how long / how many" summary, pushed to the far right.
 	tail?: ReactNode;
 }): ReactNode {
