@@ -3862,14 +3862,23 @@ button.workspace-title:hover {
 	width: 5px;
 }
 
+/* A link, but not dressed as one. Undecorated at rest so the list still reads as a list of names
+   rather than five blue-ish rules; the underline arrives on hover, which is where somebody is
+   already looking when they wonder whether a name can be clicked. */
 .gone-title {
 	color: var(--text-tertiary);
 	flex-grow: 1;
 	font-size: var(--text-body-md);
 	min-width: 0;
 	overflow: hidden;
+	text-decoration: none;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.gone-title:hover {
+	color: var(--text-primary);
+	text-decoration: underline;
 }
 
 .gone-row .fleet-col {
