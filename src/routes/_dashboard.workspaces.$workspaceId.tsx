@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
-import { AgentChat } from "../components/agent-chat";
+import { AgentConversation } from "../components/agent-conversation";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
@@ -19,7 +19,6 @@ import type { WorkspaceOutcome } from "../domain/workspace-outcome";
 import { workspaceOutcome } from "../domain/workspace-outcome";
 import { provisionTook } from "../lib/clock";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
-import { useAgentStream } from "../lib/use-agent-stream";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
 import {
 	answerWorkspaceApproval,
@@ -59,8 +58,6 @@ function WorkspaceDetail() {
 	const finished =
 		workspace?.status === "destroyed" || workspace?.status === "failed";
 	const blocked = workspace?.activity === "blocked";
-
-	const agent = useAgentStream(workspaceId, ready);
 
 	// Gated on the tab, not merely on the workspace: each fetch is an SSH connection, and polling
 	// one for a panel nobody has opened would cost a connection every fifteen seconds for nothing.
@@ -319,16 +316,13 @@ function WorkspaceDetail() {
 
 					{!ready ? null : (
 						<section className="centre-screen">
-							<AgentChat
-								approvals={agent.approvals}
+							<AgentConversation
 								busy={busy}
-								link={agent.link}
-								messages={agent.messages}
 								onDecide={(approvalId, behavior) =>
 									decide.mutate({ approvalId, behavior })
 								}
-								permissionMode={agent.permissionMode}
-								tail={agent.tail}
+								ready={ready}
+								workspaceId={workspaceId}
 							/>
 
 							<form
