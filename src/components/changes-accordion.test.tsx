@@ -135,7 +135,9 @@ describe("ChangesAccordion", () => {
 			]),
 		);
 
-		const rows = [...container.querySelectorAll(".change-row")];
+		// Queried off the row wrapper rather than the toggle: the counts sit beside the button, not
+		// inside it, so that the discard can sit against the file name.
+		const rows = [...container.querySelectorAll(".change-head")];
 		expect(rows[0]?.querySelector(".change-stat")?.textContent).toBe("+3−1");
 		expect(rows[1]?.querySelector(".change-stat")).toBeNull();
 	});

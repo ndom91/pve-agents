@@ -110,10 +110,11 @@ export function ChangesAccordion({
 
 					return (
 						<li className="change-entry" key={file.path}>
-							{/* The toggle and the discard are siblings, not nested: `.change-row` is
-							    itself a button, and a button inside one is invalid and never gets
-							    the click. The wrapper carries the fills and the hover reveal, so the
-							    two still light as one row. */}
+							{/* Four siblings, because `.change-row` is itself a button and a button
+							    inside one is invalid and never gets the click. The toggle ends at
+							    the file name so the discard can sit against it; the counts are
+							    pushed to the far end. The wrapper carries the fills and the hover
+							    reveal, so all of it still lights as one row. */}
 							<div className="change-head reveals">
 								<button
 									aria-expanded={expanded}
@@ -141,7 +142,6 @@ export function ChangesAccordion({
 										<span className="change-dir">{directory(file.path)}</span>
 										<span className="change-name">{basename(file.path)}</span>
 									</span>
-									<Stat added={file.added} removed={file.removed} />
 								</button>
 								{/* Arms rather than firing, the same as the discard under the tabs.
 								    git cannot undo either branch of this -- a tracked file is
@@ -168,6 +168,8 @@ export function ChangesAccordion({
 									swapped={armed === file.path}
 									variant="danger"
 								/>
+								<span className="spacer" />
+								<Stat added={file.added} removed={file.removed} />
 							</div>
 							{expanded ? (
 								<ChangeDiff path={file.path} workspaceId={workspaceId} />

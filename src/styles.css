@@ -3107,6 +3107,9 @@ diffs-container {
 	background: var(--surface-select);
 }
 
+/* Ends at the file name rather than spanning the row, which is what lets the discard sit against
+   the name instead of out at the far edge past the counts. The click target is the name and its
+   mark; that is where a pointer goes anyway. */
 .change-row {
 	align-items: center;
 	background: none;
@@ -3116,16 +3119,25 @@ diffs-container {
 	min-width: 0;
 	padding: 8px 6px 8px 16px;
 	text-align: left;
-	width: 100%;
 }
 
 /* Reserved whether or not it is showing, so a row does not reflow when the pointer arrives and the
-   numbers beside it do not shift under the cursor. */
+   name does not shift under the cursor. */
 .change-discard {
 	flex-shrink: 0;
 	height: 22px;
-	margin-right: 10px;
 	width: 22px;
+}
+
+/* No fill of its own, at rest or on hover. The row underneath is already lit -- by its own hover
+   or by being the open one -- and `.icon-button.is-danger` paints --surface-raised, which is white
+   in light mode and cut a white box out of that fill. The red border and glyph carry the state. */
+.change-discard.is-danger:hover:not(:disabled) {
+	background-color: transparent;
+}
+
+.change-head .change-stat {
+	padding-right: 16px;
 }
 
 /* Lines added and removed. Fixed-width and right-aligned so both columns line up down the list:
