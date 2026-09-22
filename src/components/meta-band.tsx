@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Fragment } from "react";
 
+import type { NoticeSeverity } from "./notice";
+
 // MetaBand is the row of machine facts under a screen's title bar.
 //
 // The refresh's signature element, and the reason the right panel's Placement group is shorter than
@@ -13,6 +15,7 @@ import { Fragment } from "react";
 // fault.
 export function MetaBand({
 	facts,
+	notices,
 	tail,
 }: {
 	facts: {
@@ -23,6 +26,14 @@ export function MetaBand({
 		tone?: "off" | "on";
 		value?: string;
 	}[];
+	// A notice that is simply true and needs no decision, sat among the facts rather than in a
+	// strip of its own.
+	//
+	// The third placement in the notices spec, and the one for a state that will be true for hours
+	// with nothing to do about it. A destroyed workspace's outcome is exactly that: the container
+	// is gone, so "work pushed" or "ended holding work" is a fact about it, not a thing to act on.
+	// Anything still actionable keeps its strip, where the action fits.
+	notices?: { label: string; severity: NoticeSeverity }[];
 	// The "how long / how many" summary, pushed to the far right.
 	tail?: ReactNode;
 }): ReactNode {
@@ -50,6 +61,17 @@ export function MetaBand({
 						)}
 						<span className="meta-band-val">{fact.value}</span>
 					</div>
+				</Fragment>
+			))}
+			{(notices ?? []).map((notice) => (
+				<Fragment key={notice.label}>
+					{shown.length === 0 ? null : (
+						<span aria-hidden="true" className="meta-band-sep" />
+					)}
+					<span className={`meta-band-notice is-${notice.severity}`}>
+						<span aria-hidden="true" className="meta-band-notice-dot" />
+						{notice.label}
+					</span>
 				</Fragment>
 			))}
 			<span className="meta-band-spacer" />

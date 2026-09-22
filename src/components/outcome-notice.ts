@@ -1,51 +1,34 @@
 import { workspaceOutcome } from "../domain/workspace-outcome";
-import type { NoticeProps } from "./notice";
+import type { NoticeSeverity } from "./notice";
 
-// outcomeNotice says what became of a workspace's work, once its container is gone.
+// OutcomeItem is what became of a workspace's work, as a fact in the meta band.
+export type OutcomeItem = { label: string; severity: NoticeSeverity };
+
+// outcomeItem says what became of a workspace's work, once its container is gone.
+//
+// A band item rather than a strip, which is the notices spec's own rule applied: the container is
+// gone, so none of these offers anything to do about it, and a state that will be true for hours
+// with no decision attached belongs among the facts rather than in a bar above the feed.
+//
+// The branch is not lost by shrinking to a chip. It is already a fact in the same band, and the
+// Details tab carries the link that opens it on GitHub.
 //
 // Its own module rather than a helper in the route, because a route cannot be imported by a test
 // without building a router, and the mapping from outcome to severity is the part worth asserting.
-export function outcomeNotice(
+export function outcomeItem(
 	workspace: Parameters<typeof workspaceOutcome>[0],
-): NoticeProps[] {
+): OutcomeItem[] {
 	const outcome = workspaceOutcome(workspace);
 
 	if (outcome.kind === "pushed") {
-		return [
-			{
-				// The branch was a link inside the sentence; a strip clips its text, so the link
-				// becomes the action instead, where it cannot be clipped away.
-				action:
-					outcome.url === undefined
-						? undefined
-						: {
-								label: "Open branch",
-								onClick: () => window.open(outcome.url, "_blank", "noreferrer"),
-							},
-				lead: "Work pushed",
-				rest: `on ${outcome.branch}, not the branch this was cloned from. The container is gone; the work is not.`,
-				severity: "green",
-			},
-		];
+		return [{ label: "work pushed", severity: "green" }];
 	}
 	if (outcome.kind === "discarded") {
-		return [
-			{
-				lead: "Changes discarded",
-				rest: "everything in the working tree was deliberately thrown away before this workspace ended.",
-				severity: "neutral",
-			},
-		];
+		return [{ label: "changes discarded", severity: "neutral" }];
 	}
 	if (outcome.kind === "lost") {
 		// The only outcome where something is gone and nobody can get it back.
-		return [
-			{
-				lead: "Ended holding unsaved work",
-				rest: "its container has been deleted, so that work is gone.",
-				severity: "red",
-			},
-		];
+		return [{ label: "unsaved work lost", severity: "red" }];
 	}
 
 	return [];

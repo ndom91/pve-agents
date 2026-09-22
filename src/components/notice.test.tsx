@@ -50,6 +50,24 @@ describe("Notice", () => {
 		expect(screen.getByRole("status")).toBeDefined();
 	});
 
+	it("offers no dismiss unless one is given", async () => {
+		// Most of these are live conditions that vanish when the condition does, and there is
+		// nowhere to persist a dismissal across a reload. An x that hides something still true is
+		// worse than no x.
+		render(<Notice {...BLOCKED} />);
+
+		expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+	});
+
+	it("dismisses when asked to", async () => {
+		const onDismiss = vi.fn();
+		render(<Notice {...BLOCKED} onDismiss={onDismiss} />);
+
+		await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+		expect(onDismiss).toHaveBeenCalled();
+	});
+
 	it("runs the action it offers", async () => {
 		const onClick = vi.fn();
 		render(<Notice {...BLOCKED} action={{ label: "Open diff", onClick }} />);

@@ -9,7 +9,7 @@ import { ChangesPanel } from "../components/changes-panel";
 import { IconButton } from "../components/icon-button";
 import { MetaBand } from "../components/meta-band";
 import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
-import { outcomeNotice } from "../components/outcome-notice";
+import { outcomeItem } from "../components/outcome-notice";
 import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -53,6 +53,10 @@ function WorkspaceDetail() {
 	// Bumped when work is discarded, and used as the change list's key so it remounts collapsed.
 	// A row left unfolded over a file that has just been thrown away is showing a diff of nothing.
 	const [discarded, setDiscarded] = useState(0);
+	// Whether the unsaved-work strip has been dismissed this visit. Not persisted: it is a live
+	// condition, and a dismissal that outlived a reload would hide something still true from
+	// somebody who has not read it.
+	const [dismissedHold, setDismissedHold] = useState(false);
 
 	const ready = workspace?.status === "ready";
 	// The transcript outlives being able to add to it. Why, and why it is not `ready`, is in
@@ -224,7 +228,7 @@ function WorkspaceDetail() {
 					},
 				]
 			: []),
-		...(workspace.unsavedWork === true && !finished
+		...(workspace.unsavedWork === true && !finished && !dismissedHold
 			? [
 					{
 						action: {
@@ -232,15 +236,23 @@ function WorkspaceDetail() {
 							onClick: () => setTab({ kind: "diff" }),
 						},
 						lead: "Holding unsaved work",
+						// The one notice here worth dismissing. It is true for as long as the work
+						// is unpushed, which can be all day, and an operator who has read it and
+						// decided to leave the work there does not need telling again. Blocked and
+						// the error do not get one: hiding a thing that is waiting on you, or the
+						// reason a workspace failed, is hiding the point of the page.
+						onDismiss: () => setDismissedHold(true),
 						rest: "uncommitted changes, so this workspace will not be destroyed automatically.",
 						severity: "amber" as const,
 					},
 				]
 			: []),
-		// What became of the work, once the container is gone. Derived from the timeline rather
-		// than stored: the push already writes the branch there.
-		...(finished ? outcomeNotice(workspace) : []),
 	];
+
+	// What became of the work, once the container is gone. A band item rather than a strip: there
+	// is nothing to do about any of it. Derived from the timeline rather than stored, because the
+	// push already writes the branch there.
+	const outcome = finished ? outcomeItem(workspace) : [];
 
 	// Shared by the button and the keyboard shortcut, so the two cannot diverge on what counts as
 	// an empty prompt.
@@ -303,6 +315,7 @@ function WorkspaceDetail() {
 									: workspaceBranch(workspace.hostname),
 						},
 					]}
+					notices={outcome}
 					tail={<Uptime workspace={workspace} />}
 				/>
 

@@ -1648,6 +1648,65 @@ button {
 	font-variant-numeric: tabular-nums;
 }
 
+/* A notice that lives among the facts, because it needs no decision and will be true for hours.
+   Chip-shaped rather than strip-shaped: at this size the severity has to come from the fill and
+   the dot, since there is no room for an icon. */
+.meta-band-notice {
+	align-items: center;
+	/* Not --notice-neutral-bg, which is --surface-raised: white in light mode, deliberately, so a
+	   card reads as lifted. At nineteen pixels among the facts that made the quietest severity the
+	   loudest thing in the band -- brighter than the green, amber and red tints beside it. A
+	   neighbouring surface instead, so neutral reads as the quiet one it is. */
+	background: var(--surface-hover);
+	border: 1px solid var(--notice-neutral-line);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	display: flex;
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-label);
+	gap: 6px;
+	height: 19px;
+	letter-spacing: 0.1em;
+	padding: 0 8px;
+	text-transform: uppercase;
+}
+
+.meta-band-notice-dot {
+	background: var(--notice-neutral-icon);
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 5px;
+	width: 5px;
+}
+
+.meta-band-notice.is-green {
+	background: var(--notice-green-bg);
+	border-color: var(--notice-green-line);
+}
+
+.meta-band-notice.is-green .meta-band-notice-dot {
+	background: var(--notice-green-icon);
+}
+
+.meta-band-notice.is-amber {
+	background: var(--notice-amber-bg);
+	border-color: var(--notice-amber-line);
+}
+
+.meta-band-notice.is-amber .meta-band-notice-dot {
+	background: var(--notice-amber-icon);
+}
+
+.meta-band-notice.is-red {
+	background: var(--notice-red-bg);
+	border-color: var(--notice-red-line);
+}
+
+.meta-band-notice.is-red .meta-band-notice-dot {
+	background: var(--notice-red-icon);
+}
+
 /* Not `.spacer`: the band clips, so this keeps a floor under the gap before the tail rather than
    letting the facts run into it. */
 .meta-band-spacer {
