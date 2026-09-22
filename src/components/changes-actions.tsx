@@ -68,7 +68,7 @@ export function ChangesActions({
 				onClick={() => onPush(message.trim())}
 				// Named rather than "Push", because where it goes is the reassurance: nothing here
 				// can land on the branch the workspace was cloned from.
-				title="Commit everything and push it to this workspace's own branch"
+				tooltip="Commit everything and push it to this workspace's own branch"
 			>
 				{pushing ? "Pushing" : "Commit and push"}
 			</Button>

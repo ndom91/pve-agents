@@ -5,23 +5,27 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChangesActions } from "./changes-actions";
+import { TooltipProvider } from "./tooltip";
 
 // Testing Library only registers its own afterEach with vitest globals enabled, which they are not.
 afterEach(cleanup);
 
+// The push button carries a tooltip now, and Radix throws without a provider above it.
 function actions(props: Partial<Parameters<typeof ChangesActions>[0]> = {}) {
 	return (
-		<ChangesActions
-			discarding={false}
-			files={files(1)}
-			note=""
-			onDiscard={() => undefined}
-			onPush={() => undefined}
-			pushing={false}
-			suggestedMessage="Add a thing"
-			unpushed={0}
-			{...props}
-		/>
+		<TooltipProvider>
+			<ChangesActions
+				discarding={false}
+				files={files(1)}
+				note=""
+				onDiscard={() => undefined}
+				onPush={() => undefined}
+				pushing={false}
+				suggestedMessage="Add a thing"
+				unpushed={0}
+				{...props}
+			/>
+		</TooltipProvider>
 	);
 }
 

@@ -394,7 +394,7 @@ function WorkspaceDetail() {
 											// primary action grey for most of its life; sending
 											// nothing is already a no-op in `submitPrompt`.
 											disabled={!promptable}
-											title="Send (Cmd or Ctrl + Enter)"
+											tooltip="Send (Cmd or Ctrl + Enter)"
 											type="submit"
 										>
 											{send.isPending ? "Sending" : "Send"}

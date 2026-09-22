@@ -143,12 +143,16 @@ describe("WorkspaceRail", () => {
 		expect(screen.getByText("ssh agent@10.0.3.110")).toBeDefined();
 		expect(screen.queryByText("the changes")).toBeNull();
 
+		// Wrapped again: `rerender` replaces the whole tree, so the provider the helper added on
+		// the first render is not still there.
 		rerender(
-			<WorkspaceRail
-				changes={<p>the changes</p>}
-				tab={{ kind: "diff" }}
-				workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
-			/>,
+			<TooltipProvider>
+				<WorkspaceRail
+					changes={<p>the changes</p>}
+					tab={{ kind: "diff" }}
+					workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
+				/>
+			</TooltipProvider>,
 		);
 
 		expect(screen.getByText("the changes")).toBeDefined();

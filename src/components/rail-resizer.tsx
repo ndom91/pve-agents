@@ -1,6 +1,7 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 
 import { RAIL_DEFAULT, RAIL_MIN } from "../lib/use-rail-width";
+import { Tooltip } from "./tooltip";
 
 // KEYBOARD_STEP is how far one arrow press moves the edge. Large enough to get somewhere without
 // holding the key for a minute, small enough to land where you meant.
@@ -46,31 +47,34 @@ export function RailResizer({
 	}
 
 	return (
-		// The rule offers <hr>, which carries the separator role implicitly but means a thematic
-		// break and cannot take focus. A focusable separator carrying aria-valuenow is the window
-		// splitter pattern, and that is exactly what this is.
-		// biome-ignore lint/a11y/useSemanticElements: a focusable splitter, not a rule
-		<div
-			aria-label="Resize the panel"
-			aria-orientation="vertical"
-			aria-valuemin={RAIL_MIN}
-			aria-valuenow={Math.round(width)}
-			className="rail-resizer"
-			onDoubleClick={() => onResize(RAIL_DEFAULT)}
-			onKeyDown={(event) => {
-				if (event.key === "ArrowLeft") {
-					event.preventDefault();
-					onResize(width + KEYBOARD_STEP);
-				}
-				if (event.key === "ArrowRight") {
-					event.preventDefault();
-					onResize(width - KEYBOARD_STEP);
-				}
-			}}
-			onPointerDown={startDrag}
-			role="separator"
-			tabIndex={0}
-			title="Drag to resize, double-click to reset"
-		/>
+		// `right`, because this edge is hard against the panel and a tooltip centred over it would
+		// be half off the window.
+		<Tooltip label="Drag to resize, double-click to reset" side="right">
+			{/* The rule offers <hr>, which carries the separator role implicitly but means a
+			    thematic break and cannot take focus. A focusable separator carrying aria-valuenow
+			    is the window splitter pattern, and that is exactly what this is. */}
+			{/* biome-ignore lint/a11y/useSemanticElements: a focusable splitter, not a rule */}
+			<div
+				aria-label="Resize the panel"
+				aria-orientation="vertical"
+				aria-valuemin={RAIL_MIN}
+				aria-valuenow={Math.round(width)}
+				className="rail-resizer"
+				onDoubleClick={() => onResize(RAIL_DEFAULT)}
+				onKeyDown={(event) => {
+					if (event.key === "ArrowLeft") {
+						event.preventDefault();
+						onResize(width + KEYBOARD_STEP);
+					}
+					if (event.key === "ArrowRight") {
+						event.preventDefault();
+						onResize(width - KEYBOARD_STEP);
+					}
+				}}
+				onPointerDown={startDrag}
+				role="separator"
+				tabIndex={0}
+			/>
+		</Tooltip>
 	);
 }

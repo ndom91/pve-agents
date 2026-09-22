@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Tooltip } from "./tooltip";
+
 // DotTone is how a dot reads at a glance, rather than what the workspace's status column says.
 //
 // Five, because five is what the colours can actually distinguish. Nine statuses and four
@@ -33,10 +35,15 @@ export function StatusDot({
 		return <span aria-hidden="true" className={`status-dot is-${tone}`} />;
 	}
 
+	// The word twice, on purpose and to two different readers: visually-hidden is what a screen
+	// reader gets, and the tooltip is what a sighted person gets for a dot whose colour they have
+	// not learned yet.
 	return (
-		<span className={`status-dot is-${tone}`} title={word}>
-			<span className="visually-hidden">{word}</span>
-		</span>
+		<Tooltip label={word}>
+			<span className={`status-dot is-${tone}`}>
+				<span className="visually-hidden">{word}</span>
+			</span>
+		</Tooltip>
 	);
 }
 

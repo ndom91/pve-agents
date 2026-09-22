@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Tooltip } from "./tooltip";
+
 // How loud a control is. What each one looks like is in styles.css, beside the values.
 //
 // "danger" is secondary's shape in red, for an action that cannot be undone. Named to match
@@ -13,7 +15,13 @@ type ButtonProps = {
 	className?: string;
 	disabled?: boolean;
 	onClick?: () => void;
-	title?: string;
+	// What the label does not have room to say. Rendered as the application's tooltip, not as the
+	// browser's `title`, which waits about a second, cannot be themed, draws in the operating
+	// system's chrome and never appears on a touch device at all.
+	//
+	// Unlike IconButton's, this is optional: a button already has a visible label, so the tooltip
+	// is an elaboration rather than the only name the control has.
+	tooltip?: string;
 	type?: "button" | "submit";
 	variant?: ButtonVariant;
 };
@@ -29,7 +37,7 @@ export function Button({
 	className,
 	disabled,
 	onClick,
-	title,
+	tooltip,
 	type = "button",
 	variant = "primary",
 }: ButtonProps): ReactNode {
@@ -37,15 +45,20 @@ export function Button({
 		.filter((part) => part !== "")
 		.join(" ");
 
-	return (
+	const button = (
 		<button
 			className={classes}
 			disabled={disabled}
 			onClick={onClick}
-			title={title}
 			type={type}
 		>
 			{children}
 		</button>
+	);
+
+	return tooltip === undefined ? (
+		button
+	) : (
+		<Tooltip label={tooltip}>{button}</Tooltip>
 	);
 }

@@ -11,6 +11,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { SidebarEntry } from "./sidebar-entry";
+import { TooltipProvider } from "./tooltip";
 
 // Explicit cleanup. Testing Library only registers its own afterEach when vitest globals are
 // enabled, and they are not here.
@@ -28,8 +29,14 @@ const WORKSPACE = {
 // small helper rather than mocking the router itself, so the route path in the component is
 // actually exercised.
 function renderEntry(props: Parameters<typeof SidebarEntry>[0]) {
+	// The entry's StatusDot carries a tooltip, and Radix throws without a provider above it. The
+	// application has one at the document root; a component rendered on its own brings its own.
 	const rootRoute = createRootRoute({
-		component: () => <SidebarEntry {...props} />,
+		component: () => (
+			<TooltipProvider>
+				<SidebarEntry {...props} />
+			</TooltipProvider>
+		),
 	});
 	const detailRoute = createRoute({
 		component: () => null,
