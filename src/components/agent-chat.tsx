@@ -20,6 +20,7 @@ import type { AgentTail, Approval } from "../lib/use-agent-stream";
 import { AgentProse } from "./agent-prose";
 import { Button } from "./button";
 import { CodeBlock } from "./code-block";
+import { PanelSpinner } from "./panel-state";
 import { Timestamp } from "./timestamp";
 
 // AgentChat is the conversation, where the terminal used to be.
@@ -78,8 +79,10 @@ export function AgentChat({
 					The agent runner is no longer answering. Its session ended with it.
 				</p>
 			) : null}
+			{/* The panel's spinner, like every other wait in the app. As a sentence it read as the
+			    answer the page had settled on rather than as the moment before one. */}
 			{link === "opening" && entries.length === 0 && tail === undefined ? (
-				<p className="detail-note">Attaching to the agent.</p>
+				<PanelSpinner label="Attaching to the agent." />
 			) : null}
 			{link === "attached" && entries.length === 0 && tail === undefined ? (
 				<p className="detail-note">
