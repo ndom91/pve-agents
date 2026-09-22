@@ -287,10 +287,10 @@ h2 {
  * `:where()` so the weight stays at zero, which is what the bare selector had: every override
  * further down still wins by exactly the margin it does today. */
 :where(.changes-message, .settings-field, .settings-field label, .settings-toggle) {
-	color: var(--fg-soft);
+	color: var(--text-secondary);
 	display: grid;
-	font-family: "SF Mono", "Roboto Mono", monospace;
-	font-size: var(--text-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-xs);
 	gap: 8px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -300,10 +300,10 @@ h2 {
    rule it reached the launch form, which restated all four properties plus `outline: none` to get
    out from under it. */
 :where(.changes-message, .settings-field, .settings-toggle) input {
-	background: var(--surface);
-	border: 1px solid var(--border-dim);
-	border-radius: 0;
-	color: var(--fg);
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-sm);
+	color: var(--text-body);
 	min-width: 0;
 	padding: 11px 12px;
 }
@@ -656,6 +656,18 @@ button {
 	gap: 10px;
 }
 
+/* The one native control left on this page, and it was drawing the platform's blue among soft
+   greens. `accent-color` rather than a hand-built box: it recolours the fill and the tick while
+   leaving the control its own keyboard behaviour, its focus ring and its indeterminate state,
+   none of which a div wearing a background image gets for free. `color-scheme` on :root is what
+   makes the unchecked box dark in dark mode; this is the other half. */
+.settings-toggle input[type="checkbox"] {
+	accent-color: var(--sage);
+	block-size: 15px;
+	inline-size: 15px;
+	padding: 0;
+}
+
 .settings-field {
 	display: flex;
 	flex-direction: column;
@@ -663,23 +675,23 @@ button {
 }
 
 .settings-field span {
-	color: var(--line);
-	font-size: var(--text-sm);
+	color: var(--text-muted);
+	font-size: var(--text-mono-xs);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
 .settings-field input {
-	background: var(--bg);
-	border: 1px solid var(--border);
-	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	background: var(--surface-well);
+	border: 1px solid var(--line-border);
+	color: var(--text-primary);
+	font-family: var(--font-mono);
 	padding: 8px 10px;
 	width: 140px;
 }
 
 .settings-field small {
-	color: var(--fg-muted);
+	color: var(--text-muted);
 	line-height: 1.5;
 }
 
@@ -982,8 +994,8 @@ button {
 /* The one consequence of the blocked exemption that is worth stating up front rather than being
    discovered as a container that never went away. */
 .settings-caveat {
-	border-left: 2px solid var(--warn);
-	color: var(--fg-soft);
+	border-left: 2px solid var(--amber-mark);
+	color: var(--text-secondary);
 	line-height: 1.6;
 	margin: 0;
 	padding-left: 12px;
