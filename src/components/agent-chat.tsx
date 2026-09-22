@@ -354,6 +354,21 @@ function Fold({
 	const [shown, setShown] = useState(open);
 	const empty = text.trim() === "";
 
+	// `open` matters after the first render, not only at it.
+	//
+	// useState reads its argument once, so a row that arrives closed and is told to open later
+	// never did. That is not an edge case here: a tool call streams in as "running" and only
+	// becomes "error" when it finishes, so the failures this was written to open were the one
+	// thing it could not open.
+	//
+	// One-way, deliberately. A reader who closes an errored row has read it, and `open` is still
+	// true, so a two-way binding would reopen it on the next render.
+	useEffect(() => {
+		if (open) {
+			setShown(true);
+		}
+	}, [open]);
+
 	// Whether the panel is in the DOM at all, kept apart from whether it is open.
 	//
 	// A grid track cannot animate from 0fr to 1fr in the same frame its content first appears, so

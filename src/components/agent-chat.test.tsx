@@ -180,3 +180,71 @@ describe("AgentChat transcript scrolling", () => {
 		expect(list.scrollTop).toBe(bottom(grown));
 	});
 });
+
+describe("AgentChat tool rows", () => {
+	it("opens a tool call that fails after it first rendered", () => {
+		// The case the "failures open on their own" rule was written for, and the one it could not
+		// reach: a call streams in as running and only becomes an error when it finishes, so its
+		// fold is always mounted closed and was then never told otherwise.
+		const call = {
+			message: {
+				content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+				role: "assistant",
+			},
+			type: "assistant",
+		};
+		const { container, rerender } = render(chat([call]));
+
+		expect(container.querySelector("[aria-expanded='true']")).toBeNull();
+
+		rerender(
+			chat([
+				call,
+				{
+					message: {
+						content: [
+							{
+								content: "command not found",
+								is_error: true,
+								tool_use_id: "t1",
+								type: "tool_result",
+							},
+						],
+						role: "user",
+					},
+					type: "user",
+				},
+			]),
+		);
+
+		expect(container.querySelector("[aria-expanded='true']")).not.toBeNull();
+	});
+
+	it("leaves a successful call closed", () => {
+		// Most of a transcript is these. Opening them all is a page of file contents with the
+		// reasoning lost between them.
+		const call = {
+			message: {
+				content: [{ id: "t2", input: {}, name: "Read", type: "tool_use" }],
+				role: "assistant",
+			},
+			type: "assistant",
+		};
+		const { container } = render(
+			chat([
+				call,
+				{
+					message: {
+						content: [
+							{ content: "ok", tool_use_id: "t2", type: "tool_result" },
+						],
+						role: "user",
+					},
+					type: "user",
+				},
+			]),
+		);
+
+		expect(container.querySelector("[aria-expanded='true']")).toBeNull();
+	});
+});
