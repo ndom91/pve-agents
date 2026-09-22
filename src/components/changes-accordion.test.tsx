@@ -167,6 +167,43 @@ describe("ChangesAccordion", () => {
 		).toBeDefined();
 	});
 
+	it("greys only the row being discarded", async () => {
+		// `isPending` is true for the whole list while one file is in flight. Read straight, every
+		// row's button went muted and the list looked like it was discarding all of them.
+		let release: (() => void) | undefined;
+		discardWorkspaceFile.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					release = () => resolve({ kind: "done" as const });
+				}),
+		);
+		render(
+			accordion([
+				{ path: "package.json", status: "modified" },
+				{ path: "README.md", status: "modified" },
+			]),
+		);
+
+		const discards = screen.getAllByRole("button", { name: "Discard changes" });
+		await userEvent.click(discards[0] as HTMLElement);
+		await userEvent.click(
+			screen.getByRole("button", { name: "Discard package.json?" }),
+		);
+
+		expect(
+			screen
+				.getByRole("button", { name: "Discard package.json?" })
+				.hasAttribute("disabled"),
+		).toBe(true);
+		expect(
+			screen
+				.getByRole("button", { name: "Discard changes" })
+				.hasAttribute("disabled"),
+		).toBe(false);
+
+		release?.();
+	});
+
 	it("discards on the second click", async () => {
 		render(accordion([{ path: "package.json", status: "modified" }]));
 

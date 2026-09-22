@@ -150,7 +150,12 @@ export function ChangesAccordion({
 								    mis-click away from losing work. */}
 								<IconButton
 									className="change-discard on-hover"
-									disabled={discard.isPending}
+									// The row being discarded, not every row. `isPending` alone is
+									// true for the whole list while one file is in flight, so all
+									// of them greyed out and appeared to be going at once.
+									disabled={
+										discard.isPending && discard.variables === file.path
+									}
 									icon={Trash2}
 									label={
 										armed === file.path
