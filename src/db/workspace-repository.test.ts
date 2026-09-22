@@ -628,6 +628,26 @@ function input(idempotencyKey: string) {
 	};
 }
 
+// destroyed creates a workspace already in the archive, written directly rather than walked
+// through the destroy lifecycle: the subject here is what the list returns, not how it got there.
+function destroyed(
+	db: ReturnType<typeof openDatabase>,
+	key: string,
+	createdAt?: string,
+): string {
+	const created = createWorkspace(db, input(key));
+	if (created.kind !== "created") {
+		throw new Error("expected workspace creation");
+	}
+
+	db.prepare(
+		`UPDATE workspaces SET status = 'destroyed', desired_state = 'destroyed'
+		 ${createdAt === undefined ? "" : ", created_at = ?"} WHERE id = ?`,
+	).run(...(createdAt === undefined ? [] : [createdAt]), created.workspace.id);
+
+	return created.workspace.id;
+}
+
 // workspace creates one and hands back its id, for tests whose subject is a later write rather
 // than the creation itself.
 function workspace(db: ReturnType<typeof openDatabase>): string {
@@ -775,6 +795,25 @@ describe("noteWorkspaceIssue", () => {
 	});
 });
 
+describe("listWorkspaces", () => {
+	it("returns every workspace, so the archive count is the truth", () => {
+		// Not capped, deliberately. The sidebar prints how many have been destroyed, and a capped
+		// query makes that number the size of the cap -- it said 15 on a controller that had
+		// destroyed forty-five once already. The weight was never these rows; it was the timeline
+		// attached to each one, which `listRequestedWorkspaces` caps instead.
+		const db = database();
+		const live = workspace(db);
+		for (let index = 0; index < 40; index += 1) {
+			destroyed(db, `archived-${index}`);
+		}
+
+		const listed = listWorkspaces(db);
+
+		expect(listed).toHaveLength(41);
+		expect(listed.some((entry) => entry.id === live)).toBe(true);
+	});
+});
+
 describe("workspaceEventTimelines", () => {
 	it("limits per workspace, not across the fleet", () => {
 		const db = database();
@@ -816,6 +855,27 @@ describe("workspaceEventTimelines", () => {
 		const db = database();
 
 		expect(workspaceEventTimelines(db, 50).size).toBe(0);
+	});
+
+	it("reads only the workspaces it is given", () => {
+		// The fleet list caps its archive, so reading every workspace's events would fetch fifty
+		// rows each for containers the caller is not going to mention.
+		const db = database();
+		const wanted = destroyed(db, "wanted");
+		const other = destroyed(db, "other");
+
+		const timelines = workspaceEventTimelines(db, 50, [wanted]);
+
+		expect(timelines.has(wanted)).toBe(true);
+		expect(timelines.has(other)).toBe(false);
+	});
+
+	it("asks for nothing when given nothing", () => {
+		// An empty IN () is a syntax error, and "no ids" means no rows rather than every row.
+		const db = database();
+		destroyed(db, "any");
+
+		expect(workspaceEventTimelines(db, 50, []).size).toBe(0);
 	});
 });
 

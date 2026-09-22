@@ -31,9 +31,22 @@ const EVENT_LIMIT = 50;
 // The timeline is the only place a transient failure is visible: a workspace retrying a Proxmox
 // call that keeps failing otherwise sits at its old status with nothing to show for it.
 export function listRequestedWorkspaces(db: Database.Database) {
-	const timelines = workspaceEventTimelines(db, EVENT_LIMIT);
+	const workspaces = listWorkspaces(db);
+	// Only for a workspace that can still change.
+	//
+	// This is where the fleet payload's weight actually was: fifty events each for every container
+	// ever destroyed, re-fetched on every poll, to render a list that reads none of them. A
+	// destroyed workspace's timeline cannot change and nothing in the fleet view draws it; the page
+	// about one workspace fetches its own through `workspaceWithTimeline`.
+	const timelines = workspaceEventTimelines(
+		db,
+		EVENT_LIMIT,
+		workspaces
+			.filter((workspace) => workspace.status !== "destroyed")
+			.map((workspace) => workspace.id),
+	);
 
-	return listWorkspaces(db).map((workspace) => ({
+	return workspaces.map((workspace) => ({
 		...workspace,
 		events: timelines.get(workspace.id) ?? [],
 	}));

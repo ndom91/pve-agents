@@ -655,21 +655,37 @@ export function countActiveOperations(db: Database.Database): number {
 // per-workspace form issued a query per row on every poll. SQLite does the per-workspace limiting
 // with a window function instead.
 //
-// Unscoped, matching listWorkspaces. Give it the ids to fetch if that ever paginates.
+// Scoped to the workspaces asked for, when it is given any.
+//
+// It used to read every workspace's events whatever the caller was going to use, which was fine
+// while the fleet list returned every workspace and stopped being fine when it stopped. The fleet
+// polls, and fifty events for each of forty archived containers is the bulk of that payload.
 export function workspaceEventTimelines(
 	db: Database.Database,
 	limitPerWorkspace: number,
+	ids?: string[],
 ): Map<string, WorkspaceEvent[]> {
+	if (ids !== undefined && ids.length === 0) {
+		return new Map();
+	}
+
+	// Built rather than bound as one value: SQLite has no array parameter, and the ids come from a
+	// query this module just ran rather than from a request.
+	const scope =
+		ids === undefined
+			? ""
+			: `WHERE workspace_id IN (${ids.map(() => "?").join(", ")})`;
+
 	const rows = db
 		.prepare(
 			`SELECT id, workspace_id, created_at, event_type, message FROM (
 				SELECT id, workspace_id, created_at, event_type, message,
 					row_number() OVER (PARTITION BY workspace_id ORDER BY id DESC) AS position
-				FROM workspace_events
+				FROM workspace_events ${scope}
 			) WHERE position <= ?
 			ORDER BY workspace_id ASC, id ASC`,
 		)
-		.all(limitPerWorkspace) as Array<{
+		.all(...(ids ?? []), limitPerWorkspace) as Array<{
 		created_at: string;
 		event_type: string;
 		id: number;
@@ -1294,6 +1310,12 @@ export function requestWorkspaceOperation(
 }
 
 // listWorkspaces returns workspaces ordered with the newest request first.
+//
+// Every row, uncapped, and that is deliberate. The sidebar prints how many workspaces have been
+// destroyed, and a capped query makes that number the size of the cap -- it said 15 on a controller
+// that had destroyed forty-five before, and capping here would say 25 for the same reason. The rows
+// are sixteen small columns; what actually made this list expensive was the timeline attached to
+// each one, and that is capped in `listRequestedWorkspaces` instead.
 export function listWorkspaces(db: Database.Database): Workspace[] {
 	const rows = db
 		.prepare(
