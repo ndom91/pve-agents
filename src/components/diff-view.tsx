@@ -1,4 +1,19 @@
+import { registerCustomCSSVariableTheme } from "@pierre/diffs";
 import { MultiFileDiff } from "@pierre/diffs/react";
+
+// The syntax colours, taken off CSS custom properties rather than baked into a theme.
+//
+// The renderer ships its own shiki themes, which meant a string in a diff and a string in the
+// transcript were different colours on the same screen -- the transcript is `tokenise` and the
+// `.th-*` palette, and pierre was pierre. This registers a theme whose every colour is a
+// `var(--diffs-token-*)`, and styles.css points those at the same tokens `.th-*` uses.
+//
+// One theme for both modes, not two. The variables resolve against `[data-theme]` like everything
+// else, so the theme does not need to know which mode it is in -- and there is then no second
+// mapping to keep in step with the first.
+const THEME = "pve-agents";
+
+registerCustomCSSVariableTheme(THEME, {});
 
 // DIFF_OPTIONS is module scope on purpose.
 //
@@ -10,7 +25,7 @@ const DIFF_OPTIONS = {
 	// The renderer draws a filename bar of its own, which here lands directly under the accordion
 	// row it was opened from -- already the file's name, status letter and line counts.
 	disableFileHeader: true,
-	theme: { dark: "pierre-dark", light: "pierre-light" },
+	theme: { dark: THEME, light: THEME },
 } as const;
 
 // FileContents is one side of a diff: a file's name and everything in it.

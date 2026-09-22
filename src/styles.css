@@ -3029,6 +3029,20 @@ diffs-container {
 	/* Both default to #009fff, which would be a second accent -- see STYLE.md §9. */
 	--diffs-modified-base: var(--sage);
 	--diffs-selection-base: var(--sage);
+
+	/* The syntax colours, paired with the CSS-variable theme registered in diff-view.tsx. Same
+	   tokens as the `.th-*` rules further down this file, so a string in a diff and a string in the
+	   transcript are one colour rather than two on the same screen. Shiki's css-variables theme has
+	   seven token groups against that palette's twelve, which is why several land together. */
+	--diffs-foreground: var(--text-body);
+	--diffs-token-comment: var(--fg-dim);
+	--diffs-token-keyword: var(--accent-fill);
+	--diffs-token-string: var(--accent);
+	--diffs-token-string-expression: var(--accent);
+	--diffs-token-constant: var(--status-modified);
+	--diffs-token-function: var(--info-fg);
+	--diffs-token-parameter: var(--fg-bright);
+	--diffs-token-link: var(--info-fg);
 }
 
 [data-theme="light"] diffs-container {
