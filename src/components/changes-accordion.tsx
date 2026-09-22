@@ -1,9 +1,15 @@
-import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+	useIsFetching,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { RefreshCw, Trash2, TriangleAlert } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 import { fileDiffQuery, workspaceKeys } from "../lib/queries";
 import { useOpenRows } from "../lib/use-open-rows";
+import { discardWorkspaceFile } from "../server/agent.functions";
 import type { ChangedFile } from "../services/workspace-changes";
 import { FileDiff } from "./file-diff";
 import { IconButton } from "./icon-button";
@@ -38,6 +44,34 @@ export function ChangesAccordion({
 	// owns the fetch.
 	const isFetching =
 		useIsFetching({ queryKey: workspaceKeys.changes(workspaceId) }) > 0;
+	// Which row's discard is armed, by path.
+	//
+	// Recorded against the path rather than as a flag, which is what makes it stop being armed the
+	// moment the tree underneath it changes: the list is re-read every fifteen seconds, and an
+	// arming left standing over a file that has since been pushed or removed is a button pointing at
+	// something nobody looked at. The same shape the tree-level discard uses for the same reason.
+	const [armedFor, setArmedFor] = useState<string | undefined>(undefined);
+	const armed = files.some((file) => file.path === armedFor)
+		? armedFor
+		: undefined;
+
+	const discard = useMutation({
+		mutationFn: (path: string) =>
+			discardWorkspaceFile({ data: { id: workspaceId, path } }),
+		onSettled: async () => {
+			setArmedFor(undefined);
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: workspaceKeys.changes(workspaceId),
+				}),
+				// The unsaved-work flag behind the notice lives on the detail, and discarding the
+				// last changed file is exactly when it stops being true.
+				queryClient.invalidateQueries({
+					queryKey: workspaceKeys.detail(workspaceId),
+				}),
+			]);
+		},
+	});
 
 	return (
 		<div className="changes">
@@ -76,34 +110,65 @@ export function ChangesAccordion({
 
 					return (
 						<li className="change-entry" key={file.path}>
-							<button
-								aria-expanded={expanded}
-								// Stated, because the path is split across two spans to dim the
-								// directory and the accessible name computation joins them with a
-								// space -- "src/b/ config.ts" is not a path anybody can search for.
-								// It carries the status too, which the letter alone does not.
-								aria-label={`${file.path}, ${file.status}`}
-								className={`change-row is-${file.status}`}
-								onClick={() => toggle(file.path)}
-								type="button"
-							>
-								{/* One letter, coloured. The word it replaces spent a quarter of a
+							{/* The toggle and the discard are siblings, not nested: `.change-row` is
+							    itself a button, and a button inside one is invalid and never gets
+							    the click. The wrapper carries the fills and the hover reveal, so the
+							    two still light as one row. */}
+							<div className="change-head reveals">
+								<button
+									aria-expanded={expanded}
+									// Stated, because the path is split across two spans to dim the
+									// directory and the accessible name computation joins them with a
+									// space -- "src/b/ config.ts" is not a path anybody can search for.
+									// It carries the status too, which the letter alone does not.
+									aria-label={`${file.path}, ${file.status}`}
+									className={`change-row is-${file.status}`}
+									onClick={() => toggle(file.path)}
+									type="button"
+								>
+									{/* One letter, coloured. The word it replaces spent a quarter of a
 							    392px row saying "modified" on every line of a list where most
 							    things are modified. The status is still the accessible name of the
 							    row, so nothing is lost to a reader who cannot see the colour. */}
-								<span aria-hidden="true" className="change-mark">
-									{MARKS[file.status]}
-								</span>
-								{/* The whole path, not the file name. Two files called config.ts are told
+									<span aria-hidden="true" className="change-mark">
+										{MARKS[file.status]}
+									</span>
+									{/* The whole path, not the file name. Two files called config.ts are told
 							    apart by reading rather than by hovering, which is what a tab needed.
 							    The directory is dimmed so the eye lands on the name without losing
 							    the rest of it. */}
-								<span className="change-path">
-									<span className="change-dir">{directory(file.path)}</span>
-									<span className="change-name">{basename(file.path)}</span>
-								</span>
-								<Stat added={file.added} removed={file.removed} />
-							</button>
+									<span className="change-path">
+										<span className="change-dir">{directory(file.path)}</span>
+										<span className="change-name">{basename(file.path)}</span>
+									</span>
+									<Stat added={file.added} removed={file.removed} />
+								</button>
+								{/* Arms rather than firing, the same as the discard under the tabs.
+								    git cannot undo either branch of this -- a tracked file is
+								    restored from HEAD and an untracked one is deleted outright --
+								    so a hover-revealed control that acts on one click is a
+								    mis-click away from losing work. */}
+								<IconButton
+									className="change-discard on-hover"
+									disabled={discard.isPending}
+									icon={Trash2}
+									label={
+										armed === file.path
+											? `Discard ${basename(file.path)}?`
+											: "Discard changes"
+									}
+									onClick={() =>
+										armed === file.path
+											? discard.mutate(file.path)
+											: setArmedFor(file.path)
+									}
+									size={12}
+									strokeWidth={1.4}
+									swapIcon={TriangleAlert}
+									swapped={armed === file.path}
+									variant="danger"
+								/>
+							</div>
 							{expanded ? (
 								<ChangeDiff path={file.path} workspaceId={workspaceId} />
 							) : null}

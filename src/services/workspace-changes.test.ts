@@ -5,6 +5,7 @@ import {
 	changedFiles,
 	commitAndPush,
 	discardChanges,
+	discardFile,
 	fileSides,
 	workspaceBranch,
 } from "./workspace-changes";
@@ -369,6 +370,59 @@ describe("commitAndPush", () => {
 		);
 
 		expect(pushed).toEqual({ kind: "failed", message: "permission denied" });
+	});
+});
+
+describe("discardFile", () => {
+	it("restores a tracked file from the commit rather than from the index", async () => {
+		// `checkout --` on its own restores from the index, so a change the agent had staged would
+		// survive a discard that said it was gone.
+		const { commands, ssh } = runs();
+		await discardFile(TARGET, CWD, "src/index.ts", ssh);
+
+		const script = commands[0]?.join("\n") ?? "";
+		expect(script).toContain('git checkout HEAD -- "$2"');
+		expect(commands[0]).toContain("src/index.ts");
+	});
+
+	it("deletes a file that was never in the commit, rather than trying to restore it", async () => {
+		// An agent's new file has nothing to be restored to. Unstaged first, because it may have
+		// been added, and a discard that left it in the index would leave the tree still dirty.
+		const { commands, ssh } = runs();
+		await discardFile(TARGET, CWD, "NOTES.md", ssh);
+
+		const script = commands[0]?.join("\n") ?? "";
+		expect(script).toContain('git cat-file -e "HEAD:$2"');
+		expect(script).toContain("git rm --cached --force");
+		expect(script).toContain('rm -f -- "$2"');
+		// A recursive delete driven by a path from a browser is a different class of thing.
+		expect(script).not.toContain("rm -rf");
+	});
+
+	it("refuses a path that leaves the checkout, before running anything", async () => {
+		// This one deletes rather than reads, so the guard matters more here than on the diff read.
+		const { commands, ssh } = runs();
+		const discarded = await discardFile(TARGET, CWD, "../../etc/passwd", ssh);
+
+		expect(discarded).toEqual({
+			kind: "failed",
+			message: "path is outside the checkout",
+		});
+		expect(commands).toHaveLength(0);
+	});
+
+	it("reports a failure rather than claiming the file is clean", async () => {
+		const discarded = await discardFile(
+			TARGET,
+			CWD,
+			"src/index.ts",
+			runs({ code: 1, stderr: "index.lock exists" }).ssh,
+		);
+
+		expect(discarded).toEqual({
+			kind: "failed",
+			message: "index.lock exists",
+		});
 	});
 });
 

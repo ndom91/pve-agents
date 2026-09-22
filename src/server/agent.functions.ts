@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
 	answerApproval,
+	discardWorkspaceFileWork,
 	discardWorkspaceWork,
 	pushWorkspaceWork,
 	readWorkspaceChanges,
@@ -96,3 +97,18 @@ export const discardWorkspaceChanges = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
 	.validator(z.object({ id: z.string().trim().min(1) }))
 	.handler(({ data }) => discardWorkspaceWork(data.id));
+
+// discardWorkspaceFile throws one file away and leaves the rest of the tree alone.
+//
+// The arming that names the file lives in the UI, the same way the tree-level one does. The path
+// is checked against the checkout in `discardFile` rather than here, because that guard belongs
+// next to the shell it protects.
+export const discardWorkspaceFile = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(
+		z.object({
+			id: z.string().trim().min(1),
+			path: z.string().min(1).max(512),
+		}),
+	)
+	.handler(({ data }) => discardWorkspaceFileWork(data.id, data.path));

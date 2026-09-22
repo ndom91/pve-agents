@@ -144,6 +144,30 @@ const PUSH = [
 	'git push -u origin "$2" || exit 1',
 ].join("\n");
 
+// DISCARD_FILE throws one file away and leaves every other one alone.
+//
+// What that means depends on whether the file is in HEAD, and the caller should not have to know:
+// a modified file is restored from the commit, and one the agent created never existed there, so
+// there is nothing to restore it to and it goes.
+//
+// `checkout HEAD --` rather than `checkout --`, for the same reason the whole-tree discard resets
+// rather than checking out: the agent may have staged something, and the bare form restores from
+// the index, which would leave a staged change in place after a discard said it was gone.
+//
+// `rm -f`, never `-r`. The list this is driven from is files -- `-uall` in STATUS is what makes an
+// untracked directory arrive as its files -- and a recursive delete taking a path from a browser
+// is a different class of thing from removing one file.
+const DISCARD_FILE = [
+	`cd "$1" || exit ${NO_DIR}`,
+	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+	'if git cat-file -e "HEAD:$2" 2>/dev/null; then',
+	'  git checkout HEAD -- "$2" || exit 1',
+	"else",
+	'  git rm --cached --force -- "$2" >/dev/null 2>&1',
+	'  rm -f -- "$2" || exit 1',
+	"fi",
+].join("\n");
+
 // DISCARD throws the working tree away and leaves the history alone.
 //
 // `reset --hard HEAD` rather than `checkout -- .` because the agent may have staged something, and
@@ -291,6 +315,27 @@ export async function discardChanges(
 	ssh: SshRunner,
 ): Promise<ChangeAction> {
 	const result = await ssh(target, ["sh", "-c", DISCARD, "sh", cwd]);
+
+	return result.kind !== "ran" || result.code !== 0
+		? failure(result, cwd)
+		: { kind: "done" };
+}
+
+// discardFile throws one file's changes away.
+export async function discardFile(
+	target: SshTarget,
+	cwd: string,
+	path: string,
+	ssh: SshRunner,
+): Promise<ChangeAction> {
+	// The same guard `fileSides` applies, for the same reason: everything the UI offers came out of
+	// git status and is inside the checkout, and nothing about the request guarantees that. This one
+	// deletes rather than reads, so the guard matters more here than there.
+	if (!withinCheckout(path)) {
+		return { kind: "failed", message: "path is outside the checkout" };
+	}
+
+	const result = await ssh(target, ["sh", "-c", DISCARD_FILE, "sh", cwd, path]);
 
 	return result.kind !== "ran" || result.code !== 0
 		? failure(result, cwd)

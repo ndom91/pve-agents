@@ -3,14 +3,26 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChangedFile } from "../services/workspace-changes";
-import { ChangesAccordion } from "./changes-accordion";
-import { TooltipProvider } from "./tooltip";
+
+// The discard reaches a server function, which does not exist in a test. Mocked at that boundary
+// so what is asserted is the arming, which is the part that stops work being lost.
+const discardWorkspaceFile = vi.fn(async (_input: unknown) => ({
+	kind: "done" as const,
+}));
+
+vi.mock("../server/agent.functions", () => ({
+	discardWorkspaceFile: (input: unknown) => discardWorkspaceFile(input),
+}));
+
+const { ChangesAccordion } = await import("./changes-accordion");
+const { TooltipProvider } = await import("./tooltip");
 
 // Testing Library only registers its own afterEach with vitest globals enabled, which they are not.
 afterEach(cleanup);
+beforeEach(() => vi.clearAllMocks());
 
 // A client per render, so one test's cache cannot answer another's question. Retries off because a
 // query here reaches a server function that does not exist in a test: what is being checked is
@@ -134,5 +146,37 @@ describe("ChangesAccordion", () => {
 		);
 
 		expect(container.querySelector(".panel-bar .change-stat")).toBeNull();
+	});
+
+	it("arms the per-file discard before it will fire", async () => {
+		// git cannot undo either branch of this: a tracked file is restored from HEAD and an
+		// untracked one is deleted outright. A hover-revealed control that acts on one click is a
+		// mis-click away from losing work, so the first click only arms it.
+		render(accordion([{ path: "package.json", status: "modified" }]));
+
+		const discard = screen.getByRole("button", { name: "Discard changes" });
+		await userEvent.click(discard);
+
+		expect(discardWorkspaceFile).not.toHaveBeenCalled();
+		// And it names the file once armed, so the second click is against something specific
+		// rather than against a generic warning nobody reads.
+		expect(
+			screen.getByRole("button", { name: "Discard package.json?" }),
+		).toBeDefined();
+	});
+
+	it("discards on the second click", async () => {
+		render(accordion([{ path: "package.json", status: "modified" }]));
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Discard changes" }),
+		);
+		await userEvent.click(
+			screen.getByRole("button", { name: "Discard package.json?" }),
+		);
+
+		expect(discardWorkspaceFile).toHaveBeenCalledWith({
+			data: { id: "w1", path: "package.json" },
+		});
 	});
 });

@@ -94,11 +94,9 @@ describe("server function methods", () => {
 	}
 
 	it("sees every server function the modules export", () => {
-		// Seventeen today. It was nineteen before Herdr went: reading a screen and sending a
-		// keystroke were two of them, and answering an approval replaced both. The number is here
-		// so that losing one to a bad import fails loudly rather than quietly shrinking what the
-		// loop above covers.
-		expect(declaredMethods().length).toBe(18);
+		// The number is here so that losing one to a bad import fails loudly rather than quietly
+		// shrinking what the loop above covers. Bump it when you add one, which is the point.
+		expect(declaredMethods().length).toBe(19);
 	});
 });
 

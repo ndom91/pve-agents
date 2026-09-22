@@ -16,6 +16,7 @@ import {
 	changedFiles,
 	commitAndPush,
 	discardChanges,
+	discardFile,
 	fileSides,
 	workspaceBranch,
 } from "../services/workspace-changes";
@@ -223,6 +224,36 @@ export async function discardWorkspaceWork(id: string): Promise<ChangeAction> {
 			"workspace.discarded",
 			"discarded all uncommitted changes in the working tree",
 		);
+		await settleUnsavedWork(agent.ssh, id);
+	}
+
+	return discarded;
+}
+
+// discardWorkspaceFile throws one file away, leaving the rest of the tree alone.
+//
+// The whole-tree discard is all an operator had, so an agent that did the work asked of it and
+// also left a scratch file behind forced a choice between shipping the scratch file and losing the
+// work. This is the same action at the size of the thing it acts on.
+export async function discardWorkspaceFileWork(
+	id: string,
+	path: string,
+): Promise<ChangeAction> {
+	const agent = agentTarget(id);
+	if (agent.kind === "unavailable") {
+		return { kind: "failed", message: agent.reason };
+	}
+
+	const discarded = await discardFile(agent.ssh, AGENT_CWD, path, runSsh);
+	if (discarded.kind === "done") {
+		recordWorkspaceNote(
+			controllerDatabase(),
+			id,
+			"workspace.discarded",
+			`discarded uncommitted changes to ${path}`,
+		);
+		// The tree may still hold other files, so this re-reads rather than assuming. Without it the
+		// workspace goes on claiming to hold work until a reaping pass happens to look.
 		await settleUnsavedWork(agent.ssh, id);
 	}
 
