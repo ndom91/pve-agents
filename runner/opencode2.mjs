@@ -502,6 +502,11 @@ function main() {
 				approvals.set(request.id, request);
 				broadcast({ approval: request, type: "approval" });
 				settle();
+				// The transcript is otherwise only refreshed when a turn ends, and a turn suspended
+				// on a permission has not ended. That left the operator deciding with an empty feed
+				// -- not even the prompt that caused the question -- which is the one moment they
+				// most need to see what led here.
+				await resync();
 
 				return;
 			}

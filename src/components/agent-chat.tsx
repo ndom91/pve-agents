@@ -78,6 +78,7 @@ export function AgentChat({
 					busy={busy}
 					key={approval.id}
 					onDecide={onDecide}
+					harness={name}
 					permissionMode={permissionMode}
 				/>
 			))}
@@ -441,11 +442,13 @@ function Fold({
 function ApprovalCard({
 	approval,
 	busy,
+	harness,
 	onDecide,
 	permissionMode,
 }: {
 	approval: Approval;
 	busy: boolean;
+	harness: string;
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
 	permissionMode?: string;
 }) {
@@ -503,10 +506,15 @@ function ApprovalCard({
 					Decline
 				</Button>
 			</div>
-			{/* Only when it is not the mode that was asked for. Auto mode falls back to asking
-			    about everything when it is unavailable, and without this the page just seems to
-			    have become tediously cautious for no reason anybody can see. */}
-			{permissionMode === "auto" ? (
+			{/* Claude Code only, and the harness is why. Its auto mode falls back to asking about
+			    everything when it is unavailable -- an unsupported model, a settings file, a
+			    server-side decision -- and without this the page just seems to have become
+			    tediously cautious for no reason anybody can see.
+			
+			    opencode has no such fallback. It decides what to ask about from its own permission
+			    list and the runner forwards whatever it asks, so for opencode this sentence was
+			    shown on every single approval and was not true of any of them. */}
+			{harness === "claude-code" && permissionMode === "auto" ? (
 				<p className="chat-approval-why">
 					Auto mode asked about this one rather than deciding it.
 				</p>

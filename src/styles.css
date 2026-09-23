@@ -543,6 +543,25 @@ button {
 	padding: 10px 8px 8px calc(var(--chat-gutter) - 1px);
 }
 
+/* Squared where they meet, when an approval is waiting directly above.
+ *
+ * The two are flush and the same width, so a rounded corner on each side of the seam reads as two
+ * cards that happen to touch. Squaring both makes it one block: the thing being asked, and the box
+ * you answer in.
+ *
+ * :has on a shared ancestor rather than a sibling selector, because they are not siblings -- the
+ * approval lives inside the chat and the composer beside it. Scoped to when the approval exists,
+ * so the composer keeps all four corners the rest of the time, which is almost always. */
+.centre-screen:has(.chat-approval) .prompt-field {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+.chat-approval:last-child {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
 .prompt-field textarea {
 	background: transparent;
 	border: 0;
@@ -2485,10 +2504,14 @@ button.workspace-title:hover {
 
 /* The question the whole control plane exists to ask. Amber rather than red: it is a decision, not
    a failure, and colouring it as an error makes "Allow" read as the wrong answer. */
+/* Rounded on all four corners on its own, and squared underneath when the composer is directly
+   below it -- see the :has rule beside .prompt-field. The two are flush and the same width, so
+   two sets of radii meeting in the middle reads as two cards that happen to touch rather than one
+   thing being answered. */
 .chat-approval {
 	border: 1px solid var(--warn);
 	background: var(--warn-bg);
-	border-radius: 6px;
+	border-radius: var(--radius-lg);
 	display: flex;
 	flex: none;
 	flex-direction: column;
@@ -2497,9 +2520,15 @@ button.workspace-title:hover {
 }
 
 /* Balanced because both are one short sentence in a narrow card, and this is the sentence the
-   operator has to read properly before answering it. */
+   operator has to read properly before answering it.
+ *
+ * On the scale rather than off it. This inherited the body's 16px and took --fg-bright on top, so
+ * it was the largest and brightest text on the screen -- louder than the page's own headings, for
+ * a line that is already inside an amber card with two buttons under it. The card does the
+ * shouting; the sentence only has to be the first thing read inside it. */
 .chat-approval-title {
-	color: var(--fg-bright);
+	color: var(--warn-fg);
+	font-size: var(--text-lg);
 	font-weight: 600;
 	margin: 0;
 	text-wrap: balance;
