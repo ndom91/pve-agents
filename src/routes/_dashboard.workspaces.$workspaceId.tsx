@@ -304,6 +304,10 @@ function WorkspaceDetail() {
 				{/* Placement, on screen whether or not the panel is open. */}
 				<MetaBand
 					facts={[
+						// First, because it is the one fact here that was a choice rather than an
+						// outcome: the rest describe where the container landed, this says what is
+						// running in it.
+						{ key: "agent", value: workspace.harness },
 						{ key: "node", value: workspace.node },
 						{ key: "vmid", value: workspace.vmid?.toString() },
 						{ key: "addr", value: workspace.ip },

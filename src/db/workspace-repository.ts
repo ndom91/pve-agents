@@ -1352,6 +1352,10 @@ export function listWorkspaces(db: Database.Database): Workspace[] {
 export type WorkspaceDetail = Workspace & {
 	activityObservedAt?: string;
 	errorCode?: string;
+	// What the agent this workspace runs is called, as the operator named it -- not its kind and
+	// not its id. Absent on a workspace launched before agents were rows, and on one whose agent
+	// has since been deleted; the band shows nothing rather than a gap where a name should be.
+	harness?: string;
 	errorMessage?: string;
 	ip?: string;
 	lastActivityAt?: string;
@@ -1376,11 +1380,17 @@ export function workspaceDetail(
 ): WorkspaceDetail | undefined {
 	const row = db
 		.prepare(
-			`SELECT id, desired_state, status, activity, repository, ref, purpose, hostname, title,
-				created_at, updated_at, current_step, node, vmid, ip,
-				provision_phase, error_code, error_message, current_task_upid, ready_at,
-				last_activity_at, activity_observed_at, unsaved_work
-			 FROM workspaces WHERE id = ?`,
+			`SELECT w.id, w.desired_state, w.status, w.activity, w.repository, w.ref, w.purpose,
+				w.hostname, w.title, w.created_at, w.updated_at, w.current_step, w.node, w.vmid,
+				w.ip, w.provision_phase, w.error_code, w.error_message, w.current_task_upid,
+				w.ready_at, w.last_activity_at, w.activity_observed_at, w.unsaved_work,
+				h.name AS harness_name
+			 -- LEFT, because the agent it was launched on can be deleted afterwards and the
+			 -- workspace keeps running: its runner is installed and its credential was written
+			 -- into the container at provision time. The band shows nothing rather than the page
+			 -- failing to load.
+			 FROM workspaces w LEFT JOIN harnesses h ON h.id = w.harness_id
+			 WHERE w.id = ?`,
 		)
 		.get(id) as
 		| (WorkspaceRow & Record<string, string | number | null>)
@@ -1390,6 +1400,9 @@ export function workspaceDetail(
 	}
 
 	const detail: WorkspaceDetail = workspaceFromRow(row);
+	if (typeof row.harness_name === "string") {
+		detail.harness = row.harness_name;
+	}
 	const optional = {
 		activityObservedAt: row.activity_observed_at,
 		errorCode: row.error_code,

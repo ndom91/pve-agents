@@ -2509,7 +2509,11 @@ button.workspace-title:hover {
    two sets of radii meeting in the middle reads as two cards that happen to touch rather than one
    thing being answered. */
 .chat-approval {
-	border: 1px solid var(--warn);
+	/* The notice's amber, not --warn's. --warn is the saturated one the status chips use, and at a
+	   card's full perimeter it drew the eye harder than the question inside it. This is the same
+	   line the "waiting for you" strip at the top of the screen uses, so the two amber surfaces on
+	   this page agree. */
+	border: 1px solid var(--notice-amber-line);
 	background: var(--warn-bg);
 	border-radius: var(--radius-lg);
 	display: flex;
@@ -2529,7 +2533,6 @@ button.workspace-title:hover {
 .chat-approval-title {
 	color: var(--warn-fg);
 	font-size: var(--text-lg);
-	font-weight: 600;
 	margin: 0;
 	text-wrap: balance;
 }
