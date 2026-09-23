@@ -253,9 +253,24 @@ log "installing coding agents for ${WORKSPACE_USER}"
 # The runner reaches it through a symlink to this global root, created at install time. NODE_PATH
 # does not work: it is a CommonJS mechanism and node's ESM resolver ignores it, and the runner is
 # an ES module.
+#
+# Every agent the controller can run, not just the configured one. A template serves the whole
+# fleet, a controller can offer several agents at once, and a workspace picks one when it is
+# launched -- so "which agent does this template support" has to be "all of them" or provisioning
+# becomes a question of whether the right template happens to be in .env.
+#
+# opencode2 is the v2 beta and installs beside opencode v1 rather than over it. It ships only
+# through npm during the beta: the standalone installer, Homebrew and the distro packages are all
+# unsupported for it, and the published package is a shim whose real executable arrives as an
+# optionalDependency chosen by a postinstall script -- so this must run inside the container and
+# must not use --ignore-scripts.
 pct exec "$NEW_VMID" -- bash -eux -c "
 	export DEBIAN_FRONTEND=noninteractive
 	npm install -g @anthropic-ai/claude-code @openai/codex @anthropic-ai/claude-agent-sdk
+	npm install -g @opencode-ai/cli@beta
+	bin=\$(command -v opencode2 || true)
+	[ -n \"\$bin\" ] || { echo 'opencode2 is not on PATH after install' >&2; exit 1; }
+	ln -sf \"\$bin\" /usr/local/bin/opencode2
 "
 
 log "authorising the controller key"
@@ -314,7 +329,7 @@ pct exec "$NEW_VMID" -- bash -eu -c "
 	# Checked without a login shell, because that is how the controller reaches them over SSH.
 	# herdr was here and is not: it was removed from the controller, and requiring its binary to
 	# convert a template would block every build for a dependency nothing calls any more.
-	for tool in uv bun opencode claude codex; do
+	for tool in uv bun opencode opencode2 claude codex; do
 		su ${WORKSPACE_USER} -s /bin/sh -c \"command -v \$tool\" >/dev/null 2>&1 ||
 			missing=\"\$missing \$tool(${WORKSPACE_USER}, non-login)\"
 	done

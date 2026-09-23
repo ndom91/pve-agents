@@ -83,7 +83,6 @@
 	--diff-del-bg: rgba(217, 139, 125, 0.09);
 	--diff-add-text: #cbdcc2;
 	--diff-del-text: #ddb7ae;
-	--diff-hunk-bg: #12160f;
 	--diff-gutter: #76826f;
 
 	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.45); /* dropdowns/popovers only */
@@ -92,7 +91,6 @@
 	   Colours the mockups use that the design's token file does not name. */
 	--surface-strip: #12160f; /* diff hunk header, errored tool row */
 	--line-divider: #232b21; /* the meta band's ticks, rules on a sunk surface */
-	--line-raised: #1e241c;
 	--line-border-raised: #2f382c;
 	--text-tertiary: #8f9c88; /* a purpose beside a title, a hostname */
 	/* Below the 4.5:1 floor (3.5:1 on the band), and used anyway for one thing: the meta band's
@@ -104,11 +102,9 @@
 	   Use --text-muted, which clears the floor on every surface in both themes. */
 	--text-metakey: #626e5d;
 	--text-control: #c9d6c2; /* label on an outlined button */
-	--text-on-quiet: #dbe8d2; /* on --sage-quiet */
 	--text-wordmark: #dbe4d3;
 	--text-error-name: #e0d3cf;
 	--sage-hover: #cfe0c4;
-	--sage-wash: rgba(181, 205, 169, 0.14);
 	--green-ring: rgba(127, 160, 106, 0.16);
 	--red-line-strong: #5a4440;
 
@@ -161,7 +157,6 @@
 	--danger-fg: #e08a8a;
 	--danger-soft: #e0a2a2;
 	--danger-bright: #ffb4a8;
-	--info: #5a7fa8;
 	--info-fg: #8fb4d9;
 	--status-modified: #c8b45f;
 }
@@ -235,7 +230,6 @@
 	--diff-del-bg: #f8e6e1;
 	--diff-add-text: #24401a;
 	--diff-del-text: #7a2b1e;
-	--diff-hunk-bg: #f1f3eb;
 	--diff-gutter: #6b7663;
 
 	--shadow-pop: 0 2px 8px rgba(32, 39, 44, 0.1);
@@ -243,16 +237,13 @@
 	/* ── Added by the refresh ───────────────────────────────────────────*/
 	--surface-strip: #f1f3eb;
 	--line-divider: #dde2d5;
-	--line-raised: #eef0e9;
 	--line-border-raised: #d8ddd0;
 	--text-tertiary: #566150;
 	--text-metakey: #6b7663;
 	--text-control: #2b3127;
-	--text-on-quiet: #2d4720;
 	--text-wordmark: #1a1e16;
 	--text-error-name: #7a2b1e;
 	--sage-hover: #3f5c30;
-	--sage-wash: rgba(82, 117, 62, 0.1);
 	--green-ring: rgba(95, 148, 64, 0.2);
 	--red-line-strong: #c08f83;
 
@@ -300,7 +291,6 @@
 	--danger-fg: #9b3a2a;
 	--danger-soft: #a8402f;
 	--danger-bright: #8f3323;
-	--info: #2f5b86;
 	--info-fg: #2f5b86;
 	--status-modified: #836016;
 }
@@ -317,10 +307,7 @@
 	--terminal-bg: #0b0f0a;
 	--terminal-fg: #8f9c88;
 	--terminal-bright: #d6e2cf;
-	--terminal-dim: #76826f;
 	--terminal-accent: #b5cda9; /* prompt user@host, cursor */
-	--terminal-dir: #8fb0d6;
-	--terminal-link: #7fd3c8; /* symlinks */
 }
 
 /* ══ SHARED ═══════════════════════════════════════════════════════════ */
@@ -342,7 +329,6 @@
 	--text-body-md: 12.5px;
 	--text-body-lg: 13.5px;
 	--text-title: 14px;
-	--text-title-lg: 22px;
 
 	--tracking-label: 0.16em;
 	--tracking-ui: 0.12em;
@@ -354,16 +340,14 @@
 	--radius-sm: 3px;
 	--radius-md: 4px;
 	--radius-lg: 5px;
-	--radius-xl: 7px;
 
-	/* Space */
-	--space-1: 3px;
-	--space-2: 6px;
-	--space-3: 8px;
-	--space-4: 10px;
-	--space-5: 12px;
+	/* Space
+	 *
+	 * Two steps, not a scale, and the numbers are the gap they left. There were eight; six were
+	 * never used by anything, because this layout reaches for the two sizes below and otherwise
+	 * writes the pixel it means. They keep the names they had rather than becoming 1 and 2, so the
+	 * eleven places already spelling them do not all have to change to say the same thing. */
 	--space-6: 14px;
-	--space-7: 16px;
 	--space-8: 20px;
 
 	/* Layout */
@@ -382,7 +366,6 @@
 	/* Motion — three durations, always ease-in-out */
 	--dur-fast: 75ms;
 	--dur-base: 150ms;
-	--dur-slow: 300ms;
 	--ease: ease-in-out;
 }
 
@@ -390,7 +373,6 @@
 	:root {
 		--dur-fast: 1ms;
 		--dur-base: 1ms;
-		--dur-slow: 1ms;
 	}
 }
 
