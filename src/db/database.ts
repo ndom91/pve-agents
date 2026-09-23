@@ -198,6 +198,44 @@ const migrations = [
 			ALTER TABLE workspaces ADD COLUMN title TEXT;
 		`,
 	},
+	{
+		// An agent an operator has set up, as opposed to an agent this build knows how to drive.
+		//
+		// Those were one word until now. `kind` names the code -- claude-code, opencode2, whatever
+		// is registered in src/harness -- and a row is one configured instance of it: a credential,
+		// a model, a permission mode, and a name a person picks it by. Several rows can share a
+		// kind, which is the point: two Claude subscriptions, or a Codex and an Anthropic account.
+		//
+		// This replaces five environment variables. They had to be one harness for the whole
+		// controller, changing one meant editing a file and restarting the service, and the
+		// opencode credential expires every ten days -- which made that a fortnightly chore rather
+		// than a one-off.
+		//
+		// credential is NOT NULL because a harness without one cannot do anything, and letting the
+		// row exist half-built would push that check into provisioning, which is the worst place to
+		// discover it. The settings form keeps the stored value when the field is left blank, so
+		// renaming a harness cannot silently blank its token.
+		//
+		// permission_mode is text rather than an enum because each kind has its own vocabulary:
+		// Claude's five words and opencode's allow/ask/deny lists are not the same thing spelled
+		// differently.
+		version: 16,
+		sql: `
+			CREATE TABLE harnesses (
+				id TEXT PRIMARY KEY,
+				name TEXT NOT NULL,
+				kind TEXT NOT NULL,
+				credential TEXT NOT NULL,
+				model TEXT,
+				permission_mode TEXT NOT NULL,
+				enabled INTEGER NOT NULL,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			);
+			CREATE UNIQUE INDEX harnesses_name ON harnesses (name);
+			ALTER TABLE workspaces ADD COLUMN harness_id TEXT;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.
