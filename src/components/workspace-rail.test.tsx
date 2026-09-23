@@ -40,14 +40,13 @@ describe("WorkspaceRail", () => {
 		expect(screen.getByText("nas")).toBeDefined();
 	});
 
-	it("keeps the ssh line, which the band cannot be read off by eye", () => {
-		// Assembled by hand out of the address every time somebody wanted a shell outside the
-		// browser, which is why it exists as a row of its own with a copy button.
+	it("shows the address without offering an SSH command", () => {
 		render(
 			<WorkspaceRail workspace={{ ip: "10.0.3.110", repository: "a/b" }} />,
 		);
 
-		expect(screen.getByText("ssh agent@10.0.3.110")).toBeDefined();
+		expect(screen.getByText("10.0.3.110")).toBeDefined();
+		expect(screen.queryByText(/ssh agent@/)).toBeNull();
 	});
 
 	it("omits what a workspace has not reached yet", () => {
@@ -75,12 +74,6 @@ describe("WorkspaceRail", () => {
 		render(<WorkspaceRail workspace={{ hostname: "agent-c824" }} />);
 
 		expect(screen.getByText("pve-agents/agent-c824")).toBeDefined();
-	});
-
-	it("builds the ssh command nobody should have to assemble by hand", () => {
-		render(<WorkspaceRail workspace={{ ip: "10.0.3.119" }} />);
-
-		expect(screen.getByText("ssh agent@10.0.3.119")).toBeDefined();
 	});
 
 	it("says how long provisioning took, and stays quiet when it cannot", () => {
@@ -140,7 +133,7 @@ describe("WorkspaceRail", () => {
 			/>,
 		);
 
-		expect(screen.getByText("ssh agent@10.0.3.110")).toBeDefined();
+		expect(screen.getByText("10.0.3.110")).toBeDefined();
 		expect(screen.queryByText("the changes")).toBeNull();
 
 		// Wrapped again: `rerender` replaces the whole tree, so the provider the helper added on
@@ -157,7 +150,7 @@ describe("WorkspaceRail", () => {
 
 		expect(screen.getByText("the changes")).toBeDefined();
 		// The placement goes rather than being pushed below the fold: both want the full column.
-		expect(screen.queryByText("ssh agent@10.0.3.110")).toBeNull();
+		expect(screen.queryByText("10.0.3.110")).toBeNull();
 	});
 
 	it("puts the actions under the diff and nowhere else", () => {

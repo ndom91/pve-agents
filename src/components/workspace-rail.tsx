@@ -226,18 +226,6 @@ export function WorkspaceRail({
 						<Stack label="VMID" value={workspace.vmid?.toString()} />
 						<Stack label="Address" value={workspace.ip} />
 					</div>
-					{/* The line somebody was assembling by hand out of the two cells above it every
-					    time they wanted a shell outside the browser. `reveals` because CopyButton
-					    hides itself until an ancestor is hovered or focused. */}
-					{workspace.ip === undefined ? null : (
-						<div className="rail-well reveals">
-							<span className="rail-well-text">{`ssh agent@${workspace.ip}`}</span>
-							<CopyButton
-								label="Copy SSH command"
-								text={`ssh agent@${workspace.ip}`}
-							/>
-						</div>
-					)}
 				</Group>
 
 				<Group
