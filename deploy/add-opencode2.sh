@@ -140,6 +140,27 @@ pct exec "$NEW_VMID" -- bash -eux -c '
 	rm -f /root/.bash_history
 '
 
+# Re-cleared, not inherited. build-workspace-template.sh empties these before converting, but this
+# script starts the clone to install into it -- and booting is exactly what fills them back in:
+# systemd mints a machine-id, and regenerate-ssh-host-keys.service writes a set of host keys and
+# then stops firing, because its ConditionPathExistsGlob has been satisfied.
+#
+# Leaving them gives every workspace cloned from this template one identity: one machine-id, so the
+# DHCP server sees one client and hands them all the same lease, and one set of SSH host keys, so
+# the controller's host-key pinning verifies nothing. Both faults are silent until two workspaces
+# exist at once.
+log "clearing per-clone identity"
+pct exec "$NEW_VMID" -- bash -eux -c '
+	rm -f /etc/ssh/ssh_host_*
+	[ -f /etc/systemd/system/regenerate-ssh-host-keys.service ] || {
+		echo "the source template has no regenerate-ssh-host-keys.service; without it these clones never get host keys" >&2
+		exit 1
+	}
+	systemctl enable regenerate-ssh-host-keys.service
+	rm -f /etc/machine-id /var/lib/dbus/machine-id
+	touch /etc/machine-id
+'
+
 log "stopping and converting $NEW_VMID to a template"
 pct stop "$NEW_VMID"
 pct template "$NEW_VMID"
