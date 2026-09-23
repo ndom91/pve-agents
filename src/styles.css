@@ -2162,6 +2162,9 @@ button.workspace-title:hover {
 	font-size: var(--text-label);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
+	/* Same rule as the duration beside it, for the same reason: "WAITING ON YOU" and "AWAITING
+	   APPROVAL" have spaces in them and would break at one long before the row ran out of room. */
+	white-space: nowrap;
 }
 
 .chat-fold.is-error .chat-state {
@@ -2183,13 +2186,24 @@ button.workspace-title:hover {
 /* How long the call took, in a fixed column so the state words above and below stay in line.
    Empty when the runner recorded no timestamps -- an em dash lived here while the data did not
    exist, which read as "measured, and unmeasurable" rather than "never recorded". */
+/* A duration never breaks across two lines.
+ *
+ * It was a flat 40px, and "55m 52s" wants 41 in SF Mono at 9.5px -- one pixel short, so it wrapped
+ * and doubled the row's height. Widening it to fit that string alone would only move the wall:
+ * formatDuration has no hours tier on purpose, so a call held open by an approval reaches three
+ * digits of minutes and "120m 30s" needs 47.
+ *
+ * So: never wrap, and a floor rather than a ceiling. Every ordinary value still lands on the same
+ * column as the rows above and below it, and the rare long one widens its own row instead of
+ * growing a second line. */
 .chat-took {
 	color: var(--text-faint);
 	flex: none;
 	font-size: var(--text-label);
 	font-variant-numeric: tabular-nums;
+	min-width: 48px;
 	text-align: right;
-	width: 40px;
+	white-space: nowrap;
 }
 
 /* Capped, because one `cat` of a large file would otherwise be the whole page. Scrolls rather than
