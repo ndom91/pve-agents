@@ -37,6 +37,12 @@ const PORT = Number(process.env.RUNNER_OPENCODE_PORT ?? "39917");
 
 const BASE = `http://127.0.0.1:${PORT}/api`;
 
+// How many times to replace a server that dies before saying so and stopping.
+//
+// Six, with the backoff below, is about a minute and a half of trying. Enough to ride out a
+// previous instance still holding the port; not enough to spend a night writing to a log.
+const MAX_RESTARTS = 6;
+
 // The username opencode expects for HTTP Basic. A literal, not a name we chose.
 //
 // Worth stating because getting it wrong costs an hour: the server answers a wrong username with
@@ -59,6 +65,9 @@ function main() {
 	let title;
 	let working = false;
 	let fatal;
+	// The server process, and how many times it has been replaced. See ensureServer.
+	let server;
+	let restarts = 0;
 
 	function status() {
 		if (approvals.size > 0) {
@@ -121,14 +130,16 @@ function main() {
 	// start launches the server and waits for it to say its password.
 	//
 	// The password is generated per start and written to stdout, so it has to be scraped. There is
-	// no flag to set it and no file it lands in.
+	// no flag to set it and no file it lands in -- which is also why a server that dies cannot be
+	// reattached to, only replaced. See ensureServer.
 	//
 	// Plain `serve` rather than `serve --service`: --service is a shared background instance, and
 	// this controller expects one agent per workspace holding one session. Sharing one would make
 	// two workspaces on the same container -- which cannot happen today -- silently the same agent.
 	function start() {
 		return new Promise((resolve, reject) => {
-			const child = spawn("opencode2", ["serve", "--port", String(PORT)], {
+			password = undefined;
+			server = spawn("opencode2", ["serve", "--port", String(PORT)], {
 				cwd: CWD,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
@@ -138,8 +149,8 @@ function main() {
 				reject(new Error("opencode2 serve did not report a password"));
 			}, 60_000);
 
-			child.stdout.setEncoding("utf8");
-			child.stdout.on("data", (chunk) => {
+			server.stdout.setEncoding("utf8");
+			server.stdout.on("data", (chunk) => {
 				buffer += chunk;
 				const found = /^server password (.+)$/m.exec(buffer);
 				if (found !== null && password === undefined) {
@@ -151,17 +162,54 @@ function main() {
 
 			// Kept, not discarded: when the server refuses to start this is the only account of why,
 			// and it is the difference between a named failure and a silent one.
-			child.stderr.setEncoding("utf8");
-			child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+			server.stderr.setEncoding("utf8");
+			server.stderr.on("data", (chunk) => process.stderr.write(chunk));
 
-			child.on("exit", (code) => {
+			server.on("exit", (code) => {
 				clearTimeout(timer);
-				const message = `opencode2 serve exited with ${code}`;
-				fatal = message;
-				broadcast({ message, type: "fatal" });
-				reject(new Error(message));
+				process.stderr.write(`opencode2 serve exited with ${code}\n`);
+				reject(new Error(`opencode2 serve exited with ${code}`));
 			});
 		});
+	}
+
+	// ensureServer guarantees there is a live server with a password we know.
+	//
+	// A restart rather than a reconnect, because the password is generated per start and only ever
+	// written to stdout: a server that died takes the only copy of its credential with it, so the
+	// runner cannot re-authenticate to a replacement it did not launch itself.
+	//
+	// This exists because of what happens without it, which was worth provoking rather than
+	// imagining: kill the server under a running runner and the runner survives, answers its socket
+	// with a stale snapshot, and retries the event stream once a second forever with a password
+	// nothing will ever accept again. It looks healthy to the controller and is not.
+	//
+	// Bounded, so a server that cannot start -- a missing binary, a port taken -- becomes one fatal
+	// the operator can read instead of a log growing by a line a second until the disk is full.
+	async function ensureServer() {
+		if (
+			server !== undefined &&
+			server.exitCode === null &&
+			password !== undefined
+		) {
+			return;
+		}
+		if (restarts >= MAX_RESTARTS) {
+			throw new Error(
+				`opencode2 serve failed ${MAX_RESTARTS} times; giving up`,
+			);
+		}
+
+		// Backs off to a half minute, and not at all the first time. A server failing for a reason
+		// that will clear -- the previous one still holding the port -- wants a retry; one failing
+		// for a reason that will not wants to stop filling a log.
+		if (restarts > 0) {
+			await new Promise((wake) =>
+				setTimeout(wake, Math.min(30_000, 1000 * 2 ** (restarts - 1))),
+			);
+		}
+		restarts += 1;
+		await start();
 	}
 
 	// model resolves what to run, preferring what the operator asked for.
@@ -251,6 +299,10 @@ function main() {
 	async function listen() {
 		for (;;) {
 			try {
+				// Before every attempt, not just the first. A stream that failed because the server
+				// died is not a stream to retry; it is a server to replace.
+				await ensureServer();
+
 				const response = await fetch(`${BASE}/event`, {
 					headers: {
 						authorization: `Basic ${Buffer.from(`${USER}:${password}`).toString("base64")}`,
@@ -281,8 +333,20 @@ function main() {
 						cut = buffer.indexOf("\n");
 					}
 				}
+
+				// The stream ended cleanly. The server is still up, so this was the bus dropping a
+				// consumer -- exactly the case it documents -- and the transcript needs checking.
+				restarts = 0;
 			} catch (error) {
 				process.stderr.write(`event stream: ${String(error)}\n`);
+				if (String(error).includes("giving up")) {
+					// ensureServer has stopped trying, so this loop has nothing left to do. Said
+					// once, out loud, rather than repeated to a log nobody is reading.
+					fatal = String(error);
+					broadcast({ message: fatal, type: "fatal" });
+
+					return;
+				}
 			}
 
 			await new Promise((wake) => setTimeout(wake, 1000));
@@ -430,10 +494,13 @@ function main() {
 
 	void (async () => {
 		try {
-			await start();
+			await ensureServer();
 			// Created up front rather than on the first prompt, so that attaching to a fresh
 			// workspace shows a session rather than nothing, and so the event filter above has an
 			// id to compare against before any turn happens.
+			//
+			// It survives a server restart: opencode keeps its sessions in a database, so the id
+			// stays valid and resync picks the transcript back up where it was.
 			await session();
 			await listen();
 		} catch (error) {
