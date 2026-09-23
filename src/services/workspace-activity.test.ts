@@ -153,6 +153,7 @@ describe("observeWorkspaceActivity", () => {
 	it("ignores workspaces that are not ready", async () => {
 		const db = database();
 		createWorkspace(db, {
+			harnessId: "harness-1",
 			idempotencyKey: "queued",
 			repository: "github.com/ndom91/sveltekasten",
 			ref: "main",
@@ -184,6 +185,7 @@ function agent(status: string): SshRunner {
 // ready leaves one workspace looking like a finished provision.
 function ready(db: Database.Database): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: `ready-${Math.random()}`,
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

@@ -32,27 +32,4 @@ describe("controllerConfig", () => {
 			controllerConfig({ CONTROLLER_AUTH_SECRET: "short" }),
 		).toThrow();
 	});
-
-	it("refuses a harness it could not run, at startup rather than at provision time", () => {
-		// The alternative is that this starts cleanly and then throws inside the agent step, once
-		// per workspace, as a provisioning failure. A typo in .env should cost one error on boot.
-		//
-		// Loose between the words: controllerConfig throws zod's issue list as JSON, as it does for
-		// every other field, so the quotes around the name arrive escaped.
-		expect(() =>
-			controllerConfig({ WORKSPACE_AGENT_HARNESS: "claude-cod" }),
-		).toThrow(/unknown agent harness .*claude-cod/);
-	});
-
-	it("names what it could run, so the fix is in the message", () => {
-		expect(() =>
-			controllerConfig({ WORKSPACE_AGENT_HARNESS: "codex" }),
-		).toThrow(/claude-code/);
-	});
-
-	it("defaults to a harness that is actually registered", () => {
-		// Guards the pair: the schema's default and the registry have to agree, or every controller
-		// without the variable set fails to start.
-		expect(controllerConfig({}).WORKSPACE_AGENT_HARNESS).toBe("claude-code");
-	});
 });

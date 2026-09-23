@@ -622,6 +622,7 @@ function database() {
 
 function input(idempotencyKey: string) {
 	return {
+		harnessId: "harness-1",
 		idempotencyKey,
 		purpose: "Investigate round-robin race condition",
 		repository: "https://github.com/plainhq/plain.git",

@@ -58,6 +58,7 @@ describe("workspaceDetail", () => {
 
 function workspace(db: Database.Database): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: "detail",
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

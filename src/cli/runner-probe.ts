@@ -1,9 +1,9 @@
 import { createInterface } from "node:readline";
-
+import { harnesses, harnessSecret } from "../db/harness-repository";
 import type { RunnerEvent } from "../domain/runner-protocol";
-import { configuredHarness } from "../harness";
+import { harness, LEGACY_WORKSPACE_HARNESS } from "../harness";
 import { agentTarget } from "../server/agent-operations";
-import { controllerRuntimeConfig } from "../server/controller";
+import { controllerDatabase } from "../server/controller";
 import {
 	attachRunner,
 	installRunner,
@@ -28,6 +28,29 @@ import { runSsh, type SshTarget } from "../services/ssh";
 //
 // Then type a prompt and press enter. `/approve <id>`, `/deny <id>`, `/interrupt`, `/quit`.
 
+// probeHarness is which agent to install, for an operator driving one workspace by hand.
+//
+// The first configured claude-code harness rather than the workspace's own. The probe takes a
+// workspace id, but it is a debugging tool for the runner and the runner it installs is the one the
+// operator is testing -- and a controller with no harness at all has nothing to install.
+function probeHarness(): { credential: string; kind: string } {
+	const first = harnesses(controllerDatabase()).find(
+		(row) => row.kind === LEGACY_WORKSPACE_HARNESS,
+	);
+	const secret =
+		first === undefined
+			? undefined
+			: harnessSecret(controllerDatabase(), first.id);
+	if (secret === undefined) {
+		process.stderr.write(
+			"no agent configured; set one up under Settings → Agents\n",
+		);
+		process.exit(1);
+	}
+
+	return secret;
+}
+
 function main(): void {
 	const [id, action] = process.argv.slice(2);
 	if (id === undefined) {
@@ -42,7 +65,7 @@ function main(): void {
 			// The same source the provisioning phase ships, read the same way. This used to spell
 			// the path itself, which is two spellings of one deployment fact and exactly the
 			// stale-runner failure it was trying to avoid.
-			const agent = configuredHarness(controllerRuntimeConfig());
+			const agent = harness(probeHarness().kind);
 			const installed = await installRunner(
 				target,
 				{ files: runnerFiles(agent.runner) },

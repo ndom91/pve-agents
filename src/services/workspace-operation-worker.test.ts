@@ -1114,6 +1114,7 @@ describe("runWorkspaceOperations destroying a workspace", () => {
 		const db = database();
 		const destroying = await destroyable(db);
 		createWorkspace(db, {
+			harnessId: "harness-1",
 			idempotencyKey: "request-b",
 			repository: "https://github.com/plainhq/other.git",
 			ref: "main",
@@ -1345,7 +1346,6 @@ function config() {
 		GITHUB_APP_ID: "123456",
 		GITHUB_APP_INSTALLATION_ID: "7890",
 		GITHUB_APP_PRIVATE_KEY_PATH: APP_KEY_PATH,
-		WORKSPACE_CLAUDE_OAUTH_TOKEN: "not-a-real-token",
 	});
 }
 
@@ -1434,6 +1434,15 @@ function runnerWorkspace() {
 function database(): Database.Database {
 	const db = openDatabase(":memory:");
 	databases.push(db);
+	// Every workspace fixture here is created against "harness-1", and provisioning now reads its
+	// credential from that row rather than from the environment. Without it these tests would all
+	// fail at the agent step with "this workspace's agent is no longer configured", which is the
+	// right failure and not the one they are about.
+	db.prepare(
+		`INSERT INTO harnesses
+			(id, name, kind, credential, model, permission_mode, enabled, created_at, updated_at)
+		 VALUES ('harness-1', 'Test', 'claude-code', 'not-a-real-token', NULL, 'auto', 1, ?, ?)`,
+	).run(new Date().toISOString(), new Date().toISOString());
 
 	return db;
 }
@@ -1487,6 +1496,7 @@ async function submitted(db: Database.Database): Promise<string> {
 
 function workspace(db: Database.Database): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: "request-a",
 		repository: "https://github.com/plainhq/plain.git",
 		ref: "main",

@@ -8,8 +8,8 @@ import {
 	seedFiles,
 } from "../db/seed-file-repository";
 import { seedFileSchema } from "../domain/seed-file";
-import { configuredHarness } from "../harness";
-import { controllerDatabase, controllerRuntimeConfig } from "./controller";
+import { anyHarnessMerges } from "../harness";
+import { controllerDatabase } from "./controller";
 import { operatorMiddleware } from "./middleware";
 
 // listSeedFiles returns what every new workspace will be seeded with.
@@ -40,7 +40,8 @@ export const saveWorkspaceSeedFile = createServerFn({ method: "POST" })
 	.handler(({ data }) => {
 		const saved = saveSeedFile(
 			controllerDatabase(),
-			configuredHarness(controllerRuntimeConfig()),
+			// No workspace exists yet, so no single harness to ask. See anyHarnessMerges.
+			{ merges: anyHarnessMerges },
 			data,
 		);
 		if (saved.kind === "invalid") {

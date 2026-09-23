@@ -15,6 +15,9 @@ import { repositoryAccess } from "./github-app";
 import type { Fetcher } from "./proxmox-http";
 
 export const workspaceRequestSchema = z.object({
+	// Which agent to run it on. Required: there is no controller-wide default any more, and
+	// picking one on the caller's behalf would run an agent they did not choose.
+	harnessId: z.string().min(1),
 	purpose: z.string().trim().min(1).max(500).optional(),
 	repository: z.string().trim().min(1).max(2_000),
 	ref: z.string().trim().min(1).max(255).default("main"),
@@ -126,6 +129,7 @@ export function requestWorkspace(
 	request: WorkspaceRequest,
 ) {
 	return createWorkspace(db, {
+		harnessId: request.harnessId,
 		idempotencyKey,
 		purpose: request.purpose,
 		repository: request.repository,

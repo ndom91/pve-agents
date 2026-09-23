@@ -15,6 +15,7 @@ import {
 
 // CreateWorkspaceInput is the validated request used to persist a workspace.
 export type CreateWorkspaceInput = {
+	harnessId: string;
 	idempotencyKey: string;
 	purpose?: string;
 	repository: string;
@@ -114,6 +115,12 @@ export type WorkspaceTeardown = Omit<WorkspaceProvision, "phase"> & {
 
 // WorkspaceProvision is the private workspace data needed to submit one clone request.
 export type WorkspaceProvision = {
+	// Which harness this workspace was launched on, chosen when it was requested.
+	//
+	// Absent on a workspace created before harnesses became rows, which ran claude-code because
+	// that is the only thing this controller could run. Provisioning reads the absence that way
+	// rather than treating it as a misconfiguration.
+	harnessId?: string;
 	hostname: string;
 	id: string;
 	ip?: string;
@@ -211,8 +218,8 @@ export function createWorkspace(
 		db.prepare(
 			`INSERT INTO workspaces (
 				id, ownership_token, desired_state, status, activity, repository, ref, purpose,
-				hostname, created_at, updated_at, current_step
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				hostname, created_at, updated_at, current_step, harness_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		).run(
 			workspace.id,
 			randomUUID(),
@@ -226,6 +233,7 @@ export function createWorkspace(
 			workspace.createdAt,
 			workspace.updatedAt,
 			workspace.currentStep,
+			input.harnessId,
 		);
 		db.prepare(
 			"INSERT INTO idempotency_keys (key, request_hash, workspace_id) VALUES (?, ?, ?)",
@@ -1152,7 +1160,7 @@ function operationWorkspace(
 	const row = db
 		.prepare(
 			`SELECT w.id, w.hostname, w.ownership_token, w.node, w.vmid, w.current_task_upid,
-				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip
+				w.current_task_expires_at, w.destroy_phase, w.provision_phase, w.ip, w.harness_id
 			 FROM workspace_operations o
 			 JOIN workspaces w ON w.id = o.workspace_id
 			 WHERE o.id = ? AND o.status = 'running' AND o.kind = ? AND o.lease_token = ?`,
@@ -1161,6 +1169,7 @@ function operationWorkspace(
 		| {
 				current_task_expires_at: string | null;
 				current_task_upid: string | null;
+				harness_id: string | null;
 				hostname: string;
 				id: string;
 				destroy_phase: DestroyPhase | null;
@@ -1196,6 +1205,9 @@ function operationWorkspace(
 	}
 	if (row.ip !== null) {
 		workspace.ip = row.ip;
+	}
+	if (row.harness_id !== null) {
+		workspace.harnessId = row.harness_id;
 	}
 	if (row.node !== null) {
 		workspace.node = row.node;

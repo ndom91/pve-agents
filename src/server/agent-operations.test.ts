@@ -121,6 +121,7 @@ function refusal(result: unknown): string {
 // queued leaves one workspace in the state a request starts in.
 function queued(database: Database.Database): string {
 	const created = createWorkspace(database, {
+		harnessId: "harness-1",
 		idempotencyKey: `queued-${Math.random()}`,
 		repository: "github.com/ndom91/sveltekasten",
 		ref: "main",

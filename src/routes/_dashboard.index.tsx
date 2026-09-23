@@ -1,14 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "../components/button";
 import { Elapsed } from "../components/elapsed";
 import { FleetRow } from "../components/fleet-row";
 import { MetaBand } from "../components/meta-band";
 import { SectionHead } from "../components/section-head";
+import { Select } from "../components/select";
 import { shortRepository } from "../domain/repository";
-import { fleetQuery, statusQuery, workspaceKeys } from "../lib/queries";
+import {
+	fleetQuery,
+	launchableHarnessesQuery,
+	statusQuery,
+	workspaceKeys,
+} from "../lib/queries";
 import { requestId } from "../lib/request-id";
 import { createWorkspace } from "../server/workspace.functions";
 
@@ -22,9 +28,17 @@ function Dashboard() {
 	const [repository, setRepository] = useState("");
 	const [ref, setRef] = useState("main");
 	const [purpose, setPurpose] = useState("");
+	const [harnessId, setHarnessId] = useState("");
+	const harnessFieldId = useId();
 
 	const { data: workspaces = [] } = useQuery(fleetQuery());
 	const { data: status } = useQuery(statusQuery());
+	const { data: agents = [] } = useQuery(launchableHarnessesQuery());
+
+	// The first configured agent unless the operator has picked another. Derived rather than held
+	// in an effect: the list arrives after the first render, and a useState seeded from it would
+	// stay empty for the life of the page.
+	const chosen = harnessId === "" ? (agents[0]?.id ?? "") : harnessId;
 
 	const live = workspaces.filter(
 		(workspace) => workspace.status !== "destroyed",
@@ -34,6 +48,7 @@ function Dashboard() {
 		mutationFn: () =>
 			createWorkspace({
 				data: {
+					harnessId: chosen,
 					idempotencyKey: requestId(),
 					purpose: purpose.trim() === "" ? undefined : purpose.trim(),
 					ref: ref.trim() === "" ? "main" : ref.trim(),
@@ -163,7 +178,7 @@ function Dashboard() {
 						className="launch"
 						onSubmit={(event) => {
 							event.preventDefault();
-							if (repository.trim() !== "") {
+							if (repository.trim() !== "" && chosen !== "") {
 								request.mutate();
 							}
 						}}
@@ -176,6 +191,30 @@ function Dashboard() {
 								value={repository}
 							/>
 						</label>
+
+						<div className="launch-field">
+							<label className="launch-label" htmlFor={harnessFieldId}>
+								Agent
+							</label>
+							{agents.length === 0 ? (
+								// Not a disabled select. An empty dropdown says the page is broken;
+								// this says what to do, and it is the state every controller is in
+								// the first time it starts.
+								<Link className="launch-empty" to="/settings">
+									No agents configured. Set one up in Settings.
+								</Link>
+							) : (
+								<Select
+									id={harnessFieldId}
+									onChange={setHarnessId}
+									options={agents.map((agent) => ({
+										label: agent.name,
+										value: agent.id,
+									}))}
+									value={chosen}
+								/>
+							)}
+						</div>
 
 						<label className="launch-field is-ref">
 							<span className="launch-label">Ref</span>

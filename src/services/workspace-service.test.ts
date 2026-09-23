@@ -45,6 +45,7 @@ describe("listRequestedWorkspaces", () => {
 
 function create(db: ReturnType<typeof openDatabase>, key: string): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: key,
 		ref: "main",
 		repository: "https://github.com/plainhq/plain.git",
@@ -59,13 +60,25 @@ function create(db: ReturnType<typeof openDatabase>, key: string): string {
 describe("workspaceRequestSchema", () => {
 	it("accepts a request without purpose", () => {
 		const result = workspaceRequestSchema.parse({
+			harnessId: "harness-1",
 			repository: "git@github.com:plainhq/plain.git",
 			ref: "main",
 		});
 
 		expect(result).toEqual({
+			harnessId: "harness-1",
 			repository: "git@github.com:plainhq/plain.git",
 			ref: "main",
 		});
+	});
+
+	it("refuses a request that does not say which agent to run", () => {
+		// There is no controller-wide default any more. Picking one on the caller's behalf would
+		// start an agent they did not choose, on a credential they did not choose.
+		expect(() =>
+			workspaceRequestSchema.parse({
+				repository: "git@github.com:plainhq/plain.git",
+			}),
+		).toThrow(/harnessId/);
 	});
 });

@@ -1,4 +1,4 @@
-import { type Harness, harness, register } from "../domain/harness";
+import { harness, harnessNames, register } from "../domain/harness";
 import { claudeCode } from "./claude-code";
 import { opencode2 } from "./opencode2";
 
@@ -16,26 +16,22 @@ register(opencode2);
 // runners were, and they were all this. A harness name that is merely unknown still throws.
 export const LEGACY_SNAPSHOT_HARNESS = claudeCode.name;
 
-// What a controller runs when its configuration does not say.
+// What a workspace with no harness recorded against it must have run.
 //
-// Deliberately a second constant holding the same value as LEGACY_SNAPSHOT_HARNESS rather than one
-// shared between them. They answer different questions and will stop agreeing: the historical fact
-// about old snapshots is fixed forever, and this one moves the day a controller should default to
-// something else.
-export const DEFAULT_HARNESS = claudeCode.name;
+// Every workspace created before harnesses became rows ran claude-code, because that is the only
+// thing this controller could run. Distinct from the constant above even though they hold the same
+// string: one is a fact about old snapshots, the other about old workspace rows, and they will stop
+// agreeing the moment either kind of history is cleaned up.
+export const LEGACY_WORKSPACE_HARNESS = claudeCode.name;
 
-// configuredHarness is which agent this controller runs, from its configuration.
+// anyHarnessMerges says whether any registered agent merges into a seeded destination.
 //
-// One expression in one place rather than the same lookup at each call site. Selection is
-// controller-wide today; when it becomes per workspace this is the function that grows a second
-// argument, which is the whole reason it exists.
-//
-// Structural rather than typed as ControllerConfig, because config imports this module to check
-// the name against the registry and the two must not import each other.
-export function configuredHarness(config: {
-	WORKSPACE_AGENT_HARNESS: string;
-}): Harness {
-	return harness(config.WORKSPACE_AGENT_HARNESS);
+// Seed files are configured once and applied to every new workspace, so at the moment one is saved
+// there is no workspace and therefore no harness to ask. The union is the honest answer: validate it
+// as JSON if it could be merged by anything, because the alternative is accepting a file that is
+// valid for the harness the operator had in mind and corrupt for the one they later pick.
+export function anyHarnessMerges(path: string): boolean {
+	return harnessNames().some((name) => harness(name).merges(path));
 }
 
 export type { Harness, HarnessFile, MergeRule } from "../domain/harness";

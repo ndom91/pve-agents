@@ -361,6 +361,7 @@ function ready(
 	},
 ): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: `ready-${Math.random()}`,
 		repository: "github.com/ndom91/open-plan-annotator",
 		ref: "main",
@@ -393,6 +394,7 @@ function failed(
 	input: { errorAt: string; vmid: number | null },
 ): string {
 	const created = createWorkspace(db, {
+		harnessId: "harness-1",
 		idempotencyKey: `failed-${Math.random()}`,
 		repository: "github.com/ndom91/open-plan-annotator",
 		ref: "main",

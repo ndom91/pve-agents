@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
+import { harnesses, harnessSecret } from "../db/harness-repository";
 import { seedFileContents } from "../db/seed-file-repository";
 import {
 	advanceWorkspaceProvision,
@@ -20,9 +21,10 @@ import {
 	workspaceProvision,
 	workspaceRequest,
 } from "../db/workspace-repository";
+import type { HarnessSecret } from "../domain/harness-config";
 import { parseRepository } from "../domain/repository";
 import { AGENT_CWD } from "../domain/workspace-layout";
-import { configuredHarness } from "../harness";
+import { harness, LEGACY_WORKSPACE_HARNESS } from "../harness";
 import { prepareAgentWorkspace } from "./agent-bootstrap";
 import {
 	installRunner,
@@ -239,6 +241,31 @@ async function checkReachable(
 // Coding agents have first-run gates -- a theme picker, a trust prompt -- that exist for a person
 // sitting in front of them. Which files skip them is the harness's business; writing them is this
 // step's, and it is what makes an unattended start possible at all.
+// workspaceHarness is the agent this workspace was launched on, with its credential.
+//
+// Undefined when the harness row has been deleted since, which is a real state and not a bug: an
+// operator can remove an agent while a workspace is still provisioning on it. Provisioning stops
+// with a named reason rather than falling back to another agent, because quietly running a
+// different one than was asked for is the worst available answer.
+//
+// A workspace with no harness recorded ran claude-code -- it predates harnesses being rows -- so
+// it resolves to whichever claude-code row exists. If none does, there is nothing to resolve and
+// the same named failure applies.
+function workspaceHarness(
+	db: Database.Database,
+	workspace: WorkspaceProvision,
+): HarnessSecret | undefined {
+	if (workspace.harnessId !== undefined) {
+		return harnessSecret(db, workspace.harnessId);
+	}
+
+	const legacy = harnesses(db).find(
+		(row) => row.kind === LEGACY_WORKSPACE_HARNESS,
+	);
+
+	return legacy === undefined ? undefined : harnessSecret(db, legacy.id);
+}
+
 async function bootstrapAgentHome(
 	db: Database.Database,
 	config: ControllerConfig,
@@ -260,16 +287,13 @@ async function bootstrapAgentHome(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	// The old name is still read, because this controller's .env has one and a rename that
-	// silently stops an agent starting is a bad trade for a tidier key.
-	const token =
-		config.WORKSPACE_AGENT_TOKEN ?? config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
-	if (token === undefined) {
+	const configured = workspaceHarness(db, workspace);
+	if (configured === undefined) {
 		failWorkspaceProvision(
 			db,
 			lease,
 			"agent_token_missing",
-			"WORKSPACE_AGENT_TOKEN is not configured",
+			"this workspace's agent is no longer configured; set one up under Settings → Agents",
 			now,
 		);
 
@@ -278,8 +302,8 @@ async function bootstrapAgentHome(
 
 	const prepared = await prepareAgentWorkspace(
 		target,
-		configuredHarness(config),
-		{ cwd: AGENT_CWD, token },
+		harness(configured.kind),
+		{ cwd: AGENT_CWD, token: configured.credential },
 		ssh,
 	);
 	if (prepared.kind === "failed") {
@@ -470,9 +494,25 @@ async function seedWorkspaceFiles(
 			return { processed: 1, status: "task_failed" };
 		}
 
+		// Resolved here too rather than threaded down from the bootstrap step: these run on
+		// separate passes, minutes apart, and a value carried across them would be one read at a
+		// moment that has gone.
+		const configured = workspaceHarness(db, workspace);
+		if (configured === undefined) {
+			failWorkspaceProvision(
+				db,
+				lease,
+				"agent_token_missing",
+				"this workspace's agent is no longer configured; set one up under Settings → Agents",
+				now,
+			);
+
+			return { processed: 1, status: "task_failed" };
+		}
+
 		const seeded = await seedWorkspace(
 			target,
-			configuredHarness(config),
+			harness(configured.kind),
 			files,
 			ssh,
 		);
@@ -527,10 +567,23 @@ async function startAgentRunner(
 		return { processed: 1, status: "task_failed" };
 	}
 
+	const configured = workspaceHarness(db, workspace);
+	if (configured === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_token_missing",
+			"this workspace's agent is no longer configured; set one up under Settings → Agents",
+			now,
+		);
+
+		return { processed: 1, status: "task_failed" };
+	}
+
 	// Asked first, so a pass that already has a working runner costs one round trip rather than an
 	// install and a launch.
 	if ((await runnerState(target, ssh)) !== "running") {
-		const agent = configuredHarness(config);
+		const agent = harness(configured.kind);
 		const installed = await installRunner(
 			target,
 			{ files: runnerFiles(agent.runner) },
@@ -550,8 +603,8 @@ async function startAgentRunner(
 			target,
 			{
 				file: agent.runner.entry,
-				model: config.WORKSPACE_AGENT_MODEL,
-				permissionMode: config.WORKSPACE_PERMISSION_MODE,
+				model: configured.model,
+				permissionMode: configured.permissionMode,
 			},
 			ssh,
 		);
@@ -566,7 +619,7 @@ async function startAgentRunner(
 		lease,
 		{
 			event: {
-				message: `agent runner listening, permissions ${config.WORKSPACE_PERMISSION_MODE}`,
+				message: `agent runner listening, permissions ${configured.permissionMode}`,
 				type: "workspace.session_started",
 			},
 			phase: "runner-started",

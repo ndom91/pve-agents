@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-// Imported for the registry's side effect as much as for the names: the schema below is checked
-// against what is registered, so the registration has to have happened by the time it parses.
-import { DEFAULT_HARNESS, harnessNames } from "../harness";
-
 const envSchema = z
 	.object({
 		CONTROLLER_AUTH_SECRET: z.string().min(32).optional(),
@@ -63,54 +59,12 @@ const envSchema = z
 			.min(5)
 			.max(3600)
 			.default(30),
-		// How much a workspace's agent may do without asking.
+		// Nothing here about which agent a workspace runs, with what credential, or what it may do
+		// unattended. Those were five keys and are now columns on a harness row: one controller can
+		// offer several agents, a workspace picks one, and rotating a credential is a form field
+		// rather than a file edit and a restart. The opencode credential expires every ten days,
+		// which is what made the difference between those two worth having.
 		//
-		// "auto" is a second model reviewing each action rather than a person. Confirmed available
-		// on the subscription token. When it is not available for a session — an unsupported model,
-		// a settings file, a server-side decision — Claude Code silently runs Manual instead, which
-		// degrades safely here because every call then reaches the approval UI.
-		// A plain string, not an enum: these five are Claude Code's vocabulary, and another harness
-		// has its own. The runner is the only thing that can say whether a mode is real, and it
-		// says so by behaving differently -- which is why the snapshot reports the mode back.
-		WORKSPACE_PERMISSION_MODE: z.string().min(1).default("auto"),
-		// Which coding agent this controller runs in its workspaces.
-		//
-		// Controller-wide rather than per workspace, which is the smaller half of the problem and
-		// the one worth solving first: it forces every harness-specific decision behind the
-		// interface without needing a column, a launch field, and an answer to "what harness is
-		// this existing workspace".
-		//
-		// Checked against the registry rather than an enum, so adding a harness is adding a
-		// directory and one line in src/harness/index.ts. Checked here rather than left to the
-		// first provision: `harness()` throws a good message, but a typo reaching it arrives as a
-		// per-workspace provisioning failure, which is the slowest way to learn about a bad .env.
-		WORKSPACE_AGENT_HARNESS: z
-			.string()
-			.min(1)
-			.default(DEFAULT_HARNESS)
-			.refine((name) => harnessNames().includes(name), {
-				error: (issue) =>
-					`unknown agent harness "${String(issue.input)}"; registered: ${harnessNames().join(", ")}`,
-			}),
-		// Which model the agent runs, as "providerID/modelID" -- opencode's own spelling, because
-		// opencode is the harness that needs it.
-		//
-		// Optional, and unset is the normal case. claude-code's SDK chooses for itself and ignores
-		// this; opencode asks its server for a default. A controller that wants a specific model
-		// says so, and one that does not stays out of the way of whatever each agent thinks is
-		// current -- which is a better default than a name in this file going stale.
-		WORKSPACE_AGENT_MODEL: z.string().min(1).optional(),
-		// The agent's credential. For claude-code, a long-lived OAuth token from
-		// `claude setup-token` tied to a subscription -- not an API key. What the workspace calls
-		// it is the harness's business; this is only where the controller keeps it.
-		//
-		// Deliberately not required to start: a controller that only clones containers has no use
-		// for it, and the agent step fails with a named reason when it is missing.
-		//
-		// WORKSPACE_CLAUDE_OAUTH_TOKEN is still read, because this controller's .env has one and a
-		// rename that silently stops an agent starting is a bad trade for a tidier name.
-		WORKSPACE_AGENT_TOKEN: z.string().min(1).optional(),
-		WORKSPACE_CLAUDE_OAUTH_TOKEN: z.string().min(1).optional(),
 		// Restricts address discovery to the workspace network, so a container's own bridge is never
 		// mistaken for its address. CIDR, for example 10.0.3.0/24.
 		WORKSPACE_SUBNET: z.string().min(1).optional(),
