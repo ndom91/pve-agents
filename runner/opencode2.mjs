@@ -369,7 +369,6 @@ function main() {
 			const messages = await call(`/session/${sessionId}/message`);
 			if (Array.isArray(messages)) {
 				transcript = messages;
-				broadcast({ ...snapshot(), type: "snapshot" });
 			}
 
 			const pending = await call(`/session/${sessionId}/permission`);
@@ -383,6 +382,15 @@ function main() {
 				}
 				settle();
 			}
+
+			// Once, at the end, with both halves in it.
+			//
+			// This used to fire in the middle -- after the transcript and before the permissions --
+			// so a resync that dropped an approval sent a snapshot still carrying it and then
+			// cleared it silently. settle() only speaks when the status changes, so nothing ever
+			// told the page. The runner held no approvals and the page held one, with an Allow
+			// button for a permission that no longer existed.
+			broadcast({ ...snapshot(), type: "snapshot" });
 		} catch (error) {
 			// Not fatal. A failed resync means this pass learned nothing, and the next event or the
 			// next turn tries again; tearing the runner down would lose a working session.

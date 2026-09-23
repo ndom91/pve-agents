@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { CircleAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AgentConversation } from "../components/agent-conversation";
 import { Button } from "../components/button";
@@ -419,8 +419,14 @@ function WorkspaceDetail() {
 									</div>
 								</div>
 							</form>
+							{/* An error, so it looks like one. It used to inherit the body's face and
+							    size and sit under the composer as an unlabelled sentence, which read
+							    as a caption rather than as something that went wrong. */}
 							{agentNote === "" ? null : (
-								<p className="detail-note">{agentNote}</p>
+								<p className="agent-note-error">
+									<CircleAlert aria-hidden size={13} strokeWidth={1.75} />
+									<span>{agentNote}</span>
+								</p>
 							)}
 						</section>
 					)}

@@ -3094,6 +3094,25 @@ button.workspace-title:hover {
 	text-wrap: balance;
 }
 
+/* What went wrong with the last thing the operator pressed, under the composer they pressed it in.
+ *
+ * The approval card's type, because the two sit in the same place and are read in the same glance,
+ * and --red rather than the red the destroy button fills with: this reports, it does not ask for a
+ * decision, and a saturated red under a text field reads as the field being wrong. */
+.agent-note-error {
+	align-items: center;
+	color: var(--red);
+	display: flex;
+	font-size: var(--text-lg);
+	gap: 6px;
+	margin: 0;
+	text-wrap: balance;
+}
+
+.agent-note-error svg {
+	flex-shrink: 0;
+}
+
 /* What a rail tab shows while it waits, or when it has nothing to show at all.
  *
  * Centred in the panel rather than left at the top, where a single sentence under the tab strip
