@@ -77,7 +77,7 @@ const INSTALL_SCRIPT = [
 	// How the runner finds the SDK. See NODE_MODULES above for why this is a symlink and not an
 	// environment variable.
 	'ln -sfn "$2" "$1/node_modules"',
-	'cat > "$1/agent-runner.mjs"',
+	'cat > "$1/$3"',
 ].join("\n");
 
 // PROBE asks whether anything is listening on a socket, rather than whether the file exists.
@@ -109,7 +109,7 @@ const START_SCRIPT = [
 	"fi",
 	'. "$HOME/.config/agent-env"',
 	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" \\',
-	'  setsid nohup node "$1/agent-runner.mjs" > "$1/runner.log" 2>&1 < /dev/null &',
+	'  setsid nohup node "$1/$5" > "$1/runner.log" 2>&1 < /dev/null &',
 	"echo started",
 ].join("\n");
 
@@ -119,13 +119,13 @@ const START_SCRIPT = [
 // controller reads it from its own deployment, and a test supplies a string.
 export async function installRunner(
 	target: SshTarget,
-	source: string,
+	runner: { file: string; source: string },
 	ssh: SshRunner,
 ): Promise<RunnerInstall> {
 	const result = await ssh(
 		target,
-		["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR, NODE_MODULES],
-		source,
+		["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR, NODE_MODULES, runner.file],
+		runner.source,
 	);
 	if (result.kind === "refused") {
 		return { kind: "failed", message: "workspace refused the connection" };
@@ -153,15 +153,22 @@ export async function installRunner(
 // the same file and had its own spelling of this path. Two spellings of one deployment fact is
 // exactly the stale-runner failure this comment warns about, arriving by a different door.
 //
-// Cached after the first read: this runs on every provisioning pass for every workspace.
-let cachedRunner: string | undefined;
-export function runnerSource(): string {
-	cachedRunner ??= readFileSync(
-		join(process.cwd(), "runner", "agent-runner.mjs"),
-		"utf8",
-	);
+// Named by the harness, because the runner is the one part of a harness that is mostly itself: it
+// is the only thing that talks to the agent's own API, and a second harness is mostly a second one
+// of these.
+//
+// Cached per file: this runs on every provisioning pass for every workspace.
+const cachedRunners = new Map<string, string>();
+export function runnerSource(file: string): string {
+	const cached = cachedRunners.get(file);
+	if (cached !== undefined) {
+		return cached;
+	}
 
-	return cachedRunner;
+	const source = readFileSync(join(process.cwd(), "runner", file), "utf8");
+	cachedRunners.set(file, source);
+
+	return source;
 }
 
 // startRunner launches the runner if it is not already answering.
@@ -173,7 +180,7 @@ export function runnerSource(): string {
 // "launched" is not "running". Poll runnerState for that; see RunnerLaunch.
 export async function startRunner(
 	target: SshTarget,
-	permissionMode: string,
+	input: { file: string; permissionMode: string },
 	ssh: SshRunner,
 ): Promise<RunnerLaunch> {
 	const result = await ssh(target, [
@@ -184,7 +191,8 @@ export async function startRunner(
 		RUNNER_DIR,
 		RUNNER_SOCKET,
 		AGENT_CWD,
-		permissionMode,
+		input.permissionMode,
+		input.file,
 	]);
 	if (result.kind !== "ran") {
 		return "failed";

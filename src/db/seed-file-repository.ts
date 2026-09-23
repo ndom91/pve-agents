@@ -97,6 +97,9 @@ export function readSeedFileContent(
 // threw. Nothing hit it because no caller sent an id until the editor did.
 export function saveSeedFile(
 	db: Database.Database,
+	// Which agent this controller runs, because whether a destination is merged rather than
+	// overwritten is a fact about the agent and not about seeding.
+	harness: { merges(path: string): boolean },
 	input: SeedFileInput,
 	now: Date = new Date(),
 ): SaveSeedFileResult {
@@ -107,7 +110,12 @@ export function saveSeedFile(
 
 	// Checked against the normalised destination rather than the typed one, so " .claude.json"
 	// is held to the same rule as the path it will actually be written to.
-	const body = readSeedContent(input.root, destination.path, input.content);
+	const body = readSeedContent(
+		harness,
+		input.root,
+		destination.path,
+		input.content,
+	);
 	if (body.kind === "invalid") {
 		return { kind: "invalid", message: body.message };
 	}

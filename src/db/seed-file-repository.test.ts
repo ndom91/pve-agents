@@ -20,13 +20,25 @@ afterEach(() => {
 	databases.length = 0;
 });
 
+// The seeding rules do not depend on which agent is configured, only on the one fact the harness
+// answers, so the tests carry a stand-in rather than importing a real one.
+const HARNESS = { merges: (path: string) => path === ".claude.json" };
+
 describe("saveSeedFile", () => {
 	it("replaces whatever already claims a destination rather than adding a rival", () => {
 		// Two rows for one destination is a silent last-writer-wins during provisioning, and
 		// nothing in the UI would show which of the two actually landed.
 		const db = database();
-		saveSeedFile(db, { content: "first", path: "CLAUDE.md", root: "repo" });
-		saveSeedFile(db, { content: "second", path: "CLAUDE.md", root: "repo" });
+		saveSeedFile(db, HARNESS, {
+			content: "first",
+			path: "CLAUDE.md",
+			root: "repo",
+		});
+		saveSeedFile(db, HARNESS, {
+			content: "second",
+			path: "CLAUDE.md",
+			root: "repo",
+		});
 
 		expect(seedFiles(db)).toHaveLength(1);
 		expect(seedFileContents(db)[0]?.content).toBe("second");
@@ -35,12 +47,12 @@ describe("saveSeedFile", () => {
 	it("keeps the same file's id across a replacement", () => {
 		// The list keys on it, and a new id on every save makes the row look like a different file.
 		const db = database();
-		const first = saveSeedFile(db, {
+		const first = saveSeedFile(db, HARNESS, {
 			content: "a",
 			path: "CLAUDE.md",
 			root: "repo",
 		});
-		const second = saveSeedFile(db, {
+		const second = saveSeedFile(db, HARNESS, {
 			content: "b",
 			path: "CLAUDE.md",
 			root: "repo",
@@ -56,8 +68,16 @@ describe("saveSeedFile", () => {
 	it("treats the same path under two roots as two files", () => {
 		// $HOME/CLAUDE.md and the repo's own CLAUDE.md are different files with different effects.
 		const db = database();
-		saveSeedFile(db, { content: "a", path: "CLAUDE.md", root: "repo" });
-		saveSeedFile(db, { content: "b", path: "CLAUDE.md", root: "home" });
+		saveSeedFile(db, HARNESS, {
+			content: "a",
+			path: "CLAUDE.md",
+			root: "repo",
+		});
+		saveSeedFile(db, HARNESS, {
+			content: "b",
+			path: "CLAUDE.md",
+			root: "home",
+		});
 
 		expect(seedFiles(db)).toHaveLength(2);
 	});
@@ -67,14 +87,14 @@ describe("saveSeedFile", () => {
 		// like an insert, kept the caller's id, and collided with the row already holding it --
 		// which ON CONFLICT(root, path) does not catch.
 		const db = database();
-		const first = saveSeedFile(db, {
+		const first = saveSeedFile(db, HARNESS, {
 			content: "a",
 			path: "CLADUE.md",
 			root: "repo",
 		});
 		const id = first.kind === "saved" ? first.file.id : "";
 
-		const moved = saveSeedFile(db, {
+		const moved = saveSeedFile(db, HARNESS, {
 			content: "a",
 			id,
 			path: "CLAUDE.md",
@@ -89,14 +109,14 @@ describe("saveSeedFile", () => {
 	it("refuses to move a file onto a destination another file holds", () => {
 		// Overwriting the other file is the one outcome nobody could undo, so it is named instead.
 		const db = database();
-		const first = saveSeedFile(db, {
+		const first = saveSeedFile(db, HARNESS, {
 			content: "a",
 			path: "one.md",
 			root: "repo",
 		});
-		saveSeedFile(db, { content: "b", path: "two.md", root: "repo" });
+		saveSeedFile(db, HARNESS, { content: "b", path: "two.md", root: "repo" });
 
-		const clash = saveSeedFile(db, {
+		const clash = saveSeedFile(db, HARNESS, {
 			content: "a",
 			id: first.kind === "saved" ? first.file.id : "",
 			path: "two.md",
@@ -120,8 +140,11 @@ describe("saveSeedFile", () => {
 		const db = database();
 
 		expect(
-			saveSeedFile(db, { content: "x", path: "../../etc/passwd", root: "home" })
-				.kind,
+			saveSeedFile(db, HARNESS, {
+				content: "x",
+				path: "../../etc/passwd",
+				root: "home",
+			}).kind,
 		).toBe("invalid");
 		expect(seedFiles(db)).toHaveLength(0);
 	});
@@ -130,7 +153,11 @@ describe("saveSeedFile", () => {
 describe("seedFiles", () => {
 	it("reports a size without reading the file", () => {
 		const db = database();
-		saveSeedFile(db, { content: "abcde", path: "CLAUDE.md", root: "repo" });
+		saveSeedFile(db, HARNESS, {
+			content: "abcde",
+			path: "CLAUDE.md",
+			root: "repo",
+		});
 
 		expect(seedFiles(db)[0]?.bytes).toBe(5);
 	});

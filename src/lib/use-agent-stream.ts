@@ -19,6 +19,8 @@ export type Approval = ApprovalRequest;
 // AgentState is everything a page knows about one workspace's agent.
 export type AgentState = {
 	approvals: Approval[];
+	// Which agent produced `messages`, from the snapshot. Undefined until one arrives.
+	harness?: string;
 	link: "attached" | "gone" | "opening";
 	messages: unknown[];
 	permissionMode?: string;
@@ -96,6 +98,7 @@ function reduce(state: AgentState, event: RunnerEvent): AgentState {
 		// connection blipped.
 		return {
 			approvals: event.approvals,
+			harness: event.harness,
 			link: "attached",
 			messages: event.messages,
 			permissionMode: event.permissionMode,

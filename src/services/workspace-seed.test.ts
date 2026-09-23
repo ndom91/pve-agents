@@ -24,6 +24,11 @@ function recorder(...results: SshResult[]) {
 	return { calls, ssh };
 }
 
+// A stand-in rather than the real harness. What is under test is that a merged destination takes
+// the merge branch and everything else does not, which has nothing to do with which file
+// claude-code happens to merge.
+const HARNESS = { merges: (path: string) => path === ".claude.json" };
+
 describe("seedWorkspace", () => {
 	it("sends the content on stdin, never as an argument", async () => {
 		// Arguments are visible in `ps` on the workspace for as long as the command runs, and a
@@ -32,6 +37,7 @@ describe("seedWorkspace", () => {
 
 		await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[{ content: "SECRET", path: "CLAUDE.md", root: "repo" }],
 			ssh,
 		);
@@ -47,14 +53,16 @@ describe("seedWorkspace", () => {
 
 		await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[{ content: "x", path: "a b.md", root: "home" }],
 			ssh,
 		);
 
-		expect(calls[0]?.command.slice(-3)).toEqual([
+		expect(calls[0]?.command.slice(-4)).toEqual([
 			"home",
 			"a b.md",
 			"/workspace/repo",
+			"write",
 		]);
 	});
 
@@ -70,6 +78,7 @@ describe("seedWorkspace", () => {
 
 		const result = await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[
 				{ content: "a", path: "first.md", root: "repo" },
 				{ content: "b", path: "second.md", root: "repo" },
@@ -90,6 +99,7 @@ describe("seedWorkspace", () => {
 
 		const result = await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[{ content: "a", path: ".claude/settings.json", root: "home" }],
 			ssh,
 		);
@@ -103,7 +113,9 @@ describe("seedWorkspace", () => {
 		// The common case. A round trip to do nothing is a round trip on every provision forever.
 		const { calls, ssh } = recorder();
 
-		expect(await seedWorkspace(TARGET, [], ssh)).toEqual({ kind: "seeded" });
+		expect(await seedWorkspace(TARGET, HARNESS, [], ssh)).toEqual({
+			kind: "seeded",
+		});
 		expect(calls).toHaveLength(0);
 	});
 });
@@ -125,6 +137,7 @@ describe("seeding ~/.claude.json", () => {
 
 		await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[
 				{
 					content: JSON.stringify({ mcpServers: {} }),
@@ -135,8 +148,12 @@ describe("seeding ~/.claude.json", () => {
 			ssh,
 		);
 
+		// The branch is chosen by the caller and arrives as an argument, so the script no longer
+		// names a file. Which file is merged is the harness's answer, asserted where it lives.
+		expect(calls[0]?.command.at(-1)).toBe("merge");
+
 		const body = script(calls);
-		expect(body).toContain('if [ "$target" = "$HOME/.claude.json" ]');
+		expect(body).toContain('if [ "$4" = "merge" ]');
 		expect(body).toContain("function merge(base, over)");
 		// Refuses rather than repairs: overwriting a file it cannot parse is how the flags are lost.
 		expect(body).toContain("is not readable JSON");
@@ -151,6 +168,7 @@ describe("seeding ~/.claude.json", () => {
 
 		await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[{ content, path: ".claude.json", root: "home" }],
 			ssh,
 		);
@@ -165,6 +183,7 @@ describe("seeding ~/.claude.json", () => {
 
 		await seedWorkspace(
 			TARGET,
+			HARNESS,
 			[{ content: "{}", path: ".claude/settings.json", root: "home" }],
 			ssh,
 		);

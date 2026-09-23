@@ -37,6 +37,7 @@ export function AgentConversation({
 		<AgentChat
 			approvals={agent.approvals}
 			busy={busy}
+			harness={agent.harness}
 			link={agent.link}
 			messages={agent.messages}
 			onDecide={onDecide}

@@ -10,10 +10,8 @@ import {
 
 import type { ThoughtEntry, ToolEntry } from "../domain/agent-feed";
 import { countErrors, countTools, groupFeed } from "../domain/agent-feed";
-import {
-	readTranscript,
-	type TranscriptEntry,
-} from "../domain/agent-transcript";
+import type { TranscriptEntry } from "../domain/transcript";
+import { DEFAULT_HARNESS, harness } from "../harness";
 import { elapsedBetween, formatStep } from "../lib/clock";
 import { languageOfOutput, languageOfPath } from "../lib/highlight";
 import type { AgentTail, Approval } from "../lib/use-agent-stream";
@@ -36,6 +34,7 @@ import { Timestamp } from "./timestamp";
 export function AgentChat({
 	approvals,
 	busy,
+	harness: name = DEFAULT_HARNESS,
 	link,
 	messages,
 	onDecide,
@@ -44,6 +43,9 @@ export function AgentChat({
 }: {
 	approvals: Approval[];
 	busy: boolean;
+	// Which agent produced `messages`, from the snapshot. Its reader is what turns them into rows,
+	// so this component never learns any agent's wire format.
+	harness?: string;
 	link: "attached" | "gone" | "opening";
 	messages: unknown[];
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
@@ -54,8 +56,8 @@ export function AgentChat({
 	// content block in it, and a streamed answer re-renders this component per token. Without the
 	// memo it also returns a new array each time, which would defeat the grouping's own memo.
 	const entries = useMemo(
-		() => readTranscript(messages, approvals),
-		[messages, approvals],
+		() => harness(name).readTranscript(messages, approvals),
+		[name, messages, approvals],
 	);
 
 	return (

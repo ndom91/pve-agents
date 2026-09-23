@@ -55,6 +55,13 @@ export type RunnerStatus = "blocked" | "idle" | "working";
 export type RunnerSnapshot = {
 	approvals: ApprovalRequest[];
 	cwd: string;
+	// Which agent produced the messages below, so the page knows how to read them.
+	//
+	// From the runner rather than from the controller's config, and that is the point: a workspace
+	// provisioned under one harness keeps being read by that one after the config changes. Absent
+	// on a runner installed before this shipped, which the controller reads as claude-code because
+	// that is the only thing those runners ever were.
+	harness?: string;
 	// Every message except the partials. Kept as `unknown` because these are the SDK's own union,
 	// whose thirty-eight members would put the SDK into the browser bundle to describe five fields.
 	messages: unknown[];

@@ -22,6 +22,8 @@ import {
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
 import { AGENT_CWD } from "../domain/workspace-layout";
+import { harness } from "../harness";
+import { prepareAgentWorkspace } from "./agent-bootstrap";
 import {
 	installRunner,
 	promptRunner,
@@ -30,7 +32,6 @@ import {
 	runnerTranscriptLength,
 	startRunner,
 } from "./agent-runner";
-import { prepareClaudeWorkspace } from "./claude-agent";
 import { type GitHubAppCredentials, installationToken } from "./github-app";
 import { containerAddress } from "./proxmox-address";
 import {
@@ -235,8 +236,9 @@ async function checkReachable(
 
 // bootstrapAgentHome prepares the workspace for an agent that nobody is watching.
 //
-// Claude Code's first run is an interactive wizard. Seeding the flag that skips it is what makes
-// an unattended start possible at all.
+// Coding agents have first-run gates -- a theme picker, a trust prompt -- that exist for a person
+// sitting in front of them. Which files skip them is the harness's business; writing them is this
+// step's, and it is what makes an unattended start possible at all.
 async function bootstrapAgentHome(
 	db: Database.Database,
 	config: ControllerConfig,
@@ -258,21 +260,25 @@ async function bootstrapAgentHome(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const token = config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
+	// The old name is still read, because this controller's .env has one and a rename that
+	// silently stops an agent starting is a bad trade for a tidier key.
+	const token =
+		config.WORKSPACE_AGENT_TOKEN ?? config.WORKSPACE_CLAUDE_OAUTH_TOKEN;
 	if (token === undefined) {
 		failWorkspaceProvision(
 			db,
 			lease,
 			"agent_token_missing",
-			"WORKSPACE_CLAUDE_OAUTH_TOKEN is not configured",
+			"WORKSPACE_AGENT_TOKEN is not configured",
 			now,
 		);
 
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const prepared = await prepareClaudeWorkspace(
+	const prepared = await prepareAgentWorkspace(
 		target,
+		harness(config.WORKSPACE_AGENT_HARNESS),
 		{ cwd: AGENT_CWD, token },
 		ssh,
 	);
@@ -464,7 +470,12 @@ async function seedWorkspaceFiles(
 			return { processed: 1, status: "task_failed" };
 		}
 
-		const seeded = await seedWorkspace(target, files, ssh);
+		const seeded = await seedWorkspace(
+			target,
+			harness(config.WORKSPACE_AGENT_HARNESS),
+			files,
+			ssh,
+		);
 		if (seeded.kind === "failed") {
 			return retry(db, lease, now, {
 				message: seeded.message,
@@ -519,7 +530,12 @@ async function startAgentRunner(
 	// Asked first, so a pass that already has a working runner costs one round trip rather than an
 	// install and a launch.
 	if ((await runnerState(target, ssh)) !== "running") {
-		const installed = await installRunner(target, runnerSource(), ssh);
+		const agent = harness(config.WORKSPACE_AGENT_HARNESS);
+		const installed = await installRunner(
+			target,
+			{ file: agent.runner, source: runnerSource(agent.runner) },
+			ssh,
+		);
 		if (installed.kind === "failed") {
 			return retry(db, lease, now, {
 				message: installed.message,
@@ -532,7 +548,10 @@ async function startAgentRunner(
 		// socket, which is the only thing that can answer.
 		const launched = await startRunner(
 			target,
-			config.WORKSPACE_PERMISSION_MODE,
+			{
+				file: agent.runner,
+				permissionMode: config.WORKSPACE_PERMISSION_MODE,
+			},
 			ssh,
 		);
 		if (launched === "failed") {

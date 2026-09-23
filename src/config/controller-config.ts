@@ -65,12 +65,28 @@ const envSchema = z
 		// on the subscription token. When it is not available for a session — an unsupported model,
 		// a settings file, a server-side decision — Claude Code silently runs Manual instead, which
 		// degrades safely here because every call then reaches the approval UI.
-		WORKSPACE_PERMISSION_MODE: z
-			.enum(["acceptEdits", "auto", "bypassPermissions", "default", "plan"])
-			.default("auto"),
-		// A long-lived OAuth token from `claude setup-token`, tied to a Claude subscription. Not an
-		// API key, and deliberately not required to start: a controller that only clones containers
-		// has no use for it. The agent step fails with a named reason when it is missing.
+		// A plain string, not an enum: these five are Claude Code's vocabulary, and another harness
+		// has its own. The runner is the only thing that can say whether a mode is real, and it
+		// says so by behaving differently -- which is why the snapshot reports the mode back.
+		WORKSPACE_PERMISSION_MODE: z.string().min(1).default("auto"),
+		// Which coding agent this controller runs in its workspaces.
+		//
+		// Controller-wide rather than per workspace, which is the smaller half of the problem and
+		// the one worth solving first: it forces every harness-specific decision behind the
+		// interface without needing a column, a launch field, and an answer to "what harness is
+		// this existing workspace". Validated against the registry rather than an enum here, so
+		// adding a harness is adding a directory.
+		WORKSPACE_AGENT_HARNESS: z.string().min(1).default("claude-code"),
+		// The agent's credential. For claude-code, a long-lived OAuth token from
+		// `claude setup-token` tied to a subscription -- not an API key. What the workspace calls
+		// it is the harness's business; this is only where the controller keeps it.
+		//
+		// Deliberately not required to start: a controller that only clones containers has no use
+		// for it, and the agent step fails with a named reason when it is missing.
+		//
+		// WORKSPACE_CLAUDE_OAUTH_TOKEN is still read, because this controller's .env has one and a
+		// rename that silently stops an agent starting is a bad trade for a tidier name.
+		WORKSPACE_AGENT_TOKEN: z.string().min(1).optional(),
 		WORKSPACE_CLAUDE_OAUTH_TOKEN: z.string().min(1).optional(),
 		// Restricts address discovery to the workspace network, so a container's own bridge is never
 		// mistaken for its address. CIDR, for example 10.0.3.0/24.

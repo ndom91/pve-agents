@@ -7,6 +7,13 @@ import {
 	resolveSeedPath,
 } from "./seed-file";
 
+// A stand-in harness rather than the real one. The rule under test is "a merged destination is
+// validated as JSON", and tying that to whichever file claude-code happens to merge would make
+// this fail the day another harness arrives.
+const MERGES_CLAUDE_JSON = {
+	merges: (path: string) => path === ".claude.json",
+};
+
 describe("readSeedPath", () => {
 	it("refuses a path that steps outside the root it claims", () => {
 		// The whole reason roots exist. A "home" file writing to /etc is the one outcome this
@@ -67,19 +74,26 @@ describe("readSeedContent", () => {
 	it("holds ~/.claude.json to being a JSON object", () => {
 		// It is merged into the file the workspace already wrote, and a string or an array cannot
 		// be merged into an object. Caught here so the failure names the shape.
-		expect(readSeedContent("home", ".claude.json", "[1, 2]").kind).toBe(
-			"invalid",
-		);
-		expect(readSeedContent("home", ".claude.json", '"hello"').kind).toBe(
-			"invalid",
-		);
-		expect(readSeedContent("home", ".claude.json", "null").kind).toBe(
-			"invalid",
-		);
+		expect(
+			readSeedContent(MERGES_CLAUDE_JSON, "home", ".claude.json", "[1, 2]")
+				.kind,
+		).toBe("invalid");
+		expect(
+			readSeedContent(MERGES_CLAUDE_JSON, "home", ".claude.json", '"hello"')
+				.kind,
+		).toBe("invalid");
+		expect(
+			readSeedContent(MERGES_CLAUDE_JSON, "home", ".claude.json", "null").kind,
+		).toBe("invalid");
 	});
 
 	it("names the parse error, because that is what the operator has to fix", () => {
-		const result = readSeedContent("home", ".claude.json", '{"a": 1,}');
+		const result = readSeedContent(
+			MERGES_CLAUDE_JSON,
+			"home",
+			".claude.json",
+			'{"a": 1,}',
+		);
 
 		expect(result.kind).toBe("invalid");
 		expect(result.kind === "invalid" && result.message).toContain(
@@ -89,27 +103,46 @@ describe("readSeedContent", () => {
 
 	it("accepts an object", () => {
 		expect(
-			readSeedContent("home", ".claude.json", '{"mcpServers": {}}').kind,
+			readSeedContent(
+				MERGES_CLAUDE_JSON,
+				"home",
+				".claude.json",
+				'{"mcpServers": {}}',
+			).kind,
 		).toBe("valid");
 	});
 
 	it("says nothing about any other destination", () => {
 		// Refusing to save a shell script because it is not JSON would be a rule about the wrong
 		// thing. Only the merged destination has to parse.
-		expect(readSeedContent("repo", "CLAUDE.md", "# not json").kind).toBe(
-			"valid",
-		);
 		expect(
-			readSeedContent("home", ".claude/settings.json", "not json").kind,
+			readSeedContent(MERGES_CLAUDE_JSON, "repo", "CLAUDE.md", "# not json")
+				.kind,
 		).toBe("valid");
-		expect(readSeedContent("absolute", "/etc/thing", "{{{").kind).toBe("valid");
+		expect(
+			readSeedContent(
+				MERGES_CLAUDE_JSON,
+				"home",
+				".claude/settings.json",
+				"not json",
+			).kind,
+		).toBe("valid");
+		expect(
+			readSeedContent(MERGES_CLAUDE_JSON, "absolute", "/etc/thing", "{{{").kind,
+		).toBe("valid");
 	});
 
 	it("only treats .claude.json at the home root as the merged one", () => {
 		// A file of the same name in the checkout is an ordinary file. The one the workspace
 		// wrote, and the only one worth protecting, lives in $HOME.
-		expect(mergesIntoExisting("home", ".claude.json")).toBe(true);
-		expect(mergesIntoExisting("repo", ".claude.json")).toBe(false);
-		expect(mergesIntoExisting("home", ".claude/settings.json")).toBe(false);
+		expect(mergesIntoExisting(MERGES_CLAUDE_JSON, "home", ".claude.json")).toBe(
+			true,
+		);
+		expect(mergesIntoExisting(MERGES_CLAUDE_JSON, "repo", ".claude.json")).toBe(
+			false,
+		);
+		expect(
+			mergesIntoExisting(MERGES_CLAUDE_JSON, "home", ".claude/settings.json"),
+		).toBe(false);
 	});
 });

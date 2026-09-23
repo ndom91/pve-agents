@@ -32,6 +32,10 @@ function recorder(...results: SshResult[]) {
 	return { calls, ssh };
 }
 
+// The runner shipped by whichever harness is configured. Named here rather than inlined, because
+// these tests are about install and start, not about which file a harness happens to use.
+const RUNNER_FILE = "agent-runner.mjs";
+
 describe("framer", () => {
 	it("delivers one event per line", () => {
 		const seen: unknown[] = [];
@@ -97,7 +101,11 @@ describe("installRunner", () => {
 		// caller can put something in an argument, somebody eventually puts a token there.
 		const { calls, ssh } = recorder();
 
-		await installRunner(TARGET, "console.log(1)", ssh);
+		await installRunner(
+			TARGET,
+			{ file: RUNNER_FILE, source: "console.log(1)" },
+			ssh,
+		);
 
 		expect(calls[0]?.input).toBe("console.log(1)");
 		expect(calls[0]?.command.join(" ")).not.toContain("console.log");
@@ -106,7 +114,11 @@ describe("installRunner", () => {
 	it("reports a refused connection as a failure rather than success", async () => {
 		const { ssh } = recorder({ kind: "refused" });
 
-		const result = await installRunner(TARGET, "x", ssh);
+		const result = await installRunner(
+			TARGET,
+			{ file: RUNNER_FILE, source: "x" },
+			ssh,
+		);
 
 		expect(result).toEqual({
 			kind: "failed",
@@ -122,7 +134,9 @@ describe("installRunner", () => {
 			stdout: "",
 		});
 
-		expect(await installRunner(TARGET, "x", ssh)).toEqual({
+		expect(
+			await installRunner(TARGET, { file: RUNNER_FILE, source: "x" }, ssh),
+		).toEqual({
 			kind: "failed",
 			message: "mkdir: permission denied",
 		});
@@ -135,7 +149,11 @@ describe("startRunner", () => {
 		// stop whenever the controller happened to disconnect.
 		const { calls, ssh } = recorder();
 
-		await startRunner(TARGET, "auto", ssh);
+		await startRunner(
+			TARGET,
+			{ file: RUNNER_FILE, permissionMode: "auto" },
+			ssh,
+		);
 
 		expect(calls[0]?.command.join(" ")).toContain("setsid");
 	});
@@ -144,7 +162,11 @@ describe("startRunner", () => {
 		// It is policy, tuned against a running fleet, not a property of the container.
 		const { calls, ssh } = recorder();
 
-		await startRunner(TARGET, "default", ssh);
+		await startRunner(
+			TARGET,
+			{ file: RUNNER_FILE, permissionMode: "default" },
+			ssh,
+		);
 
 		expect(calls[0]?.command).toContain("default");
 	});
@@ -157,7 +179,13 @@ describe("startRunner", () => {
 			stdout: "",
 		});
 
-		expect(await startRunner(TARGET, "auto", ssh)).toBe("failed");
+		expect(
+			await startRunner(
+				TARGET,
+				{ file: RUNNER_FILE, permissionMode: "auto" },
+				ssh,
+			),
+		).toBe("failed");
 	});
 
 	it("claims only that a launch was issued, never that one is running", async () => {
@@ -166,7 +194,13 @@ describe("startRunner", () => {
 		// and provisioning would have marked the workspace ready on the strength of it.
 		const { ssh } = recorder();
 
-		expect(await startRunner(TARGET, "auto", ssh)).toBe("launched");
+		expect(
+			await startRunner(
+				TARGET,
+				{ file: RUNNER_FILE, permissionMode: "auto" },
+				ssh,
+			),
+		).toBe("launched");
 	});
 });
 
@@ -177,7 +211,7 @@ describe("installRunner's module resolution", () => {
 		// correctly and pointed at a directory that genuinely held the package.
 		const { calls, ssh } = recorder();
 
-		await installRunner(TARGET, "x", ssh);
+		await installRunner(TARGET, { file: RUNNER_FILE, source: "x" }, ssh);
 
 		const script = calls[0]?.command.join(" ") ?? "";
 		expect(script).toContain("ln -sfn");

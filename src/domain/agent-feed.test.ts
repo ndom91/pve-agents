@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { countErrors, countTools, groupFeed } from "./agent-feed";
-import type { TranscriptEntry } from "./agent-transcript";
+import type { TranscriptEntry } from "./transcript";
 
 function tool(
 	name: string,

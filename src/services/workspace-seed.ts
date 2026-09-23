@@ -8,7 +8,7 @@ export type WorkspaceSeed =
 	| { failed: string; kind: "failed"; message: string }
 	| { kind: "seeded" };
 
-// MERGE_CLAUDE_JSON folds a seeded ~/.claude.json into the one already in the workspace.
+// MERGE_JSON folds a seeded JSON file into the one already in the workspace.
 //
 // Written over rather than merged, this file would take the onboarding and trust-dialog flags
 // that `bootstrapAgentHome` wrote a step earlier, and the agent would stall on a first-run prompt
@@ -22,7 +22,7 @@ export type WorkspaceSeed =
 // which surfaces much later as an agent that never answers, rather than here as a step that
 // failed with a reason. Deliberately no single quotes anywhere: this is embedded in a
 // single-quoted shell word below.
-const MERGE_CLAUDE_JSON = [
+const MERGE_JSON = [
 	'const fs = require("fs");',
 	"const file = process.argv[1];",
 	"let incoming;",
@@ -66,8 +66,11 @@ const SEED_FILE_SCRIPT = [
 	"esac",
 	"umask 077",
 	'mkdir -p "$(dirname "$target")" || exit 1',
-	'if [ "$target" = "$HOME/.claude.json" ]; then',
-	`  node -e '${MERGE_CLAUDE_JSON}' "$target"`,
+	// Merged or written over, decided by the caller rather than by a filename in here. Which file
+	// an agent writes for itself during bootstrap -- and therefore must not be clobbered -- is a
+	// fact about that agent.
+	'if [ "$4" = "merge" ]; then',
+	`  node -e '${MERGE_JSON}' "$target"`,
 	"else",
 	'  cat > "$target"',
 	"fi",
@@ -83,13 +86,25 @@ const SEED_FILE_SCRIPT = [
 // configuration and no way to tell which, and the step is retried whole.
 export async function seedWorkspace(
 	target: SshTarget,
+	harness: { merges(path: string): boolean },
 	files: SeedFileContent[],
 	ssh: SshRunner,
 ): Promise<WorkspaceSeed> {
 	for (const file of files) {
+		const merge =
+			file.root === "home" && harness.merges(file.path) ? "merge" : "write";
 		const result = await ssh(
 			target,
-			["sh", "-c", SEED_FILE_SCRIPT, "sh", file.root, file.path, AGENT_CWD],
+			[
+				"sh",
+				"-c",
+				SEED_FILE_SCRIPT,
+				"sh",
+				file.root,
+				file.path,
+				AGENT_CWD,
+				merge,
+			],
 			file.content,
 		);
 		if (result.kind !== "ran" || result.code !== 0) {

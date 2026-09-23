@@ -1,4 +1,4 @@
-import type { TranscriptEntry } from "./agent-transcript";
+import type { TranscriptEntry } from "./transcript";
 
 // ToolEntry is the one member of TranscriptEntry that carries a tool call.
 export type ToolEntry = Extract<TranscriptEntry, { kind: "tool" }>;

@@ -1,4 +1,7 @@
-// The agent runner: one Claude Code session, held open, reachable over a unix socket.
+// The claude-code runner: one Claude Code session, held open, reachable over a unix socket.
+//
+// One of these per harness. It is the only part of a harness that talks to its agent's own API,
+// and the protocol it speaks -- see src/domain/runner-protocol.ts -- is the same for all of them.
 //
 // This runs *inside a workspace container*, not on the controller. It is shipped there over SSH at
 // provision time rather than baked into the template, so changing it is a controller deploy rather
@@ -307,6 +310,11 @@ function main() {
 				`${JSON.stringify({
 					approvals: [...pending.values()].map((entry) => entry.request),
 					cwd: CWD,
+					// Which agent produced the messages below, so the controller knows how to read
+					// them. Stated by the runner rather than taken from the controller's config: a
+					// workspace keeps being read by the harness it was built with, whatever the
+					// controller is set to now.
+					harness: "claude-code",
 					messages: transcript,
 					permissionMode: MODE,
 					sessionId,

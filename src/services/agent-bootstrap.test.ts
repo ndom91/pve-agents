@@ -3,29 +3,29 @@ import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
+import { claudeSeed } from "../harness/claude-code/bootstrap";
+import { agentEnvironment, prepareAgentWorkspace } from "./agent-bootstrap";
+
 const run = promisify(execFile);
 
-import {
-	agentEnvironment,
-	claudeSeed,
-	prepareClaudeWorkspace,
-} from "./claude-agent";
-
 const TARGET = { address: "10.0.3.102", keyPath: "/keys/id", user: "agent" };
+const ENV = "CLAUDE_CODE_OAUTH_TOKEN";
 
-// Captured from Claude Code v2.1.274 starting in a freshly cloned workspace.
-describe("claudeSeed", () => {
-	it("trusts the directory the agent will actually run in", () => {
-		// Trust is recorded per directory, so seeding it for the wrong path leaves the dialog in
-		// place and the agent blocked.
-		expect(JSON.parse(claudeSeed("/workspace/repo"))).toEqual({
-			hasCompletedOnboarding: true,
-			projects: { "/workspace/repo": { hasTrustDialogAccepted: true } },
-		});
-	});
-});
+// A stand-in harness. These tests are about how bootstrap writes files and credentials, not about
+// which files claude-code happens to want, so tying them to the real one would make them fail the
+// day a second harness arrives.
+const HARNESS = {
+	bootstrap: (cwd: string) => [
+		{ contents: claudeSeed(cwd), path: "$HOME/.claude.json" },
+	],
+	credential: { env: ENV },
+	merges: () => false,
+	name: "test-harness",
+	readTranscript: () => [],
+	runner: "agent-runner.mjs",
+};
 
-describe("prepareClaudeWorkspace", () => {
+describe("prepareAgentWorkspace", () => {
 	const TOKEN = "sk-ant-oat01-not-a-real-token";
 
 	it("keeps the credential out of every argument", async () => {
@@ -33,10 +33,11 @@ describe("prepareClaudeWorkspace", () => {
 		// visible in the workspace's process list for as long as the command runs. stdin is not.
 		let command: string[] = [];
 		let stdin = "";
-		await prepareClaudeWorkspace(
+		await prepareAgentWorkspace(
 			TARGET,
+			HARNESS,
 			{ cwd: "/workspace/repo", token: TOKEN },
-			async (_target, args, input) => {
+			async (_target: unknown, args: string[], input?: string) => {
 				command = args;
 				stdin = input ?? "";
 
@@ -52,10 +53,11 @@ describe("prepareClaudeWorkspace", () => {
 
 	it("seeds onboarding and creates the working directory", async () => {
 		let command: string[] = [];
-		const prepared = await prepareClaudeWorkspace(
+		const prepared = await prepareAgentWorkspace(
 			TARGET,
+			HARNESS,
 			{ cwd: "/workspace/repo", token: TOKEN },
-			async (_target, args) => {
+			async (_target: unknown, args: string[]) => {
 				command = args;
 
 				return { code: 0, kind: "ran", stderr: "", stdout: "" };
@@ -63,7 +65,9 @@ describe("prepareClaudeWorkspace", () => {
 		);
 
 		expect(prepared).toEqual({ kind: "prepared" });
-		expect(command.at(-2)).toBe("/workspace/repo");
+		// cwd, then the harness's files as alternating path and contents.
+		expect(command).toContain("/workspace/repo");
+		expect(command.at(-2)).toBe("$HOME/.claude.json");
 		expect(JSON.parse(command.at(-1) as string)).toEqual(
 			JSON.parse(claudeSeed("/workspace/repo")),
 		);
@@ -73,10 +77,11 @@ describe("prepareClaudeWorkspace", () => {
 		// A Herdr pane is an interactive non-login shell, which reads .bashrc and not .profile.
 		// Writing to the wrong one leaves the agent unauthenticated with nothing to show for it.
 		let command: string[] = [];
-		await prepareClaudeWorkspace(
+		await prepareAgentWorkspace(
 			TARGET,
+			HARNESS,
 			{ cwd: "/workspace/repo", token: TOKEN },
-			async (_target, args) => {
+			async (_target: unknown, args: string[]) => {
 				command = args;
 
 				return { code: 0, kind: "ran", stderr: "", stdout: "" };
@@ -88,8 +93,9 @@ describe("prepareClaudeWorkspace", () => {
 	});
 
 	it("scrubs the credential out of a failure message", async () => {
-		const failed = await prepareClaudeWorkspace(
+		const failed = await prepareAgentWorkspace(
 			TARGET,
+			HARNESS,
 			{ cwd: "/workspace/repo", token: TOKEN },
 			async () => ({
 				code: 1,
@@ -104,8 +110,9 @@ describe("prepareClaudeWorkspace", () => {
 	});
 
 	it("reports a workspace that refused the connection as retryable", async () => {
-		const prepared = await prepareClaudeWorkspace(
+		const prepared = await prepareAgentWorkspace(
 			TARGET,
+			HARNESS,
 			{ cwd: "/workspace/repo", token: TOKEN },
 			async () => ({ kind: "refused" }),
 		);
@@ -122,7 +129,7 @@ describe("agentEnvironment", () => {
 		const token = `tok'en; touch /tmp/pve-agents-should-not-exist`;
 		const { stdout } = await run("sh", [
 			"-c",
-			`${agentEnvironment(token)}printf %s "$CLAUDE_CODE_OAUTH_TOKEN"`,
+			`${agentEnvironment(ENV, token)}printf %s "$CLAUDE_CODE_OAUTH_TOKEN"`,
 		]);
 
 		expect(stdout).toBe(token);

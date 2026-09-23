@@ -8,7 +8,8 @@ import {
 	seedFiles,
 } from "../db/seed-file-repository";
 import { seedFileSchema } from "../domain/seed-file";
-import { controllerDatabase } from "./controller";
+import { harness } from "../harness";
+import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 import { operatorMiddleware } from "./middleware";
 
 // listSeedFiles returns what every new workspace will be seeded with.
@@ -37,7 +38,11 @@ export const saveWorkspaceSeedFile = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
 	.validator(seedFileSchema)
 	.handler(({ data }) => {
-		const saved = saveSeedFile(controllerDatabase(), data);
+		const saved = saveSeedFile(
+			controllerDatabase(),
+			harness(controllerRuntimeConfig().WORKSPACE_AGENT_HARNESS),
+			data,
+		);
 		if (saved.kind === "invalid") {
 			throw new Error(`seed file: ${saved.message}`);
 		}

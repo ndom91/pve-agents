@@ -48,21 +48,17 @@ export type SeedFile = {
 	updatedAt: string;
 };
 
-// CLAUDE_JSON is the one destination that is merged into rather than written over.
-//
-// The workspace writes this file itself, before seeding runs: `bootstrapAgentHome` puts the
-// onboarding and trust-dialog flags in it, which is what lets the agent start without a human to
-// answer two first-run prompts. A seeded copy landing on top of that would take those flags away
-// and the agent would stall on a question nobody is there to see.
-//
-// So an operator seeding it is read as "add this to what is already there". mcpServers is the
-// reason it exists: MCP configuration belongs in this file, and the alternative -- a .mcp.json in
-// the checkout -- is a file that eventually gets committed to somebody's repository.
-export const CLAUDE_JSON = ".claude.json";
-
 // mergesIntoExisting says whether a destination is merged rather than overwritten.
-export function mergesIntoExisting(root: SeedRoot, path: string): boolean {
-	return root === "home" && path.trim() === CLAUDE_JSON;
+//
+// The rule belongs to the harness, not to seeding: which file the agent writes for itself during
+// bootstrap, and therefore must not be clobbered, is a fact about that agent. Only "home" can ever
+// merge, because the file in question is one the workspace wrote into the agent user's home.
+export function mergesIntoExisting(
+	harness: { merges(path: string): boolean },
+	root: SeedRoot,
+	path: string,
+): boolean {
+	return root === "home" && harness.merges(path);
 }
 
 // readSeedContent checks the body, for the destinations where the body has to parse.
@@ -74,11 +70,12 @@ export function mergesIntoExisting(root: SeedRoot, path: string): boolean {
 // provision that fails at the seeding step reports a workspace that could not be built; the
 // operator who typed the trailing comma is somewhere else by then.
 export function readSeedContent(
+	harness: { merges(path: string): boolean },
 	root: SeedRoot,
 	path: string,
 	content: string,
 ): { kind: "invalid"; message: string } | { kind: "valid" } {
-	if (!mergesIntoExisting(root, path)) {
+	if (!mergesIntoExisting(harness, root, path)) {
 		return { kind: "valid" };
 	}
 
@@ -89,7 +86,7 @@ export function readSeedContent(
 		const reason = error instanceof Error ? error.message : "unparseable";
 		return {
 			kind: "invalid",
-			message: `${CLAUDE_JSON} is not valid JSON: ${reason}`,
+			message: `${path.trim()} is not valid JSON: ${reason}`,
 		};
 	}
 
@@ -98,7 +95,7 @@ export function readSeedContent(
 	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
 		return {
 			kind: "invalid",
-			message: `${CLAUDE_JSON} has to be a JSON object, so it can be merged into the one the workspace already has`,
+			message: `${path.trim()} has to be a JSON object, so it can be merged into the one the workspace already has`,
 		};
 	}
 

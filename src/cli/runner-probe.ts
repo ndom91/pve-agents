@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline";
 
 import type { RunnerEvent } from "../domain/runner-protocol";
+import { DEFAULT_HARNESS, harness } from "../harness";
 import { agentTarget } from "../server/agent-operations";
 import {
 	attachRunner,
@@ -40,7 +41,14 @@ function main(): void {
 			// The same source the provisioning phase ships, read the same way. This used to spell
 			// the path itself, which is two spellings of one deployment fact and exactly the
 			// stale-runner failure it was trying to avoid.
-			const installed = await installRunner(target, runnerSource(), runSsh);
+			const agent = harness(
+				process.env.WORKSPACE_AGENT_HARNESS ?? DEFAULT_HARNESS,
+			);
+			const installed = await installRunner(
+				target,
+				{ file: agent.runner, source: runnerSource(agent.runner) },
+				runSsh,
+			);
 			if (installed.kind === "failed") {
 				process.stderr.write(`install failed: ${installed.message}\n`);
 				process.exit(1);
@@ -49,7 +57,10 @@ function main(): void {
 
 			const started = await startRunner(
 				target,
-				process.env.RUNNER_PERMISSION_MODE ?? "auto",
+				{
+					file: agent.runner,
+					permissionMode: process.env.RUNNER_PERMISSION_MODE ?? "auto",
+				},
 				runSsh,
 			);
 			process.stdout.write(`start: ${started}\n`);

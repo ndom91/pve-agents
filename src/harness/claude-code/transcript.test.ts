@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readTranscript } from "./agent-transcript";
+import { readTranscript } from "./transcript";
 
 // The shapes below are taken from a real session on agent-aabd rather than invented: the agent was
 // asked to read a README, and the messages it produced are what the UI has to survive.
