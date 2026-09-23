@@ -236,6 +236,19 @@ const migrations = [
 			ALTER TABLE workspaces ADD COLUMN harness_id TEXT;
 		`,
 	},
+	{
+		// Gone: it was a second gate on a question the agent's own configuration already answers.
+		//
+		// Each agent decides what it will ask about -- Claude from .claude/settings.json, opencode
+		// from its permission lists -- and an operator can seed either. A controller-side mode on
+		// top meant two places deciding one thing, in two vocabularies that do not translate, which
+		// is how they end up disagreeing. The runners keep their own RUNNER_PERMISSION_MODE
+		// defaults so the probe CLI can still drive one by hand.
+		version: 17,
+		sql: `
+			ALTER TABLE harnesses DROP COLUMN permission_mode;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

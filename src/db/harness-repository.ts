@@ -20,7 +20,6 @@ type HarnessRow = {
 	kind: string;
 	model: string | null;
 	name: string;
-	permission_mode: string;
 	updated_at: string;
 };
 
@@ -28,21 +27,16 @@ type HarnessRow = {
 //
 // Spelled out rather than `SELECT *` so that adding a secret column later cannot quietly widen what
 // the list endpoint returns. The one place that wants the credential asks for it by name.
-const SELECT_PUBLIC = `SELECT id, name, kind, model, permission_mode, enabled, updated_at
+const SELECT_PUBLIC = `SELECT id, name, kind, model, enabled, updated_at
 	 FROM harnesses`;
 
 function readPublic(row: Omit<HarnessRow, "credential">): HarnessConfig {
 	return {
 		enabled: row.enabled === 1,
-		// True by construction: the column is NOT NULL, so a row that exists has one. Reported as a
-		// field anyway because that is the question the settings page asks, and answering it with a
-		// constant here keeps the page from having to know that.
-		hasCredential: true,
 		id: row.id,
 		kind: row.kind,
 		model: row.model ?? undefined,
 		name: row.name,
-		permissionMode: row.permission_mode,
 		updatedAt: row.updated_at,
 	};
 }
@@ -78,7 +72,7 @@ export function harnessSecret(
 ): HarnessSecret | undefined {
 	const row = db
 		.prepare(
-			`SELECT id, name, kind, model, permission_mode, enabled, updated_at, credential
+			`SELECT id, name, kind, model, enabled, updated_at, credential
 			 FROM harnesses WHERE id = ?`,
 		)
 		.get(id) as HarnessRow | undefined;
@@ -86,6 +80,37 @@ export function harnessSecret(
 	return row === undefined
 		? undefined
 		: { ...readPublic(row), credential: row.credential };
+}
+
+// harnessForWorkspace is the agent one workspace runs, with its credential.
+//
+// Undefined when the harness row has been deleted since the workspace was launched, which is a real
+// state and not a bug: an operator can remove an agent while a workspace is still provisioning on
+// it. Callers stop with a named reason rather than falling back to another agent, because running
+// an agent nobody asked for is the worst answer available.
+//
+// A workspace with no harness recorded ran claude-code -- it predates harnesses being rows, and
+// that is the only thing this controller could run then -- so it resolves to whichever claude-code
+// row exists.
+//
+// One function for the provisioner and the probe CLI both. The probe had its own version that
+// picked the first claude-code harness regardless of the workspace, which meant probing an opencode
+// workspace installed Claude's runner over it.
+export function harnessForWorkspace(
+	db: Database.Database,
+	workspaceId: string,
+	legacyKind: string,
+): HarnessSecret | undefined {
+	const row = db
+		.prepare("SELECT harness_id FROM workspaces WHERE id = ?")
+		.get(workspaceId) as { harness_id: string | null } | undefined;
+	if (row?.harness_id != null) {
+		return harnessSecret(db, row.harness_id);
+	}
+
+	const legacy = harnesses(db).find((entry) => entry.kind === legacyKind);
+
+	return legacy === undefined ? undefined : harnessSecret(db, legacy.id);
 }
 
 // saveHarness adds one, or updates one by id.
@@ -117,14 +142,13 @@ export function saveHarness(
 	try {
 		db.prepare(
 			`INSERT INTO harnesses
-				(id, name, kind, credential, model, permission_mode, enabled, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				(id, name, kind, credential, model, enabled, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(id) DO UPDATE SET
 				name = excluded.name,
 				kind = excluded.kind,
 				credential = excluded.credential,
 				model = excluded.model,
-				permission_mode = excluded.permission_mode,
 				enabled = excluded.enabled,
 				updated_at = excluded.updated_at`,
 		).run(
@@ -133,7 +157,6 @@ export function saveHarness(
 			input.kind,
 			credential === "" ? (existing?.credential ?? "") : credential,
 			input.model === undefined || input.model === "" ? null : input.model,
-			input.permissionMode,
 			input.enabled ? 1 : 0,
 			nowText,
 			nowText,

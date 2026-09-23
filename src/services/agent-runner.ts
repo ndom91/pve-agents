@@ -113,8 +113,12 @@ const START_SCRIPT = [
 	"  exit 0",
 	"fi",
 	'. "$HOME/.config/agent-env"',
-	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" RUNNER_MODEL="$6" \\',
-	'  setsid nohup node "$1/$5" > "$1/runner.log" 2>&1 < /dev/null &',
+	// No permission mode. Each agent's own configuration decides what it asks about -- Claude from
+	// .claude/settings.json, opencode from its permission lists -- and an operator seeds either. A
+	// controller-side mode on top was a second gate on one question. The runners keep their own
+	// RUNNER_PERMISSION_MODE defaults, so the probe CLI can still drive one by hand.
+	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_MODEL="$5" \\',
+	'  setsid nohup node "$1/$4" > "$1/runner.log" 2>&1 < /dev/null &',
 	"echo started",
 ].join("\n");
 
@@ -207,7 +211,7 @@ export function runnerSource(file: string): string {
 // "launched" is not "running". Poll runnerState for that; see RunnerLaunch.
 export async function startRunner(
 	target: SshTarget,
-	input: { file: string; model?: string; permissionMode: string },
+	input: { file: string; model?: string },
 	ssh: SshRunner,
 ): Promise<RunnerLaunch> {
 	const result = await ssh(target, [
@@ -218,7 +222,6 @@ export async function startRunner(
 		RUNNER_DIR,
 		RUNNER_SOCKET,
 		AGENT_CWD,
-		input.permissionMode,
 		input.file,
 		// Empty rather than absent when unconfigured: a missing positional would leave $6 unset and
 		// the runner would read the empty string anyway, but only after the shell had been asked

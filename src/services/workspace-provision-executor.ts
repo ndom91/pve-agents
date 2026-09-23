@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
-import { harnesses, harnessSecret } from "../db/harness-repository";
+import { harnessForWorkspace } from "../db/harness-repository";
 import { seedFileContents } from "../db/seed-file-repository";
 import {
 	advanceWorkspaceProvision,
@@ -241,29 +241,34 @@ async function checkReachable(
 // Coding agents have first-run gates -- a theme picker, a trust prompt -- that exist for a person
 // sitting in front of them. Which files skip them is the harness's business; writing them is this
 // step's, and it is what makes an unattended start possible at all.
-// workspaceHarness is the agent this workspace was launched on, with its credential.
+// requireHarness resolves the agent a workspace runs, or records why it cannot continue.
 //
-// Undefined when the harness row has been deleted since, which is a real state and not a bug: an
-// operator can remove an agent while a workspace is still provisioning on it. Provisioning stops
-// with a named reason rather than falling back to another agent, because quietly running a
-// different one than was asked for is the worst available answer.
-//
-// A workspace with no harness recorded ran claude-code -- it predates harnesses being rows -- so
-// it resolves to whichever claude-code row exists. If none does, there is nothing to resolve and
-// the same named failure applies.
-function workspaceHarness(
+// Returns undefined having already failed the operation, so a caller is two lines rather than
+// twelve. Three steps need this -- bootstrap, seeding, runner start -- and each one resolves for
+// itself rather than being handed a value: they run on different passes minutes apart, so anything
+// carried between them is a read from a moment that has gone.
+function requireHarness(
 	db: Database.Database,
+	lease: OperationLease,
 	workspace: WorkspaceProvision,
+	now: Date,
 ): HarnessSecret | undefined {
-	if (workspace.harnessId !== undefined) {
-		return harnessSecret(db, workspace.harnessId);
+	const configured = harnessForWorkspace(
+		db,
+		workspace.id,
+		LEGACY_WORKSPACE_HARNESS,
+	);
+	if (configured === undefined) {
+		failWorkspaceProvision(
+			db,
+			lease,
+			"agent_token_missing",
+			"this workspace's agent is no longer configured; set one up under Settings → Agents",
+			now,
+		);
 	}
 
-	const legacy = harnesses(db).find(
-		(row) => row.kind === LEGACY_WORKSPACE_HARNESS,
-	);
-
-	return legacy === undefined ? undefined : harnessSecret(db, legacy.id);
+	return configured;
 }
 
 async function bootstrapAgentHome(
@@ -287,16 +292,8 @@ async function bootstrapAgentHome(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const configured = workspaceHarness(db, workspace);
+	const configured = requireHarness(db, lease, workspace, now);
 	if (configured === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_token_missing",
-			"this workspace's agent is no longer configured; set one up under Settings → Agents",
-			now,
-		);
-
 		return { processed: 1, status: "task_failed" };
 	}
 
@@ -497,16 +494,8 @@ async function seedWorkspaceFiles(
 		// Resolved here too rather than threaded down from the bootstrap step: these run on
 		// separate passes, minutes apart, and a value carried across them would be one read at a
 		// moment that has gone.
-		const configured = workspaceHarness(db, workspace);
+		const configured = requireHarness(db, lease, workspace, now);
 		if (configured === undefined) {
-			failWorkspaceProvision(
-				db,
-				lease,
-				"agent_token_missing",
-				"this workspace's agent is no longer configured; set one up under Settings → Agents",
-				now,
-			);
-
 			return { processed: 1, status: "task_failed" };
 		}
 
@@ -567,16 +556,8 @@ async function startAgentRunner(
 		return { processed: 1, status: "task_failed" };
 	}
 
-	const configured = workspaceHarness(db, workspace);
+	const configured = requireHarness(db, lease, workspace, now);
 	if (configured === undefined) {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"agent_token_missing",
-			"this workspace's agent is no longer configured; set one up under Settings → Agents",
-			now,
-		);
-
 		return { processed: 1, status: "task_failed" };
 	}
 
@@ -604,7 +585,6 @@ async function startAgentRunner(
 			{
 				file: agent.runner.entry,
 				model: configured.model,
-				permissionMode: configured.permissionMode,
 			},
 			ssh,
 		);
@@ -619,7 +599,7 @@ async function startAgentRunner(
 		lease,
 		{
 			event: {
-				message: `agent runner listening, permissions ${configured.permissionMode}`,
+				message: "agent runner listening",
 				type: "workspace.session_started",
 			},
 			phase: "runner-started",

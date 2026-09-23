@@ -204,26 +204,32 @@ describe("startRunner", () => {
 		// stop whenever the controller happened to disconnect.
 		const { calls, ssh } = recorder();
 
-		await startRunner(
-			TARGET,
-			{ file: RUNNER_FILE, permissionMode: "auto" },
-			ssh,
-		);
+		await startRunner(TARGET, { file: RUNNER_FILE }, ssh);
 
 		expect(calls[0]?.command.join(" ")).toContain("setsid");
 	});
 
-	it("passes the permission mode rather than baking one in", async () => {
-		// It is policy, tuned against a running fleet, not a property of the container.
+	it("passes the model the harness asked for", async () => {
 		const { calls, ssh } = recorder();
 
 		await startRunner(
 			TARGET,
-			{ file: RUNNER_FILE, permissionMode: "default" },
+			{ file: RUNNER_FILE, model: "openai/gpt-5.6-luna-fast" },
 			ssh,
 		);
 
-		expect(calls[0]?.command).toContain("default");
+		expect(calls[0]?.command).toContain("openai/gpt-5.6-luna-fast");
+	});
+
+	it("sends an empty model rather than dropping the argument", async () => {
+		// The positional would shift and the runner would read the wrong one. Empty is what it
+		// reads as "use your own default".
+		const { calls, ssh } = recorder();
+
+		await startRunner(TARGET, { file: RUNNER_FILE }, ssh);
+
+		expect(calls[0]?.command.at(-1)).toBe("");
+		expect(calls[0]?.command.at(-2)).toBe(RUNNER_FILE);
 	});
 
 	it("reports a failed start rather than assuming it worked", async () => {
@@ -234,13 +240,9 @@ describe("startRunner", () => {
 			stdout: "",
 		});
 
-		expect(
-			await startRunner(
-				TARGET,
-				{ file: RUNNER_FILE, permissionMode: "auto" },
-				ssh,
-			),
-		).toBe("failed");
+		expect(await startRunner(TARGET, { file: RUNNER_FILE }, ssh)).toBe(
+			"failed",
+		);
 	});
 
 	it("claims only that a launch was issued, never that one is running", async () => {
@@ -249,13 +251,9 @@ describe("startRunner", () => {
 		// and provisioning would have marked the workspace ready on the strength of it.
 		const { ssh } = recorder();
 
-		expect(
-			await startRunner(
-				TARGET,
-				{ file: RUNNER_FILE, permissionMode: "auto" },
-				ssh,
-			),
-		).toBe("launched");
+		expect(await startRunner(TARGET, { file: RUNNER_FILE }, ssh)).toBe(
+			"launched",
+		);
 	});
 });
 

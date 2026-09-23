@@ -32,7 +32,6 @@ const CLAUDE = {
 	enabled: true,
 	kind: "claude-code",
 	name: "Claude",
-	permissionMode: "auto",
 };
 
 describe("saveHarness", () => {
@@ -44,10 +43,8 @@ describe("saveHarness", () => {
 		expect(saved.kind).toBe("saved");
 		expect(saved.kind === "saved" && saved.harness).toMatchObject({
 			enabled: true,
-			hasCredential: true,
 			kind: "claude-code",
 			name: "Claude",
-			permissionMode: "auto",
 		});
 		// The shape has no credential field, so this asserts the type is doing its job rather than
 		// that someone remembered a delete.

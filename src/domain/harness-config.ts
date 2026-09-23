@@ -35,7 +35,6 @@ export const harnessConfigSchema = z.object({
 	// that goes stale without anything noticing.
 	model: z.string().trim().max(255).optional(),
 	name: z.string().trim().min(1).max(64),
-	permissionMode: z.string().trim().min(1).max(64).default("auto"),
 });
 
 export type HarnessConfigInput = z.output<typeof harnessConfigSchema>;
@@ -44,15 +43,13 @@ export type HarnessConfigInput = z.output<typeof harnessConfigSchema>;
 //
 // `credential` is deliberately absent, and its absence is the type doing real work: this shape is
 // what the list endpoint returns, so a credential cannot reach the browser by someone forgetting to
-// strip it. `hasCredential` is what the page actually needs -- whether it is set, not what it is.
+// strip it.
 export type HarnessConfig = {
 	enabled: boolean;
-	hasCredential: boolean;
 	id: string;
 	kind: string;
 	model?: string;
 	name: string;
-	permissionMode: string;
 	updatedAt: string;
 };
 

@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import { harnesses, harnessSecret } from "../db/harness-repository";
+import { harnessForWorkspace } from "../db/harness-repository";
 import type { RunnerEvent } from "../domain/runner-protocol";
 import { harness, LEGACY_WORKSPACE_HARNESS } from "../harness";
 import { agentTarget } from "../server/agent-operations";
@@ -28,19 +28,21 @@ import { runSsh, type SshTarget } from "../services/ssh";
 //
 // Then type a prompt and press enter. `/approve <id>`, `/deny <id>`, `/interrupt`, `/quit`.
 
-// probeHarness is which agent to install, for an operator driving one workspace by hand.
+// probeHarness is the agent the given workspace runs.
 //
-// The first configured claude-code harness rather than the workspace's own. The probe takes a
-// workspace id, but it is a debugging tool for the runner and the runner it installs is the one the
-// operator is testing -- and a controller with no harness at all has nothing to install.
-function probeHarness(): { credential: string; kind: string } {
-	const first = harnesses(controllerDatabase()).find(
-		(row) => row.kind === LEGACY_WORKSPACE_HARNESS,
+// The workspace's own, which it was not until this was fixed: it picked the first configured
+// claude-code harness regardless, so probing an opencode workspace installed Claude's runner over
+// opencode2.mjs and started it against an opencode session. Correct when there was one harness, and
+// carried forward without being re-read once there were two.
+function probeHarness(workspaceId: string): {
+	credential: string;
+	kind: string;
+} {
+	const secret = harnessForWorkspace(
+		controllerDatabase(),
+		workspaceId,
+		LEGACY_WORKSPACE_HARNESS,
 	);
-	const secret =
-		first === undefined
-			? undefined
-			: harnessSecret(controllerDatabase(), first.id);
 	if (secret === undefined) {
 		process.stderr.write(
 			"no agent configured; set one up under Settings → Agents\n",
@@ -65,7 +67,7 @@ function main(): void {
 			// The same source the provisioning phase ships, read the same way. This used to spell
 			// the path itself, which is two spellings of one deployment fact and exactly the
 			// stale-runner failure it was trying to avoid.
-			const agent = harness(probeHarness().kind);
+			const agent = harness(probeHarness(id).kind);
 			const installed = await installRunner(
 				target,
 				{ files: runnerFiles(agent.runner) },
@@ -79,10 +81,9 @@ function main(): void {
 
 			const started = await startRunner(
 				target,
-				{
-					file: agent.runner.entry,
-					permissionMode: process.env.RUNNER_PERMISSION_MODE ?? "auto",
-				},
+				// RUNNER_PERMISSION_MODE is not passed: the start script no longer carries one, and
+				// each runner reads its own from the environment it is started in.
+				{ file: agent.runner.entry },
 				runSsh,
 			);
 			process.stdout.write(`start: ${started}\n`);

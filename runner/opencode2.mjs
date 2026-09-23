@@ -21,12 +21,12 @@ const SOCKET =
 
 const CWD = process.env.RUNNER_CWD ?? "/workspace/repo";
 
-// How much the agent may do without asking.
+// Reported in the snapshot so a page can say what the agent is running under, and read by nothing
+// else here.
 //
-// opencode's own vocabulary is a permission list on the agent -- {action, resource, allow|ask|deny}
-// -- rather than Claude's five-word enum, so this is not the same word meaning the same thing. Only
-// "auto" is interpreted here: it answers every request with "once". Anything else means every
-// request reaches the operator, which is the safe direction for a word this runner does not know.
+// opencode decides what to ask about from its agent's own permission list -- allow, ask or deny,
+// per action and resource -- which an operator configures by seeding opencode's config. This runner
+// does not second-guess it: every request it is given reaches a person.
 const MODE = process.env.RUNNER_PERMISSION_MODE ?? "auto";
 
 // Which model, as "providerID/modelID". Optional: opencode has its own default, and asking the
@@ -491,15 +491,15 @@ function main() {
 
 		switch (event.type) {
 			case "permission.asked": {
+				// Always surfaced, never answered here.
+				//
+				// This used to auto-approve everything when the controller said "auto", which was a
+				// second gate on a question opencode has already answered: its agent carries a
+				// permission list -- allow, ask, deny, per action and resource -- and an ask has
+				// already survived it. Rubber-stamping what got through means the operator never
+				// sees the one thing the agent thought was worth asking about.
 				const request = approval(data);
 				approvals.set(request.id, request);
-				if (MODE === "auto") {
-					// Answered rather than surfaced. Still recorded first, so a controller that
-					// attaches between the ask and the reply sees a consistent picture.
-					await decide(request.id, "allow");
-
-					return;
-				}
 				broadcast({ approval: request, type: "approval" });
 				settle();
 

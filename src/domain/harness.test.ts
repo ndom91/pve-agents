@@ -21,6 +21,10 @@ const FAKE: Harness = {
 	credential: { env: "FAKE_API_KEY" },
 	merges: (path) => path === "fake.json",
 	name: "fake",
+	readCredential: (value) =>
+		value.startsWith("fake-")
+			? { kind: "ok" }
+			: { kind: "invalid", message: "a fake credential starts with fake-" },
 	readTranscript: (messages) =>
 		messages.map(
 			(message) =>
@@ -81,6 +85,17 @@ describe("a harness that agrees with claude-code about nothing", () => {
 
 	it("brings its own runner", () => {
 		expect(FAKE.runner).not.toBe(harness("claude-code").runner);
+	});
+
+	it("brings its own idea of what a usable credential looks like", () => {
+		// Optional on the interface, and claude-code leaves it out: an OAuth token is opaque and
+		// there is nothing to check. This one has a format, and the endpoint that saves harnesses
+		// asks the harness rather than switching on its name.
+		expect(FAKE.readCredential?.("fake-abc")).toEqual({ kind: "ok" });
+		expect(FAKE.readCredential?.("sk-ant-wrong-agent")).toMatchObject({
+			kind: "invalid",
+		});
+		expect(harness("claude-code").readCredential).toBeUndefined();
 	});
 
 	it("reaches the same TranscriptEntry from a different wire format", () => {

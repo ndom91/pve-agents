@@ -117,16 +117,14 @@ function HarnessForm({
 	const [kind, setKind] = useState(harness?.kind ?? kinds[0] ?? "");
 	const [credential, setCredential] = useState("");
 	const [model, setModel] = useState(harness?.model ?? "");
-	const [permissionMode, setPermissionMode] = useState(
-		harness?.permissionMode ?? "auto",
-	);
 	const [enabled, setEnabled] = useState(harness?.enabled ?? true);
 	const [note, setNote] = useState("");
 	const [busy, setBusy] = useState(false);
 
 	async function refresh() {
+		// One call covers both: TanStack matches by prefix and the launchable key is
+		// ["harnesses", "launchable"], nested inside this one.
 		await client.invalidateQueries({ queryKey: workspaceKeys.harnesses() });
-		await client.invalidateQueries({ queryKey: workspaceKeys.launchable() });
 	}
 
 	async function save(event: React.FormEvent) {
@@ -144,7 +142,6 @@ function HarnessForm({
 					kind,
 					model: model.trim() === "" ? undefined : model.trim(),
 					name: name.trim(),
-					permissionMode: permissionMode.trim(),
 				},
 			});
 			await refresh();
@@ -215,15 +212,6 @@ function HarnessForm({
 					onChange={(event) => setModel(event.target.value)}
 					placeholder="Optional, e.g. openai/gpt-5.6-luna-fast"
 					value={model}
-				/>
-			</label>
-
-			<label className="settings-field">
-				<span>Permissions</span>
-				<input
-					onChange={(event) => setPermissionMode(event.target.value)}
-					placeholder="auto"
-					value={permissionMode}
 				/>
 			</label>
 

@@ -1,14 +1,6 @@
 import type { Harness } from "../../domain/harness";
+import { readOpencodeCredential } from "./credential";
 import { readOpencodeTranscript } from "./transcript";
-
-// OPENCODE_JSON is opencode's project configuration, and the one destination that is merged.
-//
-// Merged for the same reason claude-code merges ~/.claude.json: an operator seeding MCP servers or
-// a model default should add to what is there rather than replace it. Unlike claude-code there is
-// nothing the workspace writes into it first, so today the merge only protects an operator from
-// their own second seed file -- but the rule belongs to the harness either way, and discovering it
-// the day opencode starts writing the file would mean discovering it as a broken workspace.
-const OPENCODE_JSON = ".config/opencode/opencode.json";
 
 // opencode2, driven over its local HTTP API by runner/opencode2.mjs.
 //
@@ -29,8 +21,21 @@ export const opencode2: Harness = {
 	// opencode will accept from a device flow and from nothing else, so the runner writes it into
 	// opencode's own credential table instead. See credential.ts.
 	credential: { env: "OPENCODE_CREDENTIAL" },
-	merges: (path) => path.trim() === OPENCODE_JSON,
+	// Nothing. Merging exists to protect a file the workspace wrote for itself during bootstrap --
+	// that is what makes ~/.claude.json a special case -- and opencode writes none: a provisioned
+	// workspace has an empty ~/.config/opencode and no config file anywhere under $HOME.
+	//
+	// An earlier version of this merged .config/opencode/opencode.json, which was wrong twice. It
+	// named one of the three files opencode actually reads (config.json, opencode.json,
+	// opencode.jsonc), and merged destinations are validated with JSON.parse -- so a commented
+	// opencode.jsonc, which is the entire reason that format exists, would have been refused.
+	merges: () => false,
 	name: "opencode2",
+	readCredential: (value) => {
+		const read = readOpencodeCredential(value);
+
+		return read.kind === "read" ? { kind: "ok" } : read;
+	},
 	readTranscript: readOpencodeTranscript,
 	runner: { also: ["agent-socket.mjs"], entry: "opencode2.mjs" },
 };

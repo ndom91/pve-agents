@@ -1440,8 +1440,8 @@ function database(): Database.Database {
 	// right failure and not the one they are about.
 	db.prepare(
 		`INSERT INTO harnesses
-			(id, name, kind, credential, model, permission_mode, enabled, created_at, updated_at)
-		 VALUES ('harness-1', 'Test', 'claude-code', 'not-a-real-token', NULL, 'auto', 1, ?, ?)`,
+			(id, name, kind, credential, model, enabled, created_at, updated_at)
+		 VALUES ('harness-1', 'Test', 'claude-code', 'not-a-real-token', NULL, 1, ?, ?)`,
 	).run(new Date().toISOString(), new Date().toISOString());
 
 	return db;

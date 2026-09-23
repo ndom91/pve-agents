@@ -32,6 +32,20 @@ export type Harness = {
 	// with no such file says no to everything, which is the honest default.
 	merges(homeRelativePath: string): boolean;
 	name: string;
+	// Whether a credential an operator has typed is one this agent could use.
+	//
+	// Optional, and claude-code leaves it out: an OAuth token is an opaque string and there is
+	// nothing to check beyond it being non-empty, which the form already does. opencode's is a JSON
+	// envelope naming an integration, and a malformed one produces a workspace whose agent comes up
+	// unauthenticated an hour later and cannot say why.
+	//
+	// Here rather than in the endpoint that saves harnesses, which is where it started: that version
+	// compared `kind === "opencode2"` and imported opencode's module, so a third harness with a
+	// structured credential would have added a second branch to a file that should not know any
+	// agent's name.
+	readCredential?(
+		value: string,
+	): { kind: "invalid"; message: string } | { kind: "ok" };
 	// The runner shipped into the workspace, by filename under runner/.
 	//
 	// It is the only part that talks to the agent's own API, and therefore the part a new harness is
@@ -88,7 +102,10 @@ export function harness(name: string): Harness {
 	return found;
 }
 
-// harnessNames lists what is registered, for the config's own error message.
+// harnessNames lists what is registered.
+//
+// Read by the settings page, to offer the kinds this build can actually drive, and by the endpoint
+// that saves a harness, to refuse one it could not run.
 export function harnessNames(): string[] {
 	return [...REGISTRY.keys()].sort();
 }
