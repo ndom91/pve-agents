@@ -115,3 +115,13 @@ keeps a system border and a system focus ring that no amount of `outline` reliab
 
 **Controls that sit in a row share `--field-height`.** A select, a text field and a button beside
 each other were 36, 34 and 36 pixels tall, which does not read as a size choice.
+
+**A wait is a spinner, not a sentence.** `PanelSpinner` from `panel-state.tsx`, wherever something
+is being fetched and the thing it replaces has not arrived yet. Body text where content is about to
+go reads as the answer — somebody scans "Reading the file." and takes it for the file's contents, or
+for an empty result, and only works out it was a wait when it disappears. The label still matters:
+it goes on `aria-label`, because the spinner is the only thing a screen reader has to read.
+
+This has been fixed three times in three places — the diff tab, the agent feed, then the seed files
+editor — each time by someone noticing the same plain sentence somewhere new. A loading state that
+is only text is a bug, not a style preference.

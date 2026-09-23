@@ -18,6 +18,7 @@ import {
 } from "../server/seed-files.functions";
 import { Button } from "./button";
 import { CodeEditor } from "./code-editor";
+import { PanelSpinner } from "./panel-state";
 import { SectionHead } from "./section-head";
 import { type Option, Select } from "./select";
 
@@ -304,7 +305,10 @@ function SeedForm({
 			</div>
 
 			{loading ? (
-				<p className="detail-note">Reading the file.</p>
+				// The same spinner the diff tab shows while it fetches a file, and for the same
+				// reason: a sentence in body text where the editor goes reads as the answer rather
+				// than as the wait for one.
+				<PanelSpinner label="Reading the file." />
 			) : (
 				<CodeEditor
 					label={path === "" ? "New seed file" : path}

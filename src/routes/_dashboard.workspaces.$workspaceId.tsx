@@ -10,6 +10,7 @@ import { IconButton } from "../components/icon-button";
 import { MetaBand } from "../components/meta-band";
 import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
 import { outcomeItem } from "../components/outcome-notice";
+import { PanelSpinner } from "../components/panel-state";
 import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -206,7 +207,11 @@ function WorkspaceDetail() {
 	});
 
 	if (workspace === undefined) {
-		return <main className="dashboard-main">Loading.</main>;
+		return (
+			<main className="dashboard-main">
+				<PanelSpinner label="Loading the workspace." />
+			</main>
+		);
 	}
 
 	const busy = send.isPending || decide.isPending;
