@@ -92,13 +92,16 @@ log "installing opencode2 (@opencode-ai/cli@${OPENCODE_TAG})"
 #
 # npm rather than the install script: during the v2 beta the standalone binaries, Homebrew and the
 # distro packages are all unsupported, and npm is one of the few routes that exists.
+#
+# The published package is a 7 kB shim; the executable itself arrives as an optionalDependency
+# chosen by a postinstall script from the platform it is installed on. So this has to run inside the
+# container -- and --ignore-scripts would install a launcher with nothing to launch.
 pct exec "$NEW_VMID" -- bash -eux -c "
 	export DEBIAN_FRONTEND=noninteractive
 	npm install -g @opencode-ai/cli@${OPENCODE_TAG}
-	for tool in opencode2; do
-		bin=\$(command -v \$tool || true)
-		[ -n \"\$bin\" ] && ln -sf \"\$bin\" /usr/local/bin/\$tool
-	done
+	bin=\$(command -v opencode2 || true)
+	[ -n \"\$bin\" ] || { echo 'opencode2 is not on PATH after install' >&2; exit 1; }
+	ln -sf \"\$bin\" /usr/local/bin/opencode2
 "
 
 # Past this point the container is provisioned; a failure is worth inspecting, not deleting.
@@ -107,7 +110,9 @@ PROVISIONED=1
 log "verifying before converting"
 # Read back rather than assumed. `@beta` moves, so the build that ended up in this template is a
 # fact about this template and nowhere else records it.
-OPENCODE2_BUILD=$(pct exec "$NEW_VMID" -- su "${WORKSPACE_USER}" -s /bin/sh -c "opencode2 --version" 2>/dev/null || true)
+# stderr is left alone rather than discarded: if the binary is there but will not start, the reason
+# it gives is the whole diagnosis, and `fail` below can only say that it did not start.
+OPENCODE2_BUILD=$(pct exec "$NEW_VMID" -- su "${WORKSPACE_USER}" -s /bin/sh -c "opencode2 --version" || true)
 pct exec "$NEW_VMID" -- bash -eu -c "
 	missing=
 	# Checked without a login shell, because that is how the controller reaches them over SSH.
