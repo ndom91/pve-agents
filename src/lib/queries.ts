@@ -1,6 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { workspaceChanges, workspaceFileDiff } from "../server/agent.functions";
+import {
+	listHarnesses,
+	listHarnessKinds,
+	listLaunchableHarnesses,
+} from "../server/harnesses.functions";
 import { listSeedFiles, readSeedFile } from "../server/seed-files.functions";
 import { workspaceSettings } from "../server/settings.functions";
 import { controllerStatus } from "../server/status.functions";
@@ -23,6 +28,9 @@ const CHANGES_REFRESH_MS = 15_000;
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
 	changes: (id: string) => ["workspace", id, "changes"] as const,
+	harnesses: () => ["harnesses"] as const,
+	harnessKinds: () => ["harness-kinds"] as const,
+	launchable: () => ["harnesses", "launchable"] as const,
 	detail: (id: string) => ["workspace", id] as const,
 	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
@@ -132,6 +140,36 @@ export function seedFilesQuery() {
 	return queryOptions({
 		queryFn: () => listSeedFiles(),
 		queryKey: workspaceKeys.seedFiles(),
+	});
+}
+
+// harnessesQuery is what an operator has set up, credentials excluded.
+//
+// No interval, like the seed files: nothing changes this but the person looking at it, and the
+// mutations invalidate the key themselves.
+export function harnessesQuery() {
+	return queryOptions({
+		queryFn: () => listHarnesses(),
+		queryKey: workspaceKeys.harnesses(),
+	});
+}
+
+// harnessKindsQuery is what this build can drive, for the kind selector.
+//
+// Its own key rather than folded into the harnesses list, because it changes only when the
+// controller is redeployed and there is no reason to refetch it when a harness is saved.
+export function harnessKindsQuery() {
+	return queryOptions({
+		queryFn: () => listHarnessKinds(),
+		queryKey: workspaceKeys.harnessKinds(),
+	});
+}
+
+// launchableHarnessesQuery is what the launch form may offer: the enabled ones.
+export function launchableHarnessesQuery() {
+	return queryOptions({
+		queryFn: () => listLaunchableHarnesses(),
+		queryKey: workspaceKeys.launchable(),
 	});
 }
 

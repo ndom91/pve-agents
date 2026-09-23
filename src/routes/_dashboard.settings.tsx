@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { SettingsHarnesses } from "../components/settings-harnesses";
 import { SettingsMaintenance } from "../components/settings-maintenance";
 import { SettingsReaping } from "../components/settings-reaping";
 import { SettingsSeedFiles } from "../components/settings-seed-files";
@@ -13,10 +14,11 @@ export const Route = createFileRoute("/_dashboard/settings")({
 	loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery()),
 });
 
-type SettingsTab = "files" | "maintenance" | "reaping";
+type SettingsTab = "agents" | "files" | "maintenance" | "reaping";
 
 const TABS: Tab<SettingsTab>[] = [
 	{ label: "Reaping", value: "reaping" },
+	{ label: "Agents", value: "agents" },
 	{ label: "Seed files", value: "files" },
 	{ label: "Maintenance", value: "maintenance" },
 ];
@@ -49,6 +51,7 @@ function Settings() {
 			{/* Unmounted rather than hidden, unlike the workspace rail. Nothing here holds a
 			    connection that closing would break, and the orphan scan should not keep a stale
 			    result alive behind a tab nobody is looking at. */}
+			{tab === "agents" ? <SettingsHarnesses /> : null}
 			{tab === "reaping" ? <SettingsReaping /> : null}
 			{tab === "files" ? <SettingsSeedFiles /> : null}
 			{tab === "maintenance" ? <SettingsMaintenance /> : null}
