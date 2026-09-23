@@ -112,6 +112,11 @@ about it.
 
 ## 📚 Documentation
 
+**[pve-agents.sh](https://pve-agents.sh)** is the full documentation: setup, concepts, operations,
+reference and troubleshooting, with search. Start at
+[Proxmox setup](https://pve-agents.sh/docs/getting-started/proxmox-setup) to get from a bare
+hypervisor to a template you can clone.
+
 | | |
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | Start here to work on the code. Conventions, and the rules this codebase learned the hard way. |

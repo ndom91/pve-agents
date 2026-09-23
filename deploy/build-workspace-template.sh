@@ -20,14 +20,36 @@
 #
 #   NEW_VMID=121 ./build-workspace-template.sh
 #
+# The first template on a fresh host has nothing to clone, so `SOURCE_VMID=` (explicitly empty)
+# selects bootstrap mode and builds from a stock Ubuntu 24.04 LXC image instead:
+#
+#   SOURCE_VMID= NEW_VMID=120 ./build-workspace-template.sh
+#
+# Every provisioning step below is the same in both modes. Bootstrap is only a different way of
+# getting an empty container; it is not a reduced build.
+#
 set -euo pipefail
 
-SOURCE_VMID="${SOURCE_VMID:-120}"
+# `${VAR-default}` rather than `${VAR:-default}`: an explicitly empty SOURCE_VMID has to survive,
+# because that is what selects bootstrap mode. With a colon it would become 120 again.
+SOURCE_VMID="${SOURCE_VMID-120}"
 NEW_VMID="${NEW_VMID:-}"
 STORAGE="${STORAGE:-local-zfs}"
 WORKSPACE_USER="${WORKSPACE_USER:-agent}"
 CONTROLLER_PUBKEY="${CONTROLLER_PUBKEY:-/root/id_pve_agents_controller.pub}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
+
+# Bootstrap-only. Ubuntu 24.04 is the agreed base: the NodeSource script, the gh apt repository and
+# Ubuntu's own golang-go/rustc/cargo all work there unmodified, which is not true of every image
+# pveam offers.
+BASE_IMAGE="${BASE_IMAGE:-ubuntu-24.04-standard_24.04-2_amd64.tar.zst}"
+BASE_IMAGE_STORAGE="${BASE_IMAGE_STORAGE:-local}"
+BRIDGE="${BRIDGE:-vmbr0}"
+# The Agent SDK alone is about 245 MB, and Go and Rust are not small either. A template that runs
+# out of disk halfway through an apt transaction fails in a way that reads like a network problem.
+ROOTFS_SIZE="${ROOTFS_SIZE:-16}"
+MEMORY="${MEMORY:-4096}"
+CORES="${CORES:-4}"
 
 log() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -56,8 +78,20 @@ trap cleanup EXIT
 command -v pct >/dev/null || fail "pct not found; run this on the Proxmox host"
 [ -f "$CONTROLLER_PUBKEY" ] || fail "controller public key not found at $CONTROLLER_PUBKEY"
 grep -q '^ssh-' "$CONTROLLER_PUBKEY" || fail "$CONTROLLER_PUBKEY is not an SSH public key"
-pct config "$SOURCE_VMID" >/dev/null 2>&1 || fail "source template $SOURCE_VMID does not exist"
-pct config "$SOURCE_VMID" | grep -q '^template: 1' || fail "$SOURCE_VMID is not a template"
+
+BASE_IMAGE_VOLUME="${BASE_IMAGE_STORAGE}:vztmpl/${BASE_IMAGE}"
+if [ -n "$SOURCE_VMID" ]; then
+	pct config "$SOURCE_VMID" >/dev/null 2>&1 || fail "source template $SOURCE_VMID does not exist"
+	pct config "$SOURCE_VMID" | grep -q '^template: 1' || fail "$SOURCE_VMID is not a template"
+else
+	# Named rather than implied: bootstrap is the unusual path and the one somebody reaches for
+	# when they have no idea what the normal path looks like.
+	log "bootstrap mode: no source template, building from $BASE_IMAGE"
+	pveam list "$BASE_IMAGE_STORAGE" 2>/dev/null | grep -q "$BASE_IMAGE" || fail \
+		"$BASE_IMAGE is not downloaded. Get it with:
+    pveam update && pveam download $BASE_IMAGE_STORAGE $BASE_IMAGE
+  pveam available --section system  lists what this host can fetch."
+fi
 
 if [ -z "$NEW_VMID" ]; then
 	NEW_VMID=$(pvesh get /cluster/nextid)
@@ -66,13 +100,31 @@ if pct config "$NEW_VMID" >/dev/null 2>&1; then
 	fail "$NEW_VMID already exists; pass NEW_VMID= for an unused id"
 fi
 
-log "full clone $SOURCE_VMID -> $NEW_VMID on $STORAGE"
-# Full, not linked: the result becomes a template in its own right and must not depend on the
-# source's snapshot staying around.
-pct clone "$SOURCE_VMID" "$NEW_VMID" \
-	--full 1 \
-	--storage "$STORAGE" \
-	--hostname "pve-agents-template-build"
+if [ -n "$SOURCE_VMID" ]; then
+	log "full clone $SOURCE_VMID -> $NEW_VMID on $STORAGE"
+	# Full, not linked: the result becomes a template in its own right and must not depend on the
+	# source's snapshot staying around.
+	pct clone "$SOURCE_VMID" "$NEW_VMID" \
+		--full 1 \
+		--storage "$STORAGE" \
+		--hostname "pve-agents-template-build"
+else
+	log "creating $NEW_VMID from $BASE_IMAGE_VOLUME on $STORAGE"
+	# Unprivileged, matching what the clones will be. A template built privileged produces a fleet
+	# of privileged containers, which is the opposite of what a disposable workspace should be.
+	#
+	# DHCP because address discovery polls Proxmox for whatever the container got; a static
+	# address here would be baked into every clone and collide on the second one.
+	pct create "$NEW_VMID" "$BASE_IMAGE_VOLUME" \
+		--hostname "pve-agents-template-build" \
+		--rootfs "${STORAGE}:${ROOTFS_SIZE}" \
+		--memory "$MEMORY" \
+		--cores "$CORES" \
+		--net0 "name=eth0,bridge=${BRIDGE},ip=dhcp" \
+		--unprivileged 1 \
+		--features nesting=1 \
+		--onboot 0
+fi
 SCRATCH_CREATED=1
 
 log "starting $NEW_VMID"
@@ -90,12 +142,16 @@ pct exec "$NEW_VMID" -- getent hosts archive.ubuntu.com >/dev/null 2>&1 ||
 	fail "container has no DNS; check the bridge and DHCP"
 
 log "installing base packages"
+# fd-find installs the binary as `fdfind`, because Debian already had an `fd`. Everything that
+# reaches for it — an agent, a CLAUDE.md, a person in the Terminal tab — calls it `fd`, so the
+# symlink is part of installing it rather than a nicety.
 pct exec "$NEW_VMID" -- bash -eux -c '
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update
 	apt-get install -y --no-install-recommends \
-		build-essential ca-certificates curl git gnupg jq openssh-server \
+		build-essential ca-certificates curl fd-find git gnupg jq openssh-server \
 		python3 python3-venv ripgrep unzip
+	ln -sf "$(command -v fdfind)" /usr/local/bin/fd
 '
 
 log "installing gh"
@@ -162,6 +218,33 @@ pct exec "$NEW_VMID" -- bash -eux -c "
 	done
 "
 
+# uv, bun and opencode used to arrive only by being copied out of the ancestor template's /root,
+# just above. That worked for a rebuild and produced nothing at all on a bootstrap build, which
+# then failed verification — so they are installed explicitly here and both modes converge on the
+# same tooling. The copy above stays: it preserves the versions a working template was pinned to,
+# and these installers are no-ops over an existing binary of the same name.
+log "installing uv, bun and opencode for ${WORKSPACE_USER}"
+# As the workspace user, not root: tooling under /root is not on this user's PATH, which makes it
+# invisible to everything the controller does over SSH.
+pct exec "$NEW_VMID" -- su - "$WORKSPACE_USER" -s /bin/bash -c '
+	set -eux
+	command -v uv >/dev/null 2>&1 || curl -fsSL https://astral.sh/uv/install.sh | sh
+	command -v bun >/dev/null 2>&1 || curl -fsSL https://bun.sh/install | bash
+	command -v opencode >/dev/null 2>&1 || curl -fsSL https://opencode.ai/install | bash
+'
+# Each installer drops into its own directory and appends to a shell rc file, which a non-login
+# `ssh host command` never reads. The symlink loop below is the same mechanism the copied tooling
+# relies on, applied to what was just installed.
+pct exec "$NEW_VMID" -- bash -eux -c "
+	for dir in /home/${WORKSPACE_USER}/.local/bin /home/${WORKSPACE_USER}/.bun/bin /home/${WORKSPACE_USER}/.opencode/bin; do
+		[ -d \"\$dir\" ] || continue
+		for tool in \"\$dir\"/*; do
+			[ -x \"\$tool\" ] && ln -sf \"\$tool\" /usr/local/bin/\"\$(basename \"\$tool\")\"
+		done
+	done
+	chown -R ${WORKSPACE_USER}:${WORKSPACE_USER} /home/${WORKSPACE_USER}
+"
+
 log "installing coding agents for ${WORKSPACE_USER}"
 # The agent SDK is what the controller's runner imports. It goes in the template rather than being
 # installed per workspace because it carries its own Claude Code binary and weighs about 245 MB;
@@ -225,11 +308,13 @@ PROVISIONED=1
 log "verifying before converting"
 pct exec "$NEW_VMID" -- bash -eu -c "
 	missing=
-	for tool in git gh node pnpm python3 go rustc rg jq sshd; do
+	for tool in git gh node pnpm python3 go rustc rg fd jq sshd; do
 		command -v \$tool >/dev/null 2>&1 || missing=\"\$missing \$tool(root)\"
 	done
 	# Checked without a login shell, because that is how the controller reaches them over SSH.
-	for tool in herdr uv opencode claude codex; do
+	# herdr was here and is not: it was removed from the controller, and requiring its binary to
+	# convert a template would block every build for a dependency nothing calls any more.
+	for tool in uv bun opencode claude codex; do
 		su ${WORKSPACE_USER} -s /bin/sh -c \"command -v \$tool\" >/dev/null 2>&1 ||
 			missing=\"\$missing \$tool(${WORKSPACE_USER}, non-login)\"
 	done
@@ -255,7 +340,7 @@ PROVISIONED=
 
 cat <<SUMMARY
 
-Template $NEW_VMID built from $SOURCE_VMID.
+Template $NEW_VMID built from ${SOURCE_VMID:-$BASE_IMAGE}.
 
 Point the controller at it and restart:
 
@@ -263,8 +348,21 @@ Point the controller at it and restart:
   sed -i 's/^PROXMOX_TEMPLATE_VMID=.*/PROXMOX_TEMPLATE_VMID=$NEW_VMID/' /opt/pve-agents/.env
   systemctl restart pve-agents.service
 
-The Proxmox token needs VM.Audit and VM.Clone on /vms/$NEW_VMID; it currently holds them on
-/vms/$SOURCE_VMID only, so cloning will fail with 403 until that is granted.
+The Proxmox token needs VM.Audit and VM.Clone on /vms/$NEW_VMID, or cloning fails with 403.
+SUMMARY
+
+if [ -n "$SOURCE_VMID" ]; then
+	cat <<SUMMARY
+It currently holds them on /vms/$SOURCE_VMID only.
 
 $SOURCE_VMID is untouched. Revert by putting it back in .env.
 SUMMARY
+else
+	# Said out loud because bootstrap is the one build with nothing to fall back to, and that is
+	# worth knowing before the first workspace rather than after it.
+	cat <<SUMMARY
+
+This was a bootstrap build, so there is no earlier template to revert to. Keep $NEW_VMID until a
+workspace has been built from it and the agent has answered a prompt.
+SUMMARY
+fi
