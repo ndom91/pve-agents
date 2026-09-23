@@ -170,7 +170,7 @@ function HarnessForm({
 	}
 
 	return (
-		<form className="settings-form" onSubmit={save}>
+		<form className="settings-form harness-form" onSubmit={save}>
 			<label className="settings-field">
 				<span>Name</span>
 				<input
@@ -178,11 +178,19 @@ function HarnessForm({
 					placeholder="Claude (subscription)"
 					value={name}
 				/>
+				<small>
+					What you pick it by when launching a workspace, and what the workspace
+					then shows. Yours to choose.
+				</small>
 			</label>
 
+			{/* "Type", not "Agent". This tab is called Agents and every row in it is one, so a
+			    field inside a row labelled Agent read as "which agent is this agent" -- and with
+			    two configured agents and two kinds, its options looked exactly like the list on
+			    the left. What it actually chooses is which software drives this one. */}
 			<div className="settings-field">
 				<label htmlFor={kindId}>
-					<span>Agent</span>
+					<span>Type</span>
 				</label>
 				<Select
 					id={kindId}
@@ -190,6 +198,11 @@ function HarnessForm({
 					options={kinds.map((option) => ({ label: option, value: option }))}
 					value={kind}
 				/>
+				<small>
+					Which coding agent runs in the workspace. Several agents can share a
+					type — two Claude subscriptions, say — and each keeps its own
+					credential. The list is what this controller has been built to drive.
+				</small>
 			</div>
 
 			<label className="settings-field">
@@ -204,15 +217,25 @@ function HarnessForm({
 					type="password"
 					value={credential}
 				/>
+				<small>
+					Written into each workspace as it is provisioned, so a change takes
+					effect on the next one and leaves running workspaces alone. Never sent
+					back to this page once saved.
+				</small>
 			</label>
 
 			<label className="settings-field">
 				<span>Model</span>
 				<input
 					onChange={(event) => setModel(event.target.value)}
-					placeholder="Optional, e.g. openai/gpt-5.6-luna-fast"
+					placeholder="openai/gpt-5.6-luna-fast"
 					value={model}
 				/>
+				<small>
+					Optional, and usually best left empty: each agent then picks for
+					itself, which stays current as models change. opencode wants
+					provider/model; Claude Code ignores this and chooses its own.
+				</small>
 			</label>
 
 			<label className="settings-toggle">

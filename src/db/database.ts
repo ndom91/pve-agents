@@ -204,7 +204,7 @@ const migrations = [
 		// Those were one word until now. `kind` names the code -- claude-code, opencode2, whatever
 		// is registered in src/harness -- and a row is one configured instance of it: a credential,
 		// a model, a permission mode, and a name a person picks it by. Several rows can share a
-		// kind, which is the point: two Claude subscriptions, or a Codex and an Anthropic account.
+		// kind, which is the point: two Claude subscriptions, or two opencodes on different providers.
 		//
 		// This replaces five environment variables. They had to be one harness for the whole
 		// controller, changing one meant editing a file and restarting the service, and the
