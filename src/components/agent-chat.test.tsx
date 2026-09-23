@@ -80,6 +80,33 @@ function chat(messages: unknown[]) {
 }
 
 describe("AgentChat transcript scrolling", () => {
+	it("shows a start prompt only while an attached transcript is empty", () => {
+		const { container, rerender } = render(chat([]));
+
+		expect(container.querySelector(".chat-empty-state")).not.toBeNull();
+		expect(container.textContent).toContain(
+			"Enter a query in the prompt below to get started.",
+		);
+
+		rerender(
+			<TooltipProvider>
+				<AgentChat
+					approvals={[]}
+					busy={false}
+					link="opening"
+					messages={[]}
+					onDecide={() => {}}
+				/>
+			</TooltipProvider>,
+		);
+
+		expect(container.querySelector(".chat-empty-state")).toBeNull();
+
+		rerender(chat([assistant("I am ready.")]));
+
+		expect(container.querySelector(".chat-empty-state")).toBeNull();
+	});
+
 	it("follows the end while the reader is already at it", () => {
 		const { container, rerender } = render(chat([assistant("one")]));
 		const list = container.querySelector("ol");

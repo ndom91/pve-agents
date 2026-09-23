@@ -1842,6 +1842,54 @@ button.workspace-title:hover {
 	padding: var(--space-8) var(--main-pad) 16px 0;
 }
 
+/* A fresh runner has no transcript to anchor the eye, but the composer below is already ready.
+ * Keep this in the scroller rather than as a sibling of it: the card then occupies the calm centre
+ * of the available conversation space and vanishes naturally when the first entry arrives. */
+.chat-entries.is-empty {
+	align-items: center;
+	justify-content: center;
+	padding-bottom: var(--space-8);
+}
+
+.chat-empty-state {
+	align-items: flex-start;
+	background: var(--surface-raised);
+	border: 1px solid var(--line-border);
+	border-radius: var(--radius-lg);
+	display: flex;
+	gap: 12px;
+	max-width: 30rem;
+	padding: 16px 18px;
+	width: min(100%, 30rem);
+}
+
+.chat-empty-mark {
+	background: var(--sage-quiet);
+	border-radius: var(--radius-sm);
+	color: var(--green);
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-sm);
+	line-height: 1;
+	padding: 8px 7px;
+}
+
+.chat-empty-title {
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	line-height: 1.4;
+	margin: 0;
+}
+
+.chat-empty-copy {
+	color: var(--text-secondary);
+	font-family: var(--font-sans);
+	font-size: var(--text-sm);
+	line-height: 1.45;
+	margin: 3px 0 0;
+}
+
 /* Spacing by relationship rather than by a single gap.
  *
  * A turn is a prompt, then a run of thoughts and tool calls, then an answer. With one gap for every

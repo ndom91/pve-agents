@@ -62,7 +62,13 @@ export function AgentChat({
 
 	return (
 		<div className="agent-chat">
-			<Rail entries={entries} tail={tail} />
+			<Rail
+				entries={entries}
+				showEmptyState={
+					link === "attached" && entries.length === 0 && tail === undefined
+				}
+				tail={tail}
+			/>
 
 			{/* Below the transcript, not inside it. An approval is the newest thing that happened
 			    and the only thing that needs an answer, so it sits where the eye lands last. */}
@@ -86,11 +92,6 @@ export function AgentChat({
 			{link === "opening" && entries.length === 0 && tail === undefined ? (
 				<PanelSpinner label="Attaching to the agent." />
 			) : null}
-			{link === "attached" && entries.length === 0 && tail === undefined ? (
-				<p className="detail-note">
-					Nothing has happened yet. Tell the agent what to do.
-				</p>
-			) : null}
 		</div>
 	);
 }
@@ -106,9 +107,11 @@ const SLACK = 24;
 // Rail is the transcript itself, pinned to the bottom while it grows.
 function Rail({
 	entries,
+	showEmptyState,
 	tail,
 }: {
 	entries: TranscriptEntry[];
+	showEmptyState: boolean;
 	tail?: AgentTail;
 }) {
 	const list = useRef<HTMLOListElement>(null);
@@ -158,7 +161,7 @@ function Rail({
 
 	return (
 		<ol
-			className="chat-entries"
+			className={showEmptyState ? "chat-entries is-empty" : "chat-entries"}
 			// Nothing is decided here. It re-reads the height so that growth this effect never saw
 			// — a tool fold opening, an image landing — cannot leave the stored height too small
 			// and make the next append think the reader is at the bottom when they are not.
@@ -167,6 +170,19 @@ function Rail({
 			}}
 			ref={list}
 		>
+			{showEmptyState ? (
+				<li className="chat-empty-state">
+					<span aria-hidden="true" className="chat-empty-mark">
+						&gt;_
+					</span>
+					<div>
+						<p className="chat-empty-title">Start a conversation</p>
+						<p className="chat-empty-copy">
+							Enter a query in the prompt below to get started.
+						</p>
+					</div>
+				</li>
+			) : null}
 			{items.map((item, index) =>
 				item.kind === "tools" ? (
 					<li
