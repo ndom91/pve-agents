@@ -1,6 +1,6 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
-
 import type { HarnessConfig } from "../domain/harness-config";
 import {
 	harnessesQuery,
@@ -11,7 +11,9 @@ import {
 	deleteWorkspaceHarness,
 	saveWorkspaceHarness,
 } from "../server/harnesses.functions";
+
 import { Button } from "./button";
+import { SectionHead } from "./section-head";
 import { Select } from "./select";
 
 // The sentinel for "adding one" in the same slot the ids occupy, so the editor has a single
@@ -30,60 +32,73 @@ export function SettingsHarnesses(): ReactNode {
 	const editing = configured.find((harness) => harness.id === selected);
 
 	return (
-		<div className="seed-layout">
-			<div className="seed-index">
-				{configured.length === 0 ? (
-					<p className="seed-empty">
-						No agents configured. A workspace cannot be launched until there is
-						one.
-					</p>
-				) : (
-					<ul className="seed-list">
-						{configured.map((harness) => (
-							<li key={harness.id}>
-								<button
-									className={`seed-entry${harness.id === selected ? " is-open" : ""}`}
-									onClick={() => setSelected(harness.id)}
-									type="button"
-								>
-									<span className="seed-entry-path">{harness.name}</span>
-									<span className="seed-entry-meta">
-										{harness.kind}
-										{harness.enabled ? "" : " · disabled"}
-									</span>
-								</button>
-							</li>
-						))}
-					</ul>
-				)}
+		<section className="settings-seed">
+			<p>
+				The agents a workspace can be launched on. Each carries its own
+				credential, which is stored here and written into a workspace as it is
+				provisioned. Rotating one takes effect on the next workspace.
+			</p>
 
-				<Button
-					onClick={() => setSelected(NEW)}
-					type="button"
-					variant="secondary"
-				>
-					Add an agent
-				</Button>
-			</div>
+			<div className="seed-browser">
+				<div className="seed-index">
+					<SectionHead count={configured.length} label="Agents" />
 
-			<div className="seed-editor">
-				{selected === undefined ? (
-					<p className="seed-empty">
-						Pick an agent to edit, or add one. Each carries its own credential,
-						and a workspace is launched on one of them.
-					</p>
-				) : (
-					<HarnessForm
-						// Remounted per selection, so the fields come from the harness being
-						// edited rather than from whichever was open before it.
-						key={selected}
-						harness={editing}
-						kinds={kinds}
-						onDone={() => setSelected(undefined)}
-					/>
-				)}
+					{configured.length === 0 ? (
+						<p className="seed-empty">
+							None yet. A workspace cannot be launched until there is one.
+						</p>
+					) : (
+						<ul className="seed-list">
+							{configured.map((harness) => (
+								<li key={harness.id}>
+									<button
+										aria-pressed={harness.id === selected}
+										className={
+											harness.id === selected
+												? "seed-row is-active"
+												: "seed-row"
+										}
+										onClick={() => setSelected(harness.id)}
+										type="button"
+									>
+										<span className="seed-path">
+											<span className="seed-name">{harness.name}</span>
+										</span>
+										<span className="seed-size">
+											{harness.enabled ? harness.kind : `${harness.kind} · off`}
+										</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					)}
+
+					<Button
+						className="seed-add"
+						onClick={() => setSelected(NEW)}
+						variant="secondary"
+					>
+						<Plus aria-hidden size={12} strokeWidth={1.5} />
+						<span>Add agent</span>
+					</Button>
+				</div>
+
+				<div className="seed-pane">
+					{selected === undefined ? (
+						<p className="seed-blank">Select an agent, or add one.</p>
+					) : (
+						<HarnessForm
+							// Remounted per selection, so the fields come from the harness being
+							// edited rather than from whichever was open before it.
+							key={selected}
+							harness={editing}
+							kinds={kinds}
+							onDone={() => setSelected(undefined)}
+						/>
+					)}
+				</div>
 			</div>
-		</div>
+		</section>
 	);
 }
 
@@ -221,7 +236,7 @@ function HarnessForm({
 				<span>Offer this agent when launching a workspace</span>
 			</label>
 
-			<div className="settings-actions">
+			<div className="seed-actions">
 				<Button disabled={busy} type="submit">
 					{busy ? "Saving" : "Save"}
 				</Button>
