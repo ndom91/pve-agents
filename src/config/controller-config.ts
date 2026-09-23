@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Imported for the registry's side effect as much as for the names: the schema below is checked
+// against what is registered, so the registration has to have happened by the time it parses.
+import { DEFAULT_HARNESS, harnessNames } from "../harness";
+
 const envSchema = z
 	.object({
 		CONTROLLER_AUTH_SECRET: z.string().min(32).optional(),
@@ -74,9 +78,20 @@ const envSchema = z
 		// Controller-wide rather than per workspace, which is the smaller half of the problem and
 		// the one worth solving first: it forces every harness-specific decision behind the
 		// interface without needing a column, a launch field, and an answer to "what harness is
-		// this existing workspace". Validated against the registry rather than an enum here, so
-		// adding a harness is adding a directory.
-		WORKSPACE_AGENT_HARNESS: z.string().min(1).default("claude-code"),
+		// this existing workspace".
+		//
+		// Checked against the registry rather than an enum, so adding a harness is adding a
+		// directory and one line in src/harness/index.ts. Checked here rather than left to the
+		// first provision: `harness()` throws a good message, but a typo reaching it arrives as a
+		// per-workspace provisioning failure, which is the slowest way to learn about a bad .env.
+		WORKSPACE_AGENT_HARNESS: z
+			.string()
+			.min(1)
+			.default(DEFAULT_HARNESS)
+			.refine((name) => harnessNames().includes(name), {
+				error: (issue) =>
+					`unknown agent harness "${String(issue.input)}"; registered: ${harnessNames().join(", ")}`,
+			}),
 		// The agent's credential. For claude-code, a long-lived OAuth token from
 		// `claude setup-token` tied to a subscription -- not an API key. What the workspace calls
 		// it is the harness's business; this is only where the controller keeps it.

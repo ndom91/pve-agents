@@ -8,7 +8,7 @@ import {
 	seedFiles,
 } from "../db/seed-file-repository";
 import { seedFileSchema } from "../domain/seed-file";
-import { harness } from "../harness";
+import { configuredHarness } from "../harness";
 import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 import { operatorMiddleware } from "./middleware";
 
@@ -40,7 +40,7 @@ export const saveWorkspaceSeedFile = createServerFn({ method: "POST" })
 	.handler(({ data }) => {
 		const saved = saveSeedFile(
 			controllerDatabase(),
-			harness(controllerRuntimeConfig().WORKSPACE_AGENT_HARNESS),
+			configuredHarness(controllerRuntimeConfig()),
 			data,
 		);
 		if (saved.kind === "invalid") {

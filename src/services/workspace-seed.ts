@@ -1,4 +1,6 @@
 import type { SeedFileContent } from "../db/seed-file-repository";
+import type { MergeRule } from "../domain/harness";
+import { mergesIntoExisting } from "../domain/seed-file";
 import { AGENT_CWD } from "../domain/workspace-layout";
 
 import type { SshRunner, SshTarget } from "./ssh";
@@ -86,13 +88,14 @@ const SEED_FILE_SCRIPT = [
 // configuration and no way to tell which, and the step is retried whole.
 export async function seedWorkspace(
 	target: SshTarget,
-	harness: { merges(path: string): boolean },
+	harness: MergeRule,
 	files: SeedFileContent[],
 	ssh: SshRunner,
 ): Promise<WorkspaceSeed> {
 	for (const file of files) {
-		const merge =
-			file.root === "home" && harness.merges(file.path) ? "merge" : "write";
+		const merge = mergesIntoExisting(harness, file.root, file.path)
+			? "merge"
+			: "write";
 		const result = await ssh(
 			target,
 			[

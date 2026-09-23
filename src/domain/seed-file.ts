@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { MergeRule } from "./harness";
 import { AGENT_CWD } from "./workspace-layout";
 
 // MAX_SEED_BYTES caps one file.
@@ -54,7 +55,7 @@ export type SeedFile = {
 // bootstrap, and therefore must not be clobbered, is a fact about that agent. Only "home" can ever
 // merge, because the file in question is one the workspace wrote into the agent user's home.
 export function mergesIntoExisting(
-	harness: { merges(path: string): boolean },
+	harness: MergeRule,
 	root: SeedRoot,
 	path: string,
 ): boolean {
@@ -70,7 +71,7 @@ export function mergesIntoExisting(
 // provision that fails at the seeding step reports a workspace that could not be built; the
 // operator who typed the trailing comma is somewhere else by then.
 export function readSeedContent(
-	harness: { merges(path: string): boolean },
+	harness: MergeRule,
 	root: SeedRoot,
 	path: string,
 	content: string,

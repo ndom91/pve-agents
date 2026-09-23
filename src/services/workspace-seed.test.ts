@@ -178,6 +178,25 @@ describe("seeding ~/.claude.json", () => {
 		expect(script(calls)).toContain("readFileSync(0,");
 	});
 
+	it("writes a repo-rooted file of the same name, rather than merging it", async () => {
+		// The merged file is one the workspace wrote into the agent's home. A CLAUDE.md or a
+		// .claude.json checked into somebody's repository is an ordinary file and merging into it
+		// would be inventing a rule the harness never asked for.
+		//
+		// Worth its own test because the root half of the rule and the harness half live in
+		// different places, and this is the one that has no harness to speak up when it is dropped.
+		const { calls, ssh } = recorder();
+
+		await seedWorkspace(
+			TARGET,
+			HARNESS,
+			[{ content: "{}", path: ".claude.json", root: "repo" }],
+			ssh,
+		);
+
+		expect(calls[0]?.command.at(-1)).toBe("write");
+	});
+
 	it("leaves every other destination on the plain write", async () => {
 		const { calls, ssh } = recorder();
 

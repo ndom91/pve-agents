@@ -51,6 +51,13 @@ export type Harness = {
 // HarnessFile is one file a harness needs in a workspace before its agent will start.
 export type HarnessFile = { contents: string; path: string };
 
+// MergeRule is the merge question on its own, for the seeding path that only asks that.
+//
+// Narrow deliberately: seeding takes this rather than a whole Harness so its tests can pass a rule
+// and nothing else, which is what keeps them from being written around claude-code. A name for the
+// shape rather than four copies of it.
+export type MergeRule = Pick<Harness, "merges">;
+
 const REGISTRY = new Map<string, Harness>();
 
 // register makes a harness selectable by name.

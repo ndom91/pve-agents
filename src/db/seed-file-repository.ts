@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type Database from "better-sqlite3";
 
+import type { MergeRule } from "../domain/harness";
 import {
 	MAX_SEED_FILES,
 	readSeedContent,
@@ -99,7 +100,7 @@ export function saveSeedFile(
 	db: Database.Database,
 	// Which agent this controller runs, because whether a destination is merged rather than
 	// overwritten is a fact about the agent and not about seeding.
-	harness: { merges(path: string): boolean },
+	harness: MergeRule,
 	input: SeedFileInput,
 	now: Date = new Date(),
 ): SaveSeedFileResult {

@@ -11,7 +11,7 @@ import {
 import type { ThoughtEntry, ToolEntry } from "../domain/agent-feed";
 import { countErrors, countTools, groupFeed } from "../domain/agent-feed";
 import type { TranscriptEntry } from "../domain/transcript";
-import { DEFAULT_HARNESS, harness } from "../harness";
+import { harness, LEGACY_SNAPSHOT_HARNESS } from "../harness";
 import { elapsedBetween, formatStep } from "../lib/clock";
 import { languageOfOutput, languageOfPath } from "../lib/highlight";
 import type { AgentTail, Approval } from "../lib/use-agent-stream";
@@ -34,7 +34,7 @@ import { Timestamp } from "./timestamp";
 export function AgentChat({
 	approvals,
 	busy,
-	harness: name = DEFAULT_HARNESS,
+	harness: name = LEGACY_SNAPSHOT_HARNESS,
 	link,
 	messages,
 	onDecide,

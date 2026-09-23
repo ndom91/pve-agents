@@ -22,7 +22,7 @@ import {
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
 import { AGENT_CWD } from "../domain/workspace-layout";
-import { harness } from "../harness";
+import { configuredHarness } from "../harness";
 import { prepareAgentWorkspace } from "./agent-bootstrap";
 import {
 	installRunner,
@@ -278,7 +278,7 @@ async function bootstrapAgentHome(
 
 	const prepared = await prepareAgentWorkspace(
 		target,
-		harness(config.WORKSPACE_AGENT_HARNESS),
+		configuredHarness(config),
 		{ cwd: AGENT_CWD, token },
 		ssh,
 	);
@@ -472,7 +472,7 @@ async function seedWorkspaceFiles(
 
 		const seeded = await seedWorkspace(
 			target,
-			harness(config.WORKSPACE_AGENT_HARNESS),
+			configuredHarness(config),
 			files,
 			ssh,
 		);
@@ -530,7 +530,7 @@ async function startAgentRunner(
 	// Asked first, so a pass that already has a working runner costs one round trip rather than an
 	// install and a launch.
 	if ((await runnerState(target, ssh)) !== "running") {
-		const agent = harness(config.WORKSPACE_AGENT_HARNESS);
+		const agent = configuredHarness(config);
 		const installed = await installRunner(
 			target,
 			{ file: agent.runner, source: runnerSource(agent.runner) },
