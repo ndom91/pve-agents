@@ -27,5 +27,5 @@ export const claudeCode: Harness = {
 	merges: (path) => path.trim() === CLAUDE_JSON,
 	name: "claude-code",
 	readTranscript,
-	runner: "agent-runner.mjs",
+	runner: { also: ["agent-socket.mjs"], entry: "agent-runner.mjs" },
 };

@@ -26,7 +26,7 @@ const FAKE: Harness = {
 			(message) =>
 				({ kind: "say", text: String(message) }) satisfies TranscriptEntry,
 		),
-	runner: "fake-runner.mjs",
+	runner: { also: [], entry: "fake-runner.mjs" },
 };
 
 register(FAKE);

@@ -27,7 +27,7 @@ import { prepareAgentWorkspace } from "./agent-bootstrap";
 import {
 	installRunner,
 	promptRunner,
-	runnerSource,
+	runnerFiles,
 	runnerState,
 	runnerTranscriptLength,
 	startRunner,
@@ -533,7 +533,7 @@ async function startAgentRunner(
 		const agent = configuredHarness(config);
 		const installed = await installRunner(
 			target,
-			{ file: agent.runner, source: runnerSource(agent.runner) },
+			{ files: runnerFiles(agent.runner) },
 			ssh,
 		);
 		if (installed.kind === "failed") {
@@ -549,7 +549,8 @@ async function startAgentRunner(
 		const launched = await startRunner(
 			target,
 			{
-				file: agent.runner,
+				file: agent.runner.entry,
+				model: config.WORKSPACE_AGENT_MODEL,
 				permissionMode: config.WORKSPACE_PERMISSION_MODE,
 			},
 			ssh,

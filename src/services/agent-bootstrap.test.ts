@@ -22,7 +22,7 @@ const HARNESS = {
 	merges: () => false,
 	name: "test-harness",
 	readTranscript: () => [],
-	runner: "agent-runner.mjs",
+	runner: { also: [], entry: "agent-runner.mjs" },
 };
 
 describe("prepareAgentWorkspace", () => {

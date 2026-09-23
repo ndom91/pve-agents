@@ -1,5 +1,6 @@
 import { type Harness, harness, register } from "../domain/harness";
 import { claudeCode } from "./claude-code";
+import { opencode2 } from "./opencode2";
 
 // Registering every harness the controller can run.
 //
@@ -7,6 +8,7 @@ import { claudeCode } from "./claude-code";
 // and one line here rather than by being discovered. Discovery would make "which agents does this
 // build support" a question you answer by running it.
 register(claudeCode);
+register(opencode2);
 
 // What a runner installed before the snapshot carried a harness name must be.
 //

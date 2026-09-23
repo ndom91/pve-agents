@@ -1,0 +1,447 @@
+// The opencode2 runner: one opencode session, held open, reachable over a unix socket.
+//
+// Same protocol as the claude-code runner -- see src/domain/runner-protocol.ts -- and a completely
+// different mechanism underneath, which is the point. claude-code is an in-process SDK with a
+// suspended callback; opencode is a local HTTP server with an event bus.
+//
+// Everything this file knows about that server was observed by driving one, not read from a
+// document. The OpenAPI document opencode serves at /openapi.json declares its event payloads as an
+// opaque JSON string, so the event vocabulary below came from watching real sessions.
+//
+// Plain JavaScript and no build step, like its sibling. Copied into the container over ssh.
+
+import { spawn } from "node:child_process";
+
+import { serve } from "./agent-socket.mjs";
+
+const SOCKET =
+	process.env.RUNNER_SOCKET ?? `${process.env.HOME}/.agent-runner.sock`;
+
+const CWD = process.env.RUNNER_CWD ?? "/workspace/repo";
+
+// How much the agent may do without asking.
+//
+// opencode's own vocabulary is a permission list on the agent -- {action, resource, allow|ask|deny}
+// -- rather than Claude's five-word enum, so this is not the same word meaning the same thing. Only
+// "auto" is interpreted here: it answers every request with "once". Anything else means every
+// request reaches the operator, which is the safe direction for a word this runner does not know.
+const MODE = process.env.RUNNER_PERMISSION_MODE ?? "auto";
+
+// Which model, as "providerID/modelID". Optional: opencode has its own default, and asking the
+// server for it is better than this file carrying an opinion that goes stale.
+const MODEL = process.env.RUNNER_MODEL;
+
+// The server's own port, on loopback only. Not configurable and not reachable from outside the
+// container: the ssh key gates the socket, and this is an implementation detail behind it.
+const PORT = Number(process.env.RUNNER_OPENCODE_PORT ?? "39917");
+
+const BASE = `http://127.0.0.1:${PORT}/api`;
+
+// The username opencode expects for HTTP Basic. A literal, not a name we chose.
+//
+// Worth stating because getting it wrong costs an hour: the server answers a wrong username with
+// exactly the 401 it answers a wrong password with, so an unauthenticated runner looks like a
+// credential problem rather than a spelling one.
+const USER = "opencode";
+
+function main() {
+	const { broadcast } = serve({ onRequest: handle, socket: SOCKET });
+
+	// Every message, in opencode's own shape. The harness's readTranscript turns these into rows;
+	// nothing here interprets them, for the same reason the claude-code runner forwards the SDK's
+	// messages untouched.
+	let transcript = [];
+	// Parked permission requests by id, as the controller's ApprovalRequest shape.
+	const approvals = new Map();
+
+	let password;
+	let sessionId;
+	let title;
+	let working = false;
+	let fatal;
+
+	function status() {
+		if (approvals.size > 0) {
+			return "blocked";
+		}
+
+		return working ? "working" : "idle";
+	}
+
+	let last = status();
+	function settle() {
+		const now = status();
+		if (now !== last) {
+			last = now;
+			broadcast({ status: now, type: "status" });
+		}
+	}
+
+	function snapshot() {
+		return {
+			approvals: [...approvals.values()],
+			cwd: CWD,
+			harness: "opencode2",
+			messages: transcript,
+			permissionMode: MODE,
+			sessionId,
+			status: status(),
+			title,
+			type: "snapshot",
+		};
+	}
+
+	// call is every request to the local server.
+	//
+	// Basic auth on each one rather than a session cookie, because the server hands out a password
+	// and nothing else, and because a runner that reconnects should not have to re-establish
+	// anything.
+	async function call(path, { body, method = "GET" } = {}) {
+		const response = await fetch(`${BASE}${path}`, {
+			body: body === undefined ? undefined : JSON.stringify(body),
+			headers: {
+				authorization: `Basic ${Buffer.from(`${USER}:${password}`).toString("base64")}`,
+				...(body === undefined ? {} : { "content-type": "application/json" }),
+			},
+			method,
+		});
+		if (!response.ok) {
+			throw new Error(`${method} ${path} -> ${response.status}`);
+		}
+		if (response.status === 204) {
+			return undefined;
+		}
+
+		// Every response is wrapped as {location, data}. Unwrapped here so no caller has to know.
+		const payload = await response.json();
+
+		return payload?.data;
+	}
+
+	// start launches the server and waits for it to say its password.
+	//
+	// The password is generated per start and written to stdout, so it has to be scraped. There is
+	// no flag to set it and no file it lands in.
+	//
+	// Plain `serve` rather than `serve --service`: --service is a shared background instance, and
+	// this controller expects one agent per workspace holding one session. Sharing one would make
+	// two workspaces on the same container -- which cannot happen today -- silently the same agent.
+	function start() {
+		return new Promise((resolve, reject) => {
+			const child = spawn("opencode2", ["serve", "--port", String(PORT)], {
+				cwd: CWD,
+				stdio: ["ignore", "pipe", "pipe"],
+			});
+
+			let buffer = "";
+			const timer = setTimeout(() => {
+				reject(new Error("opencode2 serve did not report a password"));
+			}, 60_000);
+
+			child.stdout.setEncoding("utf8");
+			child.stdout.on("data", (chunk) => {
+				buffer += chunk;
+				const found = /^server password (.+)$/m.exec(buffer);
+				if (found !== null && password === undefined) {
+					password = found[1].trim();
+					clearTimeout(timer);
+					resolve();
+				}
+			});
+
+			// Kept, not discarded: when the server refuses to start this is the only account of why,
+			// and it is the difference between a named failure and a silent one.
+			child.stderr.setEncoding("utf8");
+			child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+
+			child.on("exit", (code) => {
+				clearTimeout(timer);
+				const message = `opencode2 serve exited with ${code}`;
+				fatal = message;
+				broadcast({ message, type: "fatal" });
+				reject(new Error(message));
+			});
+		});
+	}
+
+	// model resolves what to run, preferring what the operator asked for.
+	//
+	// Returns undefined when nothing was configured, which the session create reads as "your
+	// default", rather than this runner guessing a model name that may not exist on this build.
+	function model() {
+		if (MODEL === undefined || MODEL === "") {
+			return undefined;
+		}
+
+		const cut = MODEL.indexOf("/");
+		if (cut === -1) {
+			return undefined;
+		}
+
+		return { id: MODEL.slice(cut + 1), providerID: MODEL.slice(0, cut) };
+	}
+
+	// resync rebuilds the transcript and the pending approvals from the server.
+	//
+	// This is the heart of the file, and it exists because the event stream is lossy by its own
+	// documented contract: a slow consumer overflows and fails the stream, and events during a
+	// disconnection are missed entirely. So events are treated as a prompt to look, never as the
+	// record itself -- the server holds the record.
+	//
+	// Called after every reconnection and at the end of every turn. Cheap enough to do often, and
+	// the alternative is a transcript with a hole in the middle that nothing ever repairs.
+	async function resync() {
+		if (sessionId === undefined) {
+			return;
+		}
+
+		try {
+			const messages = await call(`/session/${sessionId}/message`);
+			if (Array.isArray(messages)) {
+				transcript = messages;
+				broadcast({ ...snapshot(), type: "snapshot" });
+			}
+
+			const pending = await call(`/session/${sessionId}/permission`);
+			if (Array.isArray(pending)) {
+				// Replaced wholesale rather than merged. A request the server no longer lists was
+				// answered by somebody else or expired, and keeping it would leave the workspace
+				// permanently "blocked" with a button that does nothing.
+				approvals.clear();
+				for (const request of pending) {
+					approvals.set(request.id, approval(request));
+				}
+				settle();
+			}
+		} catch (error) {
+			// Not fatal. A failed resync means this pass learned nothing, and the next event or the
+			// next turn tries again; tearing the runner down would lose a working session.
+			process.stderr.write(`resync failed: ${String(error)}\n`);
+		}
+	}
+
+	// approval turns opencode's permission request into the controller's shape.
+	//
+	// opencode describes what is being asked structurally -- an action and the resources it covers
+	// -- where Claude's SDK hands over a sentence it composed itself. So the sentence is built here,
+	// from the two fields, rather than left empty: the approval UI shows `title` and falling back to
+	// a bare tool name would tell an operator nothing about what they are allowing.
+	function approval(request) {
+		const resources = (request.resources ?? []).join(", ");
+
+		return {
+			id: request.id,
+			input: { action: request.action, resources: request.resources ?? [] },
+			title:
+				resources === ""
+					? `opencode wants to ${request.action}`
+					: `opencode wants to ${request.action}: ${resources}`,
+			toolName: request.action,
+			// The tool call this belongs to, so the UI marks the row that is actually waiting rather
+			// than the most recent one with a matching name.
+			toolUseId: request.source?.id,
+		};
+	}
+
+	// listen subscribes to the event bus and keeps re-subscribing.
+	//
+	// A dropped stream is expected rather than exceptional -- see resync -- so this reconnects and
+	// resyncs instead of reporting a failure. The delay is there so a server that refuses every
+	// connection does not become a busy loop.
+	async function listen() {
+		for (;;) {
+			try {
+				const response = await fetch(`${BASE}/event`, {
+					headers: {
+						authorization: `Basic ${Buffer.from(`${USER}:${password}`).toString("base64")}`,
+					},
+				});
+				if (!response.ok || response.body === null) {
+					throw new Error(`event stream -> ${response.status}`);
+				}
+
+				let buffer = "";
+				for await (const chunk of response.body) {
+					buffer += Buffer.from(chunk).toString("utf8");
+					let cut = buffer.indexOf("\n");
+					while (cut !== -1) {
+						const line = buffer.slice(0, cut);
+						buffer = buffer.slice(cut + 1);
+						if (line.startsWith("data: ")) {
+							let event;
+							try {
+								event = JSON.parse(line.slice(6));
+							} catch {
+								event = undefined;
+							}
+							if (event !== undefined) {
+								await observe(event);
+							}
+						}
+						cut = buffer.indexOf("\n");
+					}
+				}
+			} catch (error) {
+				process.stderr.write(`event stream: ${String(error)}\n`);
+			}
+
+			await new Promise((wake) => setTimeout(wake, 1000));
+			await resync();
+		}
+	}
+
+	// observe reacts to one event.
+	//
+	// Only the events that change what the controller shows. opencode emits a great deal more --
+	// usage accounting, instruction reloads, step boundaries, streaming deltas -- and forwarding all
+	// of it would mean the browser reassembling a transcript the server will hand over complete.
+	async function observe(event) {
+		const data = event.data ?? {};
+		if (data.sessionID !== undefined && data.sessionID !== sessionId) {
+			// Another session on the same server. Cannot happen with one runner per workspace, but
+			// the bus is server-wide and filtering is one line.
+			return;
+		}
+
+		switch (event.type) {
+			case "permission.asked": {
+				const request = approval(data);
+				approvals.set(request.id, request);
+				if (MODE === "auto") {
+					// Answered rather than surfaced. Still recorded first, so a controller that
+					// attaches between the ask and the reply sees a consistent picture.
+					await decide(request.id, "allow");
+
+					return;
+				}
+				broadcast({ approval: request, type: "approval" });
+				settle();
+
+				return;
+			}
+			case "permission.replied": {
+				approvals.delete(data.id);
+				broadcast({ id: data.id, type: "resolved" });
+				settle();
+
+				return;
+			}
+			case "session.execution.started": {
+				working = true;
+				settle();
+
+				return;
+			}
+			case "session.execution.failed":
+			case "session.execution.interrupted":
+			case "session.execution.succeeded": {
+				working = false;
+				settle();
+				// The turn is over, so this is the cheapest moment to be certain the transcript is
+				// whole -- and the moment an operator is most likely to be reading it.
+				await resync();
+
+				return;
+			}
+			case "session.renamed": {
+				// opencode names its own sessions, so unlike claude-code this costs no second query
+				// and no model call of our own.
+				if (typeof data.title === "string" && data.title !== "") {
+					title = data.title;
+					broadcast({ ...snapshot(), type: "snapshot" });
+				}
+
+				return;
+			}
+			default:
+		}
+	}
+
+	// decide answers one parked permission request.
+	async function decide(id, behavior) {
+		try {
+			await call(`/session/${sessionId}/permission/${id}/reply`, {
+				body: { reply: behavior === "allow" ? "once" : "reject" },
+				method: "POST",
+			});
+		} catch (error) {
+			process.stderr.write(`decide ${id} failed: ${String(error)}\n`);
+		}
+	}
+
+	// session creates one, once.
+	async function session() {
+		if (sessionId !== undefined) {
+			return sessionId;
+		}
+
+		const created = await call("/session", {
+			body: { location: { directory: CWD }, model: model() },
+			method: "POST",
+		});
+		sessionId = created?.id;
+
+		return sessionId;
+	}
+
+	function handle(client, request) {
+		// Two ways to ask for the same answer. "snapshot" closes afterwards so a caller that sent a
+		// prompt and then asked for state cannot receive its own status broadcast as the reply.
+		if (request.type === "attach" || request.type === "snapshot") {
+			client.write(`${JSON.stringify(snapshot())}\n`);
+			if (fatal !== undefined) {
+				client.write(`${JSON.stringify({ message: fatal, type: "fatal" })}\n`);
+			}
+			if (request.type === "snapshot") {
+				client.end();
+			}
+
+			return;
+		}
+
+		if (request.type === "prompt" && typeof request.text === "string") {
+			void (async () => {
+				try {
+					const id = await session();
+					await call(`/session/${id}/prompt`, {
+						body: { text: request.text },
+						method: "POST",
+					});
+				} catch (error) {
+					broadcast({ message: String(error), type: "fatal" });
+				}
+			})();
+
+			return;
+		}
+
+		if (request.type === "decide" && typeof request.id === "string") {
+			void decide(request.id, request.behavior);
+
+			return;
+		}
+
+		if (request.type === "interrupt" && sessionId !== undefined) {
+			void call(`/session/${sessionId}/interrupt`, { method: "POST" }).catch(
+				(error) => process.stderr.write(`interrupt failed: ${String(error)}\n`),
+			);
+		}
+	}
+
+	void (async () => {
+		try {
+			await start();
+			// Created up front rather than on the first prompt, so that attaching to a fresh
+			// workspace shows a session rather than nothing, and so the event filter above has an
+			// id to compare against before any turn happens.
+			await session();
+			await listen();
+		} catch (error) {
+			const message = String(error);
+			fatal = message;
+			broadcast({ message, type: "fatal" });
+		}
+	})();
+}
+
+main();

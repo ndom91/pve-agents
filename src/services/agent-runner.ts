@@ -71,6 +71,11 @@ export type RunnerState = "failed" | "running" | "stopped";
 //
 // "type": "module" because the runner uses import. Without it node reads a .mjs correctly but the
 // package it now belongs to disagrees, and the error names neither.
+//
+// One file per invocation, and `installRunner` calls it once per file. Reading several from a single
+// stdin means framing them, and the only sh-portable framing is a delimiter the content must then be
+// guaranteed not to contain -- a rule about runner source code that nothing would enforce. A second
+// round trip on the pass that installs is cheaper than that.
 const INSTALL_SCRIPT = [
 	'mkdir -p "$1"',
 	'printf %s \'{"type":"module"}\' > "$1/package.json"',
@@ -108,39 +113,61 @@ const START_SCRIPT = [
 	"  exit 0",
 	"fi",
 	'. "$HOME/.config/agent-env"',
-	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" \\',
+	'RUNNER_SOCKET="$2" RUNNER_CWD="$3" RUNNER_PERMISSION_MODE="$4" RUNNER_MODEL="$6" \\',
 	'  setsid nohup node "$1/$5" > "$1/runner.log" 2>&1 < /dev/null &',
 	"echo started",
 ].join("\n");
 
-// installRunner copies the runner into a workspace.
+// installRunner copies the runner and whatever it imports into a workspace.
 //
-// The source is passed in rather than read here, so the caller decides where it comes from: the
-// controller reads it from its own deployment, and a test supplies a string.
+// The sources are passed in rather than read here, so the caller decides where they come from: the
+// controller reads them from its own deployment, and a test supplies strings.
+//
+// Sequential rather than concurrent. These are two or three small files over a connection that is
+// already open, and a half-written runner directory is worth more care than the milliseconds: the
+// entry file is written last, so a failure part way through leaves a directory node would refuse to
+// start rather than one it starts and then fails to resolve an import in.
 export async function installRunner(
 	target: SshTarget,
-	runner: { file: string; source: string },
+	runner: { files: { name: string; source: string }[] },
 	ssh: SshRunner,
 ): Promise<RunnerInstall> {
-	const result = await ssh(
-		target,
-		["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR, NODE_MODULES, runner.file],
-		runner.source,
-	);
-	if (result.kind === "refused") {
-		return { kind: "failed", message: "workspace refused the connection" };
-	}
-	if (result.kind === "rejected") {
-		return { kind: "failed", message: result.message };
-	}
-	if (result.code !== 0) {
-		return {
-			kind: "failed",
-			message: result.stderr.trim() || "could not install the runner",
-		};
+	for (const file of runner.files) {
+		const result = await ssh(
+			target,
+			["sh", "-c", INSTALL_SCRIPT, "sh", RUNNER_DIR, NODE_MODULES, file.name],
+			file.source,
+		);
+		if (result.kind === "refused") {
+			return { kind: "failed", message: "workspace refused the connection" };
+		}
+		if (result.kind === "rejected") {
+			return { kind: "failed", message: result.message };
+		}
+		if (result.code !== 0) {
+			return {
+				kind: "failed",
+				message: result.stderr.trim() || `could not install ${file.name}`,
+			};
+		}
 	}
 
 	return { kind: "installed" };
+}
+
+// runnerFiles is every file a harness's runner needs, in the order they should be written.
+//
+// The entry last, so an interrupted install cannot leave something node will start. Reads through
+// runnerSource, which caches per file, so calling this on every provisioning pass costs nothing
+// after the first.
+export function runnerFiles(runner: { also: string[]; entry: string }): {
+	name: string;
+	source: string;
+}[] {
+	return [...runner.also, runner.entry].map((name) => ({
+		name,
+		source: runnerSource(name),
+	}));
 }
 
 // runnerSource reads the runner this controller ships.
@@ -180,7 +207,7 @@ export function runnerSource(file: string): string {
 // "launched" is not "running". Poll runnerState for that; see RunnerLaunch.
 export async function startRunner(
 	target: SshTarget,
-	input: { file: string; permissionMode: string },
+	input: { file: string; model?: string; permissionMode: string },
 	ssh: SshRunner,
 ): Promise<RunnerLaunch> {
 	const result = await ssh(target, [
@@ -193,6 +220,10 @@ export async function startRunner(
 		AGENT_CWD,
 		input.permissionMode,
 		input.file,
+		// Empty rather than absent when unconfigured: a missing positional would leave $6 unset and
+		// the runner would read the empty string anyway, but only after the shell had been asked
+		// for a parameter that is not there. The runner treats empty as "use your own default".
+		input.model ?? "",
 	]);
 	if (result.kind !== "ran") {
 		return "failed";

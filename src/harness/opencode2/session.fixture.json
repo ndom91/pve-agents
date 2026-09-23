@@ -1,0 +1,79 @@
+[
+	{
+		"id": "msg_0ce749f0a0019ZHHCxb9hpMoLB",
+		"time": {
+			"created": 1790170147557,
+			"streamed": 1790170148226,
+			"completed": 1790170148239
+		},
+		"type": "assistant",
+		"agent": "build",
+		"content": [
+			{
+				"type": "text",
+				"text": "The `name` field is `\"root\"`.",
+				"state": {
+					"itemId": "msg_0bb208f20a8b0a9d016ab3d423566487d285b25042a88db431",
+					"phase": "final_answer"
+				}
+			}
+		],
+		"finish": "stop"
+	},
+	{
+		"id": "msg_0ce748ed4001ZAj6iW3pScJ6hS",
+		"time": {
+			"created": 1790170143762,
+			"streamed": 1790170144493,
+			"completed": 1790170144505
+		},
+		"type": "assistant",
+		"agent": "build",
+		"content": [
+			{
+				"type": "reasoning",
+				"text": "",
+				"state": {
+					"itemId": "rs_x"
+				},
+				"time": {
+					"created": 1790170143764,
+					"completed": 1790170144341
+				}
+			},
+			{
+				"type": "tool",
+				"id": "call_fHYsylMOUkDFWc8khlPUOBuG",
+				"name": "read",
+				"executed": false,
+				"state": {
+					"status": "completed",
+					"input": {
+						"path": "package.json",
+						"limit": 50
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Read file package.json, lines 1-35"
+						}
+					]
+				},
+				"time": {
+					"created": 1790170144344,
+					"ran": 1790170144456,
+					"completed": 1790170144462
+				}
+			}
+		],
+		"finish": "tool-calls"
+	},
+	{
+		"id": "msg_0ce748e9d001TLokJQ4gVdIB23",
+		"time": {
+			"created": 1790170140356
+		},
+		"text": "Read package.json in this repo and tell me the value of the name field. Keep it to one sentence.",
+		"type": "user"
+	}
+]

@@ -34,9 +34,13 @@ export type Harness = {
 	name: string;
 	// The runner shipped into the workspace, by filename under runner/.
 	//
-	// One file per harness. It is the only part that talks to the agent's own API, and it is
-	// therefore the part a new harness is mostly made of.
-	runner: string;
+	// It is the only part that talks to the agent's own API, and therefore the part a new harness is
+	// mostly made of. `entry` is what node is told to run; `also` are the files it imports.
+	//
+	// A list because the socket half is shared: agent-socket.mjs is imported relatively by every
+	// runner, which works only because these are copied into one directory and there is no build
+	// step to flatten them. A harness that needs nothing beyond its entry leaves `also` empty.
+	runner: { also: string[]; entry: string };
 	// What the agent said, as rows a person reads.
 	//
 	// The runner forwards its agent's messages untouched -- it should not decide what matters --

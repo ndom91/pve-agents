@@ -103,7 +103,7 @@ describe("installRunner", () => {
 
 		await installRunner(
 			TARGET,
-			{ file: RUNNER_FILE, source: "console.log(1)" },
+			{ files: [{ name: RUNNER_FILE, source: "console.log(1)" }] },
 			ssh,
 		);
 
@@ -111,12 +111,63 @@ describe("installRunner", () => {
 		expect(calls[0]?.command.join(" ")).not.toContain("console.log");
 	});
 
+	it("writes every file, one connection each", async () => {
+		const { calls, ssh } = recorder();
+
+		await installRunner(
+			TARGET,
+			{
+				files: [
+					{ name: "agent-socket.mjs", source: "export const a = 1;" },
+					{ name: RUNNER_FILE, source: "import './agent-socket.mjs';" },
+				],
+			},
+			ssh,
+		);
+
+		expect(calls).toHaveLength(2);
+		expect(calls.map((call) => call.command.at(-1))).toEqual([
+			"agent-socket.mjs",
+			RUNNER_FILE,
+		]);
+		expect(calls[0]?.input).toBe("export const a = 1;");
+	});
+
+	it("stops at the first failure rather than writing the entry anyway", async () => {
+		// The entry is written last so that a half-installed directory is one node refuses to
+		// start, rather than one it starts and then fails to resolve an import in -- which reads
+		// as the agent being broken rather than as the install being incomplete.
+		const { calls, ssh } = recorder({
+			code: 1,
+			kind: "ran",
+			stderr: "no space left on device",
+			stdout: "",
+		});
+
+		const result = await installRunner(
+			TARGET,
+			{
+				files: [
+					{ name: "agent-socket.mjs", source: "x" },
+					{ name: RUNNER_FILE, source: "y" },
+				],
+			},
+			ssh,
+		);
+
+		expect(calls).toHaveLength(1);
+		expect(result).toEqual({
+			kind: "failed",
+			message: "no space left on device",
+		});
+	});
+
 	it("reports a refused connection as a failure rather than success", async () => {
 		const { ssh } = recorder({ kind: "refused" });
 
 		const result = await installRunner(
 			TARGET,
-			{ file: RUNNER_FILE, source: "x" },
+			{ files: [{ name: RUNNER_FILE, source: "x" }] },
 			ssh,
 		);
 
@@ -135,7 +186,11 @@ describe("installRunner", () => {
 		});
 
 		expect(
-			await installRunner(TARGET, { file: RUNNER_FILE, source: "x" }, ssh),
+			await installRunner(
+				TARGET,
+				{ files: [{ name: RUNNER_FILE, source: "x" }] },
+				ssh,
+			),
 		).toEqual({
 			kind: "failed",
 			message: "mkdir: permission denied",
@@ -211,7 +266,11 @@ describe("installRunner's module resolution", () => {
 		// correctly and pointed at a directory that genuinely held the package.
 		const { calls, ssh } = recorder();
 
-		await installRunner(TARGET, { file: RUNNER_FILE, source: "x" }, ssh);
+		await installRunner(
+			TARGET,
+			{ files: [{ name: RUNNER_FILE, source: "x" }] },
+			ssh,
+		);
 
 		const script = calls[0]?.command.join(" ") ?? "";
 		expect(script).toContain("ln -sfn");

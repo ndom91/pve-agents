@@ -7,7 +7,7 @@ import { controllerRuntimeConfig } from "../server/controller";
 import {
 	attachRunner,
 	installRunner,
-	runnerSource,
+	runnerFiles,
 	runnerState,
 	startRunner,
 } from "../services/agent-runner";
@@ -45,7 +45,7 @@ function main(): void {
 			const agent = configuredHarness(controllerRuntimeConfig());
 			const installed = await installRunner(
 				target,
-				{ file: agent.runner, source: runnerSource(agent.runner) },
+				{ files: runnerFiles(agent.runner) },
 				runSsh,
 			);
 			if (installed.kind === "failed") {
@@ -57,7 +57,7 @@ function main(): void {
 			const started = await startRunner(
 				target,
 				{
-					file: agent.runner,
+					file: agent.runner.entry,
 					permissionMode: process.env.RUNNER_PERMISSION_MODE ?? "auto",
 				},
 				runSsh,

@@ -92,6 +92,14 @@ const envSchema = z
 				error: (issue) =>
 					`unknown agent harness "${String(issue.input)}"; registered: ${harnessNames().join(", ")}`,
 			}),
+		// Which model the agent runs, as "providerID/modelID" -- opencode's own spelling, because
+		// opencode is the harness that needs it.
+		//
+		// Optional, and unset is the normal case. claude-code's SDK chooses for itself and ignores
+		// this; opencode asks its server for a default. A controller that wants a specific model
+		// says so, and one that does not stays out of the way of whatever each agent thinks is
+		// current -- which is a better default than a name in this file going stale.
+		WORKSPACE_AGENT_MODEL: z.string().min(1).optional(),
 		// The agent's credential. For claude-code, a long-lived OAuth token from
 		// `claude setup-token` tied to a subscription -- not an API key. What the workspace calls
 		// it is the harness's business; this is only where the controller keeps it.
