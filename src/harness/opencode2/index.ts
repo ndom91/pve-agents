@@ -21,11 +21,14 @@ export const opencode2: Harness = {
 	// answer and not an omission; `prepareAgentWorkspace` writes whatever comes back, including
 	// none.
 	bootstrap: () => [],
-	// An API key, unlike claude-code's OAuth token. opencode reads this variable itself: every
-	// provider integration declares the environment variables it accepts, and this is Anthropic's.
-	// A provider is chosen with WORKSPACE_AGENT_MODEL, and swapping to another one means swapping
-	// this name with it.
-	credential: { env: "ANTHROPIC_API_KEY" },
+	// Read by the runner, not by opencode.
+	//
+	// Every provider integration does declare environment variables it reads for itself --
+	// OPENAI_API_KEY, GROQ_API_KEY -- and if this only ever had to carry an API key, that would be
+	// the whole mechanism and there would be no code. It has to carry an OAuth grant, which
+	// opencode will accept from a device flow and from nothing else, so the runner writes it into
+	// opencode's own credential table instead. See credential.ts.
+	credential: { env: "OPENCODE_CREDENTIAL" },
 	merges: (path) => path.trim() === OPENCODE_JSON,
 	name: "opencode2",
 	readTranscript: readOpencodeTranscript,

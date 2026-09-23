@@ -11,6 +11,8 @@
 // Plain JavaScript and no build step, like its sibling. Copied into the container over ssh.
 
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 
 import { serve } from "./agent-socket.mjs";
 
@@ -42,6 +44,16 @@ const BASE = `http://127.0.0.1:${PORT}/api`;
 // Six, with the backoff below, is about a minute and a half of trying. Enough to ride out a
 // previous instance still holding the port; not enough to spend a night writing to a log.
 const MAX_RESTARTS = 6;
+
+// Where opencode keeps its own state, including the credential table this writes into.
+const STORE = `${process.env.HOME}/.local/share/opencode/opencode.db`;
+
+// The credential to write, as {"integration":"openai","value":"{…}"}.
+//
+// Written into a table rather than handed to an API because opencode has none that accepts one:
+// PATCH /api/credential/{id} sets a label, connect/key takes an API key, and the OAuth routes need
+// a person with a browser. A ChatGPT subscription is none of those.
+const CREDENTIAL = process.env.OPENCODE_CREDENTIAL;
 
 // The username opencode expects for HTTP Basic. A literal, not a name we chose.
 //
@@ -170,6 +182,116 @@ function main() {
 				process.stderr.write(`opencode2 serve exited with ${code}\n`);
 				reject(new Error(`opencode2 serve exited with ${code}`));
 			});
+		});
+	}
+
+	// seedCredential puts the operator's credential in opencode's own store.
+	//
+	// Returns true when it wrote one, which the caller reads as "restart, so it is picked up". The
+	// server reads credentials at start; it was still running when this row went in.
+	//
+	// Ordered after the first start on purpose. The database does not exist until opencode makes
+	// it, and it arrives with forty-six migrations applied -- not something this side is going to
+	// reproduce in order to save one restart on a workspace's first boot.
+	//
+	// Every failure here is soft and explains itself. `credential` is opencode's internal schema and
+	// opencode2 is a beta, so of everything in this file it is the likeliest to change underneath
+	// us. A workspace that comes up unauthenticated with a reason in its log is recoverable; a
+	// runner that dies on boot is a workspace that never comes up at all.
+	function seedCredential() {
+		if (CREDENTIAL === undefined || CREDENTIAL === "") {
+			return false;
+		}
+
+		let envelope;
+		try {
+			envelope = JSON.parse(CREDENTIAL);
+		} catch {
+			process.stderr.write(
+				"OPENCODE_CREDENTIAL is not JSON; starting unauthenticated\n",
+			);
+
+			return false;
+		}
+
+		const integration = envelope?.integration;
+		const value =
+			typeof envelope?.value === "string"
+				? envelope.value
+				: JSON.stringify(envelope?.value);
+		if (typeof integration !== "string" || value === undefined) {
+			process.stderr.write(
+				"OPENCODE_CREDENTIAL needs an integration and a value; starting unauthenticated\n",
+			);
+
+			return false;
+		}
+
+		let db;
+		try {
+			db = new DatabaseSync(STORE);
+			// Only when there is none. A second row for the same integration is a second identity
+			// for one account, and on a restarted runner it would be a new one every boot.
+			const existing = db
+				.prepare(
+					"select count(*) as count from credential where integration_id = ?",
+				)
+				.get(integration);
+			if ((existing?.count ?? 0) > 0) {
+				return false;
+			}
+
+			const now = Date.now();
+			db.prepare(
+				`insert into credential
+					(id, integration_id, label, value, active, time_created, time_updated)
+				 values (?, ?, ?, ?, 1, ?, ?)`,
+			).run(
+				`cred_${randomUUID().replace(/-/g, "")}`,
+				integration,
+				integration,
+				value,
+				now,
+				now,
+			);
+			process.stdout.write(`seeded the ${integration} credential\n`);
+
+			return true;
+		} catch (error) {
+			process.stderr.write(
+				`could not seed the credential, starting unauthenticated: ${String(error)}\n`,
+			);
+
+			return false;
+		} finally {
+			db?.close();
+		}
+	}
+
+	// replaceServer stops the running server and starts another.
+	//
+	// It waits for the process to actually exit rather than returning on the kill. Two reasons, and
+	// the second is the one that bites: ensureServer decides whether to start by reading
+	// `exitCode`, which is still null in the moment after a kill -- so it would decide there was
+	// nothing to do. And the new server binds the same port, which the old one is still holding
+	// until it goes.
+	function replaceServer() {
+		return new Promise((done) => {
+			const old = server;
+			if (old === undefined || old.exitCode !== null) {
+				done();
+
+				return;
+			}
+
+			old.once("exit", () => done());
+			old.kill();
+		}).then(() => {
+			// Not a restart as far as the counter is concerned. This one was asked for.
+			restarts = 0;
+			password = undefined;
+
+			return ensureServer();
 		});
 	}
 
@@ -495,6 +617,14 @@ function main() {
 	void (async () => {
 		try {
 			await ensureServer();
+
+			// The first start is what creates the store, so the credential goes in behind it and
+			// the server is replaced to read it. Once only: on every later boot the row is already
+			// there, seedCredential says so by returning false, and this costs nothing.
+			if (seedCredential()) {
+				await replaceServer();
+			}
+
 			// Created up front rather than on the first prompt, so that attaching to a fresh
 			// workspace shows a session rather than nothing, and so the event filter above has an
 			// id to compare against before any turn happens.

@@ -9,6 +9,7 @@ import {
 } from "../db/harness-repository";
 import { harnessConfigSchema } from "../domain/harness-config";
 import { harnessNames } from "../harness";
+import { readOpencodeCredential } from "../harness/opencode2/credential";
 import { controllerDatabase } from "./controller";
 import { operatorMiddleware } from "./middleware";
 
@@ -48,6 +49,16 @@ export const saveWorkspaceHarness = createServerFn({ method: "POST" })
 			throw new Error(
 				`harness: this controller cannot run "${data.kind}"; it knows ${harnessNames().join(", ")}`,
 			);
+		}
+
+		// Checked at the form, because this is the last moment anybody is looking. An opencode
+		// credential that does not parse produces a workspace whose agent comes up unauthenticated
+		// and cannot say why, an hour later, to nobody.
+		if (data.kind === "opencode2" && data.credential !== undefined) {
+			const read = readOpencodeCredential(data.credential);
+			if (read.kind === "invalid") {
+				throw new Error(`harness: ${read.message}`);
+			}
 		}
 
 		const saved = saveHarness(controllerDatabase(), data);
