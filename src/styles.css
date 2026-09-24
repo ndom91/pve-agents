@@ -727,15 +727,12 @@ button {
 /* The agents tab's fields hold names, credentials and model ids, not the two-digit numbers the
    140px above was sized for. A credential is a couple of thousand characters and a model id is
    "openai/gpt-5.6-luna-fast"; both were being read through a slot narrower than the word itself.
-   Bounded rather than unbounded, so a field does not stretch to the width of a wide screen and
-   leave the eye travelling to reach the caret. */
-.harness-form .settings-field input {
-	max-width: 560px;
-	width: 100%;
-}
 
-.harness-form .settings-field small {
-	max-width: 560px;
+   Only the width, because .settings-form already caps the column at 560 and the select beside these
+   is simply 100% of it. The first version restated that 560 on the input and again on the hint,
+   which is one measurement written in three places and two of them wrong the day it moves. */
+.harness-form .settings-field input {
+	width: 100%;
 }
 
 /* The seed-files tab. Its three controls are one row, because a root, a path and a file are one
