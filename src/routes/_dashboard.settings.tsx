@@ -1,17 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
+import { PanelSpinner } from "../components/panel-state";
 import { SettingsHarnesses } from "../components/settings-harnesses";
 import { SettingsMaintenance } from "../components/settings-maintenance";
 import { SettingsReaping } from "../components/settings-reaping";
 import { SettingsSeedFiles } from "../components/settings-seed-files";
 import { type Tab, TabStrip } from "../components/tab-strip";
-import { settingsQuery } from "../lib/queries";
+import {
+	harnessesQuery,
+	harnessKindsQuery,
+	settingsQuery,
+} from "../lib/queries";
 
 export const Route = createFileRoute("/_dashboard/settings")({
 	component: Settings,
 	// Auth is handled once by the _dashboard layout, so it is not repeated here.
-	loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery()),
+	//
+	// All three keys the tabs read with useSuspenseQuery, not just the one the first tab needs.
+	// That is the contract those calls are written against -- settings-reaping says so in as many
+	// words -- and the Agents tab was reading two keys nobody had ensured, so opening it suspended
+	// a component with no boundary above it and blanked the whole route until the fetch landed.
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(settingsQuery()),
+			context.queryClient.ensureQueryData(harnessesQuery()),
+			context.queryClient.ensureQueryData(harnessKindsQuery()),
+		]);
+	},
 });
 
 type SettingsTab = "agents" | "files" | "maintenance" | "reaping";
@@ -51,10 +67,17 @@ function Settings() {
 			{/* Unmounted rather than hidden, unlike the workspace rail. Nothing here holds a
 			    connection that closing would break, and the orphan scan should not keep a stale
 			    result alive behind a tab nobody is looking at. */}
-			{tab === "agents" ? <SettingsHarnesses /> : null}
-			{tab === "reaping" ? <SettingsReaping /> : null}
-			{tab === "files" ? <SettingsSeedFiles /> : null}
-			{tab === "maintenance" ? <SettingsMaintenance /> : null}
+			{/* The boundary the loader above should mean nobody reaches, and the reason it is here
+			    anyway: a useSuspenseQuery whose key has been evicted suspends, and without this the
+			    nearest boundary is the router's, which unmounts the page -- content gone, sidebar
+			    reset, indistinguishable from a reload. A spinner in the panel is the honest version
+			    of the same wait, and it covers whatever tab is added next. */}
+			<Suspense fallback={<PanelSpinner label="Loading settings." />}>
+				{tab === "agents" ? <SettingsHarnesses /> : null}
+				{tab === "reaping" ? <SettingsReaping /> : null}
+				{tab === "files" ? <SettingsSeedFiles /> : null}
+				{tab === "maintenance" ? <SettingsMaintenance /> : null}
+			</Suspense>
 		</main>
 	);
 }
