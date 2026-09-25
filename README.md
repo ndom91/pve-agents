@@ -6,28 +6,15 @@
 Disposable coding agents on your own Proxmox host.
 
 Give it a repository, a ref, and a purpose. It clones a golden template, boots an LXC, checks the
-repository out, starts a Claude Code agent inside it and hands it the purpose. The web UI streams
+repository out, starts your selected agent inside it and hands it the purpose. The web UI streams
 that agent's transcript, takes prompts, answers its permission dialogs, shows what it changed, and
 pushes or discards the result. When a workspace has outlived its usefulness the controller destroys
 it — unless it is holding work nobody kept.
 
-The controller owns the lifecycle, the policy and the UI. Proxmox owns the containers. Claude Code
+The controller owns the lifecycle, the policy and the UI. Proxmox owns the containers. Your agent
 owns the actual work.
 
-```text
-                You, in a browser
-                        │
-                        ▼
-                pve-agents :3000
-   request · stream · approve · diff · push · reap
-           │                          │
-           ▼                          ▼
-     Proxmox API                 workspace LXC
- clone · boot · destroy      Claude Code · git checkout
-```
-
-Built for one operator on a trusted LAN. It holds a Proxmox token, a GitHub App key and a Claude
-subscription token, and it creates and destroys real containers.
+![Screenshot](./.github/assets/example_001.png)
 
 ## ✨ What it does
 
@@ -69,7 +56,8 @@ To go past the queue and build real containers:
 - A Proxmox host with an API token, a pool, and a template built by
   [`deploy/build-workspace-template.sh`](deploy/build-workspace-template.sh)
 - A GitHub App, for cloning and pushing as an installation rather than as you
-- A Claude subscription token for the agents
+- Authentication for your agents of choice (i.e. claude-code or anything in
+  opencode)
 
 ## 🏔️ Environment
 
