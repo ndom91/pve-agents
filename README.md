@@ -1,5 +1,5 @@
 <h1>
-  <img src="public/icon0.svg" width="88" align="middle" alt="">
+  <img src="public/icon0.svg" width="88" align="absmiddle" alt="">
   pve-agents
 </h1>
 
