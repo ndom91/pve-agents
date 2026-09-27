@@ -164,6 +164,51 @@ describe("storeGitCredential", () => {
 		expect(commands[0]?.join(" ")).toContain("credential.helper store");
 		expect(inputs[0]).toContain(TOKEN);
 	});
+
+	it("keeps the token off the command line", async () => {
+		// Arguments are visible in ps on the workspace for as long as the command runs. The script
+		// builds the credential URL from stdin for exactly this reason.
+		const { commands } = await recorded(async (ssh) => {
+			await storeGitCredential(TARGET, TOKEN, ssh);
+		});
+
+		expect(commands[0]?.join(" ")).not.toContain(TOKEN);
+	});
+
+	it("authenticates gh from the same token, in the same round trip", async () => {
+		// A workspace's agent reaches for the CLI to open a pull request, and it used to sit
+		// unauthenticated beside a credential it could have used. One connection, not two: this
+		// runs hourly against every workspace.
+		const { commands } = await recorded(async (ssh) => {
+			await storeGitCredential(TARGET, TOKEN, ssh);
+		});
+
+		expect(commands).toHaveLength(1);
+		expect(commands[0]?.join(" ")).toContain("gh auth login --with-token");
+	});
+
+	it("writes gh's own store rather than exporting a variable", async () => {
+		// The token lives an hour. An environment variable is fixed when a process starts, so the
+		// runner would hold whichever one was current at launch and go stale; hosts.yml is re-read
+		// on every gh invocation, which is why ~/.git-credentials works for git.
+		const { commands } = await recorded(async (ssh) => {
+			await storeGitCredential(TARGET, TOKEN, ssh);
+		});
+
+		expect(commands[0]?.join(" ")).not.toContain("GH_TOKEN");
+	});
+
+	it("lets gh fail without failing the checkout", async () => {
+		// gh validates the token over the network before storing it. A workspace that cannot reach
+		// github.com for a moment still has to finish its checkout: git is the critical path and
+		// this is a convenience on top of it.
+		const { commands } = await recorded(async (ssh) => {
+			await storeGitCredential(TARGET, TOKEN, ssh);
+		});
+
+		const script = commands[0]?.join(" ") ?? "";
+		expect(script.slice(script.indexOf("gh auth login"))).toContain("|| true");
+	});
 });
 
 // recorded runs a checkout against a fake workspace, keeping every command and every stdin.

@@ -16,12 +16,30 @@ export type WorkspaceCheckout =
 // It arrives on stdin rather than as an argument, so it is not in the process list even for the
 // instant this command takes. The clone that follows uses a credential-free URL and lets git read
 // the stored value itself.
+//
+// It authenticates `gh` from the same token, in the same round trip. A workspace's agent reaches
+// for the CLI to open a pull request or read an issue, and until now it sat unauthenticated
+// beside a credential it could have used.
+//
+// `gh auth login --with-token` rather than a GH_TOKEN in the environment, and the reason is this
+// token's hour-long life. An environment variable is fixed when a process starts, so the runner
+// would hold whichever token was current when it launched and go stale; hosts.yml is re-read on
+// every gh invocation, which is exactly why ~/.git-credentials works for git. It is also gh's own
+// supported interface, so nothing here has to know that file's format.
+//
+// Allowed to fail. gh validates the token over the network before storing it, and a workspace that
+// cannot reach github.com for a moment must still finish its checkout: git is the critical path
+// and gh is a convenience on top of it.
 const CREDENTIAL_SCRIPT = [
 	"umask 077",
-	'cat > "$HOME/.git-credentials"',
+	// The raw token on stdin, with the URL built here rather than sent whole, because both
+	// consumers want it and only one of them wants it wrapped in a URL.
+	"IFS= read -r token",
+	`printf 'https://x-access-token:%s@github.com\\n' "$token" > "$HOME/.git-credentials"`,
 	'chmod 600 "$HOME/.git-credentials"',
 	"git config --global credential.helper store",
-].join(" && ");
+	'printf %s "$token" | gh auth login --with-token >/dev/null 2>&1 || true',
+].join("\n");
 
 // CLONE_SCRIPT fills the working directory, and does nothing if it is already filled.
 //
@@ -110,13 +128,7 @@ export async function storeGitCredential(
 	token: string,
 	ssh: SshRunner,
 ): Promise<WorkspaceCheckout> {
-	return run(
-		target,
-		["sh", "-c", CREDENTIAL_SCRIPT],
-		ssh,
-		token,
-		`https://x-access-token:${token}@github.com\n`,
-	);
+	return run(target, ["sh", "-c", CREDENTIAL_SCRIPT], ssh, token, `${token}\n`);
 }
 
 async function run(
