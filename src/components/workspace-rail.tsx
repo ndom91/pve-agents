@@ -56,6 +56,7 @@ type RailWorkspace = {
 export type RailTab =
 	| { kind: "details" }
 	| { kind: "diff" }
+	| { kind: "ports" }
 	| { kind: "terminal" }
 	| { kind: "timeline" };
 
@@ -71,6 +72,7 @@ export function WorkspaceRail({
 	actions,
 	changes,
 	onTab,
+	ports,
 	tab = { kind: "details" },
 	terminal,
 	timeline,
@@ -78,6 +80,7 @@ export function WorkspaceRail({
 }: {
 	actions?: ReactNode;
 	changes?: ReactNode;
+	ports?: ReactNode;
 	onTab?: (tab: RailTab) => void;
 	tab?: RailTab;
 	terminal?: ReactNode;
@@ -129,6 +132,7 @@ export function WorkspaceRail({
 				<Tabs
 					changes={changes}
 					onTab={onTab}
+					ports={ports}
 					tab={tab}
 					terminal={terminal}
 					timeline={timeline}
@@ -142,6 +146,9 @@ export function WorkspaceRail({
 						seen={opened.includes("timeline")}
 					>
 						{timeline}
+					</Panel>
+					<Panel open={tab.kind === "ports"} seen={opened.includes("ports")}>
+						{ports}
 					</Panel>
 					<Panel
 						open={tab.kind === "terminal"}
@@ -168,6 +175,7 @@ export function WorkspaceRail({
 				<Tabs
 					changes={changes}
 					onTab={onTab}
+					ports={ports}
 					tab={tab}
 					terminal={terminal}
 					timeline={timeline}
@@ -302,10 +310,11 @@ function Panel({
 	);
 }
 
-// Tabs switches the rail between placement, the change list, the timeline and the shell.
+// Tabs switches the rail between placement, the change list, the timeline, the ports and the shell.
 function Tabs({
 	changes,
 	onTab,
+	ports,
 	tab,
 	terminal,
 	timeline,
@@ -313,6 +322,7 @@ function Tabs({
 	changes?: ReactNode;
 	onTab?: (tab: RailTab) => void;
 	tab: RailTab;
+	ports?: ReactNode;
 	terminal?: ReactNode;
 	timeline?: ReactNode;
 }) {
@@ -326,6 +336,9 @@ function Tabs({
 		...(timeline === undefined
 			? []
 			: [{ label: "Timeline", value: { kind: "timeline" } as RailTab }]),
+		...(ports === undefined
+			? []
+			: [{ label: "Ports", value: { kind: "ports" } as RailTab }]),
 		...(terminal === undefined
 			? []
 			: [{ label: "Terminal", value: { kind: "terminal" } as RailTab }]),

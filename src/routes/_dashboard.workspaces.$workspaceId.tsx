@@ -11,6 +11,7 @@ import { MetaBand } from "../components/meta-band";
 import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
 import { outcomeItem } from "../components/outcome-notice";
 import { PanelSpinner } from "../components/panel-state";
+import { PortsTab } from "../components/ports-tab";
 import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -453,6 +454,7 @@ function WorkspaceDetail() {
 			</main>
 
 			<WorkspaceRail
+				ports={<PortsTab workspaceId={workspaceId} />}
 				actions={
 					!ready || changes?.kind !== "changes" ? undefined : (
 						<ChangesActions

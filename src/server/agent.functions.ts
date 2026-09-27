@@ -8,6 +8,7 @@ import {
 	pushWorkspaceWork,
 	readWorkspaceChanges,
 	readWorkspaceFile,
+	readWorkspacePorts,
 	sendAgentPrompt,
 } from "./agent-operations";
 import { operatorMiddleware } from "./middleware";
@@ -63,6 +64,16 @@ export const workspaceChanges = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.validator(z.object({ id: z.string().trim().min(1) }))
 	.handler(({ data }) => readWorkspaceChanges(data.id));
+
+// workspacePorts reads what is listening inside a workspace.
+//
+// GET, and read live on every call rather than cached: a dev server is started and stopped by hand
+// while the page is open, and a stale list is worse than a slow one -- clicking a link to a port
+// that closed a minute ago is a browser error with no explanation attached.
+export const workspacePorts = createServerFn({ method: "GET" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().trim().min(1) }))
+	.handler(({ data }) => readWorkspacePorts(data.id));
 
 // workspaceFileDiff reads one file as it was and as it is.
 export const workspaceFileDiff = createServerFn({ method: "GET" })

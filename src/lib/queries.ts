@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { workspaceChanges, workspaceFileDiff } from "../server/agent.functions";
+import {
+	workspaceChanges,
+	workspaceFileDiff,
+	workspacePorts,
+} from "../server/agent.functions";
 import {
 	listHarnesses,
 	listHarnessKinds,
@@ -28,6 +32,7 @@ const CHANGES_REFRESH_MS = 15_000;
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
 	changes: (id: string) => ["workspace", id, "changes"] as const,
+	ports: (id: string) => ["workspace", id, "ports"] as const,
 	harnesses: () => ["harnesses"] as const,
 	harnessKinds: () => ["harness-kinds"] as const,
 	launchable: () => ["harnesses", "launchable"] as const,
@@ -140,6 +145,19 @@ export function seedFilesQuery() {
 	return queryOptions({
 		queryFn: () => listSeedFiles(),
 		queryKey: workspaceKeys.seedFiles(),
+	});
+}
+
+// portsQuery is what is listening inside one workspace.
+//
+// No interval, and stale immediately. A dev server comes and goes while somebody is looking at the
+// tab, so this is refetched when the tab opens and when they ask, rather than on a timer that is
+// wrong between ticks either way.
+export function portsQuery(workspaceId: string) {
+	return queryOptions({
+		queryFn: () => workspacePorts({ data: { id: workspaceId } }),
+		queryKey: workspaceKeys.ports(workspaceId),
+		staleTime: 0,
 	});
 }
 

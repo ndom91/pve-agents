@@ -4,6 +4,7 @@ import {
 	recordWorkspaceNote,
 	workspaceDetail,
 } from "../db/workspace-repository";
+import type { ListeningPort } from "../domain/port";
 import { AGENT_CWD } from "../domain/workspace-layout";
 import { decideRunner, promptRunner } from "../services/agent-runner";
 import { runSsh, type SshTarget } from "../services/ssh";
@@ -21,6 +22,7 @@ import {
 	workspaceBranch,
 } from "../services/workspace-changes";
 import { workspaceUnsavedWork } from "../services/workspace-git";
+import { listeningPorts } from "../services/workspace-ports";
 import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 
 // answerApproval allows or denies one tool call an agent is suspended on.
@@ -133,6 +135,32 @@ export async function sendAgentPrompt(
 	recordWorkspaceInteraction(controllerDatabase(), id);
 
 	return { kind: "sent" };
+}
+
+// readWorkspacePorts reads what is listening inside one workspace.
+//
+// The container's own address travels back with the list, because a row for a server on 0.0.0.0
+// has to become a link and 0.0.0.0 is not somewhere a browser can go. The page has the address
+// already, but pairing it with the reading it belongs to keeps a link from being built out of a
+// list taken now and an address taken whenever the detail query last ran.
+// WorkspacePortsView is the listing with the address its links have to be built from.
+export type WorkspacePortsView =
+	| { ip: string; kind: "listed"; ports: ListeningPort[] }
+	| { kind: "unavailable"; message: string };
+
+export async function readWorkspacePorts(
+	id: string,
+): Promise<WorkspacePortsView> {
+	const agent = agentTarget(id);
+	if (agent.kind === "unavailable") {
+		return { kind: "unavailable", message: agent.reason };
+	}
+
+	const listed = await listeningPorts(agent.ssh, runSsh);
+
+	return listed.kind === "listed"
+		? { ip: agent.ssh.address, kind: "listed", ports: listed.ports }
+		: listed;
 }
 
 export async function readWorkspaceChanges(id: string): Promise<ChangedFiles> {

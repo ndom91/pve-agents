@@ -83,6 +83,7 @@ const READ_ONLY = new Set([
 	"workspaceChanges",
 	"workspaceDetail",
 	"workspaceFileDiff",
+	"workspacePorts",
 	"workspaceSettings",
 ]);
 
@@ -96,7 +97,7 @@ describe("server function methods", () => {
 	it("sees every server function the modules export", () => {
 		// The number is here so that losing one to a bad import fails loudly rather than quietly
 		// shrinking what the loop above covers. Bump it when you add one, which is the point.
-		expect(declaredMethods().length).toBe(19);
+		expect(declaredMethods().length).toBe(20);
 	});
 });
 
