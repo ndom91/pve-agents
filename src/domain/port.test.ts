@@ -61,6 +61,25 @@ LISTEN 0 511 [::]:3000 [::]:* users:(("node",pid=9,fd=4))`;
 		expect(readListeningPorts(both)).toHaveLength(1);
 	});
 
+	it("reads an IPv6 row on its own", () => {
+		// The assertion above cannot prove this. One row out of two passes whether both parsed and
+		// collapsed or only the IPv4 one ever matched -- so a regex that silently dropped every
+		// bracketed address would have gone on satisfying it. Vite binds [::1] by default, which
+		// makes this the common case rather than the exotic one.
+		const six = `LISTEN 0 511 [::1]:5173 [::]:* users:(("node",pid=853,fd=22))`;
+
+		expect(readListeningPorts(six)).toEqual([
+			{
+				address: "[::1]",
+				cwd: undefined,
+				pid: 853,
+				port: 5173,
+				process: "node",
+				reach: "loopback",
+			},
+		]);
+	});
+
 	it("hides the harness's own server", () => {
 		// opencode's loopback API runs as the agent, so the ownership rule does not catch it. It is
 		// the harness talking to itself and there is nothing for an operator to open.

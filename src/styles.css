@@ -153,7 +153,7 @@ input {
 
 .eyebrow {
 	color: var(--fg-soft);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: var(--text-sm);
 	letter-spacing: 0.12em;
 	margin: 0 0 8px;
@@ -334,7 +334,7 @@ h2 {
 	background-size: 12px;
 	border: 1px solid var(--border);
 	color: var(--fg-bright);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: var(--text-md);
 	height: var(--field-height);
 	/* Room for the chevron, so a long option does not run underneath it. */
@@ -402,7 +402,7 @@ button {
 	   still free to grow. */
 	min-height: var(--field-height);
 	padding: 10px 15px;
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: var(--text-md);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -574,7 +574,7 @@ button {
 	   neither. */
 	field-sizing: content;
 	font-family: var(--font-sans);
-	font-size: 13px;
+	font-size: var(--text-lg);
 	max-height: 8lh;
 	/* Two lines to start in, then it grows. `field-sizing: content` ignores the rows attribute, so
 	   the floor has to be set here; rows={2} is what a browser without it falls back to. */
@@ -623,7 +623,7 @@ button {
 .prompt-key {
 	color: var(--text-dim);
 	font-family: inherit;
-	font-size: 12px;
+	font-size: var(--text-md);
 	letter-spacing: 0;
 }
 
@@ -748,7 +748,7 @@ button {
 	border: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: var(--text-md);
 	letter-spacing: normal;
 	line-height: 1.55;
@@ -1066,7 +1066,7 @@ button {
 	align-items: center;
 	border: 1px solid var(--border);
 	display: flex;
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	gap: 16px;
 	justify-content: space-between;
 	padding: 8px 12px;
@@ -1218,7 +1218,7 @@ button {
 .sidebar-wordmark {
 	color: var(--text-wordmark);
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	font-weight: 600;
 	letter-spacing: 0.14em;
 }
@@ -2114,7 +2114,7 @@ button.workspace-title:hover {
 	color: var(--text-secondary);
 	display: flex;
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	gap: 9px;
 	padding: 6px 11px;
 	text-align: left;
@@ -2314,7 +2314,7 @@ button.workspace-title:hover {
 }
 
 .code-block code {
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 }
 
 /* The block being written right now.
@@ -2415,7 +2415,7 @@ button.workspace-title:hover {
  * rail gives its timestamps. */
 .agent-answer-at {
 	color: var(--fg-dim);
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: var(--text-xs);
 }
 
@@ -2507,7 +2507,7 @@ button.workspace-title:hover {
 	background: var(--bg-sunken);
 	border: 1px solid var(--border);
 	border-radius: 3px;
-	font-family: "SF Mono", "Roboto Mono", monospace;
+	font-family: var(--font-mono);
 	font-size: 0.92em;
 	padding: 1px 4px;
 }
@@ -2664,7 +2664,7 @@ button.workspace-title:hover {
 .rail-state-word {
 	color: var(--text-primary);
 	font-family: var(--font-mono);
-	font-size: 12px;
+	font-size: var(--text-md);
 }
 
 .rail-state-sub {
@@ -2799,7 +2799,7 @@ button.workspace-title:hover {
 	color: var(--text-secondary);
 	flex-grow: 1;
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	min-width: 0;
 	overflow-wrap: anywhere;
 }
@@ -3483,7 +3483,7 @@ diffs-container {
 .change-path {
 	flex-grow: 1;
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -3775,7 +3775,7 @@ diffs-container {
 .timeline-bar-value {
 	color: var(--green);
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -3820,7 +3820,7 @@ diffs-container {
 	color: var(--text-dim);
 	flex-shrink: 0;
 	font-family: var(--font-mono);
-	font-size: 9px;
+	font-size: var(--text-label);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -3877,7 +3877,7 @@ diffs-container {
 
 .timeline-message {
 	color: var(--text-muted);
-	font-size: 12px;
+	font-size: var(--text-md);
 	line-height: var(--leading-tight);
 	margin: 3px 0 0;
 }
@@ -4226,7 +4226,7 @@ diffs-container {
 	color: var(--text-muted);
 	display: flex;
 	font-family: var(--font-mono);
-	font-size: 9px;
+	font-size: var(--text-label);
 	gap: 12px;
 	height: var(--row-h);
 	letter-spacing: var(--tracking-label);
@@ -4296,7 +4296,7 @@ diffs-container {
 	align-items: flex-end;
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
 	width: 48px;
 }
@@ -4310,7 +4310,7 @@ diffs-container {
 
 .fleet-title {
 	color: var(--text-primary);
-	font-size: 13px;
+	font-size: var(--text-lg);
 	font-weight: 500;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -4320,7 +4320,7 @@ diffs-container {
 /* Indented past the dot, so it hangs under the title rather than under the state. */
 .fleet-purpose {
 	color: var(--text-muted);
-	font-size: 12px;
+	font-size: var(--text-md);
 	overflow: hidden;
 	padding-left: 13px;
 	text-overflow: ellipsis;
@@ -4330,7 +4330,7 @@ diffs-container {
 .fleet-strong {
 	color: var(--text-secondary);
 	font-family: var(--font-mono);
-	font-size: 11px;
+	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -4350,7 +4350,7 @@ diffs-container {
 .fleet-flag {
 	color: var(--amber);
 	font-family: var(--font-mono);
-	font-size: 9px;
+	font-size: var(--text-label);
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
 }
@@ -4496,7 +4496,7 @@ diffs-container {
 
 .launch-field input {
 	font-family: var(--font-mono);
-	font-size: 12px;
+	font-size: var(--text-md);
 	height: var(--control-h-lg);
 	padding: 0 11px;
 }
