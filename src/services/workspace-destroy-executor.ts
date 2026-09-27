@@ -12,6 +12,7 @@ import {
 	workspaceTeardown,
 } from "../db/workspace-repository";
 import type { DestroyPhase } from "../domain/workspace";
+import { stopWorkspaceForwards } from "./port-forward";
 import {
 	containerConfig,
 	containerDescription,
@@ -121,6 +122,10 @@ async function pollTeardownTask(
 
 	if (workspace.phase === "delete-submitted") {
 		await forgetWorkspaceHost(config, workspace);
+		// The tunnels die on their own when the container goes -- ssh loses its connection and the
+		// registry forgets the child on exit. This makes it prompt and certain rather than a side
+		// effect: an ssh that hangs on a dead host would hold its allocated port until it noticed.
+		stopWorkspaceForwards(workspace.id);
 		completeWorkspaceDestroy(
 			db,
 			lease,

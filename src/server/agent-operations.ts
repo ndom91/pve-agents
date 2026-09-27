@@ -7,6 +7,11 @@ import {
 import type { ListeningPort } from "../domain/port";
 import { AGENT_CWD } from "../domain/workspace-layout";
 import { decideRunner, promptRunner } from "../services/agent-runner";
+import {
+	forwardsFor,
+	startForward,
+	stopForward,
+} from "../services/port-forward";
 import { runSsh, type SshTarget } from "../services/ssh";
 import type {
 	ChangeAction,
@@ -143,10 +148,77 @@ export async function sendAgentPrompt(
 // has to become a link and 0.0.0.0 is not somewhere a browser can go. The page has the address
 // already, but pairing it with the reading it belongs to keeps a link from being built out of a
 // list taken now and an address taken whenever the detail query last ran.
+// ForwardedPort is a listener plus where it has been published, when it has been.
+//
+// `forwarded` is the controller port, and its absence is what the row reads as "not forwarded
+// yet". A loopback listener with one becomes an ordinary link.
+export type ForwardedPort = ListeningPort & { forwarded?: number };
+
 // WorkspacePortsView is the listing with the address its links have to be built from.
 export type WorkspacePortsView =
-	| { ip: string; kind: "listed"; ports: ListeningPort[] }
+	| { host: string; ip: string; kind: "listed"; ports: ForwardedPort[] }
 	| { kind: "unavailable"; message: string };
+
+// controllerHost is the name a forwarded port is reached by.
+//
+// The hostname out of CONTROLLER_URL and never its port: the forward is a second listener on the
+// same machine, not a path under the application. Falls back to the configured value whole if it
+// will not parse, which is worse than a hostname and better than nothing to show.
+function controllerHost(): string {
+	const configured = controllerRuntimeConfig().CONTROLLER_URL;
+	try {
+		return new URL(configured).hostname;
+	} catch {
+		return configured;
+	}
+}
+
+// forwardWorkspacePort publishes one of a workspace's loopback ports on the controller.
+//
+// Refuses anything already reachable. Forwarding a 0.0.0.0 listener would publish, with nothing
+// in front of it, something the operator can already open directly -- all cost and no gain.
+export async function forwardWorkspacePort(
+	id: string,
+	port: number,
+): Promise<
+	| { allocated: number; kind: "forwarded" }
+	| { kind: "unavailable"; reason: string }
+> {
+	const agent = agentTarget(id);
+	if (agent.kind === "unavailable") {
+		return { kind: "unavailable", reason: agent.reason };
+	}
+
+	const listed = await listeningPorts(agent.ssh, runSsh);
+	if (listed.kind !== "listed") {
+		return { kind: "unavailable", reason: listed.message };
+	}
+
+	const listener = listed.ports.find((entry) => entry.port === port);
+	if (listener === undefined) {
+		return { kind: "unavailable", reason: `nothing is listening on ${port}` };
+	}
+	if (listener.reach === "direct") {
+		return {
+			kind: "unavailable",
+			reason: `${port} is already reachable without a forward`,
+		};
+	}
+
+	const started = startForward(id, agent.ssh, port);
+
+	return "message" in started
+		? { kind: "unavailable", reason: started.message }
+		: { allocated: started.allocated, kind: "forwarded" };
+}
+
+// unforwardWorkspacePort takes one down.
+//
+// No check that it exists: stopping a forward that already died is what the operator meant, and
+// "there was nothing to stop" helps nobody.
+export function unforwardWorkspacePort(id: string, port: number): void {
+	stopForward(id, port);
+}
 
 export async function readWorkspacePorts(
 	id: string,
@@ -157,10 +229,29 @@ export async function readWorkspacePorts(
 	}
 
 	const listed = await listeningPorts(agent.ssh, runSsh);
+	if (listed.kind !== "listed") {
+		return listed;
+	}
 
-	return listed.kind === "listed"
-		? { ip: agent.ssh.address, kind: "listed", ports: listed.ports }
-		: listed;
+	// Merged here rather than in the browser, so one answer describes both halves at one moment.
+	// A page holding a list from one request and a set of forwards from another can show a Stop
+	// button for a tunnel that has already died.
+	const published = new Map(
+		forwardsFor(id).map((forward) => [forward.port, forward.allocated]),
+	);
+
+	return {
+		// Where a forwarded port is reached, which is this controller rather than the container.
+		// Taken from the request the operator is already talking to, so it is right whether they
+		// came by hostname or by address.
+		host: controllerHost(),
+		ip: agent.ssh.address,
+		kind: "listed",
+		ports: listed.ports.map((port) => ({
+			...port,
+			forwarded: published.get(port.port),
+		})),
+	};
 }
 
 export async function readWorkspaceChanges(id: string): Promise<ChangedFiles> {

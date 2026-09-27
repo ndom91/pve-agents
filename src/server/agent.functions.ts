@@ -5,11 +5,13 @@ import {
 	answerApproval,
 	discardWorkspaceFileWork,
 	discardWorkspaceWork,
+	forwardWorkspacePort,
 	pushWorkspaceWork,
 	readWorkspaceChanges,
 	readWorkspaceFile,
 	readWorkspacePorts,
 	sendAgentPrompt,
+	unforwardWorkspacePort,
 } from "./agent-operations";
 import { operatorMiddleware } from "./middleware";
 
@@ -74,6 +76,35 @@ export const workspacePorts = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.validator(z.object({ id: z.string().trim().min(1) }))
 	.handler(({ data }) => readWorkspacePorts(data.id));
+
+// forwardPort publishes one of a workspace's loopback ports on the controller.
+//
+// POST, and not only because it starts a process: the effect is to expose a dev server on the
+// network with nothing in front of it, which is the least prefetchable thing in this application.
+export const forwardPort = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(
+		z.object({
+			id: z.string().trim().min(1),
+			port: z.number().int().min(1).max(65_535),
+		}),
+	)
+	.handler(({ data }) => forwardWorkspacePort(data.id, data.port));
+
+// stopPort takes a forward down.
+export const stopPort = createServerFn({ method: "POST" })
+	.middleware([operatorMiddleware])
+	.validator(
+		z.object({
+			id: z.string().trim().min(1),
+			port: z.number().int().min(1).max(65_535),
+		}),
+	)
+	.handler(({ data }) => {
+		unforwardWorkspacePort(data.id, data.port);
+
+		return { stopped: true };
+	});
 
 // workspaceFileDiff reads one file as it was and as it is.
 export const workspaceFileDiff = createServerFn({ method: "GET" })

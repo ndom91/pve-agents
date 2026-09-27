@@ -3171,7 +3171,7 @@ button.workspace-title:hover {
 	align-items: center;
 	display: grid;
 	gap: 10px;
-	grid-template-columns: 4.5ch auto 1fr auto;
+	grid-template-columns: auto auto 1fr auto auto;
 	padding: 4px 12px;
 }
 
@@ -3205,11 +3205,10 @@ button.workspace-title:hover {
 	white-space: nowrap;
 }
 
-.ports-local {
+/* The allocated port, after the one the process actually bound. Muted because it is how to reach
+   the thing rather than what the thing is. */
+.ports-forwarded {
 	color: var(--text-faint);
-	font-size: var(--text-mono-xs);
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
 }
 
 /* What a rail tab shows while it waits, or when it has nothing to show at all.
