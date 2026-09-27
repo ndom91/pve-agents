@@ -1,5 +1,3 @@
-import { lookup } from "node:dns/promises";
-
 import {
 	recordUnsavedWork,
 	recordWorkspaceInteraction,
@@ -9,6 +7,7 @@ import {
 import type { ListeningPort } from "../domain/port";
 import { AGENT_CWD } from "../domain/workspace-layout";
 import { decideRunner, promptRunner } from "../services/agent-runner";
+import { controllerHost } from "../services/controller-host";
 import {
 	forwardsFor,
 	startForward,
@@ -144,64 +143,19 @@ export async function sendAgentPrompt(
 	return { kind: "sent" };
 }
 
-// readWorkspacePorts reads what is listening inside one workspace.
-//
-// The container's own address travels back with the list, because a row for a server on 0.0.0.0
-// has to become a link and 0.0.0.0 is not somewhere a browser can go. The page has the address
-// already, but pairing it with the reading it belongs to keeps a link from being built out of a
-// list taken now and an address taken whenever the detail query last ran.
-// ForwardedPort is a listener plus where it has been published, when it has been.
-//
-// `forwarded` is the controller port, and its absence is what the row reads as "not forwarded
-// yet". A loopback listener with one becomes an ordinary link.
+// ForwardedPort is a listener plus the controller port it is published on, if it is.
 export type ForwardedPort = ListeningPort & { forwarded?: number };
 
-// WorkspacePortsView is the listing with the address its links have to be built from.
+// WorkspacePortsView is the listing with the addresses its links are built from: `ip` for a
+// direct row, `host` for a forwarded one.
 export type WorkspacePortsView =
 	| { host: string; ip: string; kind: "listed"; ports: ForwardedPort[] }
 	| { kind: "unavailable"; message: string };
 
-// controllerHost is the address a forwarded port is reached by.
-//
-// An IP, resolved from CONTROLLER_URL's hostname, and that is not a stylistic choice. Vite refuses
-// a request whose Host header it does not recognise -- "Blocked request. This host
-// (pve-agents.puff.lan) is not allowed", a 403 with the tunnel working perfectly underneath it --
-// and its default allowlist permits IP literals, because an address cannot be DNS-rebound. Next
-// and others check the same way. Linking by address sidesteps the whole class without asking
-// anybody to edit a vite.config.
-//
-// Cached: this resolves the controller's own name, which does not move while it is running, and
-// the Ports tab would otherwise do a lookup per render.
-//
-// Falls back to the hostname if resolution fails. A dev server that rejects it is a 403 with a
-// message naming the fix, which beats a link to nothing.
-let cachedHost: string | undefined;
-async function controllerHost(): Promise<string> {
-	if (cachedHost !== undefined) {
-		return cachedHost;
-	}
-
-	const configured = controllerRuntimeConfig().CONTROLLER_URL;
-	let name = configured;
-	try {
-		name = new URL(configured).hostname;
-	} catch {
-		// Not a URL. Use it as written.
-	}
-
-	try {
-		cachedHost = (await lookup(name)).address;
-	} catch {
-		cachedHost = name;
-	}
-
-	return cachedHost;
-}
-
 // forwardWorkspacePort publishes one of a workspace's loopback ports on the controller.
 //
-// Refuses anything already reachable. Forwarding a 0.0.0.0 listener would publish, with nothing
-// in front of it, something the operator can already open directly -- all cost and no gain.
+// Refuses anything already reachable: forwarding it would publish, unguarded, what the operator
+// can already open directly.
 export async function forwardWorkspacePort(
 	id: string,
 	port: number,
@@ -237,14 +191,18 @@ export async function forwardWorkspacePort(
 		: { allocated: started.allocated, kind: "forwarded" };
 }
 
-// unforwardWorkspacePort takes one down.
-//
-// No check that it exists: stopping a forward that already died is what the operator meant, and
-// "there was nothing to stop" helps nobody.
-export function unforwardWorkspacePort(id: string, port: number): void {
+// unforwardWorkspacePort takes one down. No check that it exists: a forward that already died is
+// stopped, which is what the operator meant.
+export function unforwardWorkspacePort(
+	id: string,
+	port: number,
+): { stopped: true } {
 	stopForward(id, port);
+
+	return { stopped: true };
 }
 
+// readWorkspacePorts reads what is listening inside one workspace, and what of it is forwarded.
 export async function readWorkspacePorts(
 	id: string,
 ): Promise<WorkspacePortsView> {
@@ -258,18 +216,14 @@ export async function readWorkspacePorts(
 		return listed;
 	}
 
-	// Merged here rather than in the browser, so one answer describes both halves at one moment.
-	// A page holding a list from one request and a set of forwards from another can show a Stop
-	// button for a tunnel that has already died.
+	// Merged here, so one answer describes both halves at one moment. Two requests merged in the
+	// browser can show a Stop for a tunnel that has already died.
 	const published = new Map(
 		forwardsFor(id).map((forward) => [forward.port, forward.allocated]),
 	);
 
 	return {
-		// Where a forwarded port is reached, which is this controller rather than the container.
-		// Taken from the request the operator is already talking to, so it is right whether they
-		// came by hostname or by address.
-		host: await controllerHost(),
+		host: await controllerHost(controllerRuntimeConfig().CONTROLLER_URL),
 		ip: agent.ssh.address,
 		kind: "listed",
 		ports: listed.ports.map((port) => ({

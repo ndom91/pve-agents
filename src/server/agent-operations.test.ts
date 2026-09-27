@@ -19,9 +19,11 @@ import { openDatabase } from "../db/database";
 import { createWorkspace } from "../db/workspace-repository";
 import {
 	discardWorkspaceWork,
+	forwardWorkspacePort,
 	pushWorkspaceWork,
 	readWorkspaceChanges,
 	readWorkspaceFile,
+	readWorkspacePorts,
 	sendAgentPrompt,
 } from "./agent-operations";
 
@@ -71,6 +73,14 @@ const operations = [
 	{
 		name: "discardWorkspaceWork",
 		run: (id: string) => discardWorkspaceWork(id),
+	},
+	{
+		name: "readWorkspacePorts",
+		run: (id: string) => readWorkspacePorts(id),
+	},
+	{
+		name: "forwardWorkspacePort",
+		run: (id: string) => forwardWorkspacePort(id, 5173),
 	},
 ];
 

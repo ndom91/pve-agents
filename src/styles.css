@@ -3130,9 +3130,7 @@ button.workspace-title:hover {
 	flex: 1 1 auto;
 }
 
-/* The Ports tab. A grid rather than flex rows, so the port numbers line up down the column and
-   the process names start at the same x however long the number is -- the whole value of the tab
-   is scanning it, and a ragged left edge on the second column costs exactly that. */
+/* The Ports tab. */
 .ports {
 	display: flex;
 	flex-direction: column;
@@ -3155,9 +3153,14 @@ button.workspace-title:hover {
 	text-transform: uppercase;
 }
 
+/* One grid for the whole list, with each row a subgrid, so the columns line up across rows. A grid
+   per row sizes its own columns, and a 5-digit port pushed that row's process name right. The
+   directory takes the slack. */
 .ports-list {
-	display: flex;
-	flex-direction: column;
+	align-content: start;
+	column-gap: 10px;
+	display: grid;
+	grid-template-columns: auto auto 1fr auto;
 	list-style: none;
 	margin: 0;
 	min-height: 0;
@@ -3165,13 +3168,11 @@ button.workspace-title:hover {
 	padding: 0;
 }
 
-/* The directory takes the slack, because it is the one column with no useful maximum: a port is
-   four or five characters and a process name is one word. */
 .ports-row {
 	align-items: center;
 	display: grid;
-	gap: 10px;
-	grid-template-columns: auto auto 1fr auto auto;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
 	padding: 4px 12px;
 }
 
@@ -3192,10 +3193,7 @@ button.workspace-title:hover {
 	font-size: var(--text-md);
 }
 
-/* Already short by the time it gets here -- shortCwd takes the checkout's own path off the front,
-   because that prefix is on every row and tells them apart from nothing. An earlier version left
-   the path whole and clipped it from the left with `direction: rtl`, which reordered it: the
-   leading slash moved to the end and /workspace/repo rendered as "workspace/repo/". */
+/* Already shortened by shortCwd, which says why not `direction: rtl`. */
 .ports-cwd {
 	color: var(--text-dim);
 	font-family: var(--font-mono);
@@ -3205,10 +3203,15 @@ button.workspace-title:hover {
 	white-space: nowrap;
 }
 
-/* The allocated port, after the one the process actually bound. Muted because it is how to reach
-   the thing rather than what the thing is. */
+/* Muted: how to reach the thing, not what it is. */
 .ports-forwarded {
 	color: var(--text-faint);
+}
+
+.ports-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
 }
 
 /* What a rail tab shows while it waits, or when it has nothing to show at all.

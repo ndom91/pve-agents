@@ -67,11 +67,13 @@ export const workspaceChanges = createServerFn({ method: "GET" })
 	.validator(z.object({ id: z.string().trim().min(1) }))
 	.handler(({ data }) => readWorkspaceChanges(data.id));
 
+// Shared by forwardPort and stopPort. Not exported, per the note above.
+const workspacePort = z.object({
+	id: z.string().trim().min(1),
+	port: z.number().int().min(1).max(65_535),
+});
+
 // workspacePorts reads what is listening inside a workspace.
-//
-// GET, and read live on every call rather than cached: a dev server is started and stopped by hand
-// while the page is open, and a stale list is worse than a slow one -- clicking a link to a port
-// that closed a minute ago is a browser error with no explanation attached.
 export const workspacePorts = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.validator(z.object({ id: z.string().trim().min(1) }))
@@ -79,32 +81,17 @@ export const workspacePorts = createServerFn({ method: "GET" })
 
 // forwardPort publishes one of a workspace's loopback ports on the controller.
 //
-// POST, and not only because it starts a process: the effect is to expose a dev server on the
-// network with nothing in front of it, which is the least prefetchable thing in this application.
+// POST: it exposes a dev server on the network, the least prefetchable thing in the application.
 export const forwardPort = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			port: z.number().int().min(1).max(65_535),
-		}),
-	)
+	.validator(workspacePort)
 	.handler(({ data }) => forwardWorkspacePort(data.id, data.port));
 
 // stopPort takes a forward down.
 export const stopPort = createServerFn({ method: "POST" })
 	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			port: z.number().int().min(1).max(65_535),
-		}),
-	)
-	.handler(({ data }) => {
-		unforwardWorkspacePort(data.id, data.port);
-
-		return { stopped: true };
-	});
+	.validator(workspacePort)
+	.handler(({ data }) => unforwardWorkspacePort(data.id, data.port));
 
 // workspaceFileDiff reads one file as it was and as it is.
 export const workspaceFileDiff = createServerFn({ method: "GET" })

@@ -17,23 +17,12 @@ export type WorkspaceCheckout =
 // instant this command takes. The clone that follows uses a credential-free URL and lets git read
 // the stored value itself.
 //
-// It authenticates `gh` from the same token, in the same round trip. A workspace's agent reaches
-// for the CLI to open a pull request or read an issue, and until now it sat unauthenticated
-// beside a credential it could have used.
-//
-// `gh auth login --with-token` rather than a GH_TOKEN in the environment, and the reason is this
-// token's hour-long life. An environment variable is fixed when a process starts, so the runner
-// would hold whichever token was current when it launched and go stale; hosts.yml is re-read on
-// every gh invocation, which is exactly why ~/.git-credentials works for git. It is also gh's own
-// supported interface, so nothing here has to know that file's format.
-//
-// Allowed to fail. gh validates the token over the network before storing it, and a workspace that
-// cannot reach github.com for a moment must still finish its checkout: git is the critical path
-// and gh is a convenience on top of it.
+// The same token logs `gh` in. Through `gh auth login` rather than GH_TOKEN, because the token lasts
+// an hour: an environment variable is fixed when the runner starts and goes stale, while hosts.yml
+// is re-read on every invocation. Allowed to fail, since gh checks the token over the network and a
+// blip must not fail the checkout.
 const CREDENTIAL_SCRIPT = [
 	"umask 077",
-	// The raw token on stdin, with the URL built here rather than sent whole, because both
-	// consumers want it and only one of them wants it wrapped in a URL.
 	"IFS= read -r token",
 	`printf 'https://x-access-token:%s@github.com\\n' "$token" > "$HOME/.git-credentials"`,
 	'chmod 600 "$HOME/.git-credentials"',

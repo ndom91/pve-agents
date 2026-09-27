@@ -1,13 +1,8 @@
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// A fake ssh rather than a real one. What is under test is the bookkeeping -- which port was
-// handed out, what happens when a child dies, whether asking twice starts two tunnels -- and none
-// of that needs a process, a network or a container.
-//
-// The spawned command is captured because the arguments are the other half of the contract: a
-// forward that binds the wrong interface or connects to the wrong address is a bug this file
-// cannot see any other way.
+// A fake ssh. What is under test is the bookkeeping, plus the arguments: a forward that binds
+// the wrong interface or connects to the wrong address is invisible any other way.
 const spawned: string[][] = [];
 const children: FakeChild[] = [];
 
@@ -16,9 +11,7 @@ class FakeChild extends EventEmitter {
 	stderr = new EventEmitter();
 	kill(): boolean {
 		this.killed = true;
-		// A real child does not exit synchronously on kill, and the registry listens for exit
-		// rather than assuming. Emitted here so the tests exercise that path rather than a
-		// shortcut.
+		// The registry forgets a child on exit, not on kill, so exercise that path.
 		this.emit("exit", 0);
 
 		return true;
@@ -62,9 +55,7 @@ function argsOf(index: number): string {
 }
 
 describe("startForward", () => {
-	it("allocates from the top of the range, not the container's port", () => {
-		// 5173 in two workspaces cannot be 5173 twice on one controller, which is the whole reason
-		// the controller side is allocated rather than mirrored.
+	it("allocates from the bottom of the range, not the container's port", () => {
 		const first = startForward("w1", TARGET, 5173, "127.0.0.1");
 
 		expect(first).toEqual({ allocated: 20_000, port: 5173, workspaceId: "w1" });
@@ -78,17 +69,12 @@ describe("startForward", () => {
 	});
 
 	it("binds every interface on this side and connects to the given one", () => {
-		// 0.0.0.0 here is what makes it reachable from the operator's machine at all, and is why
-		// this is an explicit act with a Stop button. The far side is whatever the listener bound.
 		startForward("w1", TARGET, 5173, "127.0.0.1");
 
 		expect(argsOf(0)).toContain("-L 0.0.0.0:20000:127.0.0.1:5173");
 	});
 
 	it("connects to IPv6 loopback when that is what is listening", () => {
-		// The bug a real Vite server found: it binds [::1], and a tunnel hardcoded to 127.0.0.1
-		// reached a port nothing was listening on. The brackets are ssh's own escaping and `ss`
-		// already prints them.
 		startForward("w1", TARGET, 5173, "[::1]");
 
 		expect(argsOf(0)).toContain("-L 0.0.0.0:20000:[::1]:5173");
@@ -110,8 +96,7 @@ describe("startForward", () => {
 	});
 
 	it("returns the running forward rather than starting a second", () => {
-		// Two clicks on Forward is one tunnel. A second against the same pair would fail to bind
-		// and, with ExitOnForwardFailure, would look like the first one breaking.
+		// Two clicks on Forward is one tunnel.
 		const first = startForward("w1", TARGET, 5173, "127.0.0.1");
 		const again = startForward("w1", TARGET, 5173, "127.0.0.1");
 
@@ -131,8 +116,6 @@ describe("startForward", () => {
 
 describe("a forward that dies on its own", () => {
 	it("is forgotten, so its port is handed out again", () => {
-		// The container went away, or the network did. A registry holding a dead child would keep
-		// offering a link to nothing and would never free what it allocated.
 		startForward("w1", TARGET, 5173, "127.0.0.1");
 		children[0]?.emit("exit", 255);
 
@@ -167,8 +150,6 @@ describe("forwardsFor", () => {
 
 describe("stopWorkspaceForwards", () => {
 	it("takes down every forward for one workspace and leaves the others", () => {
-		// Called when a workspace is destroyed. They would die on their own when the container
-		// goes, but an ssh that hangs on a dead host holds its allocated port until it notices.
 		startForward("w1", TARGET, 5173, "127.0.0.1");
 		startForward("w1", TARGET, 3000, "127.0.0.1");
 		startForward("w2", TARGET, 8080, "127.0.0.1");

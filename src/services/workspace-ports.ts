@@ -8,31 +8,24 @@ export type WorkspacePorts =
 
 // LISTEN_SCRIPT asks what is listening, and what each listener was started in.
 //
-// One round trip for both. The working directories could be read per process afterwards, but that
-// is one SSH connection per dev server to fill a column, and the operator opened a tab rather than
-// asked a question.
+// One round trip for both, rather than one SSH per dev server to fill a column. `ss` runs once,
+// so the pids come from the same snapshot as the rows. `-H` drops the header. `-n` keeps ports
+// numeric, or 22 arrives as "ssh".
 //
-// `-H` drops the header row, so the parser never has to recognise and skip it. `-n` keeps ports
-// numeric: without it 22 arrives as "ssh" and 5173 stays 5173, which is two formats in one column.
-//
-// The cwds come back as "pid<TAB>path" lines after a sentinel. readlink is allowed to fail and the
-// loop carries on: /proc/<pid>/cwd is readable only by the owner, and a process that exits between
-// the two commands leaves a pid pointing at nothing.
+// The cwds follow a sentinel as "pid<TAB>path" lines. readlink may fail, for a process that exited
+// in between, and the loop carries on.
 const SENTINEL = "---CWD---";
 const LISTEN_SCRIPT = [
-	"ss -tlnpH",
+	"listing=$(ss -tlnpH) || exit",
+	"printf '%s\\n' \"$listing\"",
 	`printf '%s\\n' '${SENTINEL}'`,
-	"for pid in $(ss -tlnpH | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do",
+	"for pid in $(printf '%s\\n' \"$listing\" | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do",
 	'  target=$(readlink "/proc/$pid/cwd" 2>/dev/null) || continue',
 	'  printf \'%s\\t%s\\n\' "$pid" "$target"',
 	"done",
 ].join("\n");
 
-// listeningPorts reads what is listening inside a workspace.
-//
-// Read live rather than recorded, because a dev server is started and stopped by hand while the
-// page is open and a cached answer is worse than none: an operator clicking a link to a port that
-// closed a minute ago gets a browser error and no idea why.
+// listeningPorts reads what is listening inside a workspace, live.
 export async function listeningPorts(
 	target: SshTarget,
 	ssh: SshRunner,
@@ -54,10 +47,8 @@ export async function listeningPorts(
 	return { kind: "listed", ports: readListeningPorts(listing, cwds(trailer)) };
 }
 
-// cwds turns the "pid<TAB>path" trailer into a lookup.
-//
-// A path can contain a tab, so this splits on the first one only: the pid is the part before it and
-// everything after is the directory, however many tabs are in it.
+// cwds turns the "pid<TAB>path" trailer into a lookup. Split on the first tab only, since a path
+// can contain one.
 function cwds(trailer: string): Record<number, string> {
 	const found: Record<number, string> = {};
 	for (const line of trailer.split("\n")) {

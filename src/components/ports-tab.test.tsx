@@ -15,16 +15,19 @@ type View =
 	| { kind: "unavailable"; message: string };
 type PortRow = ListeningPort & { forwarded?: number };
 
-let view: View = {
-	host: "10.0.3.50",
-	ip: "10.0.3.100",
-	kind: "listed",
-	ports: [],
-};
-const forwardPort = vi.fn(async (_input: unknown) => ({
-	allocated: 20_000,
-	kind: "forwarded" as const,
-}));
+function listed(...ports: PortRow[]): View {
+	return { host: "10.0.3.50", ip: "10.0.3.100", kind: "listed", ports };
+}
+
+let view: View = listed();
+const forwardPort = vi.fn(
+	async (
+		_input: unknown,
+	): Promise<{ allocated: number; kind: "forwarded" }> => ({
+		allocated: 20_000,
+		kind: "forwarded",
+	}),
+);
 const stopPort = vi.fn(async (_input: unknown) => ({ stopped: true }));
 
 vi.mock("../server/agent.functions", () => ({
@@ -69,12 +72,7 @@ describe("a directly reachable port", () => {
 	it("offers a link to the container, not to the controller", async () => {
 		// The container's own address, because a process on 0.0.0.0 answers on every interface and
 		// 0.0.0.0 is not somewhere a browser can go.
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [listener()],
-		};
+		view = listed(listener());
 		tab();
 
 		const link = await screen.findByRole("link", {
@@ -84,14 +82,7 @@ describe("a directly reachable port", () => {
 	});
 
 	it("offers no way to forward it", async () => {
-		// Forwarding something already reachable would publish it with nothing in front of it, to
-		// reach what the operator can open directly.
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [listener()],
-		};
+		view = listed(listener());
 		tab();
 
 		await screen.findByRole("link", { name: /open port 5173/i });
@@ -103,12 +94,7 @@ describe("a loopback port", () => {
 	const loopback = listener({ address: "[::1]", reach: "loopback" });
 
 	it("offers Forward and nothing to open yet", async () => {
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [loopback],
-		};
+		view = listed(loopback);
 		tab();
 
 		await screen.findByRole("button", { name: /forward 5173/i });
@@ -116,12 +102,7 @@ describe("a loopback port", () => {
 	});
 
 	it("asks the server to forward the port that was clicked", async () => {
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [loopback],
-		};
+		view = listed(loopback);
 		tab();
 
 		await userEvent.click(
@@ -131,6 +112,19 @@ describe("a loopback port", () => {
 		expect(forwardPort).toHaveBeenCalledWith({
 			data: { id: "w1", port: 5173 },
 		});
+	});
+
+	it("says so when the forward request itself fails", async () => {
+		// A thrown request, not an "unavailable" answer. It used to leave nothing on screen.
+		view = listed(loopback);
+		forwardPort.mockRejectedValueOnce(new Error("network is down"));
+		tab();
+
+		await userEvent.click(
+			await screen.findByRole("button", { name: /forward 5173/i }),
+		);
+
+		expect(await screen.findByText("network is down")).toBeTruthy();
 	});
 });
 
@@ -144,12 +138,7 @@ describe("a forwarded port", () => {
 	it("opens against the controller, on the allocated port", async () => {
 		// Not the container and not 5173: the tunnel ends here, on a port that had to be
 		// allocated because two workspaces can both be running 5173.
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [forwarded],
-		};
+		view = listed(forwarded);
 		tab();
 
 		const link = await screen.findByRole("link", { name: /open port 5173/i });
@@ -157,12 +146,7 @@ describe("a forwarded port", () => {
 	});
 
 	it("shows both numbers, the allocated one second", async () => {
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [forwarded],
-		};
+		view = listed(forwarded);
 		const { container } = tab();
 
 		await screen.findByRole("link", { name: /open port 5173/i });
@@ -172,14 +156,8 @@ describe("a forwarded port", () => {
 	});
 
 	it("carries a Stop beside the link", async () => {
-		// Without it a tunnel lives until the workspace dies, and the exposure stops being the
-		// revocable act that justified allowing it.
-		view = {
-			host: "10.0.3.50",
-			ip: "10.0.3.100",
-			kind: "listed",
-			ports: [forwarded],
-		};
+		// Without it the exposure is not the revocable act that justified allowing it.
+		view = listed(forwarded);
 		tab();
 
 		await userEvent.click(
@@ -189,11 +167,10 @@ describe("a forwarded port", () => {
 		expect(stopPort).toHaveBeenCalledWith({ data: { id: "w1", port: 5173 } });
 	});
 });
-
 describe("when there is nothing to show", () => {
 	it("says what was left out, rather than looking broken", async () => {
 		// A container plainly running sshd with an empty tab reads as the tab failing.
-		view = { host: "10.0.3.50", ip: "10.0.3.100", kind: "listed", ports: [] };
+		view = listed();
 		tab();
 
 		expect(

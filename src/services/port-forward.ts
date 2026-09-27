@@ -2,23 +2,17 @@ import { spawn } from "node:child_process";
 
 import { knownHostsPath, type SshTarget } from "./ssh";
 
-// Publishing a container's loopback port on the controller.
-//
-// Only loopback listeners need this. A server on 0.0.0.0 is already reachable from the operator's
-// machine, because the workspace subnet routes there -- see the Ports tab.
+// Publishing a container's loopback port on the controller. A listener on 0.0.0.0 needs none of
+// this: the workspace subnet already routes from the operator's machine.
 
-// FIRST and LAST bound the range the controller allocates from.
-//
-// High and well clear of anything a person would choose, so a forward cannot collide with the
-// controller's own port or with something an operator started by hand on the same host.
+// The range the controller allocates from, well clear of anything a person would pick by hand.
 const FIRST = 20_000;
 const LAST = 29_999;
 
 // Forward is one published port.
 export type Forward = {
-	// The port on the controller, which is not the port in the container. Two workspaces both
-	// running Vite on 5173 cannot both be 5173 here, so the controller side is allocated and the
-	// row shows both numbers.
+	// The port on the controller. Allocated rather than mirrored, because two workspaces can both
+	// be running Vite on 5173.
 	allocated: number;
 	port: number;
 	workspaceId: string;
@@ -26,33 +20,26 @@ export type Forward = {
 
 type Entry = Forward & { stop: () => void };
 
-// The live forwards, by workspace and container port.
-//
-// In memory rather than a table, deliberately. A forward is a child process of this controller: it
-// dies when the controller restarts, so a record that outlived the restart would describe tunnels
-// that no longer exist and hand out links that cannot connect.
+// In memory rather than a table: a forward is a child of this process and dies with it, so a
+// record that outlived a restart would describe tunnels that no longer exist.
 const FORWARDS = new Map<string, Entry>();
 
 function key(workspaceId: string, port: number): string {
 	return `${workspaceId}:${port}`;
 }
 
+function published({ allocated, port, workspaceId }: Entry): Forward {
+	return { allocated, port, workspaceId };
+}
+
 // forwardsFor lists what is currently published for one workspace.
 export function forwardsFor(workspaceId: string): Forward[] {
 	return [...FORWARDS.values()]
 		.filter((entry) => entry.workspaceId === workspaceId)
-		.map(({ allocated, port, workspaceId: id }) => ({
-			allocated,
-			port,
-			workspaceId: id,
-		}));
+		.map(published);
 }
 
-// allocate finds a free controller port.
-//
-// Linear from the bottom of the range rather than random, so the numbers a person sees stay small
-// and stable across a session. Ten thousand of them and one workspace uses a handful, so the scan
-// is never long.
+// allocate finds the lowest free controller port, so the numbers a person sees stay small.
 function allocate(): number | undefined {
 	const taken = new Set([...FORWARDS.values()].map((entry) => entry.allocated));
 	for (let port = FIRST; port <= LAST; port += 1) {
@@ -66,33 +53,22 @@ function allocate(): number | undefined {
 
 // startForward publishes one container port on the controller.
 //
-// Idempotent: asking twice for the same port returns the forward already running rather than
-// starting a second one against the same pair, which would fail to bind and leave the first
-// looking broken.
+// Idempotent: a second call returns the running forward. Starting another against the same pair
+// would fail to bind and look like the first one breaking.
 //
-// `-N` because there is no command to run, only the tunnel. Binding `0.0.0.0` on this side is what
-// makes it reachable from the operator's machine at all -- and is the reason this is an explicit
-// act with a Stop button rather than something the tab does on open. It publishes a dev server to
-// the whole network with nothing in front of it.
+// Binding 0.0.0.0 publishes a dev server to the network with nothing in front of it, which is why
+// this is an explicit act with a Stop button rather than something the tab does on open.
 export function startForward(
 	workspaceId: string,
 	target: SshTarget,
 	port: number,
-	// The address the listener actually bound, as `ss` spelled it: "127.0.0.1" or "[::1]".
-	//
-	// Not a constant, which it was until a real Vite server proved otherwise. Vite binds IPv6
-	// loopback by default, so a tunnel hardcoded to 127.0.0.1 connected to a port nothing was
-	// listening on and the browser got nothing at all. A python server on 127.0.0.1 had worked,
-	// which is exactly why the stub was not enough of a test.
-	//
-	// Square brackets are ssh's own escaping for an IPv6 host in -L, and `ss` already prints them.
+	// The address the listener bound, as `ss` prints it: "127.0.0.1" or "[::1]". Not a constant,
+	// because Vite binds [::1] by default and a tunnel to 127.0.0.1 reaches nothing.
 	bind: string,
 ): Forward | { message: string } {
 	const existing = FORWARDS.get(key(workspaceId, port));
 	if (existing !== undefined) {
-		const { allocated, port: container, workspaceId: id } = existing;
-
-		return { allocated, port: container, workspaceId: id };
+		return published(existing);
 	}
 
 	const allocated = allocate();
@@ -125,9 +101,7 @@ export function startForward(
 		{ stdio: ["ignore", "ignore", "pipe"] },
 	);
 
-	// Forgotten when it dies, whatever killed it: the container going away, the network, or Stop.
-	// A registry holding a dead child would keep offering a link to nothing and would never free
-	// its allocated port.
+	// Forgotten however it dies, so a dead tunnel is never offered as a link and its port is freed.
 	const forget = () => {
 		FORWARDS.delete(key(workspaceId, port));
 	};
@@ -158,10 +132,7 @@ export function stopForward(workspaceId: string, port: number): void {
 	FORWARDS.delete(key(workspaceId, port));
 }
 
-// stopWorkspaceForwards takes down everything published for one workspace.
-//
-// Called when a workspace is destroyed. Without it the tunnels survive their container and the
-// controller holds ssh processes retrying against an address that no longer answers.
+// stopWorkspaceForwards takes down everything published for one workspace, on destroy.
 export function stopWorkspaceForwards(workspaceId: string): void {
 	for (const entry of FORWARDS.values()) {
 		if (entry.workspaceId === workspaceId) {

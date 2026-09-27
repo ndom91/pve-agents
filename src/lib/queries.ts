@@ -32,13 +32,13 @@ const CHANGES_REFRESH_MS = 15_000;
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
 	changes: (id: string) => ["workspace", id, "changes"] as const,
-	ports: (id: string) => ["workspace", id, "ports"] as const,
 	harnesses: () => ["harnesses"] as const,
 	harnessKinds: () => ["harness-kinds"] as const,
 	launchable: () => ["harnesses", "launchable"] as const,
 	detail: (id: string) => ["workspace", id] as const,
 	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
 	list: () => ["workspaces"] as const,
+	ports: (id: string) => ["workspace", id, "ports"] as const,
 	seedFile: (id: string) => ["seed-files", id] as const,
 	seedFiles: () => ["seed-files"] as const,
 	settings: () => ["settings"] as const,
