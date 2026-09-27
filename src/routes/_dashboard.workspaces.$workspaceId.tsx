@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CircleAlert, Trash2 } from "lucide-react";
+import { CircleAlert, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { AgentConversation } from "../components/agent-conversation";
 import { Button } from "../components/button";
@@ -431,6 +431,20 @@ function WorkspaceDetail() {
 								<p className="agent-note-error">
 									<CircleAlert aria-hidden size={13} strokeWidth={1.75} />
 									<span>{agentNote}</span>
+									{/* Closable, because nothing else closes it. It clears on the
+									    next send or decide and on nothing in between, so an error
+									    about a thing that has since resolved otherwise sits there
+									    until the operator happens to act again. The button is the
+									    notices' own, so there is one dismiss control in the
+									    application rather than two that look similar. */}
+									<button
+										aria-label="Dismiss"
+										className="notice-dismiss"
+										onClick={() => setAgentNote("")}
+										type="button"
+									>
+										<X aria-hidden size={13} strokeWidth={1.5} />
+									</button>
 								</p>
 							)}
 						</section>

@@ -718,7 +718,7 @@ button {
 .settings-field small {
 	color: var(--text-muted);
 	font-family: var(--font-sans);
-	font-size: 11.5px;
+	font-size: var(--text-md);
 	letter-spacing: normal;
 	line-height: 1.5;
 	text-transform: none;
@@ -3124,6 +3124,12 @@ button.workspace-title:hover {
 	flex-shrink: 0;
 }
 
+/* The sentence takes the slack, so the dismiss sits at the end of the row rather than against the
+   last word. */
+.agent-note-error span {
+	flex: 1 1 auto;
+}
+
 /* What a rail tab shows while it waits, or when it has nothing to show at all.
  *
  * Centred in the panel rather than left at the top, where a single sentence under the tab strip
@@ -4434,7 +4440,7 @@ diffs-container {
 	/* Stated, not inherited: the field's own textarea is on --font-sans and these two sit
 	   together. Inherited, the hint fell to the body stack and the pair was in two faces. */
 	font-family: var(--font-sans);
-	font-size: 11.5px;
+	font-size: var(--text-md);
 	line-height: 1.5;
 }
 
