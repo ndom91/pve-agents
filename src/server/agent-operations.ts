@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+
 import {
 	recordUnsavedWork,
 	recordWorkspaceInteraction,
@@ -159,18 +161,41 @@ export type WorkspacePortsView =
 	| { host: string; ip: string; kind: "listed"; ports: ForwardedPort[] }
 	| { kind: "unavailable"; message: string };
 
-// controllerHost is the name a forwarded port is reached by.
+// controllerHost is the address a forwarded port is reached by.
 //
-// The hostname out of CONTROLLER_URL and never its port: the forward is a second listener on the
-// same machine, not a path under the application. Falls back to the configured value whole if it
-// will not parse, which is worse than a hostname and better than nothing to show.
-function controllerHost(): string {
-	const configured = controllerRuntimeConfig().CONTROLLER_URL;
-	try {
-		return new URL(configured).hostname;
-	} catch {
-		return configured;
+// An IP, resolved from CONTROLLER_URL's hostname, and that is not a stylistic choice. Vite refuses
+// a request whose Host header it does not recognise -- "Blocked request. This host
+// (pve-agents.puff.lan) is not allowed", a 403 with the tunnel working perfectly underneath it --
+// and its default allowlist permits IP literals, because an address cannot be DNS-rebound. Next
+// and others check the same way. Linking by address sidesteps the whole class without asking
+// anybody to edit a vite.config.
+//
+// Cached: this resolves the controller's own name, which does not move while it is running, and
+// the Ports tab would otherwise do a lookup per render.
+//
+// Falls back to the hostname if resolution fails. A dev server that rejects it is a 403 with a
+// message naming the fix, which beats a link to nothing.
+let cachedHost: string | undefined;
+async function controllerHost(): Promise<string> {
+	if (cachedHost !== undefined) {
+		return cachedHost;
 	}
+
+	const configured = controllerRuntimeConfig().CONTROLLER_URL;
+	let name = configured;
+	try {
+		name = new URL(configured).hostname;
+	} catch {
+		// Not a URL. Use it as written.
+	}
+
+	try {
+		cachedHost = (await lookup(name)).address;
+	} catch {
+		cachedHost = name;
+	}
+
+	return cachedHost;
 }
 
 // forwardWorkspacePort publishes one of a workspace's loopback ports on the controller.
@@ -205,7 +230,7 @@ export async function forwardWorkspacePort(
 		};
 	}
 
-	const started = startForward(id, agent.ssh, port);
+	const started = startForward(id, agent.ssh, port, listener.address);
 
 	return "message" in started
 		? { kind: "unavailable", reason: started.message }
@@ -244,7 +269,7 @@ export async function readWorkspacePorts(
 		// Where a forwarded port is reached, which is this controller rather than the container.
 		// Taken from the request the operator is already talking to, so it is right whether they
 		// came by hostname or by address.
-		host: controllerHost(),
+		host: await controllerHost(),
 		ip: agent.ssh.address,
 		kind: "listed",
 		ports: listed.ports.map((port) => ({

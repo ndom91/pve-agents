@@ -78,6 +78,15 @@ export function startForward(
 	workspaceId: string,
 	target: SshTarget,
 	port: number,
+	// The address the listener actually bound, as `ss` spelled it: "127.0.0.1" or "[::1]".
+	//
+	// Not a constant, which it was until a real Vite server proved otherwise. Vite binds IPv6
+	// loopback by default, so a tunnel hardcoded to 127.0.0.1 connected to a port nothing was
+	// listening on and the browser got nothing at all. A python server on 127.0.0.1 had worked,
+	// which is exactly why the stub was not enough of a test.
+	//
+	// Square brackets are ssh's own escaping for an IPv6 host in -L, and `ss` already prints them.
+	bind: string,
 ): Forward | { message: string } {
 	const existing = FORWARDS.get(key(workspaceId, port));
 	if (existing !== undefined) {
@@ -110,7 +119,7 @@ export function startForward(
 			"-o",
 			"LogLevel=ERROR",
 			"-L",
-			`0.0.0.0:${allocated}:127.0.0.1:${port}`,
+			`0.0.0.0:${allocated}:${bind}:${port}`,
 			`${target.user}@${target.address}`,
 		],
 		{ stdio: ["ignore", "ignore", "pipe"] },

@@ -62,6 +62,7 @@ export function PortsTab({ workspaceId }: { workspaceId: string }): ReactNode {
 					disabled={isFetching}
 					icon={RotateCw}
 					label="Refresh"
+					size={14}
 					onClick={() => void refetch()}
 					variant="tertiary"
 				/>
@@ -93,6 +94,7 @@ export function PortsTab({ workspaceId }: { workspaceId: string }): ReactNode {
 								disabled={busy}
 								icon={Share2}
 								label={`Forward ${port.port} to this controller`}
+								size={14}
 								onClick={() => forward.mutate(port.port)}
 								variant="tertiary"
 							/>
@@ -109,7 +111,7 @@ export function PortsTab({ workspaceId }: { workspaceId: string }): ReactNode {
 									rel="noreferrer"
 									target="_blank"
 								>
-									<ExternalLink aria-hidden size={16} strokeWidth={1.75} />
+									<ExternalLink aria-hidden size={14} strokeWidth={1.75} />
 									<span className="visually-hidden">
 										Open port {port.port} in a new tab
 									</span>
@@ -125,6 +127,7 @@ export function PortsTab({ workspaceId }: { workspaceId: string }): ReactNode {
 								disabled={busy}
 								icon={Square}
 								label={`Stop forwarding ${port.port}`}
+								size={14}
 								onClick={() => stop.mutate(port.port)}
 								variant="danger"
 							/>
