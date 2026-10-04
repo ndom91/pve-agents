@@ -16,6 +16,7 @@ import {
 
 import { controllerConfig } from "../config/controller-config";
 import { openDatabase } from "../db/database";
+import { workspaceTranscript } from "../db/transcript-repository";
 import {
 	createWorkspace,
 	requestWorkspaceOperation,
@@ -1602,3 +1603,154 @@ describe("workspace node", () => {
 		expect(urls[0]).toContain("/nodes/other/lxc/109/config");
 	});
 });
+
+describe("runWorkspaceOperations keeping the conversation of a destroyed workspace", () => {
+	const SNAPSHOT = {
+		approvals: [],
+		harness: "claude-code",
+		messages: [
+			{ message: { content: "fix the build" }, type: "user" },
+			{
+				message: { content: [{ text: "done", type: "text" }] },
+				type: "assistant",
+			},
+		],
+		sessionId: "session-1",
+		status: "idle",
+		type: "snapshot",
+	};
+
+	// answering fakes a runner that replies to the snapshot request, and records that it was asked.
+	function answering(asked: string[], reply: string | undefined): SshRunner {
+		return async (_target, args) => {
+			asked.push(args.join(" "));
+			if (reply === undefined) {
+				return {
+					code: 255,
+					kind: "ran",
+					stderr: "connection refused",
+					stdout: "",
+				};
+			}
+
+			return { code: 0, kind: "ran", stderr: "", stdout: `${reply}\n` };
+		};
+	}
+
+	it("saves the conversation before the container is shut down", async () => {
+		const db = database();
+		const workspaceID = await destroyableWithAddress(db);
+		const calls: string[] = [];
+		const asked: string[] = [];
+
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { calls }),
+			answering(asked, JSON.stringify(SNAPSHOT)),
+		);
+
+		// One pass: the read and then the shutdown, so a saved conversation never delays a destroy.
+		expect(result).toEqual({ processed: 1, status: "shutdown_submitted" });
+		expect(asked).toHaveLength(1);
+		const saved = workspaceTranscript(db, workspaceID);
+		expect(saved).toMatchObject({
+			harness: "claude-code",
+			sessionId: "session-1",
+		});
+		expect(JSON.parse(saved?.messagesJson ?? "null")).toEqual(
+			SNAPSHOT.messages,
+		);
+		expect(eventTypes(db, workspaceID)).toContain("workspace.transcript_saved");
+	});
+
+	it("holds the shutdown back while the agent does not answer, then destroys without it", async () => {
+		const db = database();
+		const workspaceID = await destroyableWithAddress(db);
+		const asked: string[] = [];
+
+		for (let attempt = 1; attempt < 3; attempt += 1) {
+			const calls: string[] = [];
+			const held = await tick(
+				db,
+				proxmox(db, workspaceID, { calls }),
+				answering(asked, undefined),
+			);
+
+			expect(held).toEqual({ processed: 1, status: "awaiting_transcript" });
+			expect(calls).not.toContain("POST /status/shutdown");
+		}
+
+		// Bounded: a runner that has died must not make its container impossible to remove.
+		const calls: string[] = [];
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { calls }),
+			answering(asked, undefined),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "shutdown_submitted" });
+		expect(asked).toHaveLength(3);
+		expect(workspaceTranscript(db, workspaceID)).toBeUndefined();
+		// The loss is on the timeline, every time, so a missing conversation is never unexplained.
+		expect(
+			eventTypes(db, workspaceID).filter(
+				(type) => type === "workspace.transcript_unsaved",
+			),
+		).toHaveLength(3);
+	});
+
+	it("does not read anything off a container whose ownership does not match", async () => {
+		const db = database();
+		const workspaceID = await destroyableWithAddress(db);
+		const asked: string[] = [];
+
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { description: "somebody else's container" }),
+			answering(asked, JSON.stringify(SNAPSHOT)),
+		);
+
+		expect(result).toEqual({ processed: 1, status: "destroy_halted" });
+		expect(asked).toEqual([]);
+		expect(workspaceTranscript(db, workspaceID)).toBeUndefined();
+	});
+
+	it("does not try to read a container that is already stopped", async () => {
+		const db = database();
+		const workspaceID = await destroyableWithAddress(db);
+		const asked: string[] = [];
+
+		const result = await tick(
+			db,
+			proxmox(db, workspaceID, { state: "stopped" }),
+			answering(asked, JSON.stringify(SNAPSHOT)),
+		);
+
+		// A stopped container has no runner to ask; waiting on one would only delay the delete.
+		expect(result).toEqual({ processed: 1, status: "delete_submitted" });
+		expect(asked).toEqual([]);
+	});
+});
+
+// destroyableWithAddress leaves a workspace that got far enough to have an address, with a destroy
+// queued. Without an address there is no runner to read, which is why `destroyable` cannot do.
+async function destroyableWithAddress(db: Database.Database): Promise<string> {
+	const workspaceID = await addressed(db);
+	if (
+		requestWorkspaceOperation(db, workspaceID, "destroy").kind !== "created"
+	) {
+		throw new Error("expected destroy request");
+	}
+
+	return workspaceID;
+}
+
+function eventTypes(db: Database.Database, workspaceID: string): string[] {
+	return (
+		db
+			.prepare(
+				"SELECT event_type FROM workspace_events WHERE workspace_id = ? ORDER BY id",
+			)
+			.all(workspaceID) as { event_type: string }[]
+	).map((row) => row.event_type);
+}

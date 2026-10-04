@@ -195,9 +195,22 @@ CommonJS mechanism and node's ESM resolver ignores it.
 a controller that restarts leaves approvals waiting inside a runner that is still alive, and a
 reader that only subscribed would show an idle agent that is actually waiting for an answer.
 
-**The transcript is not mirrored into the database.** It is replayed on attach. The cost, stated:
-destroying a workspace destroys its transcript. That was already true of the screen, and the
-timeline still records prompts, pushes and discards, so the record of what was *decided* survives.
+**The transcript is kept once, at the end, not mirrored.** While a workspace lives, its
+conversation is replayed from the runner on attach and the database holds none of it. The destroy
+step reads the whole snapshot just before shutdown and stores the runner's raw messages in
+`workspace_transcripts`, after ownership is re-proved and before anything is switched off. A
+destroyed workspace's page renders them through the same harness reader the live feed uses.
+
+Raw messages rather than rendered rows, so a saved conversation reads exactly as it did live, and
+a later fix to a harness's reader reaches old conversations too.
+
+A runner that does not answer gets three passes, then the destroy goes ahead without it. Waiting
+for ever would let one crashed process make a container impossible to remove, reaper included.
+Every failed read is written to the timeline, so a missing conversation is never unexplained.
+
+The cost, stated: a container that dies on its own, rather than through a destroy, still takes its
+conversation with it. So does every workspace destroyed before this shipped. The timeline still
+records prompts, pushes and discards for both, so the record of what was *decided* survives.
 
 **Permissions default to `auto`** — a second model reviewing each action rather than a person —
 and the mode is configurable. Confirmed working on the subscription token. When auto mode is not

@@ -43,7 +43,14 @@ export async function runWorkspaceOperations(
 	if (destroy.kind === "claimed") {
 		return (
 			exhausted(db, destroy.lease, destroy.operation, now) ??
-			(await executeWorkspaceDestroy(db, config, destroy.lease, fetcher, now))
+			(await executeWorkspaceDestroy(
+				db,
+				config,
+				destroy.lease,
+				fetcher,
+				now,
+				ssh,
+			))
 		);
 	}
 

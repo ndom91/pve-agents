@@ -426,6 +426,17 @@ export async function runnerReading(
 	return { status: snapshot?.status ?? "unknown", title: snapshot?.title };
 }
 
+// runnerTranscript reads the whole snapshot, for keeping once the container is gone.
+//
+// The same exchange as `runnerReading`, kept whole rather than cut down to two fields. Undefined
+// when the runner does not answer, which the caller must treat as "not saved" and say so.
+export async function runnerTranscript(
+	target: SshTarget,
+	ssh: SshRunner,
+): Promise<RunnerSnapshot | undefined> {
+	return exchange(target, [], ssh);
+}
+
 // RunnerAttachment is a live connection to one workspace's runner.
 export type RunnerAttachment = {
 	close: () => void;

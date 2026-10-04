@@ -32,6 +32,7 @@ export type WorkspaceOperationRun = {
 		| "awaiting_ssh"
 		| "awaiting_reconciliation"
 		| "awaiting_task"
+		| "awaiting_transcript"
 		| "booted"
 		| "bootstrapped"
 		| "checked_out"

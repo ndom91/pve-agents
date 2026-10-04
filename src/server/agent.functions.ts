@@ -10,6 +10,7 @@ import {
 	readWorkspaceChanges,
 	readWorkspaceFile,
 	readWorkspacePorts,
+	readWorkspaceTranscript,
 	sendAgentPrompt,
 	unforwardWorkspacePort,
 } from "./agent-operations";
@@ -66,6 +67,12 @@ export const workspaceChanges = createServerFn({ method: "GET" })
 	.middleware([operatorMiddleware])
 	.validator(z.object({ id: z.string().trim().min(1) }))
 	.handler(({ data }) => readWorkspaceChanges(data.id));
+
+// workspaceTranscript reads back the conversation kept when a workspace was destroyed.
+export const workspaceTranscript = createServerFn({ method: "GET" })
+	.middleware([operatorMiddleware])
+	.validator(z.object({ id: z.string().trim().min(1) }))
+	.handler(({ data }) => readWorkspaceTranscript(data.id));
 
 // Shared by forwardPort and stopPort. Not exported, per the note above.
 const workspacePort = z.object({

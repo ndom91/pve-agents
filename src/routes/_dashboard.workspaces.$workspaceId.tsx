@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CircleAlert, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { AgentConversation } from "../components/agent-conversation";
+import { ArchivedConversation } from "../components/archived-conversation";
 import { Button } from "../components/button";
 import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
@@ -355,6 +356,14 @@ function WorkspaceDetail() {
 							rest={workspace.errorMessage}
 							severity="red"
 						/>
+					)}
+
+					{/* Destroyed only, not failed: a failed workspace may still be running and is
+					    shown as it is, and its conversation is kept when it is finally destroyed. */}
+					{workspace.status !== "destroyed" ? null : (
+						<section className="centre-screen">
+							<ArchivedConversation workspaceId={workspaceId} />
+						</section>
 					)}
 
 					{!conversing ? null : (

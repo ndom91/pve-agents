@@ -249,6 +249,28 @@ const migrations = [
 			ALTER TABLE harnesses DROP COLUMN permission_mode;
 		`,
 	},
+	{
+		// The conversation, read off the runner just before its container is destroyed.
+		//
+		// Its own table rather than a column on workspaces: the fleet list reads that table every
+		// few seconds, and a transcript can run to megabytes nobody on that page asked for.
+		//
+		// The runner's raw messages, not rendered rows. The live page renders from the same raw
+		// messages through the harness's readTranscript, so storing them unrendered means a saved
+		// conversation reads exactly as it did live, and a later fix to a renderer reaches old
+		// conversations too.
+		version: 18,
+		sql: `
+			CREATE TABLE workspace_transcripts (
+				workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id),
+				harness TEXT NOT NULL,
+				session_id TEXT,
+				messages TEXT NOT NULL,
+				message_count INTEGER NOT NULL,
+				captured_at TEXT NOT NULL
+			);
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

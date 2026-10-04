@@ -4,6 +4,7 @@ import {
 	workspaceChanges,
 	workspaceFileDiff,
 	workspacePorts,
+	workspaceTranscript,
 } from "../server/agent.functions";
 import {
 	listHarnesses,
@@ -43,6 +44,7 @@ export const workspaceKeys = {
 	seedFiles: () => ["seed-files"] as const,
 	settings: () => ["settings"] as const,
 	status: () => ["controller-status"] as const,
+	transcript: (id: string) => ["workspace", id, "transcript"] as const,
 };
 
 // fleetQuery is the workspace list the sidebar navigates by.
@@ -99,6 +101,19 @@ export function changesQuery(id: string, open: boolean) {
 		queryFn: () => workspaceChanges({ data: { id } }),
 		queryKey: workspaceKeys.changes(id),
 		refetchInterval: open ? CHANGES_REFRESH_MS : false,
+	});
+}
+
+// transcriptQuery holds the conversation kept when a workspace was destroyed.
+//
+// Never refetched: it was written once, as the container went, and nothing changes it afterwards.
+export function transcriptQuery(id: string, enabled: boolean) {
+	return queryOptions({
+		enabled,
+		queryFn: () => workspaceTranscript({ data: { id } }),
+		queryKey: workspaceKeys.transcript(id),
+		refetchInterval: false,
+		staleTime: Number.POSITIVE_INFINITY,
 	});
 }
 

@@ -2,16 +2,25 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
+	failedTranscriptCaptures,
+	hasWorkspaceTranscript,
+	saveWorkspaceTranscript,
+	TRANSCRIPT_UNSAVED,
+} from "../db/transcript-repository";
+import {
 	advanceWorkspaceDestroy,
 	completeWorkspaceDestroy,
 	haltWorkspaceDestroy,
 	type OperationLease,
+	recordWorkspaceNote,
 	recordWorkspaceTask,
 	releaseWorkspaceOperation,
 	type WorkspaceTeardown,
 	workspaceTeardown,
 } from "../db/workspace-repository";
 import type { DestroyPhase } from "../domain/workspace";
+import { LEGACY_SNAPSHOT_HARNESS } from "../harness";
+import { runnerTranscript } from "./agent-runner";
 import { stopWorkspaceForwards } from "./port-forward";
 import {
 	containerConfig,
@@ -24,7 +33,7 @@ import {
 import type { Fetcher, ProxmoxTaskRequest } from "./proxmox-http";
 import { ownershipMatches, parseOwnershipMarker } from "./proxmox-ownership";
 import { poolContainsVMID } from "./proxmox-pool";
-import { forgetHost } from "./ssh";
+import { forgetHost, runSsh, type SshRunner } from "./ssh";
 import {
 	awaitTask,
 	retry,
@@ -41,6 +50,15 @@ const STEPS: Record<DestroyPhase, string> = {
 	"stop-submitted": "stop task accepted",
 };
 
+// TRANSCRIPT_ATTEMPTS is how many passes may fail to read the conversation before the destroy goes
+// ahead without it.
+//
+// Bounded, not "until it works". A runner that has crashed will never answer, and refusing to
+// destroy until it does would turn one dead process into a container nobody can remove, reaper
+// included. Three passes rides out a slow ssh or a runner mid-restart; anything longer is not
+// coming back. The loss is written to the timeline either way, so it is never silent.
+const TRANSCRIPT_ATTEMPTS = 3;
+
 // executeWorkspaceDestroy advances one destroy operation by exactly one durable step.
 //
 // Destruction is idempotent by design: an absent container is success, however often it is asked
@@ -51,6 +69,7 @@ export async function executeWorkspaceDestroy(
 	lease: OperationLease,
 	fetcher: Fetcher,
 	now: Date,
+	ssh: SshRunner = runSsh,
 ): Promise<WorkspaceOperationRun> {
 	const workspace = workspaceTeardown(db, lease);
 	if (workspace === undefined) {
@@ -73,7 +92,78 @@ export async function executeWorkspaceDestroy(
 		return pollTeardownTask(db, config, lease, workspace, fetcher, now);
 	}
 
-	return teardownContainer(db, config, lease, workspace, fetcher, now);
+	return teardownContainer(db, config, lease, workspace, fetcher, now, ssh);
+}
+
+// keepTranscript saves the agent's conversation before its container is shut down.
+//
+// "retry" means try again next pass and do not shut anything down yet. Everything else means go
+// ahead: the conversation is saved, was saved on an earlier pass, cannot be reached at all, or has
+// failed to arrive often enough that waiting longer would only hold the container hostage.
+async function keepTranscript(
+	db: Database.Database,
+	config: ControllerConfig,
+	workspace: WorkspaceTeardown,
+	ssh: SshRunner,
+	now: Date,
+): Promise<"proceed" | "retry"> {
+	// No address means provisioning never got as far as a runner, so there is nothing to keep.
+	if (
+		config.WORKSPACE_SSH_KEY_PATH === undefined ||
+		workspace.ip === undefined ||
+		hasWorkspaceTranscript(db, workspace.id)
+	) {
+		return "proceed";
+	}
+
+	const failures = failedTranscriptCaptures(db, workspace.id);
+	if (failures >= TRANSCRIPT_ATTEMPTS) {
+		return "proceed";
+	}
+
+	const snapshot = await runnerTranscript(
+		{
+			address: workspace.ip,
+			keyPath: config.WORKSPACE_SSH_KEY_PATH,
+			user: config.WORKSPACE_SSH_USER,
+		},
+		ssh,
+	);
+	if (snapshot !== undefined) {
+		saveWorkspaceTranscript(
+			db,
+			workspace.id,
+			{
+				harness: snapshot.harness ?? LEGACY_SNAPSHOT_HARNESS,
+				messages: snapshot.messages,
+				sessionId: snapshot.sessionId,
+			},
+			now,
+		);
+		recordWorkspaceNote(
+			db,
+			workspace.id,
+			"workspace.transcript_saved",
+			`conversation saved: ${snapshot.messages.length} messages`,
+			now,
+		);
+
+		return "proceed";
+	}
+
+	const attempt = failures + 1;
+	const final = attempt >= TRANSCRIPT_ATTEMPTS;
+	recordWorkspaceNote(
+		db,
+		workspace.id,
+		TRANSCRIPT_UNSAVED,
+		final
+			? "the agent did not answer; destroying without its conversation"
+			: `the agent did not answer (attempt ${attempt} of ${TRANSCRIPT_ATTEMPTS}); trying again before destroying`,
+		now,
+	);
+
+	return final ? "proceed" : "retry";
 }
 
 // pollTeardownTask resolves whichever teardown task the last pass submitted.
@@ -178,6 +268,7 @@ async function teardownContainer(
 	workspace: WorkspaceTeardown,
 	fetcher: Fetcher,
 	now: Date,
+	ssh: SshRunner,
 ): Promise<WorkspaceOperationRun> {
 	// The workspace records the node its clone actually landed on, which need not be the node this
 	// controller is configured to clone onto.
@@ -269,6 +360,16 @@ async function teardownContainer(
 	}
 
 	if (state.kind === "running") {
+		// The conversation lives only in the runner, so this is the last moment it can be read.
+		// After ownership is re-proved, deliberately: reading a transcript off a container this
+		// controller does not own would be keeping somebody else's conversation.
+		if (
+			workspace.phase === undefined &&
+			(await keepTranscript(db, config, workspace, ssh, now)) === "retry"
+		) {
+			return retry(db, lease, now, { status: "awaiting_transcript" });
+		}
+
 		// Once shutdown has been tried, a still-running guest will not answer a second ACPI
 		// request either: escalate rather than cycling.
 		if (workspace.phase === "shutdown-tried") {

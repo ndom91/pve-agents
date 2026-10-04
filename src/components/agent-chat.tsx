@@ -46,7 +46,10 @@ export function AgentChat({
 	// Which agent produced `messages`, from the snapshot. Its reader is what turns them into rows,
 	// so this component never learns any agent's wire format.
 	harness?: string;
-	link: "attached" | "gone" | "opening";
+	// "archived" is a saved conversation from a destroyed workspace. Nothing is attached and nothing
+	// is coming, so it takes none of the notes the other three need: no empty-state invitation to
+	// start a conversation, no spinner, and no word about the runner having gone.
+	link: "archived" | "attached" | "gone" | "opening";
 	messages: unknown[];
 	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
 	permissionMode?: string;
