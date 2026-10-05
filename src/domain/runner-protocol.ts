@@ -65,6 +65,10 @@ export type RunnerSnapshot = {
 	// Every message except the partials. Kept as `unknown` because these are the SDK's own union,
 	// whose thirty-eight members would put the SDK into the browser bundle to describe five fields.
 	messages: unknown[];
+	// Which model the agent is running, as the runner knows it. Absent on a runner installed before
+	// this shipped, and before a Claude session has started, which the page shows as not reported
+	// rather than as the harness's configured model.
+	model?: string;
 	permissionMode: string;
 	sessionId?: string;
 	status: RunnerStatus;

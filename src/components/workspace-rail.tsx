@@ -32,10 +32,13 @@ type RailWorkspace = {
 	createdAt?: string;
 	currentStep?: string;
 	desiredState?: string;
+	// The agent as the operator named it, from the harness row.
+	harness?: string;
 	hostname?: string;
 	id?: string;
 	ip?: string;
 	lastActivityAt?: string;
+	model?: string;
 	node?: string;
 	provisionPhase?: ProvisionPhase;
 	readyAt?: string;
@@ -228,6 +231,22 @@ export function WorkspaceRail({
 				{/* Node, vmid and address are in the meta band as well. That is deliberate and it is
 				    what the design draws: the band is the glance you get without opening anything,
 				    and this tab is the full record you come to when the glance was not enough. */}
+				<Group title="Agent">
+					<Fact label="Harness" value={workspace.harness} />
+					{/* What the runner reported, never the harness's configured model. The two
+					    disagreed for every Claude workspace until the runner read RUNNER_MODEL, and
+					    showing the configured one would have printed a model nothing was running.
+					    "not reported" only once the runner has been up: before that, saying anything
+					    about a model is a claim about something that does not exist yet. */}
+					<Fact
+						label="Model"
+						value={
+							workspace.model ??
+							(workspace.readyAt === undefined ? undefined : "not reported")
+						}
+					/>
+				</Group>
+
 				<Group title="Placement">
 					<div className="rail-grid is-3up">
 						<Stack label="Node" value={workspace.node} />

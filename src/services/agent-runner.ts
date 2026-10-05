@@ -404,6 +404,7 @@ export async function decideRunner(
 // Two facts from one round trip, because the snapshot already carries both. Asking separately
 // would be a second ssh per workspace per pass for a value that was already on the wire.
 export type RunnerReading = {
+	model?: string;
 	status: RunnerStatus | "unknown";
 	title?: string;
 };
@@ -423,7 +424,11 @@ export async function runnerReading(
 ): Promise<RunnerReading> {
 	const snapshot = await exchange(target, [], ssh);
 
-	return { status: snapshot?.status ?? "unknown", title: snapshot?.title };
+	return {
+		model: snapshot?.model,
+		status: snapshot?.status ?? "unknown",
+		title: snapshot?.title,
+	};
 }
 
 // runnerSnapshot is `runnerReading` kept whole, for saving the conversation before a destroy.

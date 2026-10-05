@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import type { ControllerConfig } from "../config/controller-config";
 import {
 	recordWorkspaceActivity,
+	recordWorkspaceModel,
 	recordWorkspaceTitle,
 	staleWorkspaceActivity,
 } from "../db/workspace-repository";
@@ -57,6 +58,11 @@ export async function observeWorkspaceActivity(
 		if (title !== undefined) {
 			recordWorkspaceTitle(db, reading.id, title, now);
 		}
+		// A reading with no model is a runner that has not said yet, or cannot. Neither is a
+		// reason to forget the one it said last time.
+		if (reading.model !== undefined && reading.model !== "") {
+			recordWorkspaceModel(db, reading.id, reading.model);
+		}
 	}
 
 	return { observed: readings.length };
@@ -69,18 +75,22 @@ export async function observeWorkspaceActivity(
 // a person. The reaper's refusal to destroy a blocked agent rests on it, so the difference is worth
 // more than it looks.
 //
-// The title rides along because the snapshot already carries it. Asking for it separately would
+// The title and model ride along because the snapshot already carries it. Asking for it separately would
 // double the SSH connections this pass makes for a value that was already on the wire.
 async function read(
 	config: ControllerConfig,
 	keyPath: string,
 	workspace: { hostname: string; ip: string },
 	ssh: SshRunner,
-): Promise<{ activity: WorkspaceActivity; title?: string }> {
+): Promise<{ activity: WorkspaceActivity; model?: string; title?: string }> {
 	const reading = await runnerReading(
 		{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
 		ssh,
 	);
 
-	return { activity: mapActivity(reading.status), title: reading.title };
+	return {
+		activity: mapActivity(reading.status),
+		model: reading.model,
+		title: reading.title,
+	};
 }

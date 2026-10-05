@@ -101,6 +101,37 @@ describe("WorkspaceRail", () => {
 		expect(screen.queryByText("0s")).toBeNull();
 	});
 
+	it("shows the model the runner reported", () => {
+		render(
+			<WorkspaceRail
+				workspace={{
+					harness: "Claude (work)",
+					model: "claude-opus-5-5",
+					readyAt: "2026-10-05T10:00:00.000Z",
+				}}
+			/>,
+		);
+
+		expect(screen.getByText("claude-opus-5-5")).toBeDefined();
+		expect(screen.getByText("Claude (work)")).toBeDefined();
+	});
+
+	it("says a model was not reported rather than guessing one", () => {
+		// A runner too old to say. Printing the harness's configured model here is what this
+		// exists to avoid: for months that was a model no Claude workspace was running.
+		render(
+			<WorkspaceRail workspace={{ readyAt: "2026-10-05T10:00:00.000Z" }} />,
+		);
+
+		expect(screen.getByText("not reported")).toBeDefined();
+	});
+
+	it("says nothing about a model before the agent has started", () => {
+		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
+
+		expect(screen.queryByText("not reported")).toBeNull();
+	});
+
 	it("drops a group heading when every fact under it is absent", () => {
 		// Identity has no rows on a workspace that never got a container, and a heading with
 		// nothing under it reads as a panel that failed to load.

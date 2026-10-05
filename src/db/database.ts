@@ -271,6 +271,15 @@ const migrations = [
 			);
 		`,
 	},
+	{
+		// The model the agent reports running. On the workspace rather than read from the harness,
+		// because the harness says what was asked for and this says what happened -- and they
+		// disagreed for every Claude workspace until the runner started honouring RUNNER_MODEL.
+		version: 19,
+		sql: `
+			ALTER TABLE workspaces ADD COLUMN model TEXT;
+		`,
+	},
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.

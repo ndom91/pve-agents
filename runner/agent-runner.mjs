@@ -44,6 +44,13 @@ const MODE = process.env.RUNNER_PERMISSION_MODE ?? "auto";
 // own, and an agent in a loop would otherwise run until the container is destroyed.
 const MAX_TURNS = Number(process.env.RUNNER_MAX_TURNS ?? "200");
 
+// MODEL is the harness's configured model. Empty or unset means the SDK's own default.
+//
+// The controller passed this from the start and nothing read it, so every Claude workspace ran
+// the default whatever its harness said. Undefined rather than "" when unset, because `model: ""`
+// is an instruction to the SDK and absence is not.
+const MODEL = process.env.RUNNER_MODEL || undefined;
+
 // TITLE_MODEL names the workspace, and is deliberately not whichever model is doing the work.
 //
 // The session's model is chosen for writing code; this is six words about code already written,
@@ -71,6 +78,9 @@ function main() {
 	const pending = new Map();
 
 	let sessionId;
+	// The model the session actually runs, as the SDK's init message states it. Not MODEL: that is
+	// what was asked for, and the page has to show what is running, not what was hoped for.
+	let model;
 	let working = false;
 	// The workspace's name, once the agent has been asked for one. Generated exactly once: a name
 	// that moves under somebody using it to find a tab is worse than one that is slightly stale.
@@ -252,6 +262,7 @@ function main() {
 			// once a paragraph is finished.
 			includePartialMessages: true,
 			maxTurns: MAX_TURNS,
+			model: MODEL,
 			permissionMode: MODE,
 			// Ask for thinking we can actually show.
 			//
@@ -294,6 +305,7 @@ function main() {
 					// controller is set to now.
 					harness: "claude-code",
 					messages: transcript,
+					model,
 					permissionMode: MODE,
 					sessionId,
 					status: status(),
@@ -376,6 +388,7 @@ function main() {
 
 				if (message.type === "system" && message.subtype === "init") {
 					sessionId = message.session_id;
+					model = message.model;
 				}
 				if (message.type === "result") {
 					working = false;

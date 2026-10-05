@@ -1004,6 +1004,19 @@ export function recordWorkspaceTitle(
 	).run(title, nowText, id);
 }
 
+// recordWorkspaceModel stores the model the agent reports running.
+//
+// Overwritten on every reading, unlike the title: nobody types a model, and a session restarted
+// on another one is a real change. No `updated_at` of its own, because the activity write in the
+// same pass already moves it.
+export function recordWorkspaceModel(
+	db: Database.Database,
+	id: string,
+	model: string,
+): void {
+	db.prepare("UPDATE workspaces SET model = ? WHERE id = ?").run(model, id);
+}
+
 // renameWorkspace sets the name a person typed, or clears it.
 //
 // Unconditional, which is the difference from `recordWorkspaceTitle` above: a person editing the
@@ -1359,6 +1372,8 @@ export type WorkspaceDetail = Workspace & {
 	errorMessage?: string;
 	ip?: string;
 	lastActivityAt?: string;
+	// The model the agent reported running. Absent until a runner says, and on runners too old to.
+	model?: string;
 	node?: string;
 	// The union, not a string. Everything downstream branches on this -- the lifecycle strip maps
 	// each phase to a segment -- and as a bare string a phase added to the executor reached those
@@ -1383,7 +1398,7 @@ export function workspaceDetail(
 			`SELECT w.id, w.desired_state, w.status, w.activity, w.repository, w.ref, w.purpose,
 				w.hostname, w.title, w.created_at, w.updated_at, w.current_step, w.node, w.vmid,
 				w.ip, w.provision_phase, w.error_code, w.error_message, w.current_task_upid,
-				w.ready_at, w.last_activity_at, w.activity_observed_at, w.unsaved_work,
+				w.ready_at, w.last_activity_at, w.activity_observed_at, w.unsaved_work, w.model,
 				h.name AS harness_name
 			 -- LEFT, because the agent it was launched on can be deleted afterwards and the
 			 -- workspace keeps running: its runner is installed and its credential was written
@@ -1409,6 +1424,7 @@ export function workspaceDetail(
 		errorMessage: row.error_message,
 		ip: row.ip,
 		lastActivityAt: row.last_activity_at,
+		model: row.model,
 		node: row.node,
 		provisionPhase: row.provision_phase,
 		readyAt: row.ready_at,

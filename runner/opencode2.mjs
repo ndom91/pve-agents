@@ -104,6 +104,9 @@ function main() {
 			cwd: CWD,
 			harness: "opencode2",
 			messages: transcript,
+			// What was asked for, which is the most this runner can say: opencode's messages do not
+			// name their model. Absent means opencode's own default.
+			model: MODEL || undefined,
 			permissionMode: MODE,
 			sessionId,
 			status: status(),

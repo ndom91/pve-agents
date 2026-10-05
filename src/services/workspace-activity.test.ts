@@ -150,6 +150,41 @@ describe("observeWorkspaceActivity", () => {
 		}
 	});
 
+	it("records the model the runner reports", async () => {
+		const db = database();
+		const id = ready(db);
+
+		await observeWorkspaceActivity(
+			db,
+			config(),
+			OBSERVED_AT,
+			reporting({ model: "claude-opus-5-5" }),
+		);
+
+		expect(modelOf(db, id)).toBe("claude-opus-5-5");
+	});
+
+	it("keeps the last model when a reading carries none", async () => {
+		// A runner that did not answer, or a session not started yet, is not a model change.
+		const db = database();
+		const id = ready(db);
+		await observeWorkspaceActivity(
+			db,
+			config(),
+			OBSERVED_AT,
+			reporting({ model: "claude-opus-5-5" }),
+		);
+
+		await observeWorkspaceActivity(
+			db,
+			config(),
+			new Date(OBSERVED_AT.getTime() + 60_000),
+			agent("idle"),
+		);
+
+		expect(modelOf(db, id)).toBe("claude-opus-5-5");
+	});
+
 	it("ignores workspaces that are not ready", async () => {
 		const db = database();
 		createWorkspace(db, {
@@ -246,4 +281,22 @@ function database(): Database.Database {
 	databases.push(db);
 
 	return db;
+}
+
+// reporting fakes a runner whose snapshot carries extra fields, such as the model it runs.
+function reporting(fields: Record<string, unknown>): SshRunner {
+	return async (): Promise<SshResult> => ({
+		code: 0,
+		kind: "ran",
+		stderr: "",
+		stdout: `${JSON.stringify({ approvals: [], messages: [], status: "idle", type: "snapshot", ...fields })}\n`,
+	});
+}
+
+function modelOf(db: Database.Database, id: string): string | null {
+	return (
+		db.prepare("SELECT model FROM workspaces WHERE id = ?").get(id) as {
+			model: string | null;
+		}
+	).model;
 }
