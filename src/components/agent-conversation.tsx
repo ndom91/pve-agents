@@ -20,10 +20,12 @@ import { AgentChat } from "./agent-chat";
 // is not.
 export function AgentConversation({
   busy,
+  ending,
   onDecide,
   workspaceId,
 }: {
   busy: boolean;
+  ending: boolean;
   onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
   workspaceId: string;
 }): ReactNode {
@@ -37,6 +39,7 @@ export function AgentConversation({
     <AgentChat
       approvals={agent.approvals}
       busy={busy}
+      ending={ending}
       harness={agent.harness}
       link={agent.link}
       messages={agent.messages}

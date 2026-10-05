@@ -299,3 +299,38 @@ describe("AgentChat answer footer", () => {
     expect(footers[1]?.textContent).not.toContain("claude");
   });
 });
+
+describe("AgentChat when the runner goes away", () => {
+  function gone(ending: boolean) {
+    return (
+      <TooltipProvider>
+        <AgentChat
+          approvals={[]}
+          busy={false}
+          ending={ending}
+          link="gone"
+          messages={[]}
+          onDecide={() => {}}
+        />
+      </TooltipProvider>
+    );
+  }
+
+  it("reads as expected, not as a fault, while the workspace is being destroyed", () => {
+    // The one sentence both cases used to share read as a failure every time Destroy was pressed.
+    const { container } = render(gone(true));
+
+    expect(
+      container.querySelector(".notice.is-neutral")?.textContent,
+    ).toContain("Destroying");
+    expect(container.querySelector(".notice.is-amber")).toBeNull();
+  });
+
+  it("warns when the runner disappears from a workspace that is meant to be running", () => {
+    const { container } = render(gone(false));
+
+    expect(container.querySelector(".notice.is-amber")?.textContent).toContain(
+      "Agent stopped",
+    );
+  });
+});

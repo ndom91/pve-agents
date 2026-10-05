@@ -18,6 +18,7 @@ import type { AgentTail, Approval } from "../lib/use-agent-stream";
 import { AgentProse } from "./agent-prose";
 import { Button } from "./button";
 import { CodeBlock } from "./code-block";
+import { Notice } from "./notice";
 import { PanelSpinner } from "./panel-state";
 import { Timestamp } from "./timestamp";
 
@@ -34,6 +35,7 @@ import { Timestamp } from "./timestamp";
 export function AgentChat({
   approvals,
   busy,
+  ending = false,
   harness: name = LEGACY_SNAPSHOT_HARNESS,
   link,
   messages,
@@ -43,6 +45,10 @@ export function AgentChat({
 }: {
   approvals: Approval[];
   busy: boolean;
+  // The workspace is being destroyed, so a runner that stops answering is the expected outcome
+  // rather than a fault. The two used to share one sentence, which read as a failure every time
+  // somebody pressed Destroy.
+  ending?: boolean;
   // Which agent produced `messages`, from the snapshot. Its reader is what turns them into rows,
   // so this component never learns any agent's wire format.
   harness?: string;
@@ -86,11 +92,21 @@ export function AgentChat({
         />
       ))}
 
-      {link === "gone" ? (
-        <p className="detail-note">
-          The agent runner is no longer answering. Its session ended with it.
-        </p>
-      ) : null}
+      {link !== "gone" ? null : ending ? (
+        <Notice
+          lead="Destroying"
+          placement="block"
+          rest="The agent stopped with its container. The conversation above is everything it said."
+          severity="neutral"
+        />
+      ) : (
+        <Notice
+          lead="Agent stopped"
+          placement="block"
+          rest="Its runner is no longer answering, and the session ended with it. Nothing more will arrive here."
+          severity="amber"
+        />
+      )}
       {/* The panel's spinner, like every other wait in the app. As a sentence it read as the
 			    answer the page had settled on rather than as the moment before one. */}
       {link === "opening" && entries.length === 0 && tail === undefined ? (

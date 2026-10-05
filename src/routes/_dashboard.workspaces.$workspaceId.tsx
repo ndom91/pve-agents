@@ -368,6 +368,7 @@ function WorkspaceDetail() {
             <section className="centre-screen">
               <AgentConversation
                 busy={busy}
+                ending={workspace.status === "destroying"}
                 onDecide={(approvalId, behavior) =>
                   decide.mutate({ approvalId, behavior })
                 }
