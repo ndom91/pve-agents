@@ -19,7 +19,10 @@ export type ToolState =
 // TranscriptEntry is one row.
 export type TranscriptEntry =
   | { at?: string; kind: "prompt"; text: string }
-  | { at?: string; kind: "say"; text: string }
+  // `model` is what wrote this answer, when the agent says. Per answer rather than per session:
+  // one session uses several -- a subagent, a fallback, a title call -- and the session's model
+  // says nothing about which of them wrote a given paragraph.
+  | { at?: string; kind: "say"; model?: string; text: string }
   | { at?: string; kind: "thought"; text: string }
   | { kind: "ended"; reason: string }
   | {

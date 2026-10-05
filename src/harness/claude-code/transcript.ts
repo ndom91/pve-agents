@@ -36,7 +36,8 @@ type Message = {
   // Stamped by the runner as it records the message. Optional because a runner installed before
   // that shipped is still running, and its messages have no time at all.
   controller_at?: string;
-  message?: { content?: unknown; role?: string };
+  // `model` is on every assistant message the API returns: the model that produced it.
+  message?: { content?: unknown; model?: string; role?: string };
   subtype?: string;
   type?: string;
 };
@@ -65,7 +66,12 @@ export function readTranscript(
     if (message.type === "assistant") {
       for (const block of blocks) {
         if (block.type === "text" && block.text !== undefined) {
-          entries.push({ at, kind: "say", text: block.text });
+          entries.push({
+            at,
+            kind: "say",
+            model: message.message?.model,
+            text: block.text,
+          });
         }
         // Only when there is something to read.
         //

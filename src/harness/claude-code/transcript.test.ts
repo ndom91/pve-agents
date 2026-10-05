@@ -112,6 +112,27 @@ describe("readTranscript", () => {
     ]);
   });
 
+  it("names the model that wrote each answer", () => {
+    // Per message, because one session uses several and the session's own model says nothing
+    // about which of them wrote a given paragraph.
+    const entries = readTranscript([
+      {
+        message: {
+          content: [{ text: "Done.", type: "text" }],
+          model: "claude-opus-5-5",
+          role: "assistant",
+        },
+        type: "assistant",
+      },
+      assistant({ text: "No model on this one.", type: "text" }),
+    ]);
+
+    expect(entries).toEqual([
+      { kind: "say", model: "claude-opus-5-5", text: "Done." },
+      { kind: "say", text: "No model on this one." },
+    ]);
+  });
+
   it("says nothing about a turn that ended well", () => {
     // "success" under every single turn is noise. The last thing the agent said is the answer.
     expect(readTranscript([{ subtype: "success", type: "result" }])).toEqual(

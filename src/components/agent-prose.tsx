@@ -21,12 +21,15 @@ import { Timestamp } from "./timestamp";
 // Alpha, at 0.0.15, and pinned exactly. The surface used is one component wide.
 export function AgentProse({
   at,
+  model,
   streaming = false,
   text,
 }: {
   // When the agent said it. Absent for an answer from a runner installed before the runner
   // started stamping, which shows as no timestamp rather than as a wrong one.
   at?: string;
+  // Which model wrote it. Absent when the agent does not say, which shows as nothing.
+  model?: string;
   streaming?: boolean;
   text: string;
 }): ReactNode {
@@ -59,6 +62,9 @@ export function AgentProse({
 				    conversation. */}
         {streaming ? null : (
           <>
+            {model === undefined ? null : (
+              <span className="agent-answer-at on-hover">{model}</span>
+            )}
             <span className="agent-answer-at on-hover">
               <Timestamp iso={at} />
             </span>

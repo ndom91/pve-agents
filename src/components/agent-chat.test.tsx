@@ -275,3 +275,27 @@ describe("AgentChat tool rows", () => {
     expect(container.querySelector("[aria-expanded='true']")).toBeNull();
   });
 });
+
+describe("AgentChat answer footer", () => {
+  it("names the model beside the time, only when the agent said which", () => {
+    const { container } = render(
+      chat([
+        {
+          controller_at: "2026-10-05T17:28:11.000Z",
+          message: {
+            content: [{ text: "Fixed.", type: "text" }],
+            model: "claude-opus-5-5",
+            role: "assistant",
+          },
+          type: "assistant",
+        },
+        assistant("From a runner that does not say."),
+      ]),
+    );
+
+    const footers = [...container.querySelectorAll(".agent-answer-actions")];
+    expect(footers[0]?.textContent).toContain("claude-opus-5-5");
+    // Nothing invented for the second: an answer with no model shows none, not the session's.
+    expect(footers[1]?.textContent).not.toContain("claude");
+  });
+});

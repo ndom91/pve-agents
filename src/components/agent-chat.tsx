@@ -269,7 +269,7 @@ function Entry({ entry }: { entry: TranscriptEntry }) {
     );
   }
 
-  return <AgentProse at={entry.at} text={entry.text} />;
+  return <AgentProse at={entry.at} model={entry.model} text={entry.text} />;
 }
 
 // ToolGroup is a run of agent activity in one bordered box.
