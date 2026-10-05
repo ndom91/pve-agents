@@ -1653,10 +1653,7 @@ describe("runWorkspaceOperations keeping the conversation of a destroyed workspa
 		expect(result).toEqual({ processed: 1, status: "shutdown_submitted" });
 		expect(asked).toHaveLength(1);
 		const saved = workspaceTranscript(db, workspaceID);
-		expect(saved).toMatchObject({
-			harness: "claude-code",
-			sessionId: "session-1",
-		});
+		expect(saved?.harness).toBe("claude-code");
 		expect(JSON.parse(saved?.messagesJson ?? "null")).toEqual(
 			SNAPSHOT.messages,
 		);

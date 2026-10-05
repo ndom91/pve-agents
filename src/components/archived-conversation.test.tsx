@@ -6,11 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The one server function this view reaches, mocked at that boundary. What is under test is that a
 // saved conversation reads as the live one did, which only the rendered page can show.
-let saved: {
-	capturedAt: string;
-	harness: string;
-	messagesJson: string;
-} | null = null;
+let saved: { harness: string; messagesJson: string } | null = null;
 
 vi.mock("../server/agent.functions", () => ({
 	workspaceTranscript: async () => saved,
@@ -38,7 +34,6 @@ function view() {
 describe("a destroyed workspace's conversation", () => {
 	it("renders the saved messages through the harness that produced them", async () => {
 		saved = {
-			capturedAt: "2026-10-04T12:00:00.000Z",
 			harness: "claude-code",
 			messagesJson: JSON.stringify([
 				{

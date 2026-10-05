@@ -20,7 +20,7 @@ import { WorkspaceRail } from "../components/workspace-rail";
 import { WorkspaceTerminal } from "../components/workspace-terminal";
 import { WorkspaceTimeline } from "../components/workspace-timeline";
 import { WorkspaceTitle } from "../components/workspace-title";
-import { isConversing } from "../domain/workspace-lifecycle";
+import { isArchived, isConversing } from "../domain/workspace-lifecycle";
 import { provisionTook } from "../lib/clock";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
@@ -358,9 +358,7 @@ function WorkspaceDetail() {
 						/>
 					)}
 
-					{/* Destroyed only, not failed: a failed workspace may still be running and is
-					    shown as it is, and its conversation is kept when it is finally destroyed. */}
-					{workspace.status !== "destroyed" ? null : (
+					{!isArchived(workspace.status) ? null : (
 						<section className="centre-screen">
 							<ArchivedConversation workspaceId={workspaceId} />
 						</section>

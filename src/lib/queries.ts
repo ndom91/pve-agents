@@ -107,9 +107,8 @@ export function changesQuery(id: string, open: boolean) {
 // transcriptQuery holds the conversation kept when a workspace was destroyed.
 //
 // Never refetched: it was written once, as the container went, and nothing changes it afterwards.
-export function transcriptQuery(id: string, enabled: boolean) {
+export function transcriptQuery(id: string) {
 	return queryOptions({
-		enabled,
 		queryFn: () => workspaceTranscript({ data: { id } }),
 		queryKey: workspaceKeys.transcript(id),
 		refetchInterval: false,

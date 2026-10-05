@@ -5,23 +5,23 @@ import { transcriptQuery } from "../lib/queries";
 import { AgentChat } from "./agent-chat";
 import { PanelNote, PanelSpinner } from "./panel-state";
 
-// NO_APPROVALS is shared so `AgentChat`'s memo sees the same array every render. A fresh `[]` per
-// render would re-read the whole transcript each time anything above this re-rendered.
+// Module-level so `AgentChat`'s memo sees the same array each render; a fresh `[]` would re-read
+// the whole transcript every time.
 const NO_APPROVALS: never[] = [];
+
+// Nothing to decide: approvals are not kept, because nothing is waiting on them.
+function noDecision(): void {}
 
 // ArchivedConversation is a destroyed workspace's conversation, read back from the database.
 //
-// The live page's renderer over a different source. The conversation was saved as the runner's
-// raw messages, so it goes through the same harness reader the live feed uses and looks exactly
-// as it did while the agent was running, minus anything that needed the agent to answer.
+// Saved as the runner's raw messages, so it goes through the same harness reader as the live feed
+// and looks as it did while the agent ran.
 export function ArchivedConversation({
 	workspaceId,
 }: {
 	workspaceId: string;
 }): ReactNode {
-	const { data, isError, isPending } = useQuery(
-		transcriptQuery(workspaceId, true),
-	);
+	const { data, isError, isPending } = useQuery(transcriptQuery(workspaceId));
 
 	const messages = useMemo(
 		() => (data ? (JSON.parse(data.messagesJson) as unknown[]) : []),
@@ -52,8 +52,7 @@ export function ArchivedConversation({
 			harness={data.harness}
 			link="archived"
 			messages={messages}
-			// Nothing to decide: approvals are not kept, because nothing is waiting on them.
-			onDecide={() => {}}
+			onDecide={noDecision}
 		/>
 	);
 }

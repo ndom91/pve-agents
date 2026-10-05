@@ -2,10 +2,21 @@ import { describe, expect, it } from "vitest";
 
 import type { ProvisionPhase } from "./workspace";
 import {
+	isArchived,
 	isConversing,
 	LIFECYCLE_STEPS,
 	lifecycleReached,
 } from "./workspace-lifecycle";
+
+describe("isArchived", () => {
+	it("shows the kept conversation only once the container is gone", () => {
+		expect(isArchived("destroyed")).toBe(true);
+		// Still destroying: the live stream is up, and nothing has been kept yet.
+		expect(isArchived("destroying")).toBe(false);
+		// A failed workspace's conversation is kept when it is destroyed, not when it fails.
+		expect(isArchived("failed")).toBe(false);
+	});
+});
 
 describe("isConversing", () => {
 	it("keeps the transcript up while a destroy is in flight", () => {

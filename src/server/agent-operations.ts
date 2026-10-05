@@ -385,10 +385,8 @@ async function settleUnsavedWork(
 
 // readWorkspaceTranscript returns the conversation kept when a workspace was destroyed.
 //
-// Read from the database, never the workspace: by the time anybody asks, the container is gone.
-// Deliberately not behind `agentTarget`, which refuses everything that is not ready -- a destroyed
-// workspace is the whole reason this exists. Null rather than undefined because it crosses the wire
-// as JSON, and "no conversation was kept" has to arrive as a value the page can tell apart.
+// Not behind `agentTarget`, which refuses anything not ready: a destroyed workspace is the point.
+// Null rather than undefined, so "nothing was kept" survives the trip as JSON.
 export function readWorkspaceTranscript(id: string): SavedTranscript | null {
 	return workspaceTranscript(controllerDatabase(), id) ?? null;
 }

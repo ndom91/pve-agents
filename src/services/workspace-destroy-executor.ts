@@ -20,7 +20,7 @@ import {
 } from "../db/workspace-repository";
 import type { DestroyPhase } from "../domain/workspace";
 import { LEGACY_SNAPSHOT_HARNESS } from "../harness";
-import { runnerTranscript } from "./agent-runner";
+import { runnerSnapshot } from "./agent-runner";
 import { stopWorkspaceForwards } from "./port-forward";
 import {
 	containerConfig,
@@ -121,7 +121,7 @@ async function keepTranscript(
 		return "proceed";
 	}
 
-	const snapshot = await runnerTranscript(
+	const snapshot = await runnerSnapshot(
 		{
 			address: workspace.ip,
 			keyPath: config.WORKSPACE_SSH_KEY_PATH,
@@ -152,18 +152,27 @@ async function keepTranscript(
 	}
 
 	const attempt = failures + 1;
-	const final = attempt >= TRANSCRIPT_ATTEMPTS;
+	if (attempt >= TRANSCRIPT_ATTEMPTS) {
+		recordWorkspaceNote(
+			db,
+			workspace.id,
+			TRANSCRIPT_UNSAVED,
+			"the agent did not answer; destroying without its conversation",
+			now,
+		);
+
+		return "proceed";
+	}
+
 	recordWorkspaceNote(
 		db,
 		workspace.id,
 		TRANSCRIPT_UNSAVED,
-		final
-			? "the agent did not answer; destroying without its conversation"
-			: `the agent did not answer (attempt ${attempt} of ${TRANSCRIPT_ATTEMPTS}); trying again before destroying`,
+		`the agent did not answer (attempt ${attempt} of ${TRANSCRIPT_ATTEMPTS}); trying again before destroying`,
 		now,
 	);
 
-	return final ? "proceed" : "retry";
+	return "retry";
 }
 
 // pollTeardownTask resolves whichever teardown task the last pass submitted.

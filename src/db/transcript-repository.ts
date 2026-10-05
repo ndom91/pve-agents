@@ -1,16 +1,15 @@
 import type Database from "better-sqlite3";
 
 // SavedTranscript is a workspace's conversation as it stood just before its container went.
+//
+// Only what the page reads. The row also holds the session id, the message count and when it was
+// captured, for whoever needs them later; sending them now would be fields nothing renders.
 export type SavedTranscript = {
-	capturedAt: string;
 	// Which agent produced the messages, so the page reads them with the right harness. From the
 	// runner's own snapshot, for the same reason the live page takes it from there.
 	harness: string;
-	// The runner's messages as the JSON they were stored as, unparsed.
-	//
-	// A string because nobody on this side reads them: they go to the browser, which renders them
-	// through the harness. Parsing here only to serialise again for the wire would be two passes
-	// over megabytes for nothing, and `unknown[]` is not a type a server function may return.
+	// The stored JSON, unparsed. Only the browser reads it, so parsing here would just be
+	// serialised again for the wire -- and `unknown[]` is not a type a server function may return.
 	messagesJson: string;
 	sessionId?: string;
 };
@@ -29,10 +28,8 @@ export type TranscriptCapture = {
 export const TRANSCRIPT_UNSAVED = "workspace.transcript_unsaved";
 
 type TranscriptRow = {
-	captured_at: string;
 	harness: string;
 	messages: string;
-	session_id: string | null;
 };
 
 // saveWorkspaceTranscript records a workspace's conversation, replacing any earlier copy.
@@ -76,20 +73,14 @@ export function workspaceTranscript(
 ): SavedTranscript | undefined {
 	const row = db
 		.prepare(
-			`SELECT harness, session_id, messages, captured_at
-			 FROM workspace_transcripts WHERE workspace_id = ?`,
+			"SELECT harness, messages FROM workspace_transcripts WHERE workspace_id = ?",
 		)
 		.get(workspaceId) as TranscriptRow | undefined;
 	if (row === undefined) {
 		return undefined;
 	}
 
-	return {
-		capturedAt: row.captured_at,
-		harness: row.harness,
-		messagesJson: row.messages,
-		sessionId: row.session_id ?? undefined,
-	};
+	return { harness: row.harness, messagesJson: row.messages };
 }
 
 // hasWorkspaceTranscript says whether a conversation is already kept, without reading it.

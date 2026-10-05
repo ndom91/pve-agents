@@ -76,6 +76,14 @@ export function isConversing(status?: string): boolean {
 	return status === "ready" || status === "destroying";
 }
 
+// isArchived says whether the page shows the conversation kept at destroy instead.
+//
+// Destroyed only, not failed: a failed workspace may still have its container, and its
+// conversation is kept when it is finally destroyed.
+export function isArchived(status?: string): boolean {
+	return status === "destroyed";
+}
+
 // lifecycleReached is how many of the six segments are filled.
 //
 // Status wins over phase at both ends. A ready workspace is complete whatever its last recorded

@@ -426,11 +426,9 @@ export async function runnerReading(
 	return { status: snapshot?.status ?? "unknown", title: snapshot?.title };
 }
 
-// runnerTranscript reads the whole snapshot, for keeping once the container is gone.
-//
-// The same exchange as `runnerReading`, kept whole rather than cut down to two fields. Undefined
-// when the runner does not answer, which the caller must treat as "not saved" and say so.
-export async function runnerTranscript(
+// runnerSnapshot is `runnerReading` kept whole, for saving the conversation before a destroy.
+// Undefined when the runner does not answer.
+export async function runnerSnapshot(
 	target: SshTarget,
 	ssh: SshRunner,
 ): Promise<RunnerSnapshot | undefined> {
