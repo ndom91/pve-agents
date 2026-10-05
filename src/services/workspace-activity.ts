@@ -3,7 +3,6 @@ import type Database from "better-sqlite3";
 import type { ControllerConfig } from "../config/controller-config";
 import {
   recordWorkspaceActivity,
-  recordWorkspaceModel,
   recordWorkspaceTitle,
   staleWorkspaceActivity,
 } from "../db/workspace-repository";
@@ -57,11 +56,6 @@ export async function observeWorkspaceActivity(
     const title = readTitle(reading.title);
     if (title !== undefined) {
       recordWorkspaceTitle(db, reading.id, title, now);
-    }
-    // A reading with no model is a runner that has not said yet, or cannot. Neither is a
-    // reason to forget the one it said last time.
-    if (reading.model !== undefined && reading.model !== "") {
-      recordWorkspaceModel(db, reading.id, reading.model);
     }
   }
 

@@ -1004,19 +1004,6 @@ export function recordWorkspaceTitle(
   ).run(title, nowText, id);
 }
 
-// recordWorkspaceModel stores the model the agent reports running.
-//
-// Overwritten on every reading, unlike the title: nobody types a model, and a session restarted
-// on another one is a real change. No `updated_at` of its own, because the activity write in the
-// same pass already moves it.
-export function recordWorkspaceModel(
-  db: Database.Database,
-  id: string,
-  model: string,
-): void {
-  db.prepare("UPDATE workspaces SET model = ? WHERE id = ?").run(model, id);
-}
-
 // renameWorkspace sets the name a person typed, or clears it.
 //
 // Unconditional, which is the difference from `recordWorkspaceTitle` above: a person editing the
@@ -1067,7 +1054,9 @@ export function recordWorkspaceInteraction(
 // otherwise reset forever.
 export function recordWorkspaceActivity(
   db: Database.Database,
-  input: { activity: WorkspaceActivity; id: string },
+  // `model` rides on the same write rather than a second UPDATE per pass. Absent keeps the stored
+  // one: a reading with no model is a runner that has not said yet, not a model change.
+  input: { activity: WorkspaceActivity; id: string; model?: string },
   now: Date = new Date(),
 ): void {
   const nowText = now.toISOString();
@@ -1076,9 +1065,18 @@ export function recordWorkspaceActivity(
     `UPDATE workspaces
 		 SET activity = ?, activity_observed_at = ?,
 			last_activity_at = CASE WHEN ? = 'active' THEN ? ELSE last_activity_at END,
+			model = COALESCE(?, model),
 			updated_at = ?
 		 WHERE id = ?`,
-  ).run(input.activity, nowText, input.activity, nowText, nowText, input.id);
+  ).run(
+    input.activity,
+    nowText,
+    input.activity,
+    nowText,
+    input.model ?? null,
+    nowText,
+    input.id,
+  );
 }
 
 // noteWorkspaceIssue records a transient failure, without repeating itself.

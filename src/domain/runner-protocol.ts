@@ -65,9 +65,13 @@ export type RunnerSnapshot = {
   // Every message except the partials. Kept as `unknown` because these are the SDK's own union,
   // whose thirty-eight members would put the SDK into the browser bundle to describe five fields.
   messages: unknown[];
-  // Which model the agent is running, as the runner knows it. Absent on a runner installed before
-  // this shipped, and before a Claude session has started, which the page shows as not reported
-  // rather than as the harness's configured model.
+  // Which model the agent is running, as the runner knows it -- and that differs by harness.
+  // Claude's runner reads it off the SDK's init message, so it is what is actually running.
+  // opencode's messages name no model, so its runner can only repeat what it was configured with.
+  //
+  // Never taken from the harness row on the controller side: for every Claude workspace until the
+  // runner read RUNNER_MODEL, that row named a model nothing was running. Absent on older runners
+  // and before a Claude session starts, which the page shows as "not reported".
   model?: string;
   permissionMode: string;
   sessionId?: string;

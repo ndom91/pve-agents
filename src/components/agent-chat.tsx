@@ -32,6 +32,20 @@ import { Timestamp } from "./timestamp";
 //
 // What was worth taking is the vocabulary: the tool states below are AI Elements', because it had
 // already worked out the six facts a reader needs and a fifth spelling of them helps nobody.
+// What the feed says once the runner has gone, by why it went.
+const GONE = {
+  ending: {
+    lead: "Destroying",
+    rest: "The agent stopped with its container. The conversation above is everything it said.",
+    severity: "neutral",
+  },
+  stopped: {
+    lead: "Agent stopped",
+    rest: "Its runner is no longer answering, and the session ended with it. Nothing more will arrive here.",
+    severity: "amber",
+  },
+} as const;
+
 export function AgentChat({
   approvals,
   busy,
@@ -92,21 +106,9 @@ export function AgentChat({
         />
       ))}
 
-      {link !== "gone" ? null : ending ? (
-        <Notice
-          lead="Destroying"
-          placement="block"
-          rest="The agent stopped with its container. The conversation above is everything it said."
-          severity="neutral"
-        />
-      ) : (
-        <Notice
-          lead="Agent stopped"
-          placement="block"
-          rest="Its runner is no longer answering, and the session ended with it. Nothing more will arrive here."
-          severity="amber"
-        />
-      )}
+      {link === "gone" ? (
+        <Notice placement="block" {...GONE[ending ? "ending" : "stopped"]} />
+      ) : null}
       {/* The panel's spinner, like every other wait in the app. As a sentence it read as the
 			    answer the page had settled on rather than as the moment before one. */}
       {link === "opening" && entries.length === 0 && tail === undefined ? (

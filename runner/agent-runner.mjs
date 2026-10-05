@@ -44,11 +44,9 @@ const MODE = process.env.RUNNER_PERMISSION_MODE ?? "auto";
 // own, and an agent in a loop would otherwise run until the container is destroyed.
 const MAX_TURNS = Number(process.env.RUNNER_MAX_TURNS ?? "200");
 
-// MODEL is the harness's configured model. Empty or unset means the SDK's own default.
-//
-// The controller passed this from the start and nothing read it, so every Claude workspace ran
-// the default whatever its harness said. Undefined rather than "" when unset, because `model: ""`
-// is an instruction to the SDK and absence is not.
+// MODEL is the harness's configured model; unset means the SDK default. Passed from the start and
+// read by nothing until now, so every Claude workspace ran the default. Undefined, never "",
+// because `model: ""` is an instruction to the SDK and absence is not.
 const MODEL = process.env.RUNNER_MODEL || undefined;
 
 // TITLE_MODEL names the workspace, and is deliberately not whichever model is doing the work.
@@ -78,8 +76,7 @@ function main() {
   const pending = new Map();
 
   let sessionId;
-  // The model the session actually runs, as the SDK's init message states it. Not MODEL: that is
-  // what was asked for, and the page has to show what is running, not what was hoped for.
+  // What the session actually runs, from the SDK's init message. Not MODEL, which is what was asked.
   let model;
   let working = false;
   // The workspace's name, once the agent has been asked for one. Generated exactly once: a name

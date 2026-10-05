@@ -233,11 +233,8 @@ export function WorkspaceRail({
 				    and this tab is the full record you come to when the glance was not enough. */}
         <Group title="Agent">
           <Fact label="Harness" value={workspace.harness} />
-          {/* What the runner reported, never the harness's configured model. The two
-					    disagreed for every Claude workspace until the runner read RUNNER_MODEL, and
-					    showing the configured one would have printed a model nothing was running.
-					    "not reported" only once the runner has been up: before that, saying anything
-					    about a model is a claim about something that does not exist yet. */}
+          {/* Whatever the runner reported (see RunnerSnapshot.model), never read from the
+					    harness here. "not reported" only once the runner has been up. */}
           <Fact
             label="Model"
             value={

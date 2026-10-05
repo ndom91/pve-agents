@@ -425,7 +425,8 @@ export async function runnerReading(
   const snapshot = await exchange(target, [], ssh);
 
   return {
-    model: snapshot?.model,
+    // Empty is normalised here, once, so no caller stores "" as a model.
+    model: snapshot?.model || undefined,
     status: snapshot?.status ?? "unknown",
     title: snapshot?.title,
   };
