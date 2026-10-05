@@ -36,6 +36,10 @@ export const Route = createFileRoute("/_dashboard")({
 // outnumber live ones many times over.
 const DESTROYED_SHOWN = 15;
 
+// RECENT_DESTROYED_SHOWN leaves the newest history visible. It makes recently finished work as easy
+// to revisit as running work without making the sidebar an ever-growing archive.
+const RECENT_DESTROYED_SHOWN = 5;
+
 function Dashboard() {
   const { data: workspaces = [] } = useQuery(fleetQuery());
   // A blocked workspace is exempt from reaping, so it waits until a person ends it. This is what
@@ -65,6 +69,8 @@ function Dashboard() {
   // The list is capped; the count is not. It said 15 on a controller that had destroyed forty-
   // five, because it was counting the slice rather than the fleet.
   const destroyed = gone.slice(0, DESTROYED_SHOWN);
+  const recentDestroyed = destroyed.slice(0, RECENT_DESTROYED_SHOWN);
+  const olderDestroyed = destroyed.slice(RECENT_DESTROYED_SHOWN);
 
   return (
     <div className="dashboard">
@@ -122,26 +128,37 @@ function Dashboard() {
 							    itself being the control. A count that only appears once you have
 							    opened the thing it counts is not much of a count. */}
               <SectionHead count={gone.length} label="Destroyed" />
-              <details className="sidebar-archive">
-                <summary className="sidebar-archive-toggle">
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="sidebar-archive-caret"
-                    size={9}
-                    strokeWidth={1.3}
+              <ul className="sidebar-list">
+                {recentDestroyed.map((workspace) => (
+                  <SidebarEntry
+                    key={workspace.id}
+                    showState={false}
+                    workspace={workspace}
                   />
-                  <span>show archive</span>
-                </summary>
-                <ul className="sidebar-list">
-                  {destroyed.map((workspace) => (
-                    <SidebarEntry
-                      key={workspace.id}
-                      showState={false}
-                      workspace={workspace}
+                ))}
+              </ul>
+              {olderDestroyed.length === 0 ? null : (
+                <details className="sidebar-archive">
+                  <summary className="sidebar-archive-toggle">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="sidebar-archive-caret"
+                      size={9}
+                      strokeWidth={1.3}
                     />
-                  ))}
-                </ul>
-              </details>
+                    <span>show archive</span>
+                  </summary>
+                  <ul className="sidebar-list">
+                    {olderDestroyed.map((workspace) => (
+                      <SidebarEntry
+                        key={workspace.id}
+                        showState={false}
+                        workspace={workspace}
+                      />
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
           )}
         </nav>
