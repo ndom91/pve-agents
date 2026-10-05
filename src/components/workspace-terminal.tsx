@@ -10,40 +10,40 @@ const TerminalView = lazy(() => import("./terminal-view"));
 
 // WorkspaceTerminal is an interactive shell in the workspace, or the reason there is not one.
 export function WorkspaceTerminal({
-	hostname,
-	ip,
-	ready,
-	workspaceId,
+  hostname,
+  ip,
+  ready,
+  workspaceId,
 }: {
-	hostname?: string;
-	ip?: string;
-	ready: boolean;
-	workspaceId: string;
+  hostname?: string;
+  ip?: string;
+  ready: boolean;
+  workspaceId: string;
 }): ReactNode {
-	// xterm measures real glyphs to work out its grid, so there is nothing sensible for it to do on
-	// the server. Same constraint as the tree and diff renderers, for a different reason.
-	const mounted = useMounted();
+  // xterm measures real glyphs to work out its grid, so there is nothing sensible for it to do on
+  // the server. Same constraint as the tree and diff renderers, for a different reason.
+  const mounted = useMounted();
 
-	if (!ready) {
-		// A workspace that is not ready has no address to reach, and one that is gone has no
-		// container. Saying so beats a socket that fails with nothing to read.
-		return (
-			<PanelNote>
-				A shell needs a running workspace. This one has none.
-			</PanelNote>
-		);
-	}
-	if (!mounted) {
-		return <PanelSpinner label="Loading the terminal." />;
-	}
+  if (!ready) {
+    // A workspace that is not ready has no address to reach, and one that is gone has no
+    // container. Saying so beats a socket that fails with nothing to read.
+    return (
+      <PanelNote>
+        A shell needs a running workspace. This one has none.
+      </PanelNote>
+    );
+  }
+  if (!mounted) {
+    return <PanelSpinner label="Loading the terminal." />;
+  }
 
-	return (
-		<Suspense fallback={<PanelSpinner label="Loading the terminal." />}>
-			{/* Deliberately not keyed by workspace. One terminal, reused, with a different shell
+  return (
+    <Suspense fallback={<PanelSpinner label="Loading the terminal." />}>
+      {/* Deliberately not keyed by workspace. One terminal, reused, with a different shell
 			    wired to it -- see the note in TerminalView. Keying it here forced a rebuild per
 			    workspace, and a rebuild means ghostty reloading its WASM, which is two and a half
 			    seconds of staring at nothing on every switch. */}
-			<TerminalView hostname={hostname} ip={ip} workspaceId={workspaceId} />
-		</Suspense>
-	);
+      <TerminalView hostname={hostname} ip={ip} workspaceId={workspaceId} />
+    </Suspense>
+  );
 }

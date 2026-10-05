@@ -31,7 +31,7 @@ export const LEGACY_WORKSPACE_HARNESS = claudeCode.name;
 // as JSON if it could be merged by anything, because the alternative is accepting a file that is
 // valid for the harness the operator had in mind and corrupt for the one they later pick.
 export function anyHarnessMerges(path: string): boolean {
-	return harnessNames().some((name) => harness(name).merges(path));
+  return harnessNames().some((name) => harness(name).merges(path));
 }
 
 export type { Harness, HarnessFile, MergeRule } from "../domain/harness";

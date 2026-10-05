@@ -7,37 +7,37 @@ import { openDatabase } from "../db/database";
 const STATE = Symbol.for("pve-agents.controller");
 
 type ControllerState = {
-	database?: ReturnType<typeof openDatabase>;
-	runtimeConfig?: ReturnType<typeof controllerConfig>;
+  database?: ReturnType<typeof openDatabase>;
+  runtimeConfig?: ReturnType<typeof controllerConfig>;
 };
 
 function state(): ControllerState {
-	const host = globalThis as typeof globalThis & {
-		[STATE]?: ControllerState;
-	};
-	if (host[STATE] === undefined) {
-		host[STATE] = {};
-	}
+  const host = globalThis as typeof globalThis & {
+    [STATE]?: ControllerState;
+  };
+  if (host[STATE] === undefined) {
+    host[STATE] = {};
+  }
 
-	return host[STATE];
+  return host[STATE];
 }
 
 // controllerRuntimeConfig returns the validated process configuration.
 export function controllerRuntimeConfig() {
-	const current = state();
-	if (current.runtimeConfig === undefined) {
-		current.runtimeConfig = controllerConfig(process.env);
-	}
+  const current = state();
+  if (current.runtimeConfig === undefined) {
+    current.runtimeConfig = controllerConfig(process.env);
+  }
 
-	return current.runtimeConfig;
+  return current.runtimeConfig;
 }
 
 // controllerDatabase returns the process-local controller database.
 export function controllerDatabase() {
-	const current = state();
-	if (current.database === undefined) {
-		current.database = openDatabase(controllerRuntimeConfig().DATABASE_PATH);
-	}
+  const current = state();
+  if (current.database === undefined) {
+    current.database = openDatabase(controllerRuntimeConfig().DATABASE_PATH);
+  }
 
-	return current.database;
+  return current.database;
 }

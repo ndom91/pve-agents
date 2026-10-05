@@ -8,12 +8,12 @@ import type { ProvisionPhase } from "./workspace";
 // and "clone-confirmed" are two states because one of them is waiting on a Proxmox task; to a
 // reader they are both "cloning".
 export const LIFECYCLE_STEPS = [
-	"requested",
-	"cloned",
-	"booted",
-	"reachable",
-	"seeded",
-	"ready",
+  "requested",
+  "cloned",
+  "booted",
+  "reachable",
+  "seeded",
+  "ready",
 ] as const;
 
 // REACHED maps each provision phase to how many of those six are behind it.
@@ -28,17 +28,17 @@ export const LIFECYCLE_STEPS = [
 // below and the strip quietly showed "requested" for a workspace that was nearly ready -- no error,
 // no failing test, just a bar that had stopped being true.
 const REACHED: Record<ProvisionPhase, number> = {
-	addressed: 3,
-	"clone-submitted": 1,
-	"clone-confirmed": 2,
-	"start-submitted": 2,
-	booted: 3,
-	reachable: 4,
-	bootstrapped: 4,
-	"checked-out": 4,
-	seeded: 5,
-	"runner-started": 5,
-	briefed: 6,
+  addressed: 3,
+  "clone-submitted": 1,
+  "clone-confirmed": 2,
+  "start-submitted": 2,
+  booted: 3,
+  reachable: 4,
+  bootstrapped: 4,
+  "checked-out": 4,
+  seeded: 5,
+  "runner-started": 5,
+  briefed: 6,
 };
 
 // PROVISIONING is the set of statuses a workspace passes through on its way up.
@@ -49,11 +49,11 @@ const REACHED: Record<ProvisionPhase, number> = {
 // workspace being torn down grew an empty six-segment progress bar announcing itself as
 // "Provisioning: 0 of 6".
 const PROVISIONING = new Set([
-	"booting",
-	"bootstrapping",
-	"provisioning",
-	"registering",
-	"requested",
+  "booting",
+  "bootstrapping",
+  "provisioning",
+  "registering",
+  "requested",
 ]);
 
 // isProvisioning reports whether there is progress worth drawing.
@@ -61,7 +61,7 @@ const PROVISIONING = new Set([
 // A failed workspace is excluded as well as a destroyed one: its bar would sit half-filled for
 // ever, describing a climb that has stopped.
 export function isProvisioning(status?: string): boolean {
-	return status !== undefined && PROVISIONING.has(status);
+  return status !== undefined && PROVISIONING.has(status);
 }
 
 // isConversing says whether the agent's transcript should be on screen.
@@ -73,7 +73,7 @@ export function isProvisioning(status?: string): boolean {
 //
 // Sending a prompt is the separate question and stays on "ready".
 export function isConversing(status?: string): boolean {
-	return status === "ready" || status === "destroying";
+  return status === "ready" || status === "destroying";
 }
 
 // isArchived says whether the page shows the conversation kept at destroy instead.
@@ -81,7 +81,7 @@ export function isConversing(status?: string): boolean {
 // Destroyed only, not failed: a failed workspace may still have its container, and its
 // conversation is kept when it is finally destroyed.
 export function isArchived(status?: string): boolean {
-	return status === "destroyed";
+  return status === "destroyed";
 }
 
 // lifecycleReached is how many of the six segments are filled.
@@ -96,18 +96,18 @@ export function isArchived(status?: string): boolean {
 // hand back whatever a newer controller put there. A column read across a version boundary is
 // exactly the case the fallback is for.
 export function lifecycleReached(
-	phase?: ProvisionPhase,
-	status?: string,
+  phase?: ProvisionPhase,
+  status?: string,
 ): number {
-	if (status === "ready") {
-		return LIFECYCLE_STEPS.length;
-	}
-	if (status === "destroyed" || status === "destroying") {
-		return 0;
-	}
-	if (phase === undefined) {
-		return 1;
-	}
+  if (status === "ready") {
+    return LIFECYCLE_STEPS.length;
+  }
+  if (status === "destroyed" || status === "destroying") {
+    return 0;
+  }
+  if (phase === undefined) {
+    return 1;
+  }
 
-	return REACHED[phase] ?? 1;
+  return REACHED[phase] ?? 1;
 }

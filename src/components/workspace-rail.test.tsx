@@ -16,241 +16,241 @@ afterEach(cleanup);
 // without a provider above it. The application has one at the document root; a test rendering a
 // component on its own does not, so it brings its own.
 function render(ui: Parameters<typeof renderBare>[0]) {
-	return renderBare(<TooltipProvider>{ui}</TooltipProvider>);
+  return renderBare(<TooltipProvider>{ui}</TooltipProvider>);
 }
 
 describe("WorkspaceRail", () => {
-	it("shows the placement a workspace has reached", () => {
-		// Also in the meta band under the top bar, and deliberately: the band is the glance you get
-		// without opening anything, and this tab is the full record you come to when the glance was
-		// not enough.
-		render(
-			<WorkspaceRail
-				workspace={{
-					ip: "10.0.3.110",
-					node: "nas",
-					repository: "github.com/ndom91/open-plan-annotator",
-					vmid: 400,
-				}}
-			/>,
-		);
+  it("shows the placement a workspace has reached", () => {
+    // Also in the meta band under the top bar, and deliberately: the band is the glance you get
+    // without opening anything, and this tab is the full record you come to when the glance was
+    // not enough.
+    render(
+      <WorkspaceRail
+        workspace={{
+          ip: "10.0.3.110",
+          node: "nas",
+          repository: "github.com/ndom91/open-plan-annotator",
+          vmid: 400,
+        }}
+      />,
+    );
 
-		expect(screen.getByText("10.0.3.110")).toBeDefined();
-		expect(screen.getByText("400")).toBeDefined();
-		expect(screen.getByText("nas")).toBeDefined();
-	});
+    expect(screen.getByText("10.0.3.110")).toBeDefined();
+    expect(screen.getByText("400")).toBeDefined();
+    expect(screen.getByText("nas")).toBeDefined();
+  });
 
-	it("shows the address without offering an SSH command", () => {
-		render(
-			<WorkspaceRail workspace={{ ip: "10.0.3.110", repository: "a/b" }} />,
-		);
+  it("shows the address without offering an SSH command", () => {
+    render(
+      <WorkspaceRail workspace={{ ip: "10.0.3.110", repository: "a/b" }} />,
+    );
 
-		expect(screen.getByText("10.0.3.110")).toBeDefined();
-		expect(screen.queryByText(/ssh agent@/)).toBeNull();
-	});
+    expect(screen.getByText("10.0.3.110")).toBeDefined();
+    expect(screen.queryByText(/ssh agent@/)).toBeNull();
+  });
 
-	it("omits what a workspace has not reached yet", () => {
-		// These arrive as provisioning progresses, so a missing one means "not there yet". An empty
-		// row would read as a problem instead of as nothing.
-		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
+  it("omits what a workspace has not reached yet", () => {
+    // These arrive as provisioning progresses, so a missing one means "not there yet". An empty
+    // row would read as a problem instead of as nothing.
+    render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
 
-		// By the rendered text, not by "SSH" -- that string only exists on the copy button's
-		// aria-label, which queryByText does not match, so the assertion passed either way.
-		expect(screen.queryByText(/ssh agent@/)).toBeNull();
-		expect(screen.queryByText("VMID")).toBeNull();
-		expect(screen.queryByText("Address")).toBeNull();
-		expect(screen.getByText("Repository")).toBeDefined();
-	});
+    // By the rendered text, not by "SSH" -- that string only exists on the copy button's
+    // aria-label, which queryByText does not match, so the assertion passed either way.
+    expect(screen.queryByText(/ssh agent@/)).toBeNull();
+    expect(screen.queryByText("VMID")).toBeNull();
+    expect(screen.queryByText("Address")).toBeNull();
+    expect(screen.getByText("Repository")).toBeDefined();
+  });
 
-	it("renders nothing at all for a workspace with no detail", () => {
-		const { container } = render(<WorkspaceRail workspace={{}} />);
+  it("renders nothing at all for a workspace with no detail", () => {
+    const { container } = render(<WorkspaceRail workspace={{}} />);
 
-		expect(container.querySelectorAll("dd")).toHaveLength(0);
-	});
+    expect(container.querySelectorAll("dd")).toHaveLength(0);
+  });
 
-	it("derives the branch a push would land on from the hostname", () => {
-		// Taken from the same helper the push uses. A second copy of the prefix would keep passing
-		// here and quietly stop matching the branch anybody could actually find on GitHub.
-		render(<WorkspaceRail workspace={{ hostname: "agent-c824" }} />);
+  it("derives the branch a push would land on from the hostname", () => {
+    // Taken from the same helper the push uses. A second copy of the prefix would keep passing
+    // here and quietly stop matching the branch anybody could actually find on GitHub.
+    render(<WorkspaceRail workspace={{ hostname: "agent-c824" }} />);
 
-		expect(screen.getByText("pve-agents/agent-c824")).toBeDefined();
-	});
+    expect(screen.getByText("pve-agents/agent-c824")).toBeDefined();
+  });
 
-	it("says how long provisioning took, and stays quiet when it cannot", () => {
-		render(
-			<WorkspaceRail
-				workspace={{
-					createdAt: "2026-09-20T11:10:09.000Z",
-					readyAt: "2026-09-20T11:11:36.000Z",
-				}}
-			/>,
-		);
+  it("says how long provisioning took, and stays quiet when it cannot", () => {
+    render(
+      <WorkspaceRail
+        workspace={{
+          createdAt: "2026-09-20T11:10:09.000Z",
+          readyAt: "2026-09-20T11:11:36.000Z",
+        }}
+      />,
+    );
 
-		// On the Progress header rather than in a row of its own, which is where the design puts
-		// it and where it reads as a summary of the strip under it.
-		expect(screen.getByText(/ready in 1m 27s/)).toBeDefined();
+    // On the Progress header rather than in a row of its own, which is where the design puts
+    // it and where it reads as a summary of the strip under it.
+    expect(screen.getByText(/ready in 1m 27s/)).toBeDefined();
 
-		// Every workspace created before ready_at was written has no ready_at, and "0s" would
-		// claim those were built instantly rather than admitting it does not know.
-		cleanup();
-		render(
-			<WorkspaceRail workspace={{ createdAt: "2026-09-20T11:10:09.000Z" }} />,
-		);
+    // Every workspace created before ready_at was written has no ready_at, and "0s" would
+    // claim those were built instantly rather than admitting it does not know.
+    cleanup();
+    render(
+      <WorkspaceRail workspace={{ createdAt: "2026-09-20T11:10:09.000Z" }} />,
+    );
 
-		expect(screen.queryByText(/ready in/)).toBeNull();
-		expect(screen.queryByText("0s")).toBeNull();
-	});
+    expect(screen.queryByText(/ready in/)).toBeNull();
+    expect(screen.queryByText("0s")).toBeNull();
+  });
 
-	it("shows the model the runner reported", () => {
-		render(
-			<WorkspaceRail
-				workspace={{
-					harness: "Claude (work)",
-					model: "claude-opus-5-5",
-					readyAt: "2026-10-05T10:00:00.000Z",
-				}}
-			/>,
-		);
+  it("shows the model the runner reported", () => {
+    render(
+      <WorkspaceRail
+        workspace={{
+          harness: "Claude (work)",
+          model: "claude-opus-5-5",
+          readyAt: "2026-10-05T10:00:00.000Z",
+        }}
+      />,
+    );
 
-		expect(screen.getByText("claude-opus-5-5")).toBeDefined();
-		expect(screen.getByText("Claude (work)")).toBeDefined();
-	});
+    expect(screen.getByText("claude-opus-5-5")).toBeDefined();
+    expect(screen.getByText("Claude (work)")).toBeDefined();
+  });
 
-	it("says a model was not reported rather than guessing one", () => {
-		// A runner too old to say. Printing the harness's configured model here is what this
-		// exists to avoid: for months that was a model no Claude workspace was running.
-		render(
-			<WorkspaceRail workspace={{ readyAt: "2026-10-05T10:00:00.000Z" }} />,
-		);
+  it("says a model was not reported rather than guessing one", () => {
+    // A runner too old to say. Printing the harness's configured model here is what this
+    // exists to avoid: for months that was a model no Claude workspace was running.
+    render(
+      <WorkspaceRail workspace={{ readyAt: "2026-10-05T10:00:00.000Z" }} />,
+    );
 
-		expect(screen.getByText("not reported")).toBeDefined();
-	});
+    expect(screen.getByText("not reported")).toBeDefined();
+  });
 
-	it("says nothing about a model before the agent has started", () => {
-		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
+  it("says nothing about a model before the agent has started", () => {
+    render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
 
-		expect(screen.queryByText("not reported")).toBeNull();
-	});
+    expect(screen.queryByText("not reported")).toBeNull();
+  });
 
-	it("drops a group heading when every fact under it is absent", () => {
-		// Identity has no rows on a workspace that never got a container, and a heading with
-		// nothing under it reads as a panel that failed to load.
-		const { container } = render(
-			<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />,
-		);
+  it("drops a group heading when every fact under it is absent", () => {
+    // Identity has no rows on a workspace that never got a container, and a heading with
+    // nothing under it reads as a panel that failed to load.
+    const { container } = render(
+      <WorkspaceRail workspace={{ repository: "github.com/a/b" }} />,
+    );
 
-		const headings = [...container.querySelectorAll(".rail-group")].filter(
-			(group) => group.querySelector(".rail-fact") !== null,
-		);
+    const headings = [...container.querySelectorAll(".rail-group")].filter(
+      (group) => group.querySelector(".rail-fact") !== null,
+    );
 
-		expect(headings).toHaveLength(1);
-		expect(headings[0]?.textContent).toContain("Source");
-	});
+    expect(headings).toHaveLength(1);
+    expect(headings[0]?.textContent).toContain("Source");
+  });
 
-	it("offers no diff tab for a workspace that has nothing to show in one", () => {
-		// A workspace still provisioning has no changes to list, and a tab that answers nothing is
-		// worse than no tab.
-		render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
+  it("offers no diff tab for a workspace that has nothing to show in one", () => {
+    // A workspace still provisioning has no changes to list, and a tab that answers nothing is
+    // worse than no tab.
+    render(<WorkspaceRail workspace={{ repository: "github.com/a/b" }} />);
 
-		expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
-	});
+    expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
+  });
 
-	it("shows the placement until the diff tab is chosen, and then the diff", () => {
-		const { rerender } = render(
-			<WorkspaceRail
-				changes={<p>the changes</p>}
-				tab={{ kind: "details" }}
-				workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
-			/>,
-		);
+  it("shows the placement until the diff tab is chosen, and then the diff", () => {
+    const { rerender } = render(
+      <WorkspaceRail
+        changes={<p>the changes</p>}
+        tab={{ kind: "details" }}
+        workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
+      />,
+    );
 
-		expect(screen.getByText("10.0.3.110")).toBeDefined();
-		expect(screen.queryByText("the changes")).toBeNull();
+    expect(screen.getByText("10.0.3.110")).toBeDefined();
+    expect(screen.queryByText("the changes")).toBeNull();
 
-		// Wrapped again: `rerender` replaces the whole tree, so the provider the helper added on
-		// the first render is not still there.
-		rerender(
-			<TooltipProvider>
-				<WorkspaceRail
-					changes={<p>the changes</p>}
-					tab={{ kind: "diff" }}
-					workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
-				/>
-			</TooltipProvider>,
-		);
+    // Wrapped again: `rerender` replaces the whole tree, so the provider the helper added on
+    // the first render is not still there.
+    rerender(
+      <TooltipProvider>
+        <WorkspaceRail
+          changes={<p>the changes</p>}
+          tab={{ kind: "diff" }}
+          workspace={{ ip: "10.0.3.110", repository: "github.com/a/b" }}
+        />
+      </TooltipProvider>,
+    );
 
-		expect(screen.getByText("the changes")).toBeDefined();
-		// The placement goes rather than being pushed below the fold: both want the full column.
-		expect(screen.queryByText("10.0.3.110")).toBeNull();
-	});
+    expect(screen.getByText("the changes")).toBeDefined();
+    // The placement goes rather than being pushed below the fold: both want the full column.
+    expect(screen.queryByText("10.0.3.110")).toBeNull();
+  });
 
-	it("puts the actions under the diff and nowhere else", () => {
-		// They act on what the diff lists, so under the timeline or the shell they would be a
-		// control with no visible subject — and they would eat height the terminal wants.
-		render(
-			<WorkspaceRail
-				actions={<p>the actions</p>}
-				changes={<p>the list</p>}
-				tab={{ kind: "diff" }}
-				workspace={{}}
-			/>,
-		);
+  it("puts the actions under the diff and nowhere else", () => {
+    // They act on what the diff lists, so under the timeline or the shell they would be a
+    // control with no visible subject — and they would eat height the terminal wants.
+    render(
+      <WorkspaceRail
+        actions={<p>the actions</p>}
+        changes={<p>the list</p>}
+        tab={{ kind: "diff" }}
+        workspace={{}}
+      />,
+    );
 
-		expect(screen.getByText("the actions")).toBeDefined();
+    expect(screen.getByText("the actions")).toBeDefined();
 
-		cleanup();
-		render(
-			<WorkspaceRail
-				actions={<p>the actions</p>}
-				changes={<p>the list</p>}
-				tab={{ kind: "timeline" }}
-				timeline={<p>the history</p>}
-				workspace={{}}
-			/>,
-		);
+    cleanup();
+    render(
+      <WorkspaceRail
+        actions={<p>the actions</p>}
+        changes={<p>the list</p>}
+        tab={{ kind: "timeline" }}
+        timeline={<p>the history</p>}
+        workspace={{}}
+      />,
+    );
 
-		expect(screen.queryByText("the actions")).toBeNull();
-	});
+    expect(screen.queryByText("the actions")).toBeNull();
+  });
 
-	it("offers a timeline tab even for a workspace with no diff", () => {
-		// A workspace that failed before it ever had a checkout still has a history, and that is
-		// exactly when somebody goes looking for one. Tabs appear for the timeline alone.
-		render(
-			<WorkspaceRail
-				tab={{ kind: "timeline" }}
-				timeline={<p>the history</p>}
-				workspace={{}}
-			/>,
-		);
+  it("offers a timeline tab even for a workspace with no diff", () => {
+    // A workspace that failed before it ever had a checkout still has a history, and that is
+    // exactly when somebody goes looking for one. Tabs appear for the timeline alone.
+    render(
+      <WorkspaceRail
+        tab={{ kind: "timeline" }}
+        timeline={<p>the history</p>}
+        workspace={{}}
+      />,
+    );
 
-		expect(screen.getByRole("tab", { name: "Timeline" })).toBeDefined();
-		expect(screen.getByText("the history")).toBeDefined();
-	});
+    expect(screen.getByRole("tab", { name: "Timeline" })).toBeDefined();
+    expect(screen.getByText("the history")).toBeDefined();
+  });
 
-	it("offers no diff tab when there is nothing to inspect", () => {
-		// A destroyed container cannot be read, so the tab would answer nothing.
-		render(
-			<WorkspaceRail
-				tab={{ kind: "timeline" }}
-				timeline={<p>the history</p>}
-				workspace={{}}
-			/>,
-		);
+  it("offers no diff tab when there is nothing to inspect", () => {
+    // A destroyed container cannot be read, so the tab would answer nothing.
+    render(
+      <WorkspaceRail
+        tab={{ kind: "timeline" }}
+        timeline={<p>the history</p>}
+        workspace={{}}
+      />,
+    );
 
-		expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
-	});
+    expect(screen.queryByRole("tab", { name: "Diff" })).toBeNull();
+  });
 
-	it("shows one tab's content at a time", () => {
-		render(
-			<WorkspaceRail
-				changes={<p>the list</p>}
-				tab={{ kind: "timeline" }}
-				timeline={<p>the history</p>}
-				workspace={{}}
-			/>,
-		);
+  it("shows one tab's content at a time", () => {
+    render(
+      <WorkspaceRail
+        changes={<p>the list</p>}
+        tab={{ kind: "timeline" }}
+        timeline={<p>the history</p>}
+        workspace={{}}
+      />,
+    );
 
-		expect(screen.getByText("the history")).toBeDefined();
-		expect(screen.queryByText("the list")).toBeNull();
-	});
+    expect(screen.getByText("the history")).toBeDefined();
+    expect(screen.queryByText("the list")).toBeNull();
+  });
 });

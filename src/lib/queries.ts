@@ -1,15 +1,15 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-	workspaceChanges,
-	workspaceFileDiff,
-	workspacePorts,
-	workspaceTranscript,
+  workspaceChanges,
+  workspaceFileDiff,
+  workspacePorts,
+  workspaceTranscript,
 } from "../server/agent.functions";
 import {
-	listHarnesses,
-	listHarnessKinds,
-	listLaunchableHarnesses,
+  listHarnesses,
+  listHarnessKinds,
+  listLaunchableHarnesses,
 } from "../server/harnesses.functions";
 import { listSeedFiles, readSeedFile } from "../server/seed-files.functions";
 import { workspaceSettings } from "../server/settings.functions";
@@ -32,19 +32,19 @@ const CHANGES_REFRESH_MS = 15_000;
 
 // workspaceKeys keeps every key in one place, so an invalidation cannot miss by a typo.
 export const workspaceKeys = {
-	changes: (id: string) => ["workspace", id, "changes"] as const,
-	harnesses: () => ["harnesses"] as const,
-	harnessKinds: () => ["harness-kinds"] as const,
-	launchable: () => ["harnesses", "launchable"] as const,
-	detail: (id: string) => ["workspace", id] as const,
-	file: (id: string, path: string) => ["workspace", id, "file", path] as const,
-	list: () => ["workspaces"] as const,
-	ports: (id: string) => ["workspace", id, "ports"] as const,
-	seedFile: (id: string) => ["seed-files", id] as const,
-	seedFiles: () => ["seed-files"] as const,
-	settings: () => ["settings"] as const,
-	status: () => ["controller-status"] as const,
-	transcript: (id: string) => ["workspace", id, "transcript"] as const,
+  changes: (id: string) => ["workspace", id, "changes"] as const,
+  harnesses: () => ["harnesses"] as const,
+  harnessKinds: () => ["harness-kinds"] as const,
+  launchable: () => ["harnesses", "launchable"] as const,
+  detail: (id: string) => ["workspace", id] as const,
+  file: (id: string, path: string) => ["workspace", id, "file", path] as const,
+  list: () => ["workspaces"] as const,
+  ports: (id: string) => ["workspace", id, "ports"] as const,
+  seedFile: (id: string) => ["seed-files", id] as const,
+  seedFiles: () => ["seed-files"] as const,
+  settings: () => ["settings"] as const,
+  status: () => ["controller-status"] as const,
+  transcript: (id: string) => ["workspace", id, "transcript"] as const,
 };
 
 // fleetQuery is the workspace list the sidebar navigates by.
@@ -53,13 +53,13 @@ export const workspaceKeys = {
 // answer depends on what was last fetched. Passing a boolean would mean a second read of the same
 // key somewhere else to compute it, which is the duplication Query is here to remove.
 export function fleetQuery() {
-	return queryOptions({
-		queryFn: () => listWorkspaces(),
-		queryKey: workspaceKeys.list(),
-		refetchInterval: (query) =>
-			watchable(query.state.data) ? FLEET_REFRESH_MS : false,
-		refetchIntervalInBackground: false,
-	});
+  return queryOptions({
+    queryFn: () => listWorkspaces(),
+    queryKey: workspaceKeys.list(),
+    refetchInterval: (query) =>
+      watchable(query.state.data) ? FLEET_REFRESH_MS : false,
+    refetchIntervalInBackground: false,
+  });
 }
 
 // watchable reports whether anything in the fleet can still change.
@@ -68,26 +68,26 @@ export function fleetQuery() {
 // that is exactly when the fleet is most worth watching. Destroyed and failed are the only states
 // nothing further happens from on its own.
 function watchable(workspaces?: { status: string }[]): boolean {
-	return (workspaces ?? []).some(
-		(workspace) =>
-			workspace.status !== "destroyed" && workspace.status !== "failed",
-	);
+  return (workspaces ?? []).some(
+    (workspace) =>
+      workspace.status !== "destroyed" && workspace.status !== "failed",
+  );
 }
 
 // workspaceQuery is one workspace's record and timeline.
 export function workspaceQuery(id: string) {
-	return queryOptions({
-		queryFn: () => workspaceDetail({ data: { id } }),
-		queryKey: workspaceKeys.detail(id),
-		refetchInterval: (query) =>
-			settled(query.state.data?.status) ? false : FLEET_REFRESH_MS,
-		refetchIntervalInBackground: false,
-	});
+  return queryOptions({
+    queryFn: () => workspaceDetail({ data: { id } }),
+    queryKey: workspaceKeys.detail(id),
+    refetchInterval: (query) =>
+      settled(query.state.data?.status) ? false : FLEET_REFRESH_MS,
+    refetchIntervalInBackground: false,
+  });
 }
 
 // settled marks a workspace nothing further happens to, so its page stops asking.
 function settled(status?: string): boolean {
-	return status === "destroyed" || status === "failed";
+  return status === "destroyed" || status === "failed";
 }
 
 // changesQuery holds what the agent has done to the checkout.
@@ -96,24 +96,24 @@ function settled(status?: string): boolean {
 // SSH connection, and polling one for a panel nobody is looking at would put a connection per
 // workspace per fifteen seconds on the controller for no one's benefit.
 export function changesQuery(id: string, open: boolean) {
-	return queryOptions({
-		enabled: open,
-		queryFn: () => workspaceChanges({ data: { id } }),
-		queryKey: workspaceKeys.changes(id),
-		refetchInterval: open ? CHANGES_REFRESH_MS : false,
-	});
+  return queryOptions({
+    enabled: open,
+    queryFn: () => workspaceChanges({ data: { id } }),
+    queryKey: workspaceKeys.changes(id),
+    refetchInterval: open ? CHANGES_REFRESH_MS : false,
+  });
 }
 
 // transcriptQuery holds the conversation kept when a workspace was destroyed.
 //
 // Never refetched: it was written once, as the container went, and nothing changes it afterwards.
 export function transcriptQuery(id: string) {
-	return queryOptions({
-		queryFn: () => workspaceTranscript({ data: { id } }),
-		queryKey: workspaceKeys.transcript(id),
-		refetchInterval: false,
-		staleTime: Number.POSITIVE_INFINITY,
-	});
+  return queryOptions({
+    queryFn: () => workspaceTranscript({ data: { id } }),
+    queryKey: workspaceKeys.transcript(id),
+    refetchInterval: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 }
 
 // fileDiffQuery holds one file as it was and as it is.
@@ -121,12 +121,12 @@ export function transcriptQuery(id: string) {
 // Fetched only once a file is selected, and never refetched on an interval: a file is read to be
 // read, and having it change under the reader mid-scroll would be worse than it being a minute old.
 export function fileDiffQuery(id: string, path?: string) {
-	return queryOptions({
-		enabled: path !== undefined,
-		queryFn: () => workspaceFileDiff({ data: { id, path: path ?? "" } }),
-		queryKey: workspaceKeys.file(id, path ?? ""),
-		refetchInterval: false,
-	});
+  return queryOptions({
+    enabled: path !== undefined,
+    queryFn: () => workspaceFileDiff({ data: { id, path: path ?? "" } }),
+    queryKey: workspaceKeys.file(id, path ?? ""),
+    refetchInterval: false,
+  });
 }
 
 // statusQuery holds whether the controller will act on anything at all.
@@ -135,20 +135,20 @@ export function fileDiffQuery(id: string, path?: string) {
 // question between them: the fleet says what exists, this says whether it is being advanced. A
 // controller with its worker off looks identical to a busy one from the fleet list alone.
 export function statusQuery() {
-	return queryOptions({
-		queryFn: () => controllerStatus(),
-		queryKey: workspaceKeys.status(),
-		refetchInterval: (query) =>
-			(query.state.data?.activeOperations ?? 0) > 0 ? FLEET_REFRESH_MS : false,
-		refetchIntervalInBackground: false,
-	});
+  return queryOptions({
+    queryFn: () => controllerStatus(),
+    queryKey: workspaceKeys.status(),
+    refetchInterval: (query) =>
+      (query.state.data?.activeOperations ?? 0) > 0 ? FLEET_REFRESH_MS : false,
+    refetchIntervalInBackground: false,
+  });
 }
 
 export function settingsQuery() {
-	return queryOptions({
-		queryFn: () => workspaceSettings(),
-		queryKey: workspaceKeys.settings(),
-	});
+  return queryOptions({
+    queryFn: () => workspaceSettings(),
+    queryKey: workspaceKeys.settings(),
+  });
 }
 
 // seedFilesQuery is what every new workspace will be seeded with.
@@ -156,10 +156,10 @@ export function settingsQuery() {
 // No interval. Nothing changes this but the operator sitting in front of it, and the mutations
 // invalidate the key themselves.
 export function seedFilesQuery() {
-	return queryOptions({
-		queryFn: () => listSeedFiles(),
-		queryKey: workspaceKeys.seedFiles(),
-	});
+  return queryOptions({
+    queryFn: () => listSeedFiles(),
+    queryKey: workspaceKeys.seedFiles(),
+  });
 }
 
 // portsQuery is what is listening inside one workspace.
@@ -168,11 +168,11 @@ export function seedFilesQuery() {
 // tab, so this is refetched when the tab opens and when they ask, rather than on a timer that is
 // wrong between ticks either way.
 export function portsQuery(workspaceId: string) {
-	return queryOptions({
-		queryFn: () => workspacePorts({ data: { id: workspaceId } }),
-		queryKey: workspaceKeys.ports(workspaceId),
-		staleTime: 0,
-	});
+  return queryOptions({
+    queryFn: () => workspacePorts({ data: { id: workspaceId } }),
+    queryKey: workspaceKeys.ports(workspaceId),
+    staleTime: 0,
+  });
 }
 
 // harnessesQuery is what an operator has set up, credentials excluded.
@@ -180,10 +180,10 @@ export function portsQuery(workspaceId: string) {
 // No interval, like the seed files: nothing changes this but the person looking at it, and the
 // mutations invalidate the key themselves.
 export function harnessesQuery() {
-	return queryOptions({
-		queryFn: () => listHarnesses(),
-		queryKey: workspaceKeys.harnesses(),
-	});
+  return queryOptions({
+    queryFn: () => listHarnesses(),
+    queryKey: workspaceKeys.harnesses(),
+  });
 }
 
 // harnessKindsQuery is what this build can drive, for the kind selector.
@@ -191,18 +191,18 @@ export function harnessesQuery() {
 // Its own key rather than folded into the harnesses list, because it changes only when the
 // controller is redeployed and there is no reason to refetch it when a harness is saved.
 export function harnessKindsQuery() {
-	return queryOptions({
-		queryFn: () => listHarnessKinds(),
-		queryKey: workspaceKeys.harnessKinds(),
-	});
+  return queryOptions({
+    queryFn: () => listHarnessKinds(),
+    queryKey: workspaceKeys.harnessKinds(),
+  });
 }
 
 // launchableHarnessesQuery is what the launch form may offer: the enabled ones.
 export function launchableHarnessesQuery() {
-	return queryOptions({
-		queryFn: () => listLaunchableHarnesses(),
-		queryKey: workspaceKeys.launchable(),
-	});
+  return queryOptions({
+    queryFn: () => listLaunchableHarnesses(),
+    queryKey: workspaceKeys.launchable(),
+  });
 }
 
 // seedFileQuery is one file's body, fetched when its row is opened.
@@ -210,8 +210,8 @@ export function launchableHarnessesQuery() {
 // Per row rather than with the list, so a page of twenty files costs twenty sizes and nothing else
 // until somebody opens one. The cache makes reopening free.
 export function seedFileQuery(id: string) {
-	return queryOptions({
-		queryFn: () => readSeedFile({ data: { id } }),
-		queryKey: workspaceKeys.seedFile(id),
-	});
+  return queryOptions({
+    queryFn: () => readSeedFile({ data: { id } }),
+    queryKey: workspaceKeys.seedFile(id),
+  });
 }

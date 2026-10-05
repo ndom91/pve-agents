@@ -2,8 +2,8 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
-	recordWorkspaceCredential,
-	staleWorkspaceCredentials,
+  recordWorkspaceCredential,
+  staleWorkspaceCredentials,
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
 import { type GitHubAppCredentials, installationToken } from "./github-app";
@@ -27,63 +27,63 @@ const CREDENTIAL_BATCH = 4;
 // Not an operation, for the same reason activity is not: nothing to resume, nothing to retry, and
 // a failure only means the credential is replaced on the next pass instead.
 export async function refreshWorkspaceCredentials(
-	db: Database.Database,
-	config: ControllerConfig,
-	now: Date = new Date(),
-	fetcher: Fetcher = fetch,
-	ssh: SshRunner = runSsh,
+  db: Database.Database,
+  config: ControllerConfig,
+  now: Date = new Date(),
+  fetcher: Fetcher = fetch,
+  ssh: SshRunner = runSsh,
 ): Promise<{ refreshed: number }> {
-	const keyPath = config.WORKSPACE_SSH_KEY_PATH;
-	const credentials = githubApp(config);
-	if (keyPath === undefined || credentials === undefined) {
-		return { refreshed: 0 };
-	}
+  const keyPath = config.WORKSPACE_SSH_KEY_PATH;
+  const credentials = githubApp(config);
+  if (keyPath === undefined || credentials === undefined) {
+    return { refreshed: 0 };
+  }
 
-	const staleBefore = new Date(
-		now.getTime() - config.GITHUB_TOKEN_REFRESH_SECONDS * 1_000,
-	).toISOString();
-	const workspaces = staleWorkspaceCredentials(
-		db,
-		staleBefore,
-		CREDENTIAL_BATCH,
-	);
+  const staleBefore = new Date(
+    now.getTime() - config.GITHUB_TOKEN_REFRESH_SECONDS * 1_000,
+  ).toISOString();
+  const workspaces = staleWorkspaceCredentials(
+    db,
+    staleBefore,
+    CREDENTIAL_BATCH,
+  );
 
-	let refreshed = 0;
-	for (const workspace of workspaces) {
-		const repository = parseRepository(workspace.repository);
-		if (repository.kind === "invalid") {
-			continue;
-		}
+  let refreshed = 0;
+  for (const workspace of workspaces) {
+    const repository = parseRepository(workspace.repository);
+    if (repository.kind === "invalid") {
+      continue;
+    }
 
-		const minted = await installationToken(credentials, repository, fetcher);
-		if (minted.kind === "failed") {
-			continue;
-		}
+    const minted = await installationToken(credentials, repository, fetcher);
+    if (minted.kind === "failed") {
+      continue;
+    }
 
-		const stored = await storeGitCredential(
-			{ address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
-			minted.token,
-			ssh,
-		);
-		// Only a confirmed write moves the clock. Recording the attempt would leave a workspace
-		// holding an expired credential while the controller believed it had a fresh one.
-		if (stored.kind === "cloned") {
-			recordWorkspaceCredential(db, workspace.id, now);
-			refreshed += 1;
-		}
-	}
+    const stored = await storeGitCredential(
+      { address: workspace.ip, keyPath, user: config.WORKSPACE_SSH_USER },
+      minted.token,
+      ssh,
+    );
+    // Only a confirmed write moves the clock. Recording the attempt would leave a workspace
+    // holding an expired credential while the controller believed it had a fresh one.
+    if (stored.kind === "cloned") {
+      recordWorkspaceCredential(db, workspace.id, now);
+      refreshed += 1;
+    }
+  }
 
-	return { refreshed };
+  return { refreshed };
 }
 
 function githubApp(config: ControllerConfig): GitHubAppCredentials | undefined {
-	const appId = config.GITHUB_APP_ID;
-	const installationId = config.GITHUB_APP_INSTALLATION_ID;
-	const privateKeyPath = config.GITHUB_APP_PRIVATE_KEY_PATH;
+  const appId = config.GITHUB_APP_ID;
+  const installationId = config.GITHUB_APP_INSTALLATION_ID;
+  const privateKeyPath = config.GITHUB_APP_PRIVATE_KEY_PATH;
 
-	return appId === undefined ||
-		installationId === undefined ||
-		privateKeyPath === undefined
-		? undefined
-		: { appId, installationId, privateKeyPath };
+  return appId === undefined ||
+    installationId === undefined ||
+    privateKeyPath === undefined
+    ? undefined
+    : { appId, installationId, privateKeyPath };
 }

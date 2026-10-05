@@ -12,17 +12,17 @@
 
 // RunnerRequest is everything the controller sends.
 export type RunnerRequest =
-	// Subscribes: the snapshot, then every event as it happens. What an open page holds.
-	| { type: "attach" }
-	// The same reply, one-shot: the runner closes the connection after sending it.
-	//
-	// Separate from "attach" because a subscriber receives broadcasts from the moment it connects.
-	// A caller that sends a prompt and asks for a snapshot behind it can have the status broadcast
-	// for its own prompt arrive first, so "the first line back" is not the reply.
-	| { type: "snapshot" }
-	| { behavior: "allow" | "deny"; id: string; type: "decide" }
-	| { text: string; type: "prompt" }
-	| { type: "interrupt" };
+  // Subscribes: the snapshot, then every event as it happens. What an open page holds.
+  | { type: "attach" }
+  // The same reply, one-shot: the runner closes the connection after sending it.
+  //
+  // Separate from "attach" because a subscriber receives broadcasts from the moment it connects.
+  // A caller that sends a prompt and asks for a snapshot behind it can have the status broadcast
+  // for its own prompt arrive first, so "the first line back" is not the reply.
+  | { type: "snapshot" }
+  | { behavior: "allow" | "deny"; id: string; type: "decide" }
+  | { text: string; type: "prompt" }
+  | { type: "interrupt" };
 
 // ApprovalRequest is one tool call the agent is suspended on.
 //
@@ -30,16 +30,16 @@ export type RunnerRequest =
 // to read foo.txt" — and forwarded rather than rebuilt, because rebuilding them means writing a
 // renderer per tool and getting it quietly wrong for the ones nobody tested.
 export type ApprovalRequest = {
-	blockedPath?: string;
-	decisionReason?: string;
-	displayName?: string;
-	id: string;
-	input: Record<string, unknown>;
-	title?: string;
-	toolName: string;
-	// The tool_use block this call belongs to, so the UI can mark the row that is actually waiting
-	// rather than the most recent one with a matching name.
-	toolUseId?: string;
+  blockedPath?: string;
+  decisionReason?: string;
+  displayName?: string;
+  id: string;
+  input: Record<string, unknown>;
+  title?: string;
+  toolName: string;
+  // The tool_use block this call belongs to, so the UI can mark the row that is actually waiting
+  // rather than the most recent one with a matching name.
+  toolUseId?: string;
 };
 
 // RunnerStatus is what the runner says its agent is doing.
@@ -53,30 +53,30 @@ export type RunnerStatus = "blocked" | "idle" | "working";
 // A replacement rather than a delta, and it arrives again on every reconnection — merging one
 // would double the transcript each time a connection blipped.
 export type RunnerSnapshot = {
-	approvals: ApprovalRequest[];
-	cwd: string;
-	// Which agent produced the messages below, so the page knows how to read them.
-	//
-	// From the runner rather than from the controller's config, and that is the point: a workspace
-	// provisioned under one harness keeps being read by that one after the config changes. Absent
-	// on a runner installed before this shipped, which the controller reads as claude-code because
-	// that is the only thing those runners ever were.
-	harness?: string;
-	// Every message except the partials. Kept as `unknown` because these are the SDK's own union,
-	// whose thirty-eight members would put the SDK into the browser bundle to describe five fields.
-	messages: unknown[];
-	// Which model the agent is running, as the runner knows it. Absent on a runner installed before
-	// this shipped, and before a Claude session has started, which the page shows as not reported
-	// rather than as the harness's configured model.
-	model?: string;
-	permissionMode: string;
-	sessionId?: string;
-	status: RunnerStatus;
-	// What the agent called this piece of work, once it has been asked. Absent on a runner
-	// installed before naming shipped, and absent when the naming call failed -- both of which the
-	// controller shows as no title rather than as an error.
-	title?: string;
-	type: "snapshot";
+  approvals: ApprovalRequest[];
+  cwd: string;
+  // Which agent produced the messages below, so the page knows how to read them.
+  //
+  // From the runner rather than from the controller's config, and that is the point: a workspace
+  // provisioned under one harness keeps being read by that one after the config changes. Absent
+  // on a runner installed before this shipped, which the controller reads as claude-code because
+  // that is the only thing those runners ever were.
+  harness?: string;
+  // Every message except the partials. Kept as `unknown` because these are the SDK's own union,
+  // whose thirty-eight members would put the SDK into the browser bundle to describe five fields.
+  messages: unknown[];
+  // Which model the agent is running, as the runner knows it. Absent on a runner installed before
+  // this shipped, and before a Claude session has started, which the page shows as not reported
+  // rather than as the harness's configured model.
+  model?: string;
+  permissionMode: string;
+  sessionId?: string;
+  status: RunnerStatus;
+  // What the agent called this piece of work, once it has been asked. Absent on a runner
+  // installed before naming shipped, and absent when the naming call failed -- both of which the
+  // controller shows as no title rather than as an error.
+  title?: string;
+  type: "snapshot";
 };
 
 // RunnerEvent is everything the runner says.
@@ -84,13 +84,13 @@ export type RunnerSnapshot = {
 // `detached` is the one member the runner never sends: the SSE route synthesises it when the
 // connection dies, so a page can say the agent is gone rather than merely looking quiet.
 export type RunnerEvent =
-	| RunnerSnapshot
-	| { approval: ApprovalRequest; type: "approval" }
-	| { id: string; type: "resolved" }
-	| { message: unknown; type: "message" }
-	| { message: string; type: "fatal" }
-	| { status: RunnerStatus | "ended"; type: "status" }
-	| { type: "detached" };
+  | RunnerSnapshot
+  | { approval: ApprovalRequest; type: "approval" }
+  | { id: string; type: "resolved" }
+  | { message: unknown; type: "message" }
+  | { message: string; type: "fatal" }
+  | { status: RunnerStatus | "ended"; type: "status" }
+  | { type: "detached" };
 
 // readEvent narrows one parsed line to an event, or nothing.
 //
@@ -98,21 +98,21 @@ export type RunnerEvent =
 // way through the same object. Unknown types are dropped rather than thrown on: the runner is a
 // separate deployable and a newer one may say things this controller has no opinion about.
 export function readEvent(value: unknown): RunnerEvent | undefined {
-	if (typeof value !== "object" || value === null) {
-		return undefined;
-	}
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
 
-	const event = value as { type?: unknown };
-	switch (event.type) {
-		case "approval":
-		case "detached":
-		case "fatal":
-		case "message":
-		case "resolved":
-		case "snapshot":
-		case "status":
-			return value as RunnerEvent;
-		default:
-			return undefined;
-	}
+  const event = value as { type?: unknown };
+  switch (event.type) {
+    case "approval":
+    case "detached":
+    case "fatal":
+    case "message":
+    case "resolved":
+    case "snapshot":
+    case "status":
+      return value as RunnerEvent;
+    default:
+      return undefined;
+  }
 }

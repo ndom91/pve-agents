@@ -14,40 +14,40 @@ import { tokenise } from "../lib/highlight";
 // agent types. That is the single most expensive thing on the page, and it is doing it to produce
 // exactly the output it produced last frame.
 export const CodeBlock = memo(function CodeBlock({
-	className,
-	code,
-	lang,
+  className,
+  code,
+  lang,
 }: {
-	className?: string;
-	code: string;
-	lang?: string;
+  className?: string;
+  code: string;
+  lang?: string;
 }): ReactNode {
-	// trimEnd, because a <pre> honours the newline a model or a shell put at the end of its output
-	// and draws a blank line for it. Every thought in the transcript was a box one line taller than
-	// its text. Leading space is left alone: it is the first line's indentation.
-	const tokens = useMemo(() => tokenise(code.trimEnd(), lang), [code, lang]);
+  // trimEnd, because a <pre> honours the newline a model or a shell put at the end of its output
+  // and draws a blank line for it. Every thought in the transcript was a box one line taller than
+  // its text. Leading space is left alone: it is the first line's indentation.
+  const tokens = useMemo(() => tokenise(code.trimEnd(), lang), [code, lang]);
 
-	return (
-		<pre
-			className={
-				className === undefined ? "code-block" : `code-block ${className}`
-			}
-		>
-			<code>
-				{tokens.map((token, index) =>
-					token.className === undefined ? (
-						// A plain run. Keyed by position because the same word legitimately appears
-						// many times in one block and tokens are never reordered.
-						// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
-						<span key={index}>{token.value}</span>
-					) : (
-						// biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
-						<span className={`th-token th-${token.className}`} key={index}>
-							{token.value}
-						</span>
-					),
-				)}
-			</code>
-		</pre>
-	);
+  return (
+    <pre
+      className={
+        className === undefined ? "code-block" : `code-block ${className}`
+      }
+    >
+      <code>
+        {tokens.map((token, index) =>
+          token.className === undefined ? (
+            // A plain run. Keyed by position because the same word legitimately appears
+            // many times in one block and tokens are never reordered.
+            // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+            <span key={index}>{token.value}</span>
+          ) : (
+            // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+            <span className={`th-token th-${token.className}`} key={index}>
+              {token.value}
+            </span>
+          ),
+        )}
+      </code>
+    </pre>
+  );
 });

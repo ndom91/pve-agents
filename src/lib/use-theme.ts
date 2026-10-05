@@ -25,24 +25,24 @@ export const THEME_KEY = "pve-agents.theme";
 // positions, two of which look identical most of the time. Following the OS is what happens when
 // nothing has been chosen; choosing is what the toggle is for.
 export function useTheme(): { setTheme: (next: Theme) => void; theme: Theme } {
-	const [theme, setState] = useState<Theme>("dark");
+  const [theme, setState] = useState<Theme>("dark");
 
-	useEffect(() => {
-		setState(
-			document.documentElement.dataset.theme === "light" ? "light" : "dark",
-		);
-	}, []);
+  useEffect(() => {
+    setState(
+      document.documentElement.dataset.theme === "light" ? "light" : "dark",
+    );
+  }, []);
 
-	const setTheme = useCallback((next: Theme) => {
-		document.documentElement.dataset.theme = next;
-		setState(next);
-		try {
-			localStorage.setItem(THEME_KEY, next);
-		} catch {
-			// Private browsing, or storage full. The theme still applies for this visit; it just
-			// will not be remembered, which is a better outcome than the toggle throwing.
-		}
-	}, []);
+  const setTheme = useCallback((next: Theme) => {
+    document.documentElement.dataset.theme = next;
+    setState(next);
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // Private browsing, or storage full. The theme still applies for this visit; it just
+      // will not be remembered, which is a better outcome than the toggle throwing.
+    }
+  }, []);
 
-	return { setTheme, theme };
+  return { setTheme, theme };
 }

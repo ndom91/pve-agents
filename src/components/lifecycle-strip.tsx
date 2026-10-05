@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 import type { ProvisionPhase } from "../domain/workspace";
 import {
-	LIFECYCLE_STEPS,
-	lifecycleReached,
+  LIFECYCLE_STEPS,
+  lifecycleReached,
 } from "../domain/workspace-lifecycle";
 
 // LifecycleStrip is how far a workspace has got, as six segments.
@@ -17,38 +17,38 @@ import {
 // so the home screen's strip was a row of unlabelled decorative spans while the identical strip in
 // the panel was announced.
 export function LifecycleStrip({
-	phase,
-	status,
+  phase,
+  status,
 }: {
-	phase?: ProvisionPhase;
-	status?: string;
+  phase?: ProvisionPhase;
+  status?: string;
 }): ReactNode {
-	const reached = lifecycleReached(phase, status);
-	// Nothing reached means no step to name. `LIFECYCLE_STEPS[Math.max(0, -1)]` is "requested",
-	// which announced a container that had got nowhere as having completed the first step.
-	const step = reached === 0 ? undefined : LIFECYCLE_STEPS[reached - 1];
+  const reached = lifecycleReached(phase, status);
+  // Nothing reached means no step to name. `LIFECYCLE_STEPS[Math.max(0, -1)]` is "requested",
+  // which announced a container that had got nowhere as having completed the first step.
+  const step = reached === 0 ? undefined : LIFECYCLE_STEPS[reached - 1];
 
-	return (
-		<div
-			aria-label={
-				step === undefined
-					? `Provisioning: not started, 0 of ${LIFECYCLE_STEPS.length}`
-					: `Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`
-			}
-			aria-valuemax={LIFECYCLE_STEPS.length}
-			aria-valuemin={0}
-			aria-valuenow={reached}
-			className="lifecycle"
-			role="progressbar"
-		>
-			{LIFECYCLE_STEPS.map((name, index) => (
-				<span
-					className={
-						index < reached ? "lifecycle-seg is-done" : "lifecycle-seg"
-					}
-					key={name}
-				/>
-			))}
-		</div>
-	);
+  return (
+    <div
+      aria-label={
+        step === undefined
+          ? `Provisioning: not started, 0 of ${LIFECYCLE_STEPS.length}`
+          : `Provisioning: ${reached} of ${LIFECYCLE_STEPS.length}, ${step}`
+      }
+      aria-valuemax={LIFECYCLE_STEPS.length}
+      aria-valuemin={0}
+      aria-valuenow={reached}
+      className="lifecycle"
+      role="progressbar"
+    >
+      {LIFECYCLE_STEPS.map((name, index) => (
+        <span
+          className={
+            index < reached ? "lifecycle-seg is-done" : "lifecycle-seg"
+          }
+          key={name}
+        />
+      ))}
+    </div>
+  );
 }

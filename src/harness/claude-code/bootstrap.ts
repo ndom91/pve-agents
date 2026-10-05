@@ -10,8 +10,8 @@
 // workspace verified so far was verified with it in place. Removing it is a change to make on
 // purpose, with a workspace provisioned without it to prove the point.
 export function claudeSeed(cwd: string): string {
-	return JSON.stringify({
-		hasCompletedOnboarding: true,
-		projects: { [cwd]: { hasTrustDialogAccepted: true } },
-	});
+  return JSON.stringify({
+    hasCompletedOnboarding: true,
+    projects: { [cwd]: { hasTrustDialogAccepted: true } },
+  });
 }

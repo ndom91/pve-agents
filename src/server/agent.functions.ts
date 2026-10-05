@@ -2,17 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
-	answerApproval,
-	discardWorkspaceFileWork,
-	discardWorkspaceWork,
-	forwardWorkspacePort,
-	pushWorkspaceWork,
-	readWorkspaceChanges,
-	readWorkspaceFile,
-	readWorkspacePorts,
-	readWorkspaceTranscript,
-	sendAgentPrompt,
-	unforwardWorkspacePort,
+  answerApproval,
+  discardWorkspaceFileWork,
+  discardWorkspaceWork,
+  forwardWorkspacePort,
+  pushWorkspaceWork,
+  readWorkspaceChanges,
+  readWorkspaceFile,
+  readWorkspacePorts,
+  readWorkspaceTranscript,
+  sendAgentPrompt,
+  unforwardWorkspacePort,
 } from "./agent-operations";
 import { operatorMiddleware } from "./middleware";
 
@@ -32,31 +32,31 @@ export type { AgentInput } from "./agent-operations";
 
 // promptWorkspaceAgent submits an operator's prompt to a workspace's agent.
 export const promptWorkspaceAgent = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			text: z.string().trim().min(1).max(10_000),
-		}),
-	)
-	.handler(({ data }) => sendAgentPrompt(data.id, data.text));
+  .middleware([operatorMiddleware])
+  .validator(
+    z.object({
+      id: z.string().trim().min(1),
+      text: z.string().trim().min(1).max(10_000),
+    }),
+  )
+  .handler(({ data }) => sendAgentPrompt(data.id, data.text));
 
 // answerWorkspaceApproval allows or denies one tool call the agent is suspended on.
 //
 // The decision this whole control plane exists to make. It names the request rather than aiming a
 // keystroke at a dialog, so the answer cannot land on the wrong call or on no call at all.
 export const answerWorkspaceApproval = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			approvalId: z.string().trim().min(1).max(64),
-			behavior: z.enum(["allow", "deny"]),
-			id: z.string().trim().min(1),
-		}),
-	)
-	.handler(({ data }) =>
-		answerApproval(data.id, data.approvalId, data.behavior),
-	);
+  .middleware([operatorMiddleware])
+  .validator(
+    z.object({
+      approvalId: z.string().trim().min(1).max(64),
+      behavior: z.enum(["allow", "deny"]),
+      id: z.string().trim().min(1),
+    }),
+  )
+  .handler(({ data }) =>
+    answerApproval(data.id, data.approvalId, data.behavior),
+  );
 
 // workspaceChanges lists what the agent has done to the checkout.
 //
@@ -64,63 +64,63 @@ export const answerWorkspaceApproval = createServerFn({ method: "POST" })
 // is the point of the workspace, and waiting for a protection to trip before showing it would mean
 // the only way to see finished work is for something to have gone slightly wrong.
 export const workspaceChanges = createServerFn({ method: "GET" })
-	.middleware([operatorMiddleware])
-	.validator(z.object({ id: z.string().trim().min(1) }))
-	.handler(({ data }) => readWorkspaceChanges(data.id));
+  .middleware([operatorMiddleware])
+  .validator(z.object({ id: z.string().trim().min(1) }))
+  .handler(({ data }) => readWorkspaceChanges(data.id));
 
 // workspaceTranscript reads back the conversation kept when a workspace was destroyed.
 export const workspaceTranscript = createServerFn({ method: "GET" })
-	.middleware([operatorMiddleware])
-	.validator(z.object({ id: z.string().trim().min(1) }))
-	.handler(({ data }) => readWorkspaceTranscript(data.id));
+  .middleware([operatorMiddleware])
+  .validator(z.object({ id: z.string().trim().min(1) }))
+  .handler(({ data }) => readWorkspaceTranscript(data.id));
 
 // Shared by forwardPort and stopPort. Not exported, per the note above.
 const workspacePort = z.object({
-	id: z.string().trim().min(1),
-	port: z.number().int().min(1).max(65_535),
+  id: z.string().trim().min(1),
+  port: z.number().int().min(1).max(65_535),
 });
 
 // workspacePorts reads what is listening inside a workspace.
 export const workspacePorts = createServerFn({ method: "GET" })
-	.middleware([operatorMiddleware])
-	.validator(z.object({ id: z.string().trim().min(1) }))
-	.handler(({ data }) => readWorkspacePorts(data.id));
+  .middleware([operatorMiddleware])
+  .validator(z.object({ id: z.string().trim().min(1) }))
+  .handler(({ data }) => readWorkspacePorts(data.id));
 
 // forwardPort publishes one of a workspace's loopback ports on the controller.
 //
 // POST: it exposes a dev server on the network, the least prefetchable thing in the application.
 export const forwardPort = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(workspacePort)
-	.handler(({ data }) => forwardWorkspacePort(data.id, data.port));
+  .middleware([operatorMiddleware])
+  .validator(workspacePort)
+  .handler(({ data }) => forwardWorkspacePort(data.id, data.port));
 
 // stopPort takes a forward down.
 export const stopPort = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(workspacePort)
-	.handler(({ data }) => unforwardWorkspacePort(data.id, data.port));
+  .middleware([operatorMiddleware])
+  .validator(workspacePort)
+  .handler(({ data }) => unforwardWorkspacePort(data.id, data.port));
 
 // workspaceFileDiff reads one file as it was and as it is.
 export const workspaceFileDiff = createServerFn({ method: "GET" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			path: z.string().trim().min(1).max(1_024),
-		}),
-	)
-	.handler(({ data }) => readWorkspaceFile(data.id, data.path));
+  .middleware([operatorMiddleware])
+  .validator(
+    z.object({
+      id: z.string().trim().min(1),
+      path: z.string().trim().min(1).max(1_024),
+    }),
+  )
+  .handler(({ data }) => readWorkspaceFile(data.id, data.path));
 
 // pushWorkspaceChanges saves everything in the workspace onto a branch of its own.
 export const pushWorkspaceChanges = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			message: z.string().trim().min(1).max(500),
-		}),
-	)
-	.handler(({ data }) => pushWorkspaceWork(data.id, data.message));
+  .middleware([operatorMiddleware])
+  .validator(
+    z.object({
+      id: z.string().trim().min(1),
+      message: z.string().trim().min(1).max(500),
+    }),
+  )
+  .handler(({ data }) => pushWorkspaceWork(data.id, data.message));
 
 // discardWorkspaceChanges throws the working tree away.
 //
@@ -130,9 +130,9 @@ export const pushWorkspaceChanges = createServerFn({ method: "POST" })
 // to close. The confirmation naming the file count lives in the UI; a generic "are you sure" is one
 // people learn to dismiss.
 export const discardWorkspaceChanges = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(z.object({ id: z.string().trim().min(1) }))
-	.handler(({ data }) => discardWorkspaceWork(data.id));
+  .middleware([operatorMiddleware])
+  .validator(z.object({ id: z.string().trim().min(1) }))
+  .handler(({ data }) => discardWorkspaceWork(data.id));
 
 // discardWorkspaceFile throws one file away and leaves the rest of the tree alone.
 //
@@ -140,11 +140,11 @@ export const discardWorkspaceChanges = createServerFn({ method: "POST" })
 // is checked against the checkout in `discardFile` rather than here, because that guard belongs
 // next to the shell it protects.
 export const discardWorkspaceFile = createServerFn({ method: "POST" })
-	.middleware([operatorMiddleware])
-	.validator(
-		z.object({
-			id: z.string().trim().min(1),
-			path: z.string().min(1).max(512),
-		}),
-	)
-	.handler(({ data }) => discardWorkspaceFileWork(data.id, data.path));
+  .middleware([operatorMiddleware])
+  .validator(
+    z.object({
+      id: z.string().trim().min(1),
+      path: z.string().min(1).max(512),
+    }),
+  )
+  .handler(({ data }) => discardWorkspaceFileWork(data.id, data.path));

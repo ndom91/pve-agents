@@ -22,37 +22,37 @@ const STORAGE_KEY = "pve-agents.rail-width";
 // widening the rail to read a diff means to keep reading diffs, and having it snap back on every
 // navigation would make the handle not worth using.
 export function useRailWidth(): {
-	setWidth: (width: number) => void;
-	width: number;
+  setWidth: (width: number) => void;
+  width: number;
 } {
-	const [width, setStored] = useState(RAIL_DEFAULT);
+  const [width, setStored] = useState(RAIL_DEFAULT);
 
-	// Read after mount rather than during render. localStorage does not exist on the server, and a
-	// width restored during render would disagree with the markup the server sent.
-	useEffect(() => {
-		const saved = Number(window.localStorage.getItem(STORAGE_KEY));
-		if (Number.isFinite(saved) && saved >= RAIL_MIN) {
-			setStored(clamp(saved));
-		}
-	}, []);
+  // Read after mount rather than during render. localStorage does not exist on the server, and a
+  // width restored during render would disagree with the markup the server sent.
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(STORAGE_KEY));
+    if (Number.isFinite(saved) && saved >= RAIL_MIN) {
+      setStored(clamp(saved));
+    }
+  }, []);
 
-	const setWidth = useCallback((next: number) => {
-		const bounded = clamp(next);
-		setStored(bounded);
-		window.localStorage.setItem(STORAGE_KEY, String(bounded));
-	}, []);
+  const setWidth = useCallback((next: number) => {
+    const bounded = clamp(next);
+    setStored(bounded);
+    window.localStorage.setItem(STORAGE_KEY, String(bounded));
+  }, []);
 
-	return { setWidth, width };
+  return { setWidth, width };
 }
 
 // clamp keeps the rail between useful and rude.
 function clamp(width: number): number {
-	// Guarded because this runs on the first client render too, and a window narrower than both
-	// minimums together would otherwise produce a maximum below the minimum.
-	const available =
-		typeof window === "undefined"
-			? Number.POSITIVE_INFINITY
-			: Math.max(RAIL_MIN, window.innerWidth - CENTRE_MIN);
+  // Guarded because this runs on the first client render too, and a window narrower than both
+  // minimums together would otherwise produce a maximum below the minimum.
+  const available =
+    typeof window === "undefined"
+      ? Number.POSITIVE_INFINITY
+      : Math.max(RAIL_MIN, window.innerWidth - CENTRE_MIN);
 
-	return Math.round(Math.min(Math.max(width, RAIL_MIN), available));
+  return Math.round(Math.min(Math.max(width, RAIL_MIN), available));
 }

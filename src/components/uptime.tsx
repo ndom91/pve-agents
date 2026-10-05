@@ -14,25 +14,25 @@ import { Elapsed } from "./elapsed";
 // component: the meta band had it and the rail's own copy did not, so the same workspace stopped
 // counting in one place and kept going in the other.
 export function Uptime({
-	workspace,
+  workspace,
 }: {
-	workspace: { createdAt?: string; readyAt?: string; status?: string };
+  workspace: { createdAt?: string; readyAt?: string; status?: string };
 }): ReactNode {
-	if (workspace.status === "destroyed" || workspace.status === "destroying") {
-		return null;
-	}
+  if (workspace.status === "destroyed" || workspace.status === "destroying") {
+    return null;
+  }
 
-	if (workspace.readyAt !== undefined) {
-		return (
-			<>
-				up <Elapsed of="uptime" since={workspace.readyAt} />
-			</>
-		);
-	}
+  if (workspace.readyAt !== undefined) {
+    return (
+      <>
+        up <Elapsed of="uptime" since={workspace.readyAt} />
+      </>
+    );
+  }
 
-	return (
-		<>
-			waiting <Elapsed of="uptime" since={workspace.createdAt} />
-		</>
-	);
+  return (
+    <>
+      waiting <Elapsed of="uptime" since={workspace.createdAt} />
+    </>
+  );
 }

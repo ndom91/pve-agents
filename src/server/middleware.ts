@@ -9,5 +9,5 @@ import { requireSession } from "./session";
 // guard structural instead, and hands the session to the handler through context so it is not
 // fetched twice.
 export const operatorMiddleware = createMiddleware({ type: "function" }).server(
-	async ({ next }) => next({ context: { session: await requireSession() } }),
+  async ({ next }) => next({ context: { session: await requireSession() } }),
 );

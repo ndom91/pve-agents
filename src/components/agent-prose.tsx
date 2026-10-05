@@ -20,31 +20,31 @@ import { Timestamp } from "./timestamp";
 //
 // Alpha, at 0.0.15, and pinned exactly. The surface used is one component wide.
 export function AgentProse({
-	at,
-	streaming = false,
-	text,
+  at,
+  streaming = false,
+  text,
 }: {
-	// When the agent said it. Absent for an answer from a runner installed before the runner
-	// started stamping, which shows as no timestamp rather than as a wrong one.
-	at?: string;
-	streaming?: boolean;
-	text: string;
+  // When the agent said it. Absent for an answer from a runner installed before the runner
+  // started stamping, which shows as no timestamp rather than as a wrong one.
+  at?: string;
+  streaming?: boolean;
+  text: string;
 }): ReactNode {
-	return (
-		<div className="agent-answer reveals">
-			<div className={streaming ? "agent-prose is-streaming" : "agent-prose"}>
-				{/* While a block is still being written, the parser is told so. Markdown half way
+  return (
+    <div className="agent-answer reveals">
+      <div className={streaming ? "agent-prose is-streaming" : "agent-prose"}>
+        {/* While a block is still being written, the parser is told so. Markdown half way
 				    through is full of markers that are not yet markers — an unclosed fence, a
 				    dangling list item — and the streaming profile renders those as the author
 				    meant rather than as literal asterisks that vanish a keystroke later. */}
-				<Markdown
-					components={COMPONENTS}
-					extensions={streaming ? STREAMING : undefined}
-				>
-					{text}
-				</Markdown>
-			</div>
-			{/* No copy control on a half-written answer: it would put an unfinished sentence on
+        <Markdown
+          components={COMPONENTS}
+          extensions={streaming ? STREAMING : undefined}
+        >
+          {text}
+        </Markdown>
+      </div>
+      {/* No copy control on a half-written answer: it would put an unfinished sentence on
 			    the clipboard, and the button appears a second later anyway when the block lands.
 			    The row is still reserved so nothing shifts at that moment.
 			
@@ -52,22 +52,22 @@ export function AgentProse({
 			    answer is almost always moving it somewhere that understands markdown — a commit
 			    message, an issue, another prompt — and flattened prose has to be marked up again
 			    by hand. */}
-			<div className="agent-answer-actions">
-				{/* Revealed with the copy button and by the same rule, because it answers the same
+      <div className="agent-answer-actions">
+        {/* Revealed with the copy button and by the same rule, because it answers the same
 				    kind of question: something you want occasionally and never while reading. A
 				    transcript with a time under every paragraph is a log rather than a
 				    conversation. */}
-				{streaming ? null : (
-					<>
-						<span className="agent-answer-at on-hover">
-							<Timestamp iso={at} />
-						</span>
-						<CopyButton label="Copy this answer" text={text} />
-					</>
-				)}
-			</div>
-		</div>
-	);
+        {streaming ? null : (
+          <>
+            <span className="agent-answer-at on-hover">
+              <Timestamp iso={at} />
+            </span>
+            <CopyButton label="Copy this answer" text={text} />
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // Code renders both kinds of code the parser produces, which arrive as the same element.
@@ -80,25 +80,25 @@ export function AgentProse({
 // A fence's language comes from the AST rather than being guessed, because the parser kept it.
 // Highlighting is deliberately not this library's job, which is why the two compose.
 function Code({
-	children,
-	className,
+  children,
+  className,
 }: {
-	children?: ReactNode;
-	className?: string;
+  children?: ReactNode;
+  className?: string;
 }) {
-	const lang = /language-(\w+)/.exec(className ?? "")?.[1];
-	if (lang === undefined && className === undefined) {
-		return <code className="prose-code">{children}</code>;
-	}
+  const lang = /language-(\w+)/.exec(className ?? "")?.[1];
+  if (lang === undefined && className === undefined) {
+    return <code className="prose-code">{children}</code>;
+  }
 
-	return <CodeBlock code={String(children ?? "")} lang={lang} />;
+  return <CodeBlock code={String(children ?? "")} lang={lang} />;
 }
 
 // A fenced block arrives as <pre><code>, so `pre` passes through: the highlighter emits its own
 // <pre>, and nesting one inside another is invalid markup that browsers render as a double box.
 const COMPONENTS = {
-	code: Code,
-	pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  code: Code,
+  pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
 };
 
 // Module scope: rebuilding it per render would hand the parser a new extension list on every

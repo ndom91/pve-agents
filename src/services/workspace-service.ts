@@ -3,24 +3,24 @@ import { z } from "zod";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
-	createWorkspace,
-	listWorkspaces,
-	requestWorkspaceOperation,
-	workspaceById,
-	workspaceDetail,
-	workspaceEventTimelines,
+  createWorkspace,
+  listWorkspaces,
+  requestWorkspaceOperation,
+  workspaceById,
+  workspaceDetail,
+  workspaceEventTimelines,
 } from "../db/workspace-repository";
 import { parseRepository } from "../domain/repository";
 import { repositoryAccess } from "./github-app";
 import type { Fetcher } from "./proxmox-http";
 
 export const workspaceRequestSchema = z.object({
-	// Which agent to run it on. Required: there is no controller-wide default any more, and
-	// picking one on the caller's behalf would run an agent they did not choose.
-	harnessId: z.string().min(1),
-	purpose: z.string().trim().min(1).max(500).optional(),
-	repository: z.string().trim().min(1).max(2_000),
-	ref: z.string().trim().min(1).max(255).default("main"),
+  // Which agent to run it on. Required: there is no controller-wide default any more, and
+  // picking one on the caller's behalf would run an agent they did not choose.
+  harnessId: z.string().min(1),
+  purpose: z.string().trim().min(1).max(500).optional(),
+  repository: z.string().trim().min(1).max(2_000),
+  ref: z.string().trim().min(1).max(255).default("main"),
 });
 
 // WorkspaceRequest is the public creation request accepted by the controller.
@@ -34,38 +34,38 @@ const EVENT_LIMIT = 50;
 // The timeline is the only place a transient failure is visible: a workspace retrying a Proxmox
 // call that keeps failing otherwise sits at its old status with nothing to show for it.
 export function listRequestedWorkspaces(db: Database.Database) {
-	const workspaces = listWorkspaces(db);
-	// Only for a workspace that can still change.
-	//
-	// This is where the fleet payload's weight actually was: fifty events each for every container
-	// ever destroyed, re-fetched on every poll, to render a list that reads none of them. A
-	// destroyed workspace's timeline cannot change and nothing in the fleet view draws it; the page
-	// about one workspace fetches its own through `workspaceWithTimeline`.
-	const timelines = workspaceEventTimelines(
-		db,
-		EVENT_LIMIT,
-		workspaces
-			.filter((workspace) => workspace.status !== "destroyed")
-			.map((workspace) => workspace.id),
-	);
+  const workspaces = listWorkspaces(db);
+  // Only for a workspace that can still change.
+  //
+  // This is where the fleet payload's weight actually was: fifty events each for every container
+  // ever destroyed, re-fetched on every poll, to render a list that reads none of them. A
+  // destroyed workspace's timeline cannot change and nothing in the fleet view draws it; the page
+  // about one workspace fetches its own through `workspaceWithTimeline`.
+  const timelines = workspaceEventTimelines(
+    db,
+    EVENT_LIMIT,
+    workspaces
+      .filter((workspace) => workspace.status !== "destroyed")
+      .map((workspace) => workspace.id),
+  );
 
-	return workspaces.map((workspace) => ({
-		...workspace,
-		events: timelines.get(workspace.id) ?? [],
-	}));
+  return workspaces.map((workspace) => ({
+    ...workspace,
+    events: timelines.get(workspace.id) ?? [],
+  }));
 }
 
 // workspaceWithTimeline returns one workspace, its placement, and its whole timeline.
 export function workspaceWithTimeline(db: Database.Database, id: string) {
-	const workspace = workspaceDetail(db, id);
-	if (workspace === undefined) {
-		return undefined;
-	}
+  const workspace = workspaceDetail(db, id);
+  if (workspace === undefined) {
+    return undefined;
+  }
 
-	return {
-		...workspace,
-		events: workspaceEventTimelines(db, EVENT_LIMIT).get(id) ?? [],
-	};
+  return {
+    ...workspace,
+    events: workspaceEventTimelines(db, EVENT_LIMIT).get(id) ?? [],
+  };
 }
 
 // FleetWorkspace is one workspace as the fleet view receives it.
@@ -73,7 +73,7 @@ export type FleetWorkspace = ReturnType<typeof listRequestedWorkspaces>[number];
 
 // requestedWorkspace returns one persisted workspace when it exists.
 export function requestedWorkspace(db: Database.Database, id: string) {
-	return workspaceById(db, id);
+  return workspaceById(db, id);
 }
 
 // WorkspaceRefusal is a request the controller will not build a workspace for.
@@ -88,61 +88,61 @@ export type WorkspaceRefusal = { kind: "refused"; message: string };
 // repository, and turning that into a rejected request would make an outage at GitHub an outage
 // here. The checkout step retries, which is the right place for a transient fault.
 export async function checkWorkspaceRequest(
-	config: ControllerConfig,
-	request: WorkspaceRequest,
-	fetcher: Fetcher = fetch,
+  config: ControllerConfig,
+  request: WorkspaceRequest,
+  fetcher: Fetcher = fetch,
 ): Promise<WorkspaceRefusal | undefined> {
-	const repository = parseRepository(request.repository);
-	if (repository.kind === "invalid") {
-		return {
-			kind: "refused",
-			message: `${request.repository}: ${repository.message}`,
-		};
-	}
+  const repository = parseRepository(request.repository);
+  if (repository.kind === "invalid") {
+    return {
+      kind: "refused",
+      message: `${request.repository}: ${repository.message}`,
+    };
+  }
 
-	const appId = config.GITHUB_APP_ID;
-	const installationId = config.GITHUB_APP_INSTALLATION_ID;
-	const privateKeyPath = config.GITHUB_APP_PRIVATE_KEY_PATH;
-	if (
-		appId === undefined ||
-		installationId === undefined ||
-		privateKeyPath === undefined
-	) {
-		return undefined;
-	}
+  const appId = config.GITHUB_APP_ID;
+  const installationId = config.GITHUB_APP_INSTALLATION_ID;
+  const privateKeyPath = config.GITHUB_APP_PRIVATE_KEY_PATH;
+  if (
+    appId === undefined ||
+    installationId === undefined ||
+    privateKeyPath === undefined
+  ) {
+    return undefined;
+  }
 
-	const access = await repositoryAccess(
-		{ appId, installationId, privateKeyPath },
-		repository,
-		fetcher,
-	);
+  const access = await repositoryAccess(
+    { appId, installationId, privateKeyPath },
+    repository,
+    fetcher,
+  );
 
-	return access.kind === "inaccessible"
-		? { kind: "refused", message: access.message }
-		: undefined;
+  return access.kind === "inaccessible"
+    ? { kind: "refused", message: access.message }
+    : undefined;
 }
 
 // requestWorkspace persists validated workspace creation intent.
 export function requestWorkspace(
-	db: Database.Database,
-	idempotencyKey: string,
-	request: WorkspaceRequest,
+  db: Database.Database,
+  idempotencyKey: string,
+  request: WorkspaceRequest,
 ) {
-	return createWorkspace(db, {
-		harnessId: request.harnessId,
-		idempotencyKey,
-		purpose: request.purpose,
-		repository: request.repository,
-		ref: request.ref,
-	});
+  return createWorkspace(db, {
+    harnessId: request.harnessId,
+    idempotencyKey,
+    purpose: request.purpose,
+    repository: request.repository,
+    ref: request.ref,
+  });
 }
 
 // destroyWorkspace records a request to destroy a workspace.
 export function destroyWorkspace(db: Database.Database, id: string) {
-	return requestWorkspaceOperation(db, id, "destroy");
+  return requestWorkspaceOperation(db, id, "destroy");
 }
 
 // retryWorkspace records a request to retry a failed workspace provisioning operation.
 export function retryWorkspace(db: Database.Database, id: string) {
-	return requestWorkspaceOperation(db, id, "provision");
+  return requestWorkspaceOperation(db, id, "provision");
 }

@@ -10,24 +10,24 @@ import { lookup } from "node:dns/promises";
 const RESOLVED = new Map<string, string>();
 
 export async function controllerHost(controllerUrl: string): Promise<string> {
-	const cached = RESOLVED.get(controllerUrl);
-	if (cached !== undefined) {
-		return cached;
-	}
+  const cached = RESOLVED.get(controllerUrl);
+  if (cached !== undefined) {
+    return cached;
+  }
 
-	let name = controllerUrl;
-	try {
-		name = new URL(controllerUrl).hostname;
-	} catch {
-		// Not a URL. Use it as written.
-	}
+  let name = controllerUrl;
+  try {
+    name = new URL(controllerUrl).hostname;
+  } catch {
+    // Not a URL. Use it as written.
+  }
 
-	try {
-		const { address } = await lookup(name);
-		RESOLVED.set(controllerUrl, address);
+  try {
+    const { address } = await lookup(name);
+    RESOLVED.set(controllerUrl, address);
 
-		return address;
-	} catch {
-		return name;
-	}
+    return address;
+  } catch {
+    return name;
+  }
 }

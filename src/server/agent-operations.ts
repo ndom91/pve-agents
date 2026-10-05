@@ -1,35 +1,35 @@
 import {
-	type SavedTranscript,
-	workspaceTranscript,
+  type SavedTranscript,
+  workspaceTranscript,
 } from "../db/transcript-repository";
 import {
-	recordUnsavedWork,
-	recordWorkspaceInteraction,
-	recordWorkspaceNote,
-	workspaceDetail,
+  recordUnsavedWork,
+  recordWorkspaceInteraction,
+  recordWorkspaceNote,
+  workspaceDetail,
 } from "../db/workspace-repository";
 import type { ListeningPort } from "../domain/port";
 import { AGENT_CWD } from "../domain/workspace-layout";
 import { decideRunner, promptRunner } from "../services/agent-runner";
 import { controllerHost } from "../services/controller-host";
 import {
-	forwardsFor,
-	startForward,
-	stopForward,
+  forwardsFor,
+  startForward,
+  stopForward,
 } from "../services/port-forward";
 import { runSsh, type SshTarget } from "../services/ssh";
 import type {
-	ChangeAction,
-	ChangedFiles,
-	FileSides,
+  ChangeAction,
+  ChangedFiles,
+  FileSides,
 } from "../services/workspace-changes";
 import {
-	changedFiles,
-	commitAndPush,
-	discardChanges,
-	discardFile,
-	fileSides,
-	workspaceBranch,
+  changedFiles,
+  commitAndPush,
+  discardChanges,
+  discardFile,
+  fileSides,
+  workspaceBranch,
 } from "../services/workspace-changes";
 import { workspaceUnsavedWork } from "../services/workspace-git";
 import { listeningPorts } from "../services/workspace-ports";
@@ -41,36 +41,36 @@ import { controllerDatabase, controllerRuntimeConfig } from "./controller";
 // dialog, with no way to know which call it answered or whether it landed; here it names a request
 // the runner is genuinely holding a promise for.
 export async function answerApproval(
-	id: string,
-	approvalId: string,
-	behavior: "allow" | "deny",
+  id: string,
+  approvalId: string,
+  behavior: "allow" | "deny",
 ): Promise<AgentInput> {
-	const target = agentTarget(id);
-	if (target.kind === "unavailable") {
-		return target;
-	}
+  const target = agentTarget(id);
+  if (target.kind === "unavailable") {
+    return target;
+  }
 
-	if (
-		(await decideRunner(target.ssh, approvalId, behavior, runSsh)) === "failed"
-	) {
-		return { kind: "unavailable", reason: "the agent runner did not answer" };
-	}
+  if (
+    (await decideRunner(target.ssh, approvalId, behavior, runSsh)) === "failed"
+  ) {
+    return { kind: "unavailable", reason: "the agent runner did not answer" };
+  }
 
-	recordWorkspaceNote(
-		controllerDatabase(),
-		id,
-		"workspace.answered",
-		behavior === "allow" ? "allowed a tool call" : "declined a tool call",
-	);
-	recordWorkspaceInteraction(controllerDatabase(), id);
+  recordWorkspaceNote(
+    controllerDatabase(),
+    id,
+    "workspace.answered",
+    behavior === "allow" ? "allowed a tool call" : "declined a tool call",
+  );
+  recordWorkspaceInteraction(controllerDatabase(), id);
 
-	return { kind: "sent" };
+  return { kind: "sent" };
 }
 
 // AgentTarget is a workspace that can be spoken to, or the reason it cannot.
 export type AgentTarget =
-	| { hostname: string; kind: "ready"; ssh: SshTarget }
-	| { kind: "unavailable"; reason: string };
+  | { hostname: string; kind: "ready"; ssh: SshTarget }
+  | { kind: "unavailable"; reason: string };
 
 // agentTarget resolves a workspace to something reachable, refusing anything half-built.
 //
@@ -78,44 +78,44 @@ export type AgentTarget =
 // added. Refusing before any connection is attempted keeps these endpoints from being usable to
 // probe half-built containers.
 export function agentTarget(id: string): AgentTarget {
-	const config = controllerRuntimeConfig();
-	const workspace = workspaceDetail(controllerDatabase(), id);
-	if (workspace === undefined) {
-		return { kind: "unavailable", reason: "workspace not found" };
-	}
-	if (workspace.status !== "ready") {
-		return {
-			kind: "unavailable",
-			reason: `workspace is ${workspace.status}, not ready`,
-		};
-	}
-	// Separate from the status check, which it used to share. A ready workspace with no address
-	// reported "workspace is ready, not ready", which is the kind of message somebody loses an
-	// afternoon to.
-	if (workspace.ip === undefined) {
-		return { kind: "unavailable", reason: "workspace has no address" };
-	}
+  const config = controllerRuntimeConfig();
+  const workspace = workspaceDetail(controllerDatabase(), id);
+  if (workspace === undefined) {
+    return { kind: "unavailable", reason: "workspace not found" };
+  }
+  if (workspace.status !== "ready") {
+    return {
+      kind: "unavailable",
+      reason: `workspace is ${workspace.status}, not ready`,
+    };
+  }
+  // Separate from the status check, which it used to share. A ready workspace with no address
+  // reported "workspace is ready, not ready", which is the kind of message somebody loses an
+  // afternoon to.
+  if (workspace.ip === undefined) {
+    return { kind: "unavailable", reason: "workspace has no address" };
+  }
 
-	const keyPath = config.WORKSPACE_SSH_KEY_PATH;
-	if (keyPath === undefined) {
-		return { kind: "unavailable", reason: "no agent to reach" };
-	}
+  const keyPath = config.WORKSPACE_SSH_KEY_PATH;
+  if (keyPath === undefined) {
+    return { kind: "unavailable", reason: "no agent to reach" };
+  }
 
-	return {
-		hostname: workspace.hostname,
-		kind: "ready",
-		ssh: {
-			address: workspace.ip,
-			keyPath,
-			user: config.WORKSPACE_SSH_USER,
-		},
-	};
+  return {
+    hostname: workspace.hostname,
+    kind: "ready",
+    ssh: {
+      address: workspace.ip,
+      keyPath,
+      user: config.WORKSPACE_SSH_USER,
+    },
+  };
 }
 
 // AgentInput is what happened to something an operator sent the agent.
 export type AgentInput =
-	| { kind: "sent" }
-	| { kind: "unavailable"; reason: string };
+  | { kind: "sent" }
+  | { kind: "unavailable"; reason: string };
 
 // sendAgentPrompt gives the agent its next turn.
 //
@@ -123,28 +123,28 @@ export type AgentInput =
 // a second, shared, writable one would have to be kept alive across reloads and reconnections for
 // something that happens when a person types a paragraph.
 export async function sendAgentPrompt(
-	id: string,
-	text: string,
+  id: string,
+  text: string,
 ): Promise<AgentInput> {
-	const target = agentTarget(id);
-	if (target.kind === "unavailable") {
-		return target;
-	}
+  const target = agentTarget(id);
+  if (target.kind === "unavailable") {
+    return target;
+  }
 
-	if ((await promptRunner(target.ssh, text, runSsh)) === "failed") {
-		return { kind: "unavailable", reason: "the agent runner did not answer" };
-	}
+  if ((await promptRunner(target.ssh, text, runSsh)) === "failed") {
+    return { kind: "unavailable", reason: "the agent runner did not answer" };
+  }
 
-	// Truncated: a prompt may run to thousands of characters and the timeline shows one line.
-	recordWorkspaceNote(
-		controllerDatabase(),
-		id,
-		"workspace.prompted",
-		text.length > 160 ? `${text.slice(0, 160)}...` : text,
-	);
-	recordWorkspaceInteraction(controllerDatabase(), id);
+  // Truncated: a prompt may run to thousands of characters and the timeline shows one line.
+  recordWorkspaceNote(
+    controllerDatabase(),
+    id,
+    "workspace.prompted",
+    text.length > 160 ? `${text.slice(0, 160)}...` : text,
+  );
+  recordWorkspaceInteraction(controllerDatabase(), id);
 
-	return { kind: "sent" };
+  return { kind: "sent" };
 }
 
 // ForwardedPort is a listener plus the controller port it is published on, if it is.
@@ -153,183 +153,183 @@ export type ForwardedPort = ListeningPort & { forwarded?: number };
 // WorkspacePortsView is the listing with the addresses its links are built from: `ip` for a
 // direct row, `host` for a forwarded one.
 export type WorkspacePortsView =
-	| { host: string; ip: string; kind: "listed"; ports: ForwardedPort[] }
-	| { kind: "unavailable"; message: string };
+  | { host: string; ip: string; kind: "listed"; ports: ForwardedPort[] }
+  | { kind: "unavailable"; message: string };
 
 // forwardWorkspacePort publishes one of a workspace's loopback ports on the controller.
 //
 // Refuses anything already reachable: forwarding it would publish, unguarded, what the operator
 // can already open directly.
 export async function forwardWorkspacePort(
-	id: string,
-	port: number,
+  id: string,
+  port: number,
 ): Promise<
-	| { allocated: number; kind: "forwarded" }
-	| { kind: "unavailable"; reason: string }
+  | { allocated: number; kind: "forwarded" }
+  | { kind: "unavailable"; reason: string }
 > {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "unavailable", reason: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "unavailable", reason: agent.reason };
+  }
 
-	const listed = await listeningPorts(agent.ssh, runSsh);
-	if (listed.kind !== "listed") {
-		return { kind: "unavailable", reason: listed.message };
-	}
+  const listed = await listeningPorts(agent.ssh, runSsh);
+  if (listed.kind !== "listed") {
+    return { kind: "unavailable", reason: listed.message };
+  }
 
-	const listener = listed.ports.find((entry) => entry.port === port);
-	if (listener === undefined) {
-		return { kind: "unavailable", reason: `nothing is listening on ${port}` };
-	}
-	if (listener.reach === "direct") {
-		return {
-			kind: "unavailable",
-			reason: `${port} is already reachable without a forward`,
-		};
-	}
+  const listener = listed.ports.find((entry) => entry.port === port);
+  if (listener === undefined) {
+    return { kind: "unavailable", reason: `nothing is listening on ${port}` };
+  }
+  if (listener.reach === "direct") {
+    return {
+      kind: "unavailable",
+      reason: `${port} is already reachable without a forward`,
+    };
+  }
 
-	const started = startForward(id, agent.ssh, port, listener.address);
+  const started = startForward(id, agent.ssh, port, listener.address);
 
-	return "message" in started
-		? { kind: "unavailable", reason: started.message }
-		: { allocated: started.allocated, kind: "forwarded" };
+  return "message" in started
+    ? { kind: "unavailable", reason: started.message }
+    : { allocated: started.allocated, kind: "forwarded" };
 }
 
 // unforwardWorkspacePort takes one down. No check that it exists: a forward that already died is
 // stopped, which is what the operator meant.
 export function unforwardWorkspacePort(
-	id: string,
-	port: number,
+  id: string,
+  port: number,
 ): { stopped: true } {
-	stopForward(id, port);
+  stopForward(id, port);
 
-	return { stopped: true };
+  return { stopped: true };
 }
 
 // readWorkspacePorts reads what is listening inside one workspace, and what of it is forwarded.
 export async function readWorkspacePorts(
-	id: string,
+  id: string,
 ): Promise<WorkspacePortsView> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "unavailable", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "unavailable", message: agent.reason };
+  }
 
-	const listed = await listeningPorts(agent.ssh, runSsh);
-	if (listed.kind !== "listed") {
-		return listed;
-	}
+  const listed = await listeningPorts(agent.ssh, runSsh);
+  if (listed.kind !== "listed") {
+    return listed;
+  }
 
-	// Merged here, so one answer describes both halves at one moment. Two requests merged in the
-	// browser can show a Stop for a tunnel that has already died.
-	const published = new Map(
-		forwardsFor(id).map((forward) => [forward.port, forward.allocated]),
-	);
+  // Merged here, so one answer describes both halves at one moment. Two requests merged in the
+  // browser can show a Stop for a tunnel that has already died.
+  const published = new Map(
+    forwardsFor(id).map((forward) => [forward.port, forward.allocated]),
+  );
 
-	return {
-		host: await controllerHost(controllerRuntimeConfig().CONTROLLER_URL),
-		ip: agent.ssh.address,
-		kind: "listed",
-		ports: listed.ports.map((port) => ({
-			...port,
-			forwarded: published.get(port.port),
-		})),
-	};
+  return {
+    host: await controllerHost(controllerRuntimeConfig().CONTROLLER_URL),
+    ip: agent.ssh.address,
+    kind: "listed",
+    ports: listed.ports.map((port) => ({
+      ...port,
+      forwarded: published.get(port.port),
+    })),
+  };
 }
 
 export async function readWorkspaceChanges(id: string): Promise<ChangedFiles> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "failed", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "failed", message: agent.reason };
+  }
 
-	const changes = await changedFiles(agent.ssh, AGENT_CWD, runSsh);
-	// The flag behind the "holding unsaved work" banner, refreshed from a reading that was taken
-	// anyway. It encodes exactly what was just fetched — a dirty tree or a commit that is nowhere
-	// else — so recording it here costs nothing and stops the banner outliving the work it
-	// describes. Only ever updated on a push, a discard, or a reaping pass before this, so a
-	// workspace whose flag was set while something was briefly wrong kept claiming to hold work.
-	//
-	// A stale flag was never dangerous: the reaper re-reads the tree itself before destroying
-	// anything, so it errs towards keeping a workspace rather than losing one. It was only a lie
-	// on the page.
-	if (changes.kind === "changes") {
-		recordUnsavedWork(
-			controllerDatabase(),
-			id,
-			changes.files.length > 0 || changes.unpushed > 0,
-		);
-	}
+  const changes = await changedFiles(agent.ssh, AGENT_CWD, runSsh);
+  // The flag behind the "holding unsaved work" banner, refreshed from a reading that was taken
+  // anyway. It encodes exactly what was just fetched — a dirty tree or a commit that is nowhere
+  // else — so recording it here costs nothing and stops the banner outliving the work it
+  // describes. Only ever updated on a push, a discard, or a reaping pass before this, so a
+  // workspace whose flag was set while something was briefly wrong kept claiming to hold work.
+  //
+  // A stale flag was never dangerous: the reaper re-reads the tree itself before destroying
+  // anything, so it errs towards keeping a workspace rather than losing one. It was only a lie
+  // on the page.
+  if (changes.kind === "changes") {
+    recordUnsavedWork(
+      controllerDatabase(),
+      id,
+      changes.files.length > 0 || changes.unpushed > 0,
+    );
+  }
 
-	return changes;
+  return changes;
 }
 
 export async function readWorkspaceFile(
-	id: string,
-	path: string,
+  id: string,
+  path: string,
 ): Promise<FileSides> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "failed", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "failed", message: agent.reason };
+  }
 
-	return fileSides(agent.ssh, AGENT_CWD, path, runSsh);
+  return fileSides(agent.ssh, AGENT_CWD, path, runSsh);
 }
 
 export async function pushWorkspaceWork(
-	id: string,
-	message: string,
+  id: string,
+  message: string,
 ): Promise<ChangeAction> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "failed", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "failed", message: agent.reason };
+  }
 
-	const branch = workspaceBranch(agent.hostname);
-	const pushed = await commitAndPush(
-		agent.ssh,
-		{ branch, cwd: AGENT_CWD, message },
-		runSsh,
-	);
-	if (pushed.kind === "done") {
-		recordWorkspaceNote(
-			controllerDatabase(),
-			id,
-			"workspace.pushed",
-			`pushed to ${branch}`,
-		);
-	}
-	// Re-checked on "nothing" as well as on "done", because "nothing to push" is itself a reading
-	// of the tree and a fresher one than whatever is stored. Without this, a workspace whose flag
-	// was set while something was briefly wrong keeps claiming to hold work with no way to correct
-	// it short of waiting for a reaping pass to look.
-	if (pushed.kind !== "failed") {
-		await settleUnsavedWork(agent.ssh, id);
-	}
+  const branch = workspaceBranch(agent.hostname);
+  const pushed = await commitAndPush(
+    agent.ssh,
+    { branch, cwd: AGENT_CWD, message },
+    runSsh,
+  );
+  if (pushed.kind === "done") {
+    recordWorkspaceNote(
+      controllerDatabase(),
+      id,
+      "workspace.pushed",
+      `pushed to ${branch}`,
+    );
+  }
+  // Re-checked on "nothing" as well as on "done", because "nothing to push" is itself a reading
+  // of the tree and a fresher one than whatever is stored. Without this, a workspace whose flag
+  // was set while something was briefly wrong keeps claiming to hold work with no way to correct
+  // it short of waiting for a reaping pass to look.
+  if (pushed.kind !== "failed") {
+    await settleUnsavedWork(agent.ssh, id);
+  }
 
-	return pushed;
+  return pushed;
 }
 
 export async function discardWorkspaceWork(id: string): Promise<ChangeAction> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "failed", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "failed", message: agent.reason };
+  }
 
-	const discarded = await discardChanges(agent.ssh, AGENT_CWD, runSsh);
-	if (discarded.kind === "done") {
-		// Recorded because a workspace that later looks empty should say in its own history why it
-		// is, rather than leaving someone to wonder what the agent did with its afternoon.
-		recordWorkspaceNote(
-			controllerDatabase(),
-			id,
-			"workspace.discarded",
-			"discarded all uncommitted changes in the working tree",
-		);
-		await settleUnsavedWork(agent.ssh, id);
-	}
+  const discarded = await discardChanges(agent.ssh, AGENT_CWD, runSsh);
+  if (discarded.kind === "done") {
+    // Recorded because a workspace that later looks empty should say in its own history why it
+    // is, rather than leaving someone to wonder what the agent did with its afternoon.
+    recordWorkspaceNote(
+      controllerDatabase(),
+      id,
+      "workspace.discarded",
+      "discarded all uncommitted changes in the working tree",
+    );
+    await settleUnsavedWork(agent.ssh, id);
+  }
 
-	return discarded;
+  return discarded;
 }
 
 // discardWorkspaceFile throws one file away, leaving the rest of the tree alone.
@@ -338,28 +338,28 @@ export async function discardWorkspaceWork(id: string): Promise<ChangeAction> {
 // also left a scratch file behind forced a choice between shipping the scratch file and losing the
 // work. This is the same action at the size of the thing it acts on.
 export async function discardWorkspaceFileWork(
-	id: string,
-	path: string,
+  id: string,
+  path: string,
 ): Promise<ChangeAction> {
-	const agent = agentTarget(id);
-	if (agent.kind === "unavailable") {
-		return { kind: "failed", message: agent.reason };
-	}
+  const agent = agentTarget(id);
+  if (agent.kind === "unavailable") {
+    return { kind: "failed", message: agent.reason };
+  }
 
-	const discarded = await discardFile(agent.ssh, AGENT_CWD, path, runSsh);
-	if (discarded.kind === "done") {
-		recordWorkspaceNote(
-			controllerDatabase(),
-			id,
-			"workspace.discarded",
-			`discarded uncommitted changes to ${path}`,
-		);
-		// The tree may still hold other files, so this re-reads rather than assuming. Without it the
-		// workspace goes on claiming to hold work until a reaping pass happens to look.
-		await settleUnsavedWork(agent.ssh, id);
-	}
+  const discarded = await discardFile(agent.ssh, AGENT_CWD, path, runSsh);
+  if (discarded.kind === "done") {
+    recordWorkspaceNote(
+      controllerDatabase(),
+      id,
+      "workspace.discarded",
+      `discarded uncommitted changes to ${path}`,
+    );
+    // The tree may still hold other files, so this re-reads rather than assuming. Without it the
+    // workspace goes on claiming to hold work until a reaping pass happens to look.
+    await settleUnsavedWork(agent.ssh, id);
+  }
 
-	return discarded;
+  return discarded;
 }
 
 // settleUnsavedWork re-reads the tree after something changed it.
@@ -368,19 +368,19 @@ export async function discardWorkspaceFileWork(
 // so a workspace whose work was just pushed would keep claiming to hold it. Also counts as
 // interaction: a person acting on a workspace is a reason not to reap it a moment later.
 async function settleUnsavedWork(
-	ssh: Parameters<typeof workspaceUnsavedWork>[0],
-	id: string,
+  ssh: Parameters<typeof workspaceUnsavedWork>[0],
+  id: string,
 ): Promise<void> {
-	const db = controllerDatabase();
-	recordWorkspaceInteraction(db, id);
+  const db = controllerDatabase();
+  recordWorkspaceInteraction(db, id);
 
-	const unsaved = await workspaceUnsavedWork(ssh, AGENT_CWD, runSsh);
-	// "unknown" deliberately leaves the flag alone. Clearing it on a reading that failed would
-	// convert "could not tell" into "safe to destroy", which is the one conversion the reaper
-	// exists to refuse.
-	if (unsaved.kind !== "unknown") {
-		recordUnsavedWork(db, id, unsaved.kind === "unsaved");
-	}
+  const unsaved = await workspaceUnsavedWork(ssh, AGENT_CWD, runSsh);
+  // "unknown" deliberately leaves the flag alone. Clearing it on a reading that failed would
+  // convert "could not tell" into "safe to destroy", which is the one conversion the reaper
+  // exists to refuse.
+  if (unsaved.kind !== "unknown") {
+    recordUnsavedWork(db, id, unsaved.kind === "unsaved");
+  }
 }
 
 // readWorkspaceTranscript returns the conversation kept when a workspace was destroyed.
@@ -388,5 +388,5 @@ async function settleUnsavedWork(
 // Not behind `agentTarget`, which refuses anything not ready: a destroyed workspace is the point.
 // Null rather than undefined, so "nothing was kept" survives the trip as JSON.
 export function readWorkspaceTranscript(id: string): SavedTranscript | null {
-	return workspaceTranscript(controllerDatabase(), id) ?? null;
+  return workspaceTranscript(controllerDatabase(), id) ?? null;
 }

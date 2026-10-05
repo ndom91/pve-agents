@@ -12,57 +12,57 @@ afterEach(cleanup);
 // drawing, because it is the part that can stick: an icon left marked after the question was
 // answered is a tab that lies until it is reloaded.
 function Harness({ waiting }: { waiting: boolean }) {
-	useFaviconAlert(waiting);
-	return null;
+  useFaviconAlert(waiting);
+  return null;
 }
 
 function icon(): HTMLLinkElement {
-	const link = document.createElement("link");
-	link.rel = "icon";
-	link.href = "/icon1.png";
-	document.head.append(link);
-	return link;
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.href = "/icon1.png";
+  document.head.append(link);
+  return link;
 }
 
 afterEach(() => {
-	for (const link of document.querySelectorAll('link[rel~="icon"]')) {
-		link.remove();
-	}
+  for (const link of document.querySelectorAll('link[rel~="icon"]')) {
+    link.remove();
+  }
 });
 
 describe("useFaviconAlert", () => {
-	it("leaves the icon alone while nothing is waiting", () => {
-		const link = icon();
-		const before = link.href;
+  it("leaves the icon alone while nothing is waiting", () => {
+    const link = icon();
+    const before = link.href;
 
-		render(<Harness waiting={false} />);
+    render(<Harness waiting={false} />);
 
-		expect(link.href).toBe(before);
-	});
+    expect(link.href).toBe(before);
+  });
 
-	it("puts the icon back when the waiting stops", () => {
-		const link = icon();
-		const before = link.href;
+  it("puts the icon back when the waiting stops", () => {
+    const link = icon();
+    const before = link.href;
 
-		const { rerender } = render(<Harness waiting={true} />);
-		link.href = "data:image/png;base64,marked";
-		rerender(<Harness waiting={false} />);
+    const { rerender } = render(<Harness waiting={true} />);
+    link.href = "data:image/png;base64,marked";
+    rerender(<Harness waiting={false} />);
 
-		expect(link.href).toBe(before);
-	});
+    expect(link.href).toBe(before);
+  });
 
-	it("puts the icon back when the page goes away mid-alert", () => {
-		const link = icon();
-		const before = link.href;
+  it("puts the icon back when the page goes away mid-alert", () => {
+    const link = icon();
+    const before = link.href;
 
-		const { unmount } = render(<Harness waiting={true} />);
-		link.href = "data:image/png;base64,marked";
-		unmount();
+    const { unmount } = render(<Harness waiting={true} />);
+    link.href = "data:image/png;base64,marked";
+    unmount();
 
-		expect(link.href).toBe(before);
-	});
+    expect(link.href).toBe(before);
+  });
 
-	it("does nothing at all when the document declares no icon", () => {
-		expect(() => render(<Harness waiting={true} />)).not.toThrow();
-	});
+  it("does nothing at all when the document declares no icon", () => {
+    expect(() => render(<Harness waiting={true} />)).not.toThrow();
+  });
 });

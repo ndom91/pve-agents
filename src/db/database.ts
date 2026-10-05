@@ -4,9 +4,9 @@ import { dirname } from "node:path";
 import Database from "better-sqlite3";
 
 const migrations = [
-	{
-		version: 1,
-		sql: `
+  {
+    version: 1,
+    sql: `
 			CREATE TABLE IF NOT EXISTS workspaces (
 				id TEXT PRIMARY KEY,
 				ownership_token TEXT NOT NULL,
@@ -55,10 +55,10 @@ const migrations = [
 			CREATE INDEX IF NOT EXISTS workspaces_created_at
 			ON workspaces(created_at DESC);
 		`,
-	},
-	{
-		version: 2,
-		sql: `
+  },
+  {
+    version: 2,
+    sql: `
 			CREATE TABLE workspace_operations (
 				id TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id),
@@ -70,10 +70,10 @@ const migrations = [
 			CREATE INDEX workspace_operations_workspace_id
 			ON workspace_operations(workspace_id, created_at DESC);
 		`,
-	},
-	{
-		version: 3,
-		sql: `
+  },
+  {
+    version: 3,
+    sql: `
 			ALTER TABLE workspace_operations ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0;
 			ALTER TABLE workspace_operations ADD COLUMN claimed_at TEXT;
 			ALTER TABLE workspace_operations ADD COLUMN lease_expires_at TEXT;
@@ -83,10 +83,10 @@ const migrations = [
 			CREATE INDEX workspace_operations_claim
 			ON workspace_operations(status, lease_expires_at, created_at);
 		`,
-	},
-	{
-		version: 4,
-		sql: `
+  },
+  {
+    version: 4,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN current_task_expires_at TEXT;
 			ALTER TABLE workspace_operations ADD COLUMN next_run_at TEXT;
 
@@ -95,87 +95,87 @@ const migrations = [
 			CREATE INDEX workspace_operations_claim
 			ON workspace_operations(status, next_run_at, lease_expires_at, created_at);
 		`,
-	},
-	{
-		version: 5,
-		sql: `
+  },
+  {
+    version: 5,
+    sql: `
 			ALTER TABLE workspace_operations ADD COLUMN lease_token TEXT;
 		`,
-	},
-	{
-		version: 6,
-		sql: `
+  },
+  {
+    version: 6,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN destroy_phase TEXT;
 		`,
-	},
-	{
-		version: 7,
-		sql: `
+  },
+  {
+    version: 7,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN provision_phase TEXT;
 		`,
-	},
-	{
-		version: 8,
-		sql: `
+  },
+  {
+    version: 8,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN herdr_pane_id TEXT;
 		`,
-	},
-	{
-		version: 9,
-		sql: `
+  },
+  {
+    version: 9,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN activity_observed_at TEXT;
 		`,
-	},
-	{
-		version: 10,
-		sql: `
+  },
+  {
+    version: 10,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN git_credential_at TEXT;
 		`,
-	},
-	{
-		version: 11,
-		sql: `
+  },
+  {
+    version: 11,
+    sql: `
 			CREATE TABLE controller_settings (
 				key TEXT PRIMARY KEY,
 				value TEXT NOT NULL,
 				updated_at TEXT NOT NULL
 			);
 		`,
-	},
-	{
-		version: 12,
-		sql: `
+  },
+  {
+    version: 12,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN unsaved_work INTEGER;
 		`,
-	},
-	{
-		// Herdr is gone, and these three columns were the whole of what it left in the schema: the
-		// session its server ran under, and the workspace and pane ids of the terminal the agent
-		// was a TUI in. Nothing reads them now, and a column nothing reads is a question the next
-		// person has to answer before they can be sure.
-		//
-		// Dropped rather than left null. What is lost is the pane a destroyed container's agent
-		// used to live in, which cannot be reached, restarted, or reasoned about now that the
-		// software that owned it is not installed.
-		version: 13,
-		sql: `
+  },
+  {
+    // Herdr is gone, and these three columns were the whole of what it left in the schema: the
+    // session its server ran under, and the workspace and pane ids of the terminal the agent
+    // was a TUI in. Nothing reads them now, and a column nothing reads is a question the next
+    // person has to answer before they can be sure.
+    //
+    // Dropped rather than left null. What is lost is the pane a destroyed container's agent
+    // used to live in, which cannot be reached, restarted, or reasoned about now that the
+    // software that owned it is not installed.
+    version: 13,
+    sql: `
 			ALTER TABLE workspaces DROP COLUMN herdr_pane_id;
 			ALTER TABLE workspaces DROP COLUMN herdr_workspace_id;
 			ALTER TABLE workspaces DROP COLUMN herdr_session;
 		`,
-	},
-	{
-		// Files an operator uploads once and every new workspace is seeded with.
-		//
-		// Their own table rather than rows in controller_settings, which is key/value text behind a
-		// fixed schema: a file has a destination, a size and a body, and none of those survive being
-		// flattened into one string.
-		//
-		// The unique index is the load-bearing part. Two rows claiming the same destination is a
-		// silent last-writer-wins during provisioning, and the operator would have no way to see
-		// which of the two actually landed.
-		version: 14,
-		sql: `
+  },
+  {
+    // Files an operator uploads once and every new workspace is seeded with.
+    //
+    // Their own table rather than rows in controller_settings, which is key/value text behind a
+    // fixed schema: a file has a destination, a size and a body, and none of those survive being
+    // flattened into one string.
+    //
+    // The unique index is the load-bearing part. Two rows claiming the same destination is a
+    // silent last-writer-wins during provisioning, and the operator would have no way to see
+    // which of the two actually landed.
+    version: 14,
+    sql: `
 			CREATE TABLE workspace_seed_files (
 				id TEXT PRIMARY KEY,
 				root TEXT NOT NULL,
@@ -186,41 +186,41 @@ const migrations = [
 			CREATE UNIQUE INDEX workspace_seed_files_place
 				ON workspace_seed_files (root, path);
 		`,
-	},
-	{
-		// What the workspace is called, as opposed to what its container is called.
-		//
-		// Nullable, and its absence is meaningful rather than a gap to backfill: every workspace
-		// that existed before this, and every one whose naming failed, falls back to its hostname.
-		// A default would have to be invented and would be worse than the hostname it replaced.
-		version: 15,
-		sql: `
+  },
+  {
+    // What the workspace is called, as opposed to what its container is called.
+    //
+    // Nullable, and its absence is meaningful rather than a gap to backfill: every workspace
+    // that existed before this, and every one whose naming failed, falls back to its hostname.
+    // A default would have to be invented and would be worse than the hostname it replaced.
+    version: 15,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN title TEXT;
 		`,
-	},
-	{
-		// An agent an operator has set up, as opposed to an agent this build knows how to drive.
-		//
-		// Those were one word until now. `kind` names the code -- claude-code, opencode2, whatever
-		// is registered in src/harness -- and a row is one configured instance of it: a credential,
-		// a model, a permission mode, and a name a person picks it by. Several rows can share a
-		// kind, which is the point: two Claude subscriptions, or two opencodes on different providers.
-		//
-		// This replaces five environment variables. They had to be one harness for the whole
-		// controller, changing one meant editing a file and restarting the service, and the
-		// opencode credential expires every ten days -- which made that a fortnightly chore rather
-		// than a one-off.
-		//
-		// credential is NOT NULL because a harness without one cannot do anything, and letting the
-		// row exist half-built would push that check into provisioning, which is the worst place to
-		// discover it. The settings form keeps the stored value when the field is left blank, so
-		// renaming a harness cannot silently blank its token.
-		//
-		// permission_mode is text rather than an enum because each kind has its own vocabulary:
-		// Claude's five words and opencode's allow/ask/deny lists are not the same thing spelled
-		// differently.
-		version: 16,
-		sql: `
+  },
+  {
+    // An agent an operator has set up, as opposed to an agent this build knows how to drive.
+    //
+    // Those were one word until now. `kind` names the code -- claude-code, opencode2, whatever
+    // is registered in src/harness -- and a row is one configured instance of it: a credential,
+    // a model, a permission mode, and a name a person picks it by. Several rows can share a
+    // kind, which is the point: two Claude subscriptions, or two opencodes on different providers.
+    //
+    // This replaces five environment variables. They had to be one harness for the whole
+    // controller, changing one meant editing a file and restarting the service, and the
+    // opencode credential expires every ten days -- which made that a fortnightly chore rather
+    // than a one-off.
+    //
+    // credential is NOT NULL because a harness without one cannot do anything, and letting the
+    // row exist half-built would push that check into provisioning, which is the worst place to
+    // discover it. The settings form keeps the stored value when the field is left blank, so
+    // renaming a harness cannot silently blank its token.
+    //
+    // permission_mode is text rather than an enum because each kind has its own vocabulary:
+    // Claude's five words and opencode's allow/ask/deny lists are not the same thing spelled
+    // differently.
+    version: 16,
+    sql: `
 			CREATE TABLE harnesses (
 				id TEXT PRIMARY KEY,
 				name TEXT NOT NULL,
@@ -235,32 +235,32 @@ const migrations = [
 			CREATE UNIQUE INDEX harnesses_name ON harnesses (name);
 			ALTER TABLE workspaces ADD COLUMN harness_id TEXT;
 		`,
-	},
-	{
-		// Gone: it was a second gate on a question the agent's own configuration already answers.
-		//
-		// Each agent decides what it will ask about -- Claude from .claude/settings.json, opencode
-		// from its permission lists -- and an operator can seed either. A controller-side mode on
-		// top meant two places deciding one thing, in two vocabularies that do not translate, which
-		// is how they end up disagreeing. The runners keep their own RUNNER_PERMISSION_MODE
-		// defaults so the probe CLI can still drive one by hand.
-		version: 17,
-		sql: `
+  },
+  {
+    // Gone: it was a second gate on a question the agent's own configuration already answers.
+    //
+    // Each agent decides what it will ask about -- Claude from .claude/settings.json, opencode
+    // from its permission lists -- and an operator can seed either. A controller-side mode on
+    // top meant two places deciding one thing, in two vocabularies that do not translate, which
+    // is how they end up disagreeing. The runners keep their own RUNNER_PERMISSION_MODE
+    // defaults so the probe CLI can still drive one by hand.
+    version: 17,
+    sql: `
 			ALTER TABLE harnesses DROP COLUMN permission_mode;
 		`,
-	},
-	{
-		// The conversation, read off the runner just before its container is destroyed.
-		//
-		// Its own table rather than a column on workspaces: the fleet list reads that table every
-		// few seconds, and a transcript can run to megabytes nobody on that page asked for.
-		//
-		// The runner's raw messages, not rendered rows. The live page renders from the same raw
-		// messages through the harness's readTranscript, so storing them unrendered means a saved
-		// conversation reads exactly as it did live, and a later fix to a renderer reaches old
-		// conversations too.
-		version: 18,
-		sql: `
+  },
+  {
+    // The conversation, read off the runner just before its container is destroyed.
+    //
+    // Its own table rather than a column on workspaces: the fleet list reads that table every
+    // few seconds, and a transcript can run to megabytes nobody on that page asked for.
+    //
+    // The runner's raw messages, not rendered rows. The live page renders from the same raw
+    // messages through the harness's readTranscript, so storing them unrendered means a saved
+    // conversation reads exactly as it did live, and a later fix to a renderer reaches old
+    // conversations too.
+    version: 18,
+    sql: `
 			CREATE TABLE workspace_transcripts (
 				workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id),
 				harness TEXT NOT NULL,
@@ -270,56 +270,56 @@ const migrations = [
 				captured_at TEXT NOT NULL
 			);
 		`,
-	},
-	{
-		// The model the agent reports running. On the workspace rather than read from the harness,
-		// because the harness says what was asked for and this says what happened -- and they
-		// disagreed for every Claude workspace until the runner started honouring RUNNER_MODEL.
-		version: 19,
-		sql: `
+  },
+  {
+    // The model the agent reports running. On the workspace rather than read from the harness,
+    // because the harness says what was asked for and this says what happened -- and they
+    // disagreed for every Claude workspace until the runner started honouring RUNNER_MODEL.
+    version: 19,
+    sql: `
 			ALTER TABLE workspaces ADD COLUMN model TEXT;
 		`,
-	},
+  },
 ] as const;
 
 // openDatabase opens a controller database and applies its idempotent schema migrations.
 export function openDatabase(path: string): Database.Database {
-	if (path !== ":memory:") {
-		mkdirSync(dirname(path), { recursive: true });
-	}
+  if (path !== ":memory:") {
+    mkdirSync(dirname(path), { recursive: true });
+  }
 
-	const db = new Database(path);
+  const db = new Database(path);
 
-	db.pragma("foreign_keys = ON");
-	db.pragma("journal_mode = WAL");
-	// better-sqlite3 throws SQLITE_BUSY immediately without this. The controller server and the
-	// scheduler hold separate connections to the same file, and both take immediate write
-	// transactions, so a lock collision is routine rather than exceptional.
-	db.pragma("busy_timeout = 5000");
-	db.exec(`
+  db.pragma("foreign_keys = ON");
+  db.pragma("journal_mode = WAL");
+  // better-sqlite3 throws SQLITE_BUSY immediately without this. The controller server and the
+  // scheduler hold separate connections to the same file, and both take immediate write
+  // transactions, so a lock collision is routine rather than exceptional.
+  db.pragma("busy_timeout = 5000");
+  db.exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version INTEGER PRIMARY KEY,
 			applied_at TEXT NOT NULL
 		);
 	`);
 
-	for (const migration of migrations) {
-		const applied = db
-			.prepare("SELECT version FROM schema_migrations WHERE version = ?")
-			.get(migration.version) as { version: number } | undefined;
-		if (applied !== undefined) {
-			continue;
-		}
+  for (const migration of migrations) {
+    const applied = db
+      .prepare("SELECT version FROM schema_migrations WHERE version = ?")
+      .get(migration.version) as { version: number } | undefined;
+    if (applied !== undefined) {
+      continue;
+    }
 
-		const apply = db.transaction(() => {
-			db.exec(migration.sql);
-			db.prepare(
-				"INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-			).run(migration.version, new Date().toISOString());
-		});
+    const apply = db.transaction(() => {
+      db.exec(migration.sql);
+      db.prepare(
+        "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+      ).run(migration.version, new Date().toISOString());
+    });
 
-		apply();
-	}
+    apply();
+  }
 
-	return db;
+  return db;
 }

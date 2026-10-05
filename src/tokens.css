@@ -20,112 +20,112 @@
 /* ══ DARK (default) ═══════════════════════════════════════════════════ */
 
 :root {
-	/* Declared, not left at `normal`. Beyond the scrollbars and native controls it obviously
+  /* Declared, not left at `normal`. Beyond the scrollbars and native controls it obviously
      governs, anything drawing with `light-dark()` resolves against it -- unset, that means the
      OS preference, so light mode on a dark machine had a black diff in it. */
-	color-scheme: dark;
+  color-scheme: dark;
 
-	/* Surfaces — four levels of depth. Wells recede, raised things lift. */
-	--surface-well: #0b0f0a; /* inputs, diff body, error output */
-	--surface-base: #111411; /* the page / the feed */
-	--surface-sunk: #0f120e; /* sidebar, right panel, meta band */
-	--surface-raised: #131713; /* cards, table rows, grouped lists */
-	--surface-hover: #1c211a;
-	--surface-select: #171d15;
+  /* Surfaces — four levels of depth. Wells recede, raised things lift. */
+  --surface-well: #0b0f0a; /* inputs, diff body, error output */
+  --surface-base: #111411; /* the page / the feed */
+  --surface-sunk: #0f120e; /* sidebar, right panel, meta band */
+  --surface-raised: #131713; /* cards, table rows, grouped lists */
+  --surface-hover: #1c211a;
+  --surface-select: #171d15;
 
-	/* Lines */
-	--line-hairline: #1c221a; /* separates regions */
-	--line-inner: #161b14; /* separates rows inside one group */
-	--line-border: #2c3428; /* wraps a group or a control */
-	--line-strong: #3b4636;
+  /* Lines */
+  --line-hairline: #1c221a; /* separates regions */
+  --line-inner: #161b14; /* separates rows inside one group */
+  --line-border: #2c3428; /* wraps a group or a control */
+  --line-strong: #3b4636;
 
-	/* Ink */
-	--text-primary: #e6e9df; /* 13.9:1 */
-	--text-body: #d6e2cf; /* 13.8:1 */
-	--text-secondary: #a9b8a2; /*  8.0:1 */
-	--text-muted: #7d8b76; /*  5.2:1 — section labels */
-	--text-dim: #76826f; /*  4.6:1 — timestamps, counts, hints */
-	--text-faint: var(--text-dim);
-	--text-decorative: #3b4636; /* BELOW THRESHOLD — dots and rails only */
+  /* Ink */
+  --text-primary: #e6e9df; /* 13.9:1 */
+  --text-body: #d6e2cf; /* 13.8:1 */
+  --text-secondary: #a9b8a2; /*  8.0:1 */
+  --text-muted: #7d8b76; /*  5.2:1 — section labels */
+  --text-dim: #76826f; /*  4.6:1 — timestamps, counts, hints */
+  --text-faint: var(--text-dim);
+  --text-decorative: #3b4636; /* BELOW THRESHOLD — dots and rails only */
 
-	/* Signal */
-	--sage: #b5cda9; /* primary action fill */
-	--sage-ink: #101410; /* text on that fill */
-	--sage-quiet: #26301f; /* active segment, monogram, selected tint */
-	--green: #7fa06a; /* live / ready — text and marks */
-	--green-mark: #7fa06a; /* dots, progress segments */
-	--amber: #d4a85f;
-	--amber-mark: #d4a85f;
-	--red: #d98b7d;
-	--red-mark: #d98b7d;
-	--red-ink: #e0a094; /* red text inside a well */
-	--red-line: #4a2f29; /* destroy button border */
-	--red-well-line: #2a1f1c; /* border on an error well */
+  /* Signal */
+  --sage: #b5cda9; /* primary action fill */
+  --sage-ink: #101410; /* text on that fill */
+  --sage-quiet: #26301f; /* active segment, monogram, selected tint */
+  --green: #7fa06a; /* live / ready — text and marks */
+  --green-mark: #7fa06a; /* dots, progress segments */
+  --amber: #d4a85f;
+  --amber-mark: #d4a85f;
+  --red: #d98b7d;
+  --red-mark: #d98b7d;
+  --red-ink: #e0a094; /* red text inside a well */
+  --red-line: #4a2f29; /* destroy button border */
+  --red-well-line: #2a1f1c; /* border on an error well */
 
-	--focus-ring: #8aa07d;
+  --focus-ring: #8aa07d;
 
-	/* Chips — tinted fill + border + text, tuned as a set */
-	--chip-green-bg: rgba(127, 160, 106, 0.14);
-	--chip-green-line: rgba(127, 160, 106, 0.3);
-	--chip-green-text: #a5c493;
-	--chip-amber-bg: rgba(212, 168, 95, 0.12);
-	--chip-amber-line: rgba(212, 168, 95, 0.28);
-	--chip-amber-text: #d4b785;
-	--chip-red-bg: rgba(217, 139, 125, 0.12);
-	--chip-red-line: rgba(217, 139, 125, 0.3);
-	--chip-red-text: #e0a094;
-	--chip-neutral-bg: #1c211a;
-	--chip-neutral-line: #2c3428;
-	--chip-neutral-text: #a9b8a2;
+  /* Chips — tinted fill + border + text, tuned as a set */
+  --chip-green-bg: rgba(127, 160, 106, 0.14);
+  --chip-green-line: rgba(127, 160, 106, 0.3);
+  --chip-green-text: #a5c493;
+  --chip-amber-bg: rgba(212, 168, 95, 0.12);
+  --chip-amber-line: rgba(212, 168, 95, 0.28);
+  --chip-amber-text: #d4b785;
+  --chip-red-bg: rgba(217, 139, 125, 0.12);
+  --chip-red-line: rgba(217, 139, 125, 0.3);
+  --chip-red-text: #e0a094;
+  --chip-neutral-bg: #1c211a;
+  --chip-neutral-line: #2c3428;
+  --chip-neutral-text: #a9b8a2;
 
-	/* Diff */
-	--diff-add-bg: rgba(127, 160, 106, 0.09);
-	--diff-del-bg: rgba(217, 139, 125, 0.09);
-	--diff-add-text: #cbdcc2;
-	--diff-del-text: #ddb7ae;
-	--diff-gutter: #76826f;
+  /* Diff */
+  --diff-add-bg: rgba(127, 160, 106, 0.09);
+  --diff-del-bg: rgba(217, 139, 125, 0.09);
+  --diff-add-text: #cbdcc2;
+  --diff-del-text: #ddb7ae;
+  --diff-gutter: #76826f;
 
-	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.45); /* dropdowns/popovers only */
+  --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.45); /* dropdowns/popovers only */
 
-	/* ── Added by the refresh ───────────────────────────────────────────
+  /* ── Added by the refresh ───────────────────────────────────────────
 	   Colours the mockups use that the design's token file does not name. */
-	--surface-strip: #12160f; /* diff hunk header, errored tool row */
-	--line-divider: #232b21; /* the meta band's ticks, rules on a sunk surface */
-	--line-border-raised: #2f382c;
-	--text-tertiary: #8f9c88; /* a purpose beside a title, a hostname */
-	/* Below the 4.5:1 floor (3.5:1 on the band), and used anyway for one thing: the meta band's
+  --surface-strip: #12160f; /* diff hunk header, errored tool row */
+  --line-divider: #232b21; /* the meta band's ticks, rules on a sunk surface */
+  --line-border-raised: #2f382c;
+  --text-tertiary: #8f9c88; /* a purpose beside a title, a hostname */
+  /* Below the 4.5:1 floor (3.5:1 on the band), and used anyway for one thing: the meta band's
 	   key. Section 6 of STYLE.md specifies this exact value there. It is a four-letter uppercase
 	   label sitting directly against the value it names, so the value carries the meaning if the
 	   label is hard to read -- the same argument section 7 makes for pairing a status dot with a
 	   word. That argument holds for a label beside its value and nowhere else, so nothing else may
 	   use this: a review found it on four more elements, one of them a standalone line of its own.
 	   Use --text-muted, which clears the floor on every surface in both themes. */
-	--text-metakey: #626e5d;
-	--text-control: #c9d6c2; /* label on an outlined button */
-	--text-wordmark: #dbe4d3;
-	--text-error-name: #e0d3cf;
-	--sage-hover: #cfe0c4;
-	--green-ring: rgba(127, 160, 106, 0.16);
-	--red-line-strong: #5a4440;
+  --text-metakey: #626e5d;
+  --text-control: #c9d6c2; /* label on an outlined button */
+  --text-wordmark: #dbe4d3;
+  --text-error-name: #e0d3cf;
+  --sage-hover: #cfe0c4;
+  --green-ring: rgba(127, 160, 106, 0.16);
+  --red-line-strong: #5a4440;
 
-	/* ── Notices ────────────────────────────────────────────────────────
+  /* ── Notices ────────────────────────────────────────────────────────
 	   A fill at 7-8% of the severity and a border at 22-28%. The text is
 	   never coloured -- the icon and the fill carry the severity, which is
 	   what stops one red notice being three different reds. */
-	--notice-neutral-bg: var(--surface-raised);
-	--notice-neutral-line: var(--line-border);
-	--notice-neutral-icon: var(--text-secondary);
-	--notice-green-bg: rgba(127, 160, 106, 0.08);
-	--notice-green-line: rgba(127, 160, 106, 0.26);
-	--notice-green-icon: var(--green-mark);
-	--notice-amber-bg: rgba(212, 168, 95, 0.08);
-	--notice-amber-line: rgba(212, 168, 95, 0.26);
-	--notice-amber-icon: var(--amber-mark);
-	--notice-red-bg: rgba(217, 139, 125, 0.08);
-	--notice-red-line: rgba(217, 139, 125, 0.28);
-	--notice-red-icon: var(--red-mark);
+  --notice-neutral-bg: var(--surface-raised);
+  --notice-neutral-line: var(--line-border);
+  --notice-neutral-icon: var(--text-secondary);
+  --notice-green-bg: rgba(127, 160, 106, 0.08);
+  --notice-green-line: rgba(127, 160, 106, 0.26);
+  --notice-green-icon: var(--green-mark);
+  --notice-amber-bg: rgba(212, 168, 95, 0.08);
+  --notice-amber-line: rgba(212, 168, 95, 0.26);
+  --notice-amber-icon: var(--amber-mark);
+  --notice-red-bg: rgba(217, 139, 125, 0.08);
+  --notice-red-line: rgba(217, 139, 125, 0.28);
+  --notice-red-icon: var(--red-mark);
 
-	/* ── The pre-refresh palette ────────────────────────────────────────
+  /* ── The pre-refresh palette ────────────────────────────────────────
 	   Still read by ~230 declarations on the surfaces section 8 never
 	   covered: the settings screen, the transcript's syntax colours, the
 	   outcome panels. They live here rather than in styles.css so they
@@ -133,166 +133,166 @@
 	   worse than no toggle. Dark keeps their exact previous values, so
 	   the default theme is unchanged to the pixel. Retire them surface by
 	   surface; do not add a reference. */
-	--bg: #111411;
-	--bg-sunken: #0b0f0a;
-	--surface: #161b14;
-	--border: #2c3428;
-	--border-strong: #384036;
-	--border-dim: #4a5545;
-	--line: #7b8b71;
-	--fg: #e6e9df;
-	--fg-bright: #d6e2cf;
-	--fg-soft: #a9b8a2;
-	--fg-muted: #8a9a83;
-	--fg-dim: #6d7a67;
-	--accent: #7fa06a;
-	--accent-fill: #b5cda9;
-	--accent-fill-hover: #d0e4c5;
-	--accent-ink: #172016;
-	--accent-ring: #b5cda944;
-	--warn: #b08a4a;
-	--warn-fg: #e0b36a;
-	--warn-bg: #2a2213;
-	--danger: #8c4a4a;
-	--danger-fg: #e08a8a;
-	--danger-soft: #e0a2a2;
-	--danger-bright: #ffb4a8;
-	--info-fg: #8fb4d9;
-	--status-modified: #c8b45f;
+  --bg: #111411;
+  --bg-sunken: #0b0f0a;
+  --surface: #161b14;
+  --border: #2c3428;
+  --border-strong: #384036;
+  --border-dim: #4a5545;
+  --line: #7b8b71;
+  --fg: #e6e9df;
+  --fg-bright: #d6e2cf;
+  --fg-soft: #a9b8a2;
+  --fg-muted: #8a9a83;
+  --fg-dim: #6d7a67;
+  --accent: #7fa06a;
+  --accent-fill: #b5cda9;
+  --accent-fill-hover: #d0e4c5;
+  --accent-ink: #172016;
+  --accent-ring: #b5cda944;
+  --warn: #b08a4a;
+  --warn-fg: #e0b36a;
+  --warn-bg: #2a2213;
+  --danger: #8c4a4a;
+  --danger-fg: #e08a8a;
+  --danger-soft: #e0a2a2;
+  --danger-bright: #ffb4a8;
+  --info-fg: #8fb4d9;
+  --status-modified: #c8b45f;
 }
 
 /* ══ LIGHT ════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] {
-	color-scheme: light;
+  color-scheme: light;
 
-	/* Surfaces — same four levels, inverted. Not pure white: the ground keeps
+  /* Surfaces — same four levels, inverted. Not pure white: the ground keeps
      the app's green tint so light mode is the same product, not a different
      one. Raised IS white — that is what makes a card read as lifted here,
      the same job --surface-raised does by going lighter in dark mode. */
-	--surface-well: #eceee6;
-	--surface-base: #fbfcf9;
-	--surface-sunk: #f4f6f0;
-	--surface-raised: #ffffff;
-	--surface-hover: #f2f4ec;
-	--surface-select: #eaf0e3;
+  --surface-well: #eceee6;
+  --surface-base: #fbfcf9;
+  --surface-sunk: #f4f6f0;
+  --surface-raised: #ffffff;
+  --surface-hover: #f2f4ec;
+  --surface-select: #eaf0e3;
 
-	--line-hairline: #e6e9e0;
-	--line-inner: #eef0e9;
-	--line-border: #d8ddd0;
-	--line-strong: #b3bda9;
+  --line-hairline: #e6e9e0;
+  --line-inner: #eef0e9;
+  --line-border: #d8ddd0;
+  --line-strong: #b3bda9;
 
-	/* Ink. Note the ramp is COMPRESSED relative to dark: on a near-white
+  /* Ink. Note the ramp is COMPRESSED relative to dark: on a near-white
      ground there is only about one stop of room between the muted label and
      the 4.5:1 floor. Below --text-secondary, differentiate with size and
      weight, not lightness. */
-	--text-primary: #1a1e16; /* 16.4:1 */
-	--text-body: #2b3127; /* 13.0:1 */
-	--text-secondary: #4b5546; /*  7.6:1 */
-	--text-muted: #5d6855; /*  5.7:1 */
-	--text-dim: #616c57; /*  4.7:1 */
-	--text-faint: var(--text-dim);
-	--text-decorative: #b9c2b0; /* BELOW THRESHOLD — dots and rails only */
+  --text-primary: #1a1e16; /* 16.4:1 */
+  --text-body: #2b3127; /* 13.0:1 */
+  --text-secondary: #4b5546; /*  7.6:1 */
+  --text-muted: #5d6855; /*  5.7:1 */
+  --text-dim: #616c57; /*  4.7:1 */
+  --text-faint: var(--text-dim);
+  --text-decorative: #b9c2b0; /* BELOW THRESHOLD — dots and rails only */
 
-	/* Signal. The dark-mode sage (#b5cda9) is a pale mint on a white page —
+  /* Signal. The dark-mode sage (#b5cda9) is a pale mint on a white page —
      it reads as a disabled button, so the primary fill goes deep and the
      ink on it goes light. Same hue family, opposite end. --sage-quiet keeps
      the pale tint for the active-segment / selected-row job. */
-	--sage: #52753e; /* fill: 5.1:1 vs base, 5.0:1 under its ink */
-	--sage-ink: #f6f9f2;
-	--sage-quiet: #e4ecd9;
-	--green: #45722f; /* 4.9:1 — text and icons */
-	--green-mark: #5f9440; /* 3.5:1 — dots, progress segments */
-	--amber: #836016; /* 4.9:1 */
-	--amber-mark: #b5851f; /* 3.2:1 */
-	--red: #a8402f; /* 5.2:1 */
-	--red-mark: #c25b45; /* 4.2:1 */
-	--red-ink: #8f3323;
-	--red-line: #d9b3aa;
-	--red-well-line: #e8cfc8;
+  --sage: #52753e; /* fill: 5.1:1 vs base, 5.0:1 under its ink */
+  --sage-ink: #f6f9f2;
+  --sage-quiet: #e4ecd9;
+  --green: #45722f; /* 4.9:1 — text and icons */
+  --green-mark: #5f9440; /* 3.5:1 — dots, progress segments */
+  --amber: #836016; /* 4.9:1 */
+  --amber-mark: #b5851f; /* 3.2:1 */
+  --red: #a8402f; /* 5.2:1 */
+  --red-mark: #c25b45; /* 4.2:1 */
+  --red-ink: #8f3323;
+  --red-line: #d9b3aa;
+  --red-well-line: #e8cfc8;
 
-	--focus-ring: #6f8c5a; /* 3.7:1 vs base */
+  --focus-ring: #6f8c5a; /* 3.7:1 vs base */
 
-	--chip-green-bg: #e4eedc;
-	--chip-green-line: #c3d9b5;
-	--chip-green-text: #3f6a2b; /* 5.3:1 on its fill */
-	--chip-amber-bg: #f5ead3;
-	--chip-amber-line: #e3cf9f;
-	--chip-amber-text: #7a5814; /* 5.4:1 */
-	--chip-red-bg: #f7e3de;
-	--chip-red-line: #e5bfb6;
-	--chip-red-text: #9b3a2a; /* 5.6:1 */
-	--chip-neutral-bg: #eef0e9;
-	--chip-neutral-line: #d8ddd0;
-	--chip-neutral-text: #4b5546;
+  --chip-green-bg: #e4eedc;
+  --chip-green-line: #c3d9b5;
+  --chip-green-text: #3f6a2b; /* 5.3:1 on its fill */
+  --chip-amber-bg: #f5ead3;
+  --chip-amber-line: #e3cf9f;
+  --chip-amber-text: #7a5814; /* 5.4:1 */
+  --chip-red-bg: #f7e3de;
+  --chip-red-line: #e5bfb6;
+  --chip-red-text: #9b3a2a; /* 5.6:1 */
+  --chip-neutral-bg: #eef0e9;
+  --chip-neutral-line: #d8ddd0;
+  --chip-neutral-text: #4b5546;
 
-	--diff-add-bg: #e8f0e0;
-	--diff-del-bg: #f8e6e1;
-	--diff-add-text: #24401a;
-	--diff-del-text: #7a2b1e;
-	--diff-gutter: #6b7663;
+  --diff-add-bg: #e8f0e0;
+  --diff-del-bg: #f8e6e1;
+  --diff-add-text: #24401a;
+  --diff-del-text: #7a2b1e;
+  --diff-gutter: #6b7663;
 
-	--shadow-pop: 0 2px 8px rgba(32, 39, 44, 0.1);
+  --shadow-pop: 0 2px 8px rgba(32, 39, 44, 0.1);
 
-	/* ── Added by the refresh ───────────────────────────────────────────*/
-	--surface-strip: #f1f3eb;
-	--line-divider: #dde2d5;
-	--line-border-raised: #d8ddd0;
-	--text-tertiary: #566150;
-	--text-metakey: #6b7663;
-	--text-control: #2b3127;
-	--text-wordmark: #1a1e16;
-	--text-error-name: #7a2b1e;
-	--sage-hover: #3f5c30;
-	--green-ring: rgba(95, 148, 64, 0.2);
-	--red-line-strong: #c08f83;
+  /* ── Added by the refresh ───────────────────────────────────────────*/
+  --surface-strip: #f1f3eb;
+  --line-divider: #dde2d5;
+  --line-border-raised: #d8ddd0;
+  --text-tertiary: #566150;
+  --text-metakey: #6b7663;
+  --text-control: #2b3127;
+  --text-wordmark: #1a1e16;
+  --text-error-name: #7a2b1e;
+  --sage-hover: #3f5c30;
+  --green-ring: rgba(95, 148, 64, 0.2);
+  --red-line-strong: #c08f83;
 
-	/* ── Notices ────────────────────────────────────────────────────────
+  /* ── Notices ────────────────────────────────────────────────────────
 	   Opaque, not the alpha of the dark set: 8% of a signal colour over a
 	   near-white ground is invisible. These are the same tints mixed. */
-	--notice-neutral-bg: var(--surface-raised);
-	--notice-neutral-line: var(--line-border);
-	--notice-neutral-icon: var(--text-secondary);
-	--notice-green-bg: #eaf2e3;
-	--notice-green-line: #c9dcbc;
-	--notice-green-icon: var(--green);
-	--notice-amber-bg: #f7efdd;
-	--notice-amber-line: #e5d3a8;
-	--notice-amber-icon: var(--amber);
-	--notice-red-bg: #f9e9e5;
-	--notice-red-line: #e8c7bf;
-	--notice-red-icon: var(--red);
+  --notice-neutral-bg: var(--surface-raised);
+  --notice-neutral-line: var(--line-border);
+  --notice-neutral-icon: var(--text-secondary);
+  --notice-green-bg: #eaf2e3;
+  --notice-green-line: #c9dcbc;
+  --notice-green-icon: var(--green);
+  --notice-amber-bg: #f7efdd;
+  --notice-amber-line: #e5d3a8;
+  --notice-amber-icon: var(--amber);
+  --notice-red-bg: #f9e9e5;
+  --notice-red-line: #e8c7bf;
+  --notice-red-icon: var(--red);
 
-	/* ── The pre-refresh palette, in light ──────────────────────────────
+  /* ── The pre-refresh palette, in light ──────────────────────────────
 	   Mapped by the job each one does rather than by hue, which is why
 	   --surface (a hover fill in dark) lands on the light hover and not
 	   on a "surface". */
-	--bg: #fbfcf9;
-	--bg-sunken: #eceee6;
-	--surface: #f2f4ec;
-	--border: #d8ddd0;
-	--border-strong: #c6cdba;
-	--border-dim: #b3bda9;
-	--line: #5d6855;
-	--fg: #1a1e16;
-	--fg-bright: #2b3127;
-	--fg-soft: #4b5546;
-	--fg-muted: #5d6855;
-	--fg-dim: #616c57;
-	--accent: #45722f;
-	--accent-fill: #52753e;
-	--accent-fill-hover: #3f5c30;
-	--accent-ink: #f6f9f2;
-	--accent-ring: rgba(82, 117, 62, 0.27);
-	--warn: #836016;
-	--warn-fg: #7a5814;
-	--warn-bg: #f5ead3;
-	--danger: #a8402f;
-	--danger-fg: #9b3a2a;
-	--danger-soft: #a8402f;
-	--danger-bright: #8f3323;
-	--info-fg: #2f5b86;
-	--status-modified: #836016;
+  --bg: #fbfcf9;
+  --bg-sunken: #eceee6;
+  --surface: #f2f4ec;
+  --border: #d8ddd0;
+  --border-strong: #c6cdba;
+  --border-dim: #b3bda9;
+  --line: #5d6855;
+  --fg: #1a1e16;
+  --fg-bright: #2b3127;
+  --fg-soft: #4b5546;
+  --fg-muted: #5d6855;
+  --fg-dim: #616c57;
+  --accent: #45722f;
+  --accent-fill: #52753e;
+  --accent-fill-hover: #3f5c30;
+  --accent-ink: #f6f9f2;
+  --accent-ring: rgba(82, 117, 62, 0.27);
+  --warn: #836016;
+  --warn-fg: #7a5814;
+  --warn-bg: #f5ead3;
+  --danger: #a8402f;
+  --danger-fg: #9b3a2a;
+  --danger-soft: #a8402f;
+  --danger-bright: #8f3323;
+  --info-fg: #2f5b86;
+  --status-modified: #836016;
 }
 
 /* ══ TERMINAL — theme-invariant ═══════════════════════════════════════
@@ -304,82 +304,82 @@
 
 :root,
 [data-theme="light"] {
-	--terminal-bg: #0b0f0a;
-	--terminal-fg: #8f9c88;
-	--terminal-bright: #d6e2cf;
-	--terminal-accent: #b5cda9; /* prompt user@host, cursor */
+  --terminal-bg: #0b0f0a;
+  --terminal-fg: #8f9c88;
+  --terminal-bright: #d6e2cf;
+  --terminal-accent: #b5cda9; /* prompt user@host, cursor */
 }
 
 /* ══ SHARED ═══════════════════════════════════════════════════════════ */
 
 :root {
-	/* Type. Keep whichever faces the app already ships — the mockups use
+  /* Type. Keep whichever faces the app already ships — the mockups use
      these two only as metric stand-ins. Sizes and tracking are the
      prescriptive part. */
-	--font-mono: "SF Mono", "Roboto Mono", monospace;
-	--font-sans: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Roboto Mono", monospace;
+  --font-sans: "Geist", "Avenir Next", "Helvetica Neue", sans-serif;
 
-	--text-label: 9.5px;
-	--text-mono-xs: 10px; /* the sidebar meta line, keyboard hints, tab labels */
-	--text-label-lg: 10.5px;
-	--text-mono-sm: 10.5px;
-	--text-mono: 11.5px;
-	--text-mono-lg: 12.5px;
-	--text-body-sm: 12px;
-	--text-body-md: 12.5px;
-	--text-body-lg: 13.5px;
-	--text-title: 14px;
+  --text-label: 9.5px;
+  --text-mono-xs: 10px; /* the sidebar meta line, keyboard hints, tab labels */
+  --text-label-lg: 10.5px;
+  --text-mono-sm: 10.5px;
+  --text-mono: 11.5px;
+  --text-mono-lg: 12.5px;
+  --text-body-sm: 12px;
+  --text-body-md: 12.5px;
+  --text-body-lg: 13.5px;
+  --text-title: 14px;
 
-	--tracking-label: 0.16em;
-	--tracking-ui: 0.12em;
-	--leading-prose: 1.6;
-	--leading-tight: 1.45;
+  --tracking-label: 0.16em;
+  --tracking-ui: 0.12em;
+  --leading-prose: 1.6;
+  --leading-tight: 1.45;
 
-	/* Radius — nothing in this app is rounder than 7px */
-	--radius-xs: 2px;
-	--radius-sm: 3px;
-	--radius-md: 4px;
-	--radius-lg: 5px;
+  /* Radius — nothing in this app is rounder than 7px */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
 
-	/* Space
+  /* Space
 	 *
 	 * Two steps, not a scale, and the numbers are the gap they left. There were eight; six were
 	 * never used by anything, because this layout reaches for the two sizes below and otherwise
 	 * writes the pixel it means. They keep the names they had rather than becoming 1 and 2, so the
 	 * eleven places already spelling them do not all have to change to say the same thing. */
-	--space-6: 14px;
-	--space-8: 20px;
+  --space-6: 14px;
+  --space-8: 20px;
 
-	/* Layout */
-	--sidebar-w: 236px;
-	--panel-w: 392px;
-	--topbar-h: 48px;
-	--metaband-h: 32px;
-	--row-h: 27px;
-	--control-h: 26px;
-	--control-h-md: 30px;
-	--control-h-lg: 34px;
-	/* The same register as the meta band it sits under, so a strip reads as more chrome rather
+  /* Layout */
+  --sidebar-w: 236px;
+  --panel-w: 392px;
+  --topbar-h: 48px;
+  --metaband-h: 32px;
+  --row-h: 27px;
+  --control-h: 26px;
+  --control-h-md: 30px;
+  --control-h-lg: 34px;
+  /* The same register as the meta band it sits under, so a strip reads as more chrome rather
 	   than as the first message in the feed. */
-	--notice-h: 34px;
+  --notice-h: 34px;
 
-	/* Motion — three durations, always ease-in-out */
-	--dur-fast: 75ms;
-	--dur-base: 150ms;
-	--ease: ease-in-out;
+  /* Motion — three durations, always ease-in-out */
+  --dur-fast: 75ms;
+  --dur-base: 150ms;
+  --ease: ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	:root {
-		--dur-fast: 1ms;
-		--dur-base: 1ms;
-	}
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+  }
 }
 
 /* Only put a transition on the theme swap if you want one, and keep it off
    text so the switch doesn't smear. */
 :root[data-theme-transition] * {
-	transition:
-		background-color var(--dur-base) var(--ease),
-		border-color var(--dur-base) var(--ease);
+  transition:
+    background-color var(--dur-base) var(--ease),
+    border-color var(--dur-base) var(--ease);
 }

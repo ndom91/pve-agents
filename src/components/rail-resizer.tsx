@@ -13,68 +13,68 @@ const KEYBOARD_STEP = 32;
 // resizing with it for free. Worth having: a pointer drag is the obvious way to use this and the
 // only way for anyone who cannot make one.
 export function RailResizer({
-	onResize,
-	width,
+  onResize,
+  width,
 }: {
-	onResize: (width: number) => void;
-	width: number;
+  onResize: (width: number) => void;
+  width: number;
 }): ReactNode {
-	function startDrag(event: ReactPointerEvent<HTMLDivElement>): void {
-		const handle = event.currentTarget;
-		const startX = event.clientX;
-		const startWidth = width;
+  function startDrag(event: ReactPointerEvent<HTMLDivElement>): void {
+    const handle = event.currentTarget;
+    const startX = event.clientX;
+    const startWidth = width;
 
-		// Captured so the drag survives the pointer leaving the handle, which it does immediately:
-		// the handle is six pixels wide and the pointer is moving. Without this the rail would stop
-		// following after the first few pixels.
-		handle.setPointerCapture(event.pointerId);
+    // Captured so the drag survives the pointer leaving the handle, which it does immediately:
+    // the handle is six pixels wide and the pointer is moving. Without this the rail would stop
+    // following after the first few pixels.
+    handle.setPointerCapture(event.pointerId);
 
-		function move(moved: PointerEvent): void {
-			// Leftwards is wider, because the rail is on the right and its left edge is what moves.
-			onResize(startWidth + (startX - moved.clientX));
-		}
+    function move(moved: PointerEvent): void {
+      // Leftwards is wider, because the rail is on the right and its left edge is what moves.
+      onResize(startWidth + (startX - moved.clientX));
+    }
 
-		function stop(): void {
-			handle.releasePointerCapture(event.pointerId);
-			handle.removeEventListener("pointermove", move);
-			handle.removeEventListener("pointerup", stop);
-			handle.removeEventListener("pointercancel", stop);
-		}
+    function stop(): void {
+      handle.releasePointerCapture(event.pointerId);
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", stop);
+      handle.removeEventListener("pointercancel", stop);
+    }
 
-		handle.addEventListener("pointermove", move);
-		handle.addEventListener("pointerup", stop);
-		handle.addEventListener("pointercancel", stop);
-	}
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", stop);
+    handle.addEventListener("pointercancel", stop);
+  }
 
-	return (
-		// `right`, because this edge is hard against the panel and a tooltip centred over it would
-		// be half off the window.
-		<Tooltip label="Drag to resize, double-click to reset" side="right">
-			{/* The rule offers <hr>, which carries the separator role implicitly but means a
+  return (
+    // `right`, because this edge is hard against the panel and a tooltip centred over it would
+    // be half off the window.
+    <Tooltip label="Drag to resize, double-click to reset" side="right">
+      {/* The rule offers <hr>, which carries the separator role implicitly but means a
 			    thematic break and cannot take focus. A focusable separator carrying aria-valuenow
 			    is the window splitter pattern, and that is exactly what this is. */}
-			{/* biome-ignore lint/a11y/useSemanticElements: a focusable splitter, not a rule */}
-			<div
-				aria-label="Resize the panel"
-				aria-orientation="vertical"
-				aria-valuemin={RAIL_MIN}
-				aria-valuenow={Math.round(width)}
-				className="rail-resizer"
-				onDoubleClick={() => onResize(RAIL_DEFAULT)}
-				onKeyDown={(event) => {
-					if (event.key === "ArrowLeft") {
-						event.preventDefault();
-						onResize(width + KEYBOARD_STEP);
-					}
-					if (event.key === "ArrowRight") {
-						event.preventDefault();
-						onResize(width - KEYBOARD_STEP);
-					}
-				}}
-				onPointerDown={startDrag}
-				role="separator"
-				tabIndex={0}
-			/>
-		</Tooltip>
-	);
+      {/* biome-ignore lint/a11y/useSemanticElements: a focusable splitter, not a rule */}
+      <div
+        aria-label="Resize the panel"
+        aria-orientation="vertical"
+        aria-valuemin={RAIL_MIN}
+        aria-valuenow={Math.round(width)}
+        className="rail-resizer"
+        onDoubleClick={() => onResize(RAIL_DEFAULT)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            onResize(width + KEYBOARD_STEP);
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            onResize(width - KEYBOARD_STEP);
+          }
+        }}
+        onPointerDown={startDrag}
+        role="separator"
+        tabIndex={0}
+      />
+    </Tooltip>
+  );
 }

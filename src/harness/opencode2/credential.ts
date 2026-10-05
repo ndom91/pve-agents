@@ -11,8 +11,8 @@
 // belongs to, and `integration_id` is a separate column. Harvesting produces both, so asking for
 // both is asking for what is already in hand.
 export type OpencodeCredential = {
-	integration: string;
-	value: string;
+  integration: string;
+  value: string;
 };
 
 // readOpencodeCredential turns the stored string into something the runner can write.
@@ -21,58 +21,58 @@ export type OpencodeCredential = {
 // unauthenticated with, and the operator needs to know that when they press save -- not when a
 // workspace provisions an hour later and its agent says nothing useful about why it cannot start.
 export function readOpencodeCredential(
-	stored: string,
+  stored: string,
 ):
-	| { credential: OpencodeCredential; kind: "read" }
-	| { kind: "invalid"; message: string } {
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(stored);
-	} catch {
-		return {
-			kind: "invalid",
-			message:
-				'an opencode credential is JSON, like {"integration":"openai","value":{…}}',
-		};
-	}
+  | { credential: OpencodeCredential; kind: "read" }
+  | { kind: "invalid"; message: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    return {
+      kind: "invalid",
+      message:
+        'an opencode credential is JSON, like {"integration":"openai","value":{…}}',
+    };
+  }
 
-	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-		return {
-			kind: "invalid",
-			message: "an opencode credential is a JSON object",
-		};
-	}
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return {
+      kind: "invalid",
+      message: "an opencode credential is a JSON object",
+    };
+  }
 
-	const envelope = parsed as { integration?: unknown; value?: unknown };
-	if (
-		typeof envelope.integration !== "string" ||
-		envelope.integration.trim() === ""
-	) {
-		return {
-			kind: "invalid",
-			message:
-				'an opencode credential needs an "integration", such as "openai"',
-		};
-	}
-	if (envelope.value === undefined || envelope.value === null) {
-		return {
-			kind: "invalid",
-			message:
-				'an opencode credential needs a "value", the blob from its credential row',
-		};
-	}
+  const envelope = parsed as { integration?: unknown; value?: unknown };
+  if (
+    typeof envelope.integration !== "string" ||
+    envelope.integration.trim() === ""
+  ) {
+    return {
+      kind: "invalid",
+      message:
+        'an opencode credential needs an "integration", such as "openai"',
+    };
+  }
+  if (envelope.value === undefined || envelope.value === null) {
+    return {
+      kind: "invalid",
+      message:
+        'an opencode credential needs a "value", the blob from its credential row',
+    };
+  }
 
-	return {
-		credential: {
-			integration: envelope.integration.trim(),
-			// Stored as text in opencode's own column, so an object is re-serialised and a string is
-			// passed through. Both arrive from a harvest depending on how it was pasted, and
-			// rejecting one of them would be a rule about JSON rather than about credentials.
-			value:
-				typeof envelope.value === "string"
-					? envelope.value
-					: JSON.stringify(envelope.value),
-		},
-		kind: "read",
-	};
+  return {
+    credential: {
+      integration: envelope.integration.trim(),
+      // Stored as text in opencode's own column, so an object is re-serialised and a string is
+      // passed through. Both arrive from a harvest depending on how it was pasted, and
+      // rejecting one of them would be a rule about JSON rather than about credentials.
+      value:
+        typeof envelope.value === "string"
+          ? envelope.value
+          : JSON.stringify(envelope.value),
+    },
+    kind: "read",
+  };
 }

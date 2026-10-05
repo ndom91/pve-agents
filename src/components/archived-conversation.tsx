@@ -17,42 +17,42 @@ function noDecision(): void {}
 // Saved as the runner's raw messages, so it goes through the same harness reader as the live feed
 // and looks as it did while the agent ran.
 export function ArchivedConversation({
-	workspaceId,
+  workspaceId,
 }: {
-	workspaceId: string;
+  workspaceId: string;
 }): ReactNode {
-	const { data, isError, isPending } = useQuery(transcriptQuery(workspaceId));
+  const { data, isError, isPending } = useQuery(transcriptQuery(workspaceId));
 
-	const messages = useMemo(
-		() => (data ? (JSON.parse(data.messagesJson) as unknown[]) : []),
-		[data],
-	);
+  const messages = useMemo(
+    () => (data ? (JSON.parse(data.messagesJson) as unknown[]) : []),
+    [data],
+  );
 
-	if (isPending) {
-		return <PanelSpinner label="Loading the saved conversation." />;
-	}
-	if (isError) {
-		return (
-			<PanelNote tone="warn">
-				The saved conversation could not be loaded.
-			</PanelNote>
-		);
-	}
-	// Not an error. Every workspace destroyed before conversations were kept has none, and so does
-	// one whose agent did not answer on the way out. The second kind has a timeline entry saying
-	// so; the first has nothing to say, which is why this sentence does not point at the timeline.
-	if (data === null) {
-		return <PanelNote>No conversation was kept for this workspace.</PanelNote>;
-	}
+  if (isPending) {
+    return <PanelSpinner label="Loading the saved conversation." />;
+  }
+  if (isError) {
+    return (
+      <PanelNote tone="warn">
+        The saved conversation could not be loaded.
+      </PanelNote>
+    );
+  }
+  // Not an error. Every workspace destroyed before conversations were kept has none, and so does
+  // one whose agent did not answer on the way out. The second kind has a timeline entry saying
+  // so; the first has nothing to say, which is why this sentence does not point at the timeline.
+  if (data === null) {
+    return <PanelNote>No conversation was kept for this workspace.</PanelNote>;
+  }
 
-	return (
-		<AgentChat
-			approvals={NO_APPROVALS}
-			busy={false}
-			harness={data.harness}
-			link="archived"
-			messages={messages}
-			onDecide={noDecision}
-		/>
-	);
+  return (
+    <AgentChat
+      approvals={NO_APPROVALS}
+      busy={false}
+      harness={data.harness}
+      link="archived"
+      messages={messages}
+      onDecide={noDecision}
+    />
+  );
 }

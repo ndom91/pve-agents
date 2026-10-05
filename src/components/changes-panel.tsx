@@ -10,45 +10,45 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 // ever deals with files. The commit and discard controls sit under the tabs rather than in here,
 // because they act on the workspace rather than on any one row.
 export function ChangesPanel({
-	against,
-	changes,
-	workspaceId,
+  against,
+  changes,
+  workspaceId,
 }: {
-	against?: string;
-	changes?: ChangedFiles;
-	workspaceId: string;
+  against?: string;
+  changes?: ChangedFiles;
+  workspaceId: string;
 }): ReactNode {
-	if (changes === undefined) {
-		return <PanelSpinner label="Reading the workspace." />;
-	}
-	if (changes.kind === "failed") {
-		// Not an empty list. "The agent changed nothing" is a different claim from "nobody could
-		// look", and it is the claim the reaper refuses to make for the same reason.
-		return <PanelNote tone="warn">{changes.message}</PanelNote>;
-	}
-	if (changes.files.length === 0) {
-		// A clean tree is not the same as no work. A push that failed leaves the change committed
-		// and only on that disk, and saying "nothing changed" about it is how somebody concludes
-		// there is nothing to rescue and destroys the workspace.
-		if (changes.unpushed > 0) {
-			return (
-				<PanelNote tone="warn">
-					{`Nothing uncommitted. ${changes.unpushed} ${
-						changes.unpushed === 1 ? "commit is" : "commits are"
-					} committed here and not pushed anywhere else.`}
-				</PanelNote>
-			);
-		}
-		return (
-			<PanelNote>The agent has not changed anything in the checkout.</PanelNote>
-		);
-	}
+  if (changes === undefined) {
+    return <PanelSpinner label="Reading the workspace." />;
+  }
+  if (changes.kind === "failed") {
+    // Not an empty list. "The agent changed nothing" is a different claim from "nobody could
+    // look", and it is the claim the reaper refuses to make for the same reason.
+    return <PanelNote tone="warn">{changes.message}</PanelNote>;
+  }
+  if (changes.files.length === 0) {
+    // A clean tree is not the same as no work. A push that failed leaves the change committed
+    // and only on that disk, and saying "nothing changed" about it is how somebody concludes
+    // there is nothing to rescue and destroys the workspace.
+    if (changes.unpushed > 0) {
+      return (
+        <PanelNote tone="warn">
+          {`Nothing uncommitted. ${changes.unpushed} ${
+            changes.unpushed === 1 ? "commit is" : "commits are"
+          } committed here and not pushed anywhere else.`}
+        </PanelNote>
+      );
+    }
+    return (
+      <PanelNote>The agent has not changed anything in the checkout.</PanelNote>
+    );
+  }
 
-	return (
-		<ChangesAccordion
-			against={against}
-			files={changes.files}
-			workspaceId={workspaceId}
-		/>
-	);
+  return (
+    <ChangesAccordion
+      against={against}
+      files={changes.files}
+      workspaceId={workspaceId}
+    />
+  );
 }

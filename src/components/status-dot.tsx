@@ -18,33 +18,33 @@ type DotTone = "error" | "gone" | "live" | "pending" | "waiting";
 // at 236px has no room for "provisioning" beside a title that is already being clipped, which is
 // why the word is not simply printed.
 export function StatusDot({
-	activity,
-	silent = false,
-	status,
+  activity,
+  silent = false,
+  status,
 }: {
-	activity?: string;
-	// The word is already on screen beside this dot, so do not carry a second copy of it. A row
-	// that prints "booting" next to a dot whose hidden text also says "booting" reads it twice to
-	// a screen reader, and makes the word ambiguous to a test looking for one of them.
-	silent?: boolean;
-	status: string;
+  activity?: string;
+  // The word is already on screen beside this dot, so do not carry a second copy of it. A row
+  // that prints "booting" next to a dot whose hidden text also says "booting" reads it twice to
+  // a screen reader, and makes the word ambiguous to a test looking for one of them.
+  silent?: boolean;
+  status: string;
 }): ReactNode {
-	const { tone, word } = read(status, activity);
+  const { tone, word } = read(status, activity);
 
-	if (silent) {
-		return <span aria-hidden="true" className={`status-dot is-${tone}`} />;
-	}
+  if (silent) {
+    return <span aria-hidden="true" className={`status-dot is-${tone}`} />;
+  }
 
-	// The word twice, on purpose and to two different readers: visually-hidden is what a screen
-	// reader gets, and the tooltip is what a sighted person gets for a dot whose colour they have
-	// not learned yet.
-	return (
-		<Tooltip label={word}>
-			<span className={`status-dot is-${tone}`}>
-				<span className="visually-hidden">{word}</span>
-			</span>
-		</Tooltip>
-	);
+  // The word twice, on purpose and to two different readers: visually-hidden is what a screen
+  // reader gets, and the tooltip is what a sighted person gets for a dot whose colour they have
+  // not learned yet.
+  return (
+    <Tooltip label={word}>
+      <span className={`status-dot is-${tone}`}>
+        <span className="visually-hidden">{word}</span>
+      </span>
+    </Tooltip>
+  );
 }
 
 // read turns the two columns into the one thing the dot says.
@@ -54,24 +54,24 @@ export function StatusDot({
 // container is ready, which is the same rule `WorkspaceBadges` applies when it decides whether to
 // render the activity badge at all.
 function read(
-	status: string,
-	activity?: string,
+  status: string,
+  activity?: string,
 ): { tone: DotTone; word: string } {
-	if (status === "failed") {
-		return { tone: "error", word: "failed" };
-	}
-	if (status === "destroyed") {
-		return { tone: "gone", word: "destroyed" };
-	}
-	if (status !== "ready") {
-		return { tone: "pending", word: status };
-	}
+  if (status === "failed") {
+    return { tone: "error", word: "failed" };
+  }
+  if (status === "destroyed") {
+    return { tone: "gone", word: "destroyed" };
+  }
+  if (status !== "ready") {
+    return { tone: "pending", word: status };
+  }
 
-	// Blocked is amber rather than green: the workspace is healthy, but it is the one state that
-	// needs a person, and a dot that looks like every other running one is how that gets missed.
-	if (activity === "blocked") {
-		return { tone: "waiting", word: "blocked" };
-	}
+  // Blocked is amber rather than green: the workspace is healthy, but it is the one state that
+  // needs a person, and a dot that looks like every other running one is how that gets missed.
+  if (activity === "blocked") {
+    return { tone: "waiting", word: "blocked" };
+  }
 
-	return { tone: "live", word: activity === "active" ? "active" : "ready" };
+  return { tone: "live", word: activity === "active" ? "active" : "ready" };
 }

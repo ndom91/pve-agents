@@ -14,70 +14,70 @@ import type { NoticeSeverity } from "./notice";
 // provisions, so a missing one means "not there yet", and a key with nothing beside it reads as a
 // fault.
 export function MetaBand({
-	facts,
-	notices,
-	tail,
+  facts,
+  notices,
+  tail,
 }: {
-	facts: {
-		key: string;
-		// A dot between the key and the value, for a fact that is a switch rather than a
-		// measurement. Green when the thing is on; the decorative grey when it is not, because an
-		// off worker is a state somebody chose rather than a failure.
-		tone?: "off" | "on";
-		value?: string;
-	}[];
-	// A notice that is simply true and needs no decision, sat among the facts rather than in a
-	// strip of its own.
-	//
-	// The third placement in the notices spec, and the one for a state that will be true for hours
-	// with nothing to do about it. A destroyed workspace's outcome is exactly that: the container
-	// is gone, so "work pushed" or "ended holding work" is a fact about it, not a thing to act on.
-	// Anything still actionable keeps its strip, where the action fits.
-	notices?: { label: string; severity: NoticeSeverity }[];
-	// The "how long / how many" summary, pushed to the far right.
-	tail?: ReactNode;
+  facts: {
+    key: string;
+    // A dot between the key and the value, for a fact that is a switch rather than a
+    // measurement. Green when the thing is on; the decorative grey when it is not, because an
+    // off worker is a state somebody chose rather than a failure.
+    tone?: "off" | "on";
+    value?: string;
+  }[];
+  // A notice that is simply true and needs no decision, sat among the facts rather than in a
+  // strip of its own.
+  //
+  // The third placement in the notices spec, and the one for a state that will be true for hours
+  // with nothing to do about it. A destroyed workspace's outcome is exactly that: the container
+  // is gone, so "work pushed" or "ended holding work" is a fact about it, not a thing to act on.
+  // Anything still actionable keeps its strip, where the action fits.
+  notices?: { label: string; severity: NoticeSeverity }[];
+  // The "how long / how many" summary, pushed to the far right.
+  tail?: ReactNode;
 }): ReactNode {
-	const shown = facts.filter(
-		(fact) => fact.value !== undefined && fact.value !== "",
-	);
+  const shown = facts.filter(
+    (fact) => fact.value !== undefined && fact.value !== "",
+  );
 
-	return (
-		<div className="meta-band">
-			{shown.map((fact, index) => (
-				// The divider is a sibling of the items rather than a child of one, so the row's
-				// own gap sets the space either side of it. Nested, it could only ever be given a
-				// margin on one side, and it sat flush against the value before it.
-				<Fragment key={fact.key}>
-					{index === 0 ? null : (
-						<span aria-hidden="true" className="meta-band-sep" />
-					)}
-					<div className="meta-band-item">
-						<span className="meta-band-key">{fact.key}</span>
-						{fact.tone === undefined ? null : (
-							<span
-								aria-hidden="true"
-								className={`meta-band-dot is-${fact.tone}`}
-							/>
-						)}
-						<span className="meta-band-val">{fact.value}</span>
-					</div>
-				</Fragment>
-			))}
-			{(notices ?? []).map((notice) => (
-				<Fragment key={notice.label}>
-					{shown.length === 0 ? null : (
-						<span aria-hidden="true" className="meta-band-sep" />
-					)}
-					<span className={`meta-band-notice is-${notice.severity}`}>
-						<span aria-hidden="true" className="meta-band-notice-dot" />
-						{notice.label}
-					</span>
-				</Fragment>
-			))}
-			<span className="meta-band-spacer" />
-			{tail === undefined ? null : (
-				<span className="meta-band-tail">{tail}</span>
-			)}
-		</div>
-	);
+  return (
+    <div className="meta-band">
+      {shown.map((fact, index) => (
+        // The divider is a sibling of the items rather than a child of one, so the row's
+        // own gap sets the space either side of it. Nested, it could only ever be given a
+        // margin on one side, and it sat flush against the value before it.
+        <Fragment key={fact.key}>
+          {index === 0 ? null : (
+            <span aria-hidden="true" className="meta-band-sep" />
+          )}
+          <div className="meta-band-item">
+            <span className="meta-band-key">{fact.key}</span>
+            {fact.tone === undefined ? null : (
+              <span
+                aria-hidden="true"
+                className={`meta-band-dot is-${fact.tone}`}
+              />
+            )}
+            <span className="meta-band-val">{fact.value}</span>
+          </div>
+        </Fragment>
+      ))}
+      {(notices ?? []).map((notice) => (
+        <Fragment key={notice.label}>
+          {shown.length === 0 ? null : (
+            <span aria-hidden="true" className="meta-band-sep" />
+          )}
+          <span className={`meta-band-notice is-${notice.severity}`}>
+            <span aria-hidden="true" className="meta-band-notice-dot" />
+            {notice.label}
+          </span>
+        </Fragment>
+      ))}
+      <span className="meta-band-spacer" />
+      {tail === undefined ? null : (
+        <span className="meta-band-tail">{tail}</span>
+      )}
+    </div>
+  );
 }

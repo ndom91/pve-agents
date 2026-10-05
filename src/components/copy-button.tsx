@@ -15,49 +15,49 @@ const CONFIRM_MS = 1_500;
 // and what the accessible name says while the tick is up. A caller should not have to own a timer
 // to copy a paragraph.
 export function CopyButton({
-	label,
-	text,
+  label,
+  text,
 }: {
-	label: string;
-	text: string;
+  label: string;
+  text: string;
 }): ReactNode {
-	const [copied, setCopied] = useState(false);
-	const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-	// A component unmounted inside the confirmation window — a page navigated away from, a
-	// transcript replaced by a reconnect — would otherwise have its timer fire against nothing.
-	useEffect(() => () => clearTimeout(timer.current), []);
+  // A component unmounted inside the confirmation window — a page navigated away from, a
+  // transcript replaced by a reconnect — would otherwise have its timer fire against nothing.
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-	async function copy(): Promise<void> {
-		try {
-			await navigator.clipboard.writeText(text);
-		} catch {
-			// Denied permission, or an insecure context where the API does not exist. Nothing to
-			// recover: the tick simply does not appear, which is the honest report.
-			return;
-		}
+  async function copy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Denied permission, or an insecure context where the API does not exist. Nothing to
+      // recover: the tick simply does not appear, which is the honest report.
+      return;
+    }
 
-		setCopied(true);
-		clearTimeout(timer.current);
-		timer.current = setTimeout(() => setCopied(false), CONFIRM_MS);
-	}
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), CONFIRM_MS);
+  }
 
-	return (
-		<IconButton
-			className="is-inline on-hover"
-			icon={Copy}
-			// The name changes with the state, so a screen reader is told the copy happened rather
-			// than being left with a button whose label never reacts.
-			label={copied ? "Copied" : label}
-			onClick={() => void copy()}
-			size={14}
-			strokeWidth={1.75}
-			// Both icons stay mounted so the tick can cross-fade in over the outgoing clipboard
-			// rather than replacing it between two frames.
-			swapIcon={Check}
-			swapStrokeWidth={2}
-			swapped={copied}
-			variant="tertiary"
-		/>
-	);
+  return (
+    <IconButton
+      className="is-inline on-hover"
+      icon={Copy}
+      // The name changes with the state, so a screen reader is told the copy happened rather
+      // than being left with a button whose label never reacts.
+      label={copied ? "Copied" : label}
+      onClick={() => void copy()}
+      size={14}
+      strokeWidth={1.75}
+      // Both icons stay mounted so the tick can cross-fade in over the outgoing clipboard
+      // rather than replacing it between two frames.
+      swapIcon={Check}
+      swapStrokeWidth={2}
+      swapped={copied}
+      variant="tertiary"
+    />
+  );
 }

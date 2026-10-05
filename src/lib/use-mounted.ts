@@ -8,11 +8,11 @@ import { useEffect, useState } from "react";
 // first state. Nothing here is visible on first paint, so waiting for the client costs nothing and
 // removes the whole class of problem.
 export function useMounted(): boolean {
-	const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-	useEffect(() => {
-		setMounted(true);
-	}, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-	return mounted;
+  return mounted;
 }

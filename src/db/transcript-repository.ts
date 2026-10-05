@@ -5,20 +5,20 @@ import type Database from "better-sqlite3";
 // Only what the page reads. The row also holds the session id, the message count and when it was
 // captured, for whoever needs them later; sending them now would be fields nothing renders.
 export type SavedTranscript = {
-	// Which agent produced the messages, so the page reads them with the right harness. From the
-	// runner's own snapshot, for the same reason the live page takes it from there.
-	harness: string;
-	// The stored JSON, unparsed. Only the browser reads it, so parsing here would just be
-	// serialised again for the wire -- and `unknown[]` is not a type a server function may return.
-	messagesJson: string;
-	sessionId?: string;
+  // Which agent produced the messages, so the page reads them with the right harness. From the
+  // runner's own snapshot, for the same reason the live page takes it from there.
+  harness: string;
+  // The stored JSON, unparsed. Only the browser reads it, so parsing here would just be
+  // serialised again for the wire -- and `unknown[]` is not a type a server function may return.
+  messagesJson: string;
+  sessionId?: string;
 };
 
 // TranscriptCapture is what the destroy step hands over to be kept.
 export type TranscriptCapture = {
-	harness: string;
-	messages: unknown[];
-	sessionId?: string;
+  harness: string;
+  messages: unknown[];
+  sessionId?: string;
 };
 
 // TRANSCRIPT_UNSAVED is the timeline entry a failed capture writes.
@@ -28,8 +28,8 @@ export type TranscriptCapture = {
 export const TRANSCRIPT_UNSAVED = "workspace.transcript_unsaved";
 
 type TranscriptRow = {
-	harness: string;
-	messages: string;
+  harness: string;
+  messages: string;
 };
 
 // saveWorkspaceTranscript records a workspace's conversation, replacing any earlier copy.
@@ -38,13 +38,13 @@ type TranscriptRow = {
 // that expires mid-read lets a second worker reach here too, and a key conflict would fail a
 // destroy over a conversation that was already safe.
 export function saveWorkspaceTranscript(
-	db: Database.Database,
-	workspaceId: string,
-	transcript: TranscriptCapture,
-	now: Date,
+  db: Database.Database,
+  workspaceId: string,
+  transcript: TranscriptCapture,
+  now: Date,
 ): void {
-	db.prepare(
-		`INSERT INTO workspace_transcripts
+  db.prepare(
+    `INSERT INTO workspace_transcripts
 			(workspace_id, harness, session_id, messages, message_count, captured_at)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (workspace_id) DO UPDATE SET
@@ -53,14 +53,14 @@ export function saveWorkspaceTranscript(
 			messages = excluded.messages,
 			message_count = excluded.message_count,
 			captured_at = excluded.captured_at`,
-	).run(
-		workspaceId,
-		transcript.harness,
-		transcript.sessionId ?? null,
-		JSON.stringify(transcript.messages),
-		transcript.messages.length,
-		now.toISOString(),
-	);
+  ).run(
+    workspaceId,
+    transcript.harness,
+    transcript.sessionId ?? null,
+    JSON.stringify(transcript.messages),
+    transcript.messages.length,
+    now.toISOString(),
+  );
 }
 
 // workspaceTranscript reads a saved conversation back, or nothing if none was kept.
@@ -68,31 +68,31 @@ export function saveWorkspaceTranscript(
 // Nothing is an ordinary answer: every workspace destroyed before this shipped has none, and so
 // does one whose runner could not be read on the way out.
 export function workspaceTranscript(
-	db: Database.Database,
-	workspaceId: string,
+  db: Database.Database,
+  workspaceId: string,
 ): SavedTranscript | undefined {
-	const row = db
-		.prepare(
-			"SELECT harness, messages FROM workspace_transcripts WHERE workspace_id = ?",
-		)
-		.get(workspaceId) as TranscriptRow | undefined;
-	if (row === undefined) {
-		return undefined;
-	}
+  const row = db
+    .prepare(
+      "SELECT harness, messages FROM workspace_transcripts WHERE workspace_id = ?",
+    )
+    .get(workspaceId) as TranscriptRow | undefined;
+  if (row === undefined) {
+    return undefined;
+  }
 
-	return { harness: row.harness, messagesJson: row.messages };
+  return { harness: row.harness, messagesJson: row.messages };
 }
 
 // hasWorkspaceTranscript says whether a conversation is already kept, without reading it.
 export function hasWorkspaceTranscript(
-	db: Database.Database,
-	workspaceId: string,
+  db: Database.Database,
+  workspaceId: string,
 ): boolean {
-	return (
-		db
-			.prepare("SELECT 1 FROM workspace_transcripts WHERE workspace_id = ?")
-			.get(workspaceId) !== undefined
-	);
+  return (
+    db
+      .prepare("SELECT 1 FROM workspace_transcripts WHERE workspace_id = ?")
+      .get(workspaceId) !== undefined
+  );
 }
 
 // failedTranscriptCaptures counts how often reading the conversation on the way out has failed.
@@ -101,14 +101,14 @@ export function hasWorkspaceTranscript(
 // anyway, so the operator can see why a conversation is missing, and a separate counter would be a
 // second record of the same fact that could disagree with the first.
 export function failedTranscriptCaptures(
-	db: Database.Database,
-	workspaceId: string,
+  db: Database.Database,
+  workspaceId: string,
 ): number {
-	return (
-		db
-			.prepare(
-				"SELECT COUNT(*) AS count FROM workspace_events WHERE workspace_id = ? AND event_type = ?",
-			)
-			.get(workspaceId, TRANSCRIPT_UNSAVED) as { count: number }
-	).count;
+  return (
+    db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM workspace_events WHERE workspace_id = ? AND event_type = ?",
+      )
+      .get(workspaceId, TRANSCRIPT_UNSAVED) as { count: number }
+  ).count;
 }

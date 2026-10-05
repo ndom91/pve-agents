@@ -1,8 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import {
-	createRootRouteWithContext,
-	HeadContent,
-	Scripts,
+  createRootRouteWithContext,
+  HeadContent,
+  Scripts,
 } from "@tanstack/react-router";
 
 import { TooltipProvider } from "../components/tooltip";
@@ -11,53 +11,53 @@ import appCss from "../styles.css?url";
 // The query client reaches loaders through route context, so a loader can prime the cache instead
 // of fetching alongside it.
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
-	{
-		head: () => ({
-			meta: [
-				{
-					charSet: "utf-8",
-				},
-				{
-					name: "viewport",
-					content: "width=device-width, initial-scale=1",
-				},
-				{
-					title: "Proxmox Agents",
-				},
-			],
-			// Icons and the manifest belong here rather than in `meta`, and the distinction is not
-			// pedantic: `meta` renders <meta> elements, and a rel on a <meta> means nothing at all.
-			// They rendered, looked plausible in the markup, and no icon was ever loaded.
-			links: [
-				{
-					rel: "stylesheet",
-					href: appCss,
-				},
-				{ href: "/favicon.ico", rel: "icon", sizes: "48x48" },
-				{
-					href: "/icon1.png",
-					rel: "icon",
-					sizes: "96x96",
-					type: "image/png",
-				},
-				// public/icon0.svg is deliberately not referenced. It is 808KB, because it is a
-				// 1254px raster wrapped in an SVG rather than real vector art, and a browser
-				// offered an SVG icon tends to prefer it over every sized raster — so a 16px
-				// favicon would cost most of a megabyte on a cold load. It stays in public/ for
-				// use inside the app, where its size buys something.
-				//
-				// The file is apple-icon.png. The link pointed at apple-touch-icon.png, which is
-				// the conventional name and not the one in this repository, so it 404ed.
-				{
-					href: "/apple-icon.png",
-					rel: "apple-touch-icon",
-					sizes: "180x180",
-				},
-				{ href: "/manifest.json", rel: "manifest" },
-			],
-		}),
-		shellComponent: RootDocument,
-	},
+  {
+    head: () => ({
+      meta: [
+        {
+          charSet: "utf-8",
+        },
+        {
+          name: "viewport",
+          content: "width=device-width, initial-scale=1",
+        },
+        {
+          title: "Proxmox Agents",
+        },
+      ],
+      // Icons and the manifest belong here rather than in `meta`, and the distinction is not
+      // pedantic: `meta` renders <meta> elements, and a rel on a <meta> means nothing at all.
+      // They rendered, looked plausible in the markup, and no icon was ever loaded.
+      links: [
+        {
+          rel: "stylesheet",
+          href: appCss,
+        },
+        { href: "/favicon.ico", rel: "icon", sizes: "48x48" },
+        {
+          href: "/icon1.png",
+          rel: "icon",
+          sizes: "96x96",
+          type: "image/png",
+        },
+        // public/icon0.svg is deliberately not referenced. It is 808KB, because it is a
+        // 1254px raster wrapped in an SVG rather than real vector art, and a browser
+        // offered an SVG icon tends to prefer it over every sized raster — so a 16px
+        // favicon would cost most of a megabyte on a cold load. It stays in public/ for
+        // use inside the app, where its size buys something.
+        //
+        // The file is apple-icon.png. The link pointed at apple-touch-icon.png, which is
+        // the conventional name and not the one in this repository, so it 404ed.
+        {
+          href: "/apple-icon.png",
+          rel: "apple-touch-icon",
+          sizes: "180x180",
+        },
+        { href: "/manifest.json", rel: "manifest" },
+      ],
+    }),
+    shellComponent: RootDocument,
+  },
 );
 
 // THEME_BOOT sets data-theme before the browser paints anything.
@@ -72,20 +72,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 export const THEME_BOOT = `try{var t=localStorage.getItem('pve-agents.theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}`;
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-	return (
-		// `dark` as the served default, so the markup the server sends already says what it is and
-		// the script below only has to change it for the minority who chose otherwise.
-		//
-		// `suppressHydrationWarning` because the script deliberately mutates this attribute before
-		// React hydrates -- which is the whole point of it running inline. Without this React
-		// compares the two and warns on every light-mode load about the one attribute the entire
-		// stylesheet hangs off.
-		<html data-theme="dark" lang="en" suppressHydrationWarning>
-			<head>
-				{/* Before HeadContent, so it runs before the stylesheet link is even parsed. */}
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no interpolation, and it has to be inline to beat first paint */}
-				<script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
-				{/* The colour a phone paints its chrome, so it does not frame a dark application
+  return (
+    // `dark` as the served default, so the markup the server sends already says what it is and
+    // the script below only has to change it for the minority who chose otherwise.
+    //
+    // `suppressHydrationWarning` because the script deliberately mutates this attribute before
+    // React hydrates -- which is the whole point of it running inline. Without this React
+    // compares the two and warns on every light-mode load about the one attribute the entire
+    // stylesheet hangs off.
+    <html data-theme="dark" lang="en" suppressHydrationWarning>
+      <head>
+        {/* Before HeadContent, so it runs before the stylesheet link is even parsed. */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed string with no interpolation, and it has to be inline to beat first paint */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+        {/* The colour a phone paints its chrome, so it does not frame a dark application
 				    in white -- or, since light mode, a light one in near-black.
 				
 				    Written here rather than in the route's `meta`, which keys on `name` and keeps
@@ -93,27 +93,27 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				    dark-mode phone got the light colour. This is also chrome outside the document,
 				    so it cannot read data-theme and follows the OS the way the boot script's
 				    fallback does. */}
-				<meta
-					content="#111411"
-					media="(prefers-color-scheme: dark)"
-					name="theme-color"
-				/>
-				<meta
-					content="#fbfcf9"
-					media="(prefers-color-scheme: light)"
-					name="theme-color"
-				/>
-				<HeadContent />
-			</head>
-			<body>
-				{/* One provider for the whole app, which is what carries the shared timings --
+        <meta
+          content="#111411"
+          media="(prefers-color-scheme: dark)"
+          name="theme-color"
+        />
+        <meta
+          content="#fbfcf9"
+          media="(prefers-color-scheme: light)"
+          name="theme-color"
+        />
+        <HeadContent />
+      </head>
+      <body>
+        {/* One provider for the whole app, which is what carries the shared timings --
 				    notably the window in which a second tooltip opens at once instead of waiting
 				    again. Here rather than in the dashboard layout because icon buttons also
 				    appear on the settings screen. */}
-				<TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
 
-				<Scripts />
-			</body>
-		</html>
-	);
+        <Scripts />
+      </body>
+    </html>
+  );
 }

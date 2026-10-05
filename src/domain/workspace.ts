@@ -20,30 +20,30 @@ export type WorkspaceActivity = "active" | "blocked" | "idle" | "unknown";
 // rather than flattened into idle, which is the rule the reaper depends on: a status nobody could
 // read is not evidence that anything finished.
 export function mapActivity(status: string): WorkspaceActivity {
-	switch (status) {
-		case "working":
-			return "active";
-		case "blocked":
-			return "blocked";
-		case "done":
-		case "idle":
-			return "idle";
-		default:
-			return "unknown";
-	}
+  switch (status) {
+    case "working":
+      return "active";
+    case "blocked":
+      return "blocked";
+    case "done":
+    case "idle":
+      return "idle";
+    default:
+      return "unknown";
+  }
 }
 
 // WorkspaceStatus describes the controller-observed provisioning lifecycle.
 export type WorkspaceStatus =
-	| "booting"
-	| "bootstrapping"
-	| "destroyed"
-	| "destroying"
-	| "failed"
-	| "provisioning"
-	| "ready"
-	| "registering"
-	| "requested";
+  | "booting"
+  | "bootstrapping"
+  | "destroyed"
+  | "destroying"
+  | "failed"
+  | "provisioning"
+  | "ready"
+  | "registering"
+  | "requested";
 
 // ProvisionPhase is how far provisioning has progressed.
 //
@@ -52,17 +52,17 @@ export type WorkspaceStatus =
 // disambiguates current_task_upid, which is one column shared by every task the workspace has
 // outstanding — without it, a start task and a clone task look identical.
 export type ProvisionPhase =
-	| "addressed"
-	| "booted"
-	| "bootstrapped"
-	| "briefed"
-	| "checked-out"
-	| "clone-confirmed"
-	| "clone-submitted"
-	| "reachable"
-	| "runner-started"
-	| "seeded"
-	| "start-submitted";
+  | "addressed"
+  | "booted"
+  | "bootstrapped"
+  | "briefed"
+  | "checked-out"
+  | "clone-confirmed"
+  | "clone-submitted"
+  | "reachable"
+  | "runner-started"
+  | "seeded"
+  | "start-submitted";
 
 // DestroyPhase is how far teardown has progressed.
 //
@@ -71,88 +71,88 @@ export type ProvisionPhase =
 // could not be checked. "shutdown-tried" covers a shutdown that succeeded without stopping the
 // guest as well as one that failed: both mean the next action is a forced stop.
 export type DestroyPhase =
-	| "delete-submitted"
-	| "shutdown-submitted"
-	| "shutdown-tried"
-	| "stop-submitted";
+  | "delete-submitted"
+  | "shutdown-submitted"
+  | "shutdown-tried"
+  | "stop-submitted";
 
 // WorkspaceTarget describes the desired durable lifecycle state.
 export type WorkspaceTarget = "destroyed" | "present";
 
 // WorkspaceTransitionError explains why a requested state transition is invalid.
 export type WorkspaceTransitionError = {
-	from: WorkspaceStatus;
-	message: string;
-	to: WorkspaceStatus;
+  from: WorkspaceStatus;
+  message: string;
+  to: WorkspaceStatus;
 };
 
 // WorkspaceTransitionResult is the result of attempting a state transition.
 export type WorkspaceTransitionResult =
-	| { ok: true; status: WorkspaceStatus }
-	| { error: WorkspaceTransitionError; ok: false };
+  | { ok: true; status: WorkspaceStatus }
+  | { error: WorkspaceTransitionError; ok: false };
 
 // nextWorkspaceStatus validates and returns the requested lifecycle transition.
 export function nextWorkspaceStatus(
-	from: WorkspaceStatus,
-	to: WorkspaceStatus,
+  from: WorkspaceStatus,
+  to: WorkspaceStatus,
 ): WorkspaceTransitionResult {
-	if (from === to) {
-		return { ok: true, status: to };
-	}
+  if (from === to) {
+    return { ok: true, status: to };
+  }
 
-	if (to === "destroying" && from !== "destroyed") {
-		return { ok: true, status: to };
-	}
+  if (to === "destroying" && from !== "destroyed") {
+    return { ok: true, status: to };
+  }
 
-	if (to === "failed" && from !== "destroyed" && from !== "destroying") {
-		return { ok: true, status: to };
-	}
+  if (to === "failed" && from !== "destroyed" && from !== "destroying") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "requested" && to === "provisioning") {
-		return { ok: true, status: to };
-	}
+  if (from === "requested" && to === "provisioning") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "provisioning" && to === "booting") {
-		return { ok: true, status: to };
-	}
+  if (from === "provisioning" && to === "booting") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "booting" && to === "bootstrapping") {
-		return { ok: true, status: to };
-	}
+  if (from === "booting" && to === "bootstrapping") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "bootstrapping" && to === "registering") {
-		return { ok: true, status: to };
-	}
+  if (from === "bootstrapping" && to === "registering") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "registering" && to === "ready") {
-		return { ok: true, status: to };
-	}
+  if (from === "registering" && to === "ready") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "destroying" && to === "destroyed") {
-		return { ok: true, status: to };
-	}
+  if (from === "destroying" && to === "destroyed") {
+    return { ok: true, status: to };
+  }
 
-	if (from === "failed" && to === "provisioning") {
-		return { ok: true, status: to };
-	}
+  if (from === "failed" && to === "provisioning") {
+    return { ok: true, status: to };
+  }
 
-	return {
-		error: {
-			from,
-			message: `workspace: cannot transition from ${from} to ${to}`,
-			to,
-		},
-		ok: false,
-	};
+  return {
+    error: {
+      from,
+      message: `workspace: cannot transition from ${from} to ${to}`,
+      to,
+    },
+    ok: false,
+  };
 }
 
 // workspaceTargetForStatus returns the desired state implied by a destruction transition.
 export function workspaceTargetForStatus(
-	status: WorkspaceStatus,
+  status: WorkspaceStatus,
 ): WorkspaceTarget {
-	if (status === "destroyed" || status === "destroying") {
-		return "destroyed";
-	}
+  if (status === "destroyed" || status === "destroying") {
+    return "destroyed";
+  }
 
-	return "present";
+  return "present";
 }

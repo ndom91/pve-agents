@@ -2,11 +2,11 @@ import type Database from "better-sqlite3";
 
 import type { ControllerConfig } from "../config/controller-config";
 import {
-	claimWorkspaceOperation,
-	failWorkspaceProvision,
-	haltWorkspaceDestroy,
-	type OperationLease,
-	type WorkspaceOperation,
+  claimWorkspaceOperation,
+  failWorkspaceProvision,
+  haltWorkspaceDestroy,
+  type OperationLease,
+  type WorkspaceOperation,
 } from "../db/workspace-repository";
 import type { Fetcher } from "./proxmox-http";
 import { runSsh, type SshRunner } from "./ssh";
@@ -29,81 +29,81 @@ const OPERATION_MAX_AGE_MS = 3_600_000;
 // Destroy is claimed ahead of provision so teardown is never starved behind a queue of pending
 // provisions, and so an operator asking for resources back gets them back promptly.
 export async function runWorkspaceOperations(
-	db: Database.Database,
-	config: ControllerConfig,
-	fetcher: Fetcher = fetch,
-	now: Date = new Date(),
-	ssh: SshRunner = runSsh,
+  db: Database.Database,
+  config: ControllerConfig,
+  fetcher: Fetcher = fetch,
+  now: Date = new Date(),
+  ssh: SshRunner = runSsh,
 ): Promise<WorkspaceOperationRun> {
-	if (!config.provisioningEnabled) {
-		return { processed: 0, status: "disabled" };
-	}
+  if (!config.provisioningEnabled) {
+    return { processed: 0, status: "disabled" };
+  }
 
-	const destroy = claimWorkspaceOperation(db, "destroy", now);
-	if (destroy.kind === "claimed") {
-		return (
-			exhausted(db, destroy.lease, destroy.operation, now) ??
-			(await executeWorkspaceDestroy(
-				db,
-				config,
-				destroy.lease,
-				fetcher,
-				now,
-				ssh,
-			))
-		);
-	}
+  const destroy = claimWorkspaceOperation(db, "destroy", now);
+  if (destroy.kind === "claimed") {
+    return (
+      exhausted(db, destroy.lease, destroy.operation, now) ??
+      (await executeWorkspaceDestroy(
+        db,
+        config,
+        destroy.lease,
+        fetcher,
+        now,
+        ssh,
+      ))
+    );
+  }
 
-	const provision = claimWorkspaceOperation(db, "provision", now);
-	if (provision.kind === "claimed") {
-		return (
-			exhausted(db, provision.lease, provision.operation, now) ??
-			(await executeWorkspaceProvision(
-				db,
-				config,
-				provision.lease,
-				fetcher,
-				now,
-				ssh,
-			))
-		);
-	}
+  const provision = claimWorkspaceOperation(db, "provision", now);
+  if (provision.kind === "claimed") {
+    return (
+      exhausted(db, provision.lease, provision.operation, now) ??
+      (await executeWorkspaceProvision(
+        db,
+        config,
+        provision.lease,
+        fetcher,
+        now,
+        ssh,
+      ))
+    );
+  }
 
-	return { processed: 0, status: "empty" };
+  return { processed: 0, status: "empty" };
 }
 
 // exhausted ends an operation that has been retrying past its deadline.
 //
 // Returns undefined when the operation may continue, so the caller reads as "give up, or run".
 function exhausted(
-	db: Database.Database,
-	lease: OperationLease,
-	operation: WorkspaceOperation,
-	now: Date,
+  db: Database.Database,
+  lease: OperationLease,
+  operation: WorkspaceOperation,
+  now: Date,
 ): WorkspaceOperationRun | undefined {
-	const startedAt = Date.parse(operation.createdAt);
-	if (
-		Number.isNaN(startedAt) ||
-		now.getTime() - startedAt < OPERATION_MAX_AGE_MS
-	) {
-		return undefined;
-	}
+  const startedAt = Date.parse(operation.createdAt);
+  if (
+    Number.isNaN(startedAt) ||
+    now.getTime() - startedAt < OPERATION_MAX_AGE_MS
+  ) {
+    return undefined;
+  }
 
-	const minutes = OPERATION_MAX_AGE_MS / 60_000;
-	const message = `${operation.kind} made no progress within ${minutes} minutes and was given up on after ${operation.attemptCount} attempts`;
-	if (operation.kind === "destroy") {
-		// Teardown halts rather than failing: the desired state is still "destroyed", and the
-		// container may well still exist and need a human to look at it.
-		haltWorkspaceDestroy(db, lease, "destroy_attempts_exhausted", message, now);
-	} else {
-		failWorkspaceProvision(
-			db,
-			lease,
-			"provision_attempts_exhausted",
-			message,
-			now,
-		);
-	}
+  const minutes = OPERATION_MAX_AGE_MS / 60_000;
+  const message = `${operation.kind} made no progress within ${minutes} minutes and was given up on after ${operation.attemptCount} attempts`;
+  if (operation.kind === "destroy") {
+    // Teardown halts rather than failing: the desired state is still "destroyed", and the
+    // container may well still exist and need a human to look at it.
+    haltWorkspaceDestroy(db, lease, "destroy_attempts_exhausted", message, now);
+  } else {
+    failWorkspaceProvision(
+      db,
+      lease,
+      "provision_attempts_exhausted",
+      message,
+      now,
+    );
+  }
 
-	return { processed: 1, status: "attempts_exhausted" };
+  return { processed: 1, status: "attempts_exhausted" };
 }

@@ -2,8 +2,8 @@ import { useCallback, useState } from "react";
 
 // OpenRows is which rows of a list are unfolded.
 export type OpenRows = {
-	isOpen: (key: string) => boolean;
-	toggle: (key: string) => void;
+  isOpen: (key: string) => boolean;
+  toggle: (key: string) => void;
 };
 
 // useOpenRows tracks which rows of an accordion are open.
@@ -15,17 +15,17 @@ export type OpenRows = {
 // Extracted after the second identical copy appeared. The first was a pattern; the second was nine
 // lines of state machine written out twice and differing only in what the parameter was called.
 export function useOpenRows(): OpenRows {
-	const [open, setOpen] = useState<string[]>([]);
+  const [open, setOpen] = useState<string[]>([]);
 
-	const toggle = useCallback((key: string) => {
-		setOpen((current) =>
-			current.includes(key)
-				? current.filter((candidate) => candidate !== key)
-				: [...current, key],
-		);
-	}, []);
+  const toggle = useCallback((key: string) => {
+    setOpen((current) =>
+      current.includes(key)
+        ? current.filter((candidate) => candidate !== key)
+        : [...current, key],
+    );
+  }, []);
 
-	const isOpen = useCallback((key: string) => open.includes(key), [open]);
+  const isOpen = useCallback((key: string) => open.includes(key), [open]);
 
-	return { isOpen, toggle };
+  return { isOpen, toggle };
 }

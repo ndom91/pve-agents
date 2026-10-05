@@ -14,24 +14,24 @@ import { useMounted } from "../lib/use-mounted";
 // the re-render that refreshes the data refreshes this with it. A second clock ticking beside that
 // one would repaint the sidebar between polls to show the same thing.
 export function Elapsed({
-	of = "age",
-	since,
+  of = "age",
+  since,
 }: {
-	// "age" is one unit for a narrow column -- 9m. "uptime" is the fuller form, and rolls into
-	// hours and days rather than counting minutes forever -- 9m 22s, then 2h 22m, then 3d 4h.
-	of?: "age" | "uptime";
-	since?: string;
+  // "age" is one unit for a narrow column -- 9m. "uptime" is the fuller form, and rolls into
+  // hours and days rather than counting minutes forever -- 9m 22s, then 2h 22m, then 3d 4h.
+  of?: "age" | "uptime";
+  since?: string;
 }): ReactNode {
-	const mounted = useMounted();
-	const ms = elapsedSince(since);
-	if (!mounted || ms === undefined) {
-		return null;
-	}
+  const mounted = useMounted();
+  const ms = elapsedSince(since);
+  if (!mounted || ms === undefined) {
+    return null;
+  }
 
-	const shown = of === "age" ? formatAge(ms) : formatSpan(ms);
+  const shown = of === "age" ? formatAge(ms) : formatSpan(ms);
 
-	// The string, not a span. Every call site already sits inside an element that styles it, and a
-	// wrapper with no rule of its own is an element nobody can target and everybody has to nest
-	// inside.
-	return shown ?? null;
+  // The string, not a span. Every call site already sits inside an element that styles it, and a
+  // wrapper with no rule of its own is an element nobody can target and everybody has to nest
+  // inside.
+  return shown ?? null;
 }

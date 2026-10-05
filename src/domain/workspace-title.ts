@@ -14,28 +14,28 @@ export const MAX_TITLE = 60;
 // the rest of the system already has an answer for: the heading and the sidebar fall back to the
 // hostname.
 export function readTitle(value?: string): string | undefined {
-	if (value === undefined) {
-		return undefined;
-	}
+  if (value === undefined) {
+    return undefined;
+  }
 
-	const collapsed = value
-		// Newlines included: a model that returns a title on its own line, or a heading and then a
-		// sentence, should not become a two-line heading.
-		.replace(/\s+/gu, " ")
-		.trim();
+  const collapsed = value
+    // Newlines included: a model that returns a title on its own line, or a heading and then a
+    // sentence, should not become a two-line heading.
+    .replace(/\s+/gu, " ")
+    .trim();
 
-	// Matched quotes only, and only one layer. A title that genuinely contains a quoted phrase in
-	// the middle keeps it; the one this strips is the model wrapping its whole answer.
-	const unquoted = /^(["'`])(.*)\1$/u.exec(collapsed)?.[2]?.trim() ?? collapsed;
+  // Matched quotes only, and only one layer. A title that genuinely contains a quoted phrase in
+  // the middle keeps it; the one this strips is the model wrapping its whole answer.
+  const unquoted = /^(["'`])(.*)\1$/u.exec(collapsed)?.[2]?.trim() ?? collapsed;
 
-	// A trailing full stop, which a model adds out of habit. Not "?" or "!", which a title can
-	// legitimately end with, and not "..." which is doing work.
-	const trimmed = unquoted.replace(/(?<![.])\.$/u, "").trim();
-	if (trimmed === "") {
-		return undefined;
-	}
+  // A trailing full stop, which a model adds out of habit. Not "?" or "!", which a title can
+  // legitimately end with, and not "..." which is doing work.
+  const trimmed = unquoted.replace(/(?<![.])\.$/u, "").trim();
+  if (trimmed === "") {
+    return undefined;
+  }
 
-	return trimmed.length > MAX_TITLE
-		? `${trimmed.slice(0, MAX_TITLE - 1).trimEnd()}…`
-		: trimmed;
+  return trimmed.length > MAX_TITLE
+    ? `${trimmed.slice(0, MAX_TITLE - 1).trimEnd()}…`
+    : trimmed;
 }

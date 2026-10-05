@@ -5,10 +5,10 @@ import { poolMembers } from "./proxmox-pool";
 
 // OrphanContainer is a container this controller created and no longer has a record of.
 export type OrphanContainer = {
-	createdAt?: string;
-	hostname?: string;
-	vmid: number;
-	workspaceID: string;
+  createdAt?: string;
+  hostname?: string;
+  vmid: number;
+  workspaceID: string;
 };
 
 // OrphanScan is the outcome of comparing Proxmox against the database.
@@ -17,8 +17,8 @@ export type OrphanContainer = {
 // confirmed foreign, and reporting a scan as complete when some guests went unexamined would
 // invite deleting on incomplete information.
 export type OrphanScan =
-	| { kind: "failed"; message: string }
-	| { kind: "scanned"; orphans: OrphanContainer[]; unreadable: number[] };
+  | { kind: "failed"; message: string }
+  | { kind: "scanned"; orphans: OrphanContainer[]; unreadable: number[] };
 
 // findOrphanContainers lists containers this controller owns but has no live workspace for.
 //
@@ -29,59 +29,59 @@ export type OrphanScan =
 // The controller-id check is what stops one controller being told to delete another's work when
 // they share a pool.
 export async function findOrphanContainers(
-	api: ProxmoxCredentials,
-	pool: string,
-	controllerID: string,
-	live: ReadonlySet<string>,
-	fetcher: Fetcher,
+  api: ProxmoxCredentials,
+  pool: string,
+  controllerID: string,
+  live: ReadonlySet<string>,
+  fetcher: Fetcher,
 ): Promise<OrphanScan> {
-	const members = await poolMembers(api, pool, fetcher);
-	if (members.kind === "failed") {
-		return members;
-	}
+  const members = await poolMembers(api, pool, fetcher);
+  if (members.kind === "failed") {
+    return members;
+  }
 
-	const orphans: OrphanContainer[] = [];
-	const unreadable: number[] = [];
-	for (const vmid of members.vmids) {
-		const config = await containerConfig(api, vmid, fetcher);
-		if (config.kind !== "found") {
-			// Not assumed unowned. A container that cannot be read is exactly the one where a
-			// wrong guess is expensive.
-			unreadable.push(vmid);
-			continue;
-		}
+  const orphans: OrphanContainer[] = [];
+  const unreadable: number[] = [];
+  for (const vmid of members.vmids) {
+    const config = await containerConfig(api, vmid, fetcher);
+    if (config.kind !== "found") {
+      // Not assumed unowned. A container that cannot be read is exactly the one where a
+      // wrong guess is expensive.
+      unreadable.push(vmid);
+      continue;
+    }
 
-		const marker = parseOwnershipMarker(containerDescription(config.config));
-		if (marker["managed-by"] !== MANAGED_BY) {
-			continue;
-		}
-		if (marker["controller-id"] !== controllerID) {
-			continue;
-		}
+    const marker = parseOwnershipMarker(containerDescription(config.config));
+    if (marker["managed-by"] !== MANAGED_BY) {
+      continue;
+    }
+    if (marker["controller-id"] !== controllerID) {
+      continue;
+    }
 
-		const workspaceID = marker["workspace-id"];
-		if (workspaceID === undefined || live.has(workspaceID)) {
-			continue;
-		}
+    const workspaceID = marker["workspace-id"];
+    if (workspaceID === undefined || live.has(workspaceID)) {
+      continue;
+    }
 
-		const orphan: OrphanContainer = { vmid, workspaceID };
-		const hostname = config.config.hostname;
-		if (typeof hostname === "string") {
-			orphan.hostname = hostname;
-		}
-		if (marker["created-at"] !== undefined) {
-			orphan.createdAt = marker["created-at"];
-		}
-		orphans.push(orphan);
-	}
+    const orphan: OrphanContainer = { vmid, workspaceID };
+    const hostname = config.config.hostname;
+    if (typeof hostname === "string") {
+      orphan.hostname = hostname;
+    }
+    if (marker["created-at"] !== undefined) {
+      orphan.createdAt = marker["created-at"];
+    }
+    orphans.push(orphan);
+  }
 
-	return { kind: "scanned", orphans, unreadable };
+  return { kind: "scanned", orphans, unreadable };
 }
 
 // OrphanOwnership is whether one VMID is still a container this controller may delete.
 export type OrphanOwnership =
-	| { kind: "confirmed"; workspaceID: string }
-	| { kind: "refused"; message: string };
+  | { kind: "confirmed"; workspaceID: string }
+  | { kind: "refused"; message: string };
 
 // confirmOrphan re-checks ownership immediately before a container is destroyed.
 //
@@ -90,35 +90,35 @@ export type OrphanOwnership =
 // the difference between deleting a container this controller made and deleting whatever happens
 // to have that id now.
 export async function confirmOrphan(
-	api: ProxmoxCredentials,
-	vmid: number,
-	controllerID: string,
-	live: ReadonlySet<string>,
-	fetcher: Fetcher,
+  api: ProxmoxCredentials,
+  vmid: number,
+  controllerID: string,
+  live: ReadonlySet<string>,
+  fetcher: Fetcher,
 ): Promise<OrphanOwnership> {
-	const config = await containerConfig(api, vmid, fetcher);
-	if (config.kind !== "found") {
-		return { kind: "refused", message: `${vmid} could not be read` };
-	}
+  const config = await containerConfig(api, vmid, fetcher);
+  if (config.kind !== "found") {
+    return { kind: "refused", message: `${vmid} could not be read` };
+  }
 
-	const marker = parseOwnershipMarker(containerDescription(config.config));
-	const workspaceID = marker["workspace-id"];
-	if (
-		marker["managed-by"] !== MANAGED_BY ||
-		marker["controller-id"] !== controllerID ||
-		workspaceID === undefined
-	) {
-		return {
-			kind: "refused",
-			message: `${vmid} was not created by this controller`,
-		};
-	}
-	if (live.has(workspaceID)) {
-		return {
-			kind: "refused",
-			message: `${vmid} belongs to a workspace that still exists`,
-		};
-	}
+  const marker = parseOwnershipMarker(containerDescription(config.config));
+  const workspaceID = marker["workspace-id"];
+  if (
+    marker["managed-by"] !== MANAGED_BY ||
+    marker["controller-id"] !== controllerID ||
+    workspaceID === undefined
+  ) {
+    return {
+      kind: "refused",
+      message: `${vmid} was not created by this controller`,
+    };
+  }
+  if (live.has(workspaceID)) {
+    return {
+      kind: "refused",
+      message: `${vmid} belongs to a workspace that still exists`,
+    };
+  }
 
-	return { kind: "confirmed", workspaceID };
+  return { kind: "confirmed", workspaceID };
 }

@@ -3,9 +3,9 @@ import { dirname, join } from "node:path";
 
 // SshTarget is everything needed to reach one workspace.
 export type SshTarget = {
-	address: string;
-	keyPath: string;
-	user: string;
+  address: string;
+  keyPath: string;
+  user: string;
 };
 
 // SshResult separates a workspace that is not up yet from one that never will be.
@@ -14,9 +14,9 @@ export type SshTarget = {
 // expensive in both directions: retrying a wrong key burns an hour, and giving up on a container
 // that is still booting throws away a working workspace.
 export type SshResult =
-	| { code: number; kind: "ran"; stderr: string; stdout: string }
-	| { kind: "refused" }
-	| { kind: "rejected"; message: string };
+  | { code: number; kind: "ran"; stderr: string; stdout: string }
+  | { kind: "refused" }
+  | { kind: "rejected"; message: string };
 
 // SshRunner is the injection point for SSH, mirroring how Proxmox calls take a Fetcher: tests
 // must not spawn a real client or depend on a reachable network.
@@ -25,9 +25,9 @@ export type SshResult =
 // becoming an argument: arguments are visible in ps on the workspace for as long as the command
 // runs, and stdin is not visible at all.
 export type SshRunner = (
-	target: SshTarget,
-	command: string[],
-	input?: string,
+  target: SshTarget,
+  command: string[],
+  input?: string,
 ) => Promise<SshResult>;
 
 // SSH_TIMEOUT_SECONDS bounds a single connection attempt. Readiness is retried by the worker, so
@@ -44,79 +44,79 @@ const SSH_TIMEOUT_SECONDS = 10;
 // Without it, an argument containing a space silently becomes two, and a repository name, ref, or
 // agent prompt carrying a semicolon is remote code execution under the controller's own key.
 export function quoteRemote(command: string[]): string {
-	return command
-		.map((argument) => `'${argument.split("'").join(`'\\''`)}'`)
-		.join(" ");
+  return command
+    .map((argument) => `'${argument.split("'").join(`'\\''`)}'`)
+    .join(" ");
 }
 
 // runSsh executes one command on a workspace.
 export function runSsh(
-	target: SshTarget,
-	command: string[],
-	input?: string,
+  target: SshTarget,
+  command: string[],
+  input?: string,
 ): Promise<SshResult> {
-	return new Promise((resolve) => {
-		const ssh = spawn(
-			"ssh",
-			[
-				"-i",
-				target.keyPath,
-				"-o",
-				"BatchMode=yes",
-				"-o",
-				`ConnectTimeout=${SSH_TIMEOUT_SECONDS}`,
-				// Trust on first use, then pin. A changed host key after that is refused rather
-				// than silently accepted, which is the only thing standing between a recycled
-				// VMID and the controller handing credentials to the wrong container.
-				"-o",
-				"StrictHostKeyChecking=accept-new",
-				"-o",
-				`UserKnownHostsFile=${knownHostsPath(target.keyPath)}`,
-				"-o",
-				"LogLevel=ERROR",
-				`${target.user}@${target.address}`,
-				"--",
-				quoteRemote(command),
-			],
-			{ stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"] },
-		);
+  return new Promise((resolve) => {
+    const ssh = spawn(
+      "ssh",
+      [
+        "-i",
+        target.keyPath,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        `ConnectTimeout=${SSH_TIMEOUT_SECONDS}`,
+        // Trust on first use, then pin. A changed host key after that is refused rather
+        // than silently accepted, which is the only thing standing between a recycled
+        // VMID and the controller handing credentials to the wrong container.
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        `UserKnownHostsFile=${knownHostsPath(target.keyPath)}`,
+        "-o",
+        "LogLevel=ERROR",
+        `${target.user}@${target.address}`,
+        "--",
+        quoteRemote(command),
+      ],
+      { stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"] },
+    );
 
-		if (input !== undefined) {
-			// Closed immediately after writing, because the remote command reads to end of file and
-			// would otherwise wait for a stream that never closes.
-			ssh.stdin?.on("error", () => undefined);
-			ssh.stdin?.end(input);
-		}
+    if (input !== undefined) {
+      // Closed immediately after writing, because the remote command reads to end of file and
+      // would otherwise wait for a stream that never closes.
+      ssh.stdin?.on("error", () => undefined);
+      ssh.stdin?.end(input);
+    }
 
-		let stdout = "";
-		let stderr = "";
-		ssh.stdout?.on("data", (chunk) => {
-			stdout += String(chunk);
-		});
-		ssh.stderr?.on("data", (chunk) => {
-			stderr += String(chunk);
-		});
+    let stdout = "";
+    let stderr = "";
+    ssh.stdout?.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    ssh.stderr?.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
 
-		ssh.on("error", () => {
-			resolve({ kind: "rejected", message: "ssh could not be executed" });
-		});
+    ssh.on("error", () => {
+      resolve({ kind: "rejected", message: "ssh could not be executed" });
+    });
 
-		ssh.on("close", (code) => {
-			// 255 is ssh's own failure, as distinct from the remote command's exit status.
-			if (code !== 255) {
-				resolve({ code: code ?? 0, kind: "ran", stderr, stdout });
+    ssh.on("close", (code) => {
+      // 255 is ssh's own failure, as distinct from the remote command's exit status.
+      if (code !== 255) {
+        resolve({ code: code ?? 0, kind: "ran", stderr, stdout });
 
-				return;
-			}
+        return;
+      }
 
-			resolve(classify(stderr));
-		});
-	});
+      resolve(classify(stderr));
+    });
+  });
 }
 
 // knownHostsPath keeps pinned host keys beside the controller's private key.
 export function knownHostsPath(keyPath: string): string {
-	return join(dirname(keyPath), "known_hosts");
+  return join(dirname(keyPath), "known_hosts");
 }
 
 // forgetHost drops a pinned host key, so a recycled address is trusted afresh.
@@ -124,28 +124,28 @@ export function knownHostsPath(keyPath: string): string {
 // Without this a destroyed workspace's key stays pinned, and the next workspace handed that
 // address fails host verification for a reason that looks nothing like the cause.
 export function forgetHost(keyPath: string, address: string): Promise<void> {
-	return new Promise((resolve) => {
-		const removal = spawn(
-			"ssh-keygen",
-			["-f", knownHostsPath(keyPath), "-R", address],
-			{ stdio: "ignore" },
-		);
+  return new Promise((resolve) => {
+    const removal = spawn(
+      "ssh-keygen",
+      ["-f", knownHostsPath(keyPath), "-R", address],
+      { stdio: "ignore" },
+    );
 
-		removal.on("error", () => resolve());
-		removal.on("close", () => resolve());
-	});
+    removal.on("error", () => resolve());
+    removal.on("close", () => resolve());
+  });
 }
 
 function classify(stderr: string): SshResult {
-	// Still coming up. Every one of these resolves itself once sshd is listening.
-	if (
-		/connection refused|connection timed out|no route to host|network is unreachable|connection closed|reset by peer/i.test(
-			stderr,
-		)
-	) {
-		return { kind: "refused" };
-	}
+  // Still coming up. Every one of these resolves itself once sshd is listening.
+  if (
+    /connection refused|connection timed out|no route to host|network is unreachable|connection closed|reset by peer/i.test(
+      stderr,
+    )
+  ) {
+    return { kind: "refused" };
+  }
 
-	// Retrying will not fix any of these. A changed host key in particular deserves a human.
-	return { kind: "rejected", message: stderr.trim() || "ssh failed" };
+  // Retrying will not fix any of these. A changed host key in particular deserves a human.
+  return { kind: "rejected", message: stderr.trim() || "ssh failed" };
 }

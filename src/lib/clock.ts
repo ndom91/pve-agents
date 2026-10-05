@@ -27,12 +27,12 @@ const TIME = "HH:mm:ss";
 
 // formatStamp renders one instant as a date and a time, in the zone asked for.
 export function formatStamp(iso?: string, zone?: string): string | undefined {
-	return render(iso, STAMP, zone);
+  return render(iso, STAMP, zone);
 }
 
 // formatTime renders one instant as a time, in the zone asked for.
 export function formatTime(iso?: string, zone?: string): string | undefined {
-	return render(iso, TIME, zone);
+  return render(iso, TIME, zone);
 }
 
 // formatDuration renders a span the way this application has always rendered one: "31s" under a
@@ -45,16 +45,16 @@ export function formatTime(iso?: string, zone?: string): string | undefined {
 // Nothing for a negative or non-finite span. Both mean the two timestamps cannot be trusted, and a
 // caller that renders no value at all is right more often than one that renders "0s".
 export function formatDuration(ms: number): string | undefined {
-	if (!Number.isFinite(ms) || ms < 0) {
-		return undefined;
-	}
+  if (!Number.isFinite(ms) || ms < 0) {
+    return undefined;
+  }
 
-	const seconds = Math.round(ms / 1000);
-	if (seconds < 60) {
-		return `${seconds}s`;
-	}
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
 
-	return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 // formatStep renders how long one step of an agent's work took.
@@ -64,11 +64,11 @@ export function formatDuration(ms: number): string | undefined {
 // reading "0.3s, 0.9s, 1.1s, 0.4s", which is what the design draws. Above ten seconds the decimal
 // is noise and it hands over to `formatDuration`.
 export function formatStep(ms: number): string | undefined {
-	if (!Number.isFinite(ms) || ms < 0) {
-		return undefined;
-	}
+  if (!Number.isFinite(ms) || ms < 0) {
+    return undefined;
+  }
 
-	return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : formatDuration(ms);
+  return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : formatDuration(ms);
 }
 
 // formatSpan renders a span that may run for hours or days: "9m 22s", then "2h 22m", then "3d 4h".
@@ -82,22 +82,22 @@ export function formatStep(ms: number): string | undefined {
 // Named for the shape rather than for its first caller. It was `formatUptime` until the timeline
 // wanted it too, at which point the name was describing one of two jobs.
 export function formatSpan(ms: number): string | undefined {
-	if (!Number.isFinite(ms) || ms < 0) {
-		return undefined;
-	}
+  if (!Number.isFinite(ms) || ms < 0) {
+    return undefined;
+  }
 
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 3600) {
-		return formatDuration(ms);
-	}
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 3600) {
+    return formatDuration(ms);
+  }
 
-	const hours = Math.floor(seconds / 3600);
-	const minutes = Math.floor((seconds % 3600) / 60);
-	if (hours < 24) {
-		return `${hours}h ${minutes}m`;
-	}
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours < 24) {
+    return `${hours}h ${minutes}m`;
+  }
 
-	return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
 // provisionTook is how long a workspace took to come up, or nothing if it never did.
@@ -109,14 +109,14 @@ export function formatSpan(ms: number): string | undefined {
 // the workspace route called formatDuration -- which is two places for the same sentence to start
 // disagreeing about what "took" means.
 export function provisionTook(
-	createdAt?: string,
-	readyAt?: string,
+  createdAt?: string,
+  readyAt?: string,
 ): string | undefined {
-	if (createdAt === undefined || readyAt === undefined) {
-		return undefined;
-	}
+  if (createdAt === undefined || readyAt === undefined) {
+    return undefined;
+  }
 
-	return formatDuration(Date.parse(readyAt) - Date.parse(createdAt));
+  return formatDuration(Date.parse(readyAt) - Date.parse(createdAt));
 }
 
 // formatAge renders the same span in one unit, for a column that has room for three characters.
@@ -125,22 +125,22 @@ export function provisionTook(
 // already being clipped. Rounding down rather than to nearest: a workspace in its fifty-ninth
 // minute reading "1h" claims a milestone it has not reached.
 export function formatAge(ms: number): string | undefined {
-	if (!Number.isFinite(ms) || ms < 0) {
-		return undefined;
-	}
+  if (!Number.isFinite(ms) || ms < 0) {
+    return undefined;
+  }
 
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) {
-		return `${seconds}s`;
-	}
-	if (seconds < 3600) {
-		return `${Math.floor(seconds / 60)}m`;
-	}
-	if (seconds < 86400) {
-		return `${Math.floor(seconds / 3600)}h`;
-	}
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  if (seconds < 3600) {
+    return `${Math.floor(seconds / 60)}m`;
+  }
+  if (seconds < 86400) {
+    return `${Math.floor(seconds / 3600)}h`;
+  }
 
-	return `${Math.floor(seconds / 86400)}d`;
+  return `${Math.floor(seconds / 86400)}d`;
 }
 
 // elapsedBetween is the span between two stored timestamps, or nothing if either will not parse or
@@ -149,31 +149,31 @@ export function formatAge(ms: number): string | undefined {
 // Separate from `elapsedSince`, which measures against now. This one measures two recorded
 // instants, which is a different question and the one a transcript asks.
 export function elapsedBetween(from?: string, to?: string): number | undefined {
-	if (from === undefined || to === undefined) {
-		return undefined;
-	}
+  if (from === undefined || to === undefined) {
+    return undefined;
+  }
 
-	const a = Date.parse(from);
-	const b = Date.parse(to);
-	if (Number.isNaN(a) || Number.isNaN(b) || b < a) {
-		return undefined;
-	}
+  const a = Date.parse(from);
+  const b = Date.parse(to);
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) {
+    return undefined;
+  }
 
-	return b - a;
+  return b - a;
 }
 
 // elapsedSince is the span between a stored timestamp and now, or nothing if it will not parse.
 export function elapsedSince(
-	iso?: string,
-	now = Date.now(),
+  iso?: string,
+  now = Date.now(),
 ): number | undefined {
-	if (iso === undefined || iso === "") {
-		return undefined;
-	}
+  if (iso === undefined || iso === "") {
+    return undefined;
+  }
 
-	const at = Date.parse(iso);
+  const at = Date.parse(iso);
 
-	return Number.isNaN(at) ? undefined : now - at;
+  return Number.isNaN(at) ? undefined : now - at;
 }
 
 // render is the shared half: parse, move to the zone, format.
@@ -182,17 +182,17 @@ export function elapsedSince(
 // "not there yet" and renders no row at all, which is the honest answer for a timestamp this
 // cannot read.
 function render(
-	iso: string | undefined,
-	pattern: string,
-	zone?: string,
+  iso: string | undefined,
+  pattern: string,
+  zone?: string,
 ): string | undefined {
-	if (iso === undefined || iso === "") {
-		return undefined;
-	}
+  if (iso === undefined || iso === "") {
+    return undefined;
+  }
 
-	// `TZDate` only when a zone is named. A plain Date formats in whatever zone the runtime is in,
-	// which in the browser is the reader's own and is the entire point.
-	const at = zone === undefined ? new Date(iso) : new TZDate(iso, zone);
+  // `TZDate` only when a zone is named. A plain Date formats in whatever zone the runtime is in,
+  // which in the browser is the reader's own and is the entire point.
+  const at = zone === undefined ? new Date(iso) : new TZDate(iso, zone);
 
-	return isValid(at) ? format(at, pattern) : undefined;
+  return isValid(at) ? format(at, pattern) : undefined;
 }

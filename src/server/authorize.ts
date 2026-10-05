@@ -8,29 +8,29 @@ import { json } from "./http";
 // Returns undefined when the request may proceed, so a handler reads as an early return rather
 // than a nested conditional that is easy to drop during a later edit.
 export async function requireOperator(
-	request: Request,
+  request: Request,
 ): Promise<Response | undefined> {
-	const config = controllerRuntimeConfig();
-	if (!authConfigured(config)) {
-		return undefined;
-	}
+  const config = controllerRuntimeConfig();
+  if (!authConfigured(config)) {
+    return undefined;
+  }
 
-	const result = await authorizeRequest(
-		request,
-		config,
-		await controllerAuth(),
-	);
-	if (result.kind === "unauthorized") {
-		return json({ error: "unauthorized" }, 401);
-	}
+  const result = await authorizeRequest(
+    request,
+    config,
+    await controllerAuth(),
+  );
+  if (result.kind === "unauthorized") {
+    return json({ error: "unauthorized" }, 401);
+  }
 
-	return undefined;
+  return undefined;
 }
 
 // AuthorizationResult is the verdict on one incoming request.
 export type AuthorizationResult =
-	| { kind: "authorized" }
-	| { kind: "unauthorized" };
+  | { kind: "authorized" }
+  | { kind: "unauthorized" };
 
 // authorizeRequest accepts either an operator session cookie or a machine API key.
 //
@@ -40,37 +40,37 @@ export type AuthorizationResult =
 // Credentials are never logged and never echoed back: a 401 says nothing about which part of the
 // credential was wrong, so a caller cannot probe for valid prefixes.
 export async function authorizeRequest(
-	request: Request,
-	config: ControllerConfig,
-	auth: ControllerAuth,
+  request: Request,
+  config: ControllerConfig,
+  auth: ControllerAuth,
 ): Promise<AuthorizationResult> {
-	if (!authConfigured(config)) {
-		// Without a configured secret there is nothing to verify against. Routes stay open only
-		// while provisioning is disabled; configuration validation refuses to enable provisioning
-		// without a secret, so this branch can never gate a real container operation.
-		return { kind: "authorized" };
-	}
+  if (!authConfigured(config)) {
+    // Without a configured secret there is nothing to verify against. Routes stay open only
+    // while provisioning is disabled; configuration validation refuses to enable provisioning
+    // without a secret, so this branch can never gate a real container operation.
+    return { kind: "authorized" };
+  }
 
-	const key = request.headers.get("x-api-key");
-	if (key !== null && key.length > 0) {
-		let verified: Awaited<ReturnType<ControllerAuth["api"]["verifyApiKey"]>>;
-		try {
-			verified = await auth.api.verifyApiKey({ body: { key } });
-		} catch {
-			return { kind: "unauthorized" };
-		}
+  const key = request.headers.get("x-api-key");
+  if (key !== null && key.length > 0) {
+    let verified: Awaited<ReturnType<ControllerAuth["api"]["verifyApiKey"]>>;
+    try {
+      verified = await auth.api.verifyApiKey({ body: { key } });
+    } catch {
+      return { kind: "unauthorized" };
+    }
 
-		return verified.valid ? { kind: "authorized" } : { kind: "unauthorized" };
-	}
+    return verified.valid ? { kind: "authorized" } : { kind: "unauthorized" };
+  }
 
-	try {
-		const session = await auth.api.getSession({ headers: request.headers });
-		if (session !== null) {
-			return { kind: "authorized" };
-		}
-	} catch {
-		return { kind: "unauthorized" };
-	}
+  try {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (session !== null) {
+      return { kind: "authorized" };
+    }
+  } catch {
+    return { kind: "unauthorized" };
+  }
 
-	return { kind: "unauthorized" };
+  return { kind: "unauthorized" };
 }

@@ -7,72 +7,72 @@ import { createWorkspace, workspaceDetail } from "../db/workspace-repository";
 const databases: Database.Database[] = [];
 
 afterEach(() => {
-	for (const db of databases) {
-		db.close();
-	}
+  for (const db of databases) {
+    db.close();
+  }
 
-	databases.length = 0;
+  databases.length = 0;
 });
 
 describe("workspaceDetail", () => {
-	it("omits placement a workspace has not reached yet", () => {
-		// The detail page asks whether a field is present. Carrying nulls through would make every
-		// caller check twice for the same thing.
-		const db = database();
-		const id = workspace(db);
+  it("omits placement a workspace has not reached yet", () => {
+    // The detail page asks whether a field is present. Carrying nulls through would make every
+    // caller check twice for the same thing.
+    const db = database();
+    const id = workspace(db);
 
-		const detail = workspaceDetail(db, id);
+    const detail = workspaceDetail(db, id);
 
-		expect(detail?.vmid).toBe(undefined);
-		expect(detail?.ip).toBe(undefined);
-		expect(detail?.status).toBe("requested");
-	});
+    expect(detail?.vmid).toBe(undefined);
+    expect(detail?.ip).toBe(undefined);
+    expect(detail?.status).toBe("requested");
+  });
 
-	it("reports placement and failure detail once they exist", () => {
-		const db = database();
-		const id = workspace(db);
+  it("reports placement and failure detail once they exist", () => {
+    const db = database();
+    const id = workspace(db);
 
-		db.prepare(
-			`UPDATE workspaces
+    db.prepare(
+      `UPDATE workspaces
 			 SET status = 'ready', node = 'nas', vmid = 109, ip = '10.0.3.105',
 				provision_phase = 'runner-started', error_code = 'agent_awaiting_input',
 				error_message = 'the agent runner did not answer'
 			 WHERE id = ?`,
-		).run(id);
+    ).run(id);
 
-		expect(workspaceDetail(db, id)).toMatchObject({
-			errorCode: "agent_awaiting_input",
-			errorMessage: "the agent runner did not answer",
-			ip: "10.0.3.105",
-			node: "nas",
-			provisionPhase: "runner-started",
-			status: "ready",
-			vmid: 109,
-		});
-	});
+    expect(workspaceDetail(db, id)).toMatchObject({
+      errorCode: "agent_awaiting_input",
+      errorMessage: "the agent runner did not answer",
+      ip: "10.0.3.105",
+      node: "nas",
+      provisionPhase: "runner-started",
+      status: "ready",
+      vmid: 109,
+    });
+  });
 
-	it("returns nothing for a workspace that does not exist", () => {
-		expect(workspaceDetail(database(), "missing")).toBe(undefined);
-	});
+  it("returns nothing for a workspace that does not exist", () => {
+    expect(workspaceDetail(database(), "missing")).toBe(undefined);
+  });
 });
 
 function workspace(db: Database.Database): string {
-	const created = createWorkspace(db, {
-		harnessId: "harness-1",
-		idempotencyKey: "detail",
-		repository: "github.com/ndom91/sveltekasten",
-		ref: "main",
-	});
-	if (created.kind !== "created") {
-		throw new Error("expected workspace creation");
-	}
+  const created = createWorkspace(db, {
+    harnessId: "harness-1",
+    idempotencyKey: "detail",
+    repository: "github.com/ndom91/sveltekasten",
+    ref: "main",
+  });
+  if (created.kind !== "created") {
+    throw new Error("expected workspace creation");
+  }
 
-	return created.workspace.id;
+  return created.workspace.id;
 }
 
 function database(): Database.Database {
-	const db = openDatabase(":memory:");
-	databases.push(db);
+  const db = openDatabase(":memory:");
+  databases.push(db);
 
-	return db;
+  return db;
 }

@@ -15,19 +15,19 @@ export type ChipTone = "amber" | "green" | "neutral" | "red";
 // only thing in the bar that does something, and a chip that looked pressable would be competing
 // with it.
 export function StatusChip({
-	label,
-	tone,
+  label,
+  tone,
 }: {
-	label: string;
-	tone: ChipTone;
+  label: string;
+  tone: ChipTone;
 }): ReactNode {
-	return (
-		<span className={`chip is-${tone}`}>
-			<span aria-hidden="true" className="chip-dot" />
-			{/* The word swaps rather than being replaced. A workspace walks through five statuses
+  return (
+    <span className={`chip is-${tone}`}>
+      <span aria-hidden="true" className="chip-dot" />
+      {/* The word swaps rather than being replaced. A workspace walks through five statuses
 			    on its way to ready, and each of them landing between two frames is why somebody
 			    watching a provision sees a chip that was apparently always saying this. */}
-			<SwapText value={label} />
-		</span>
-	);
+      <SwapText value={label} />
+    </span>
+  );
 }

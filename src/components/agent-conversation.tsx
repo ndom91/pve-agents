@@ -19,30 +19,30 @@ import { AgentChat } from "./agent-chat";
 // renders them, which is what makes it testable without a server; a component that opens a socket
 // is not.
 export function AgentConversation({
-	busy,
-	onDecide,
-	workspaceId,
+  busy,
+  onDecide,
+  workspaceId,
 }: {
-	busy: boolean;
-	onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
-	workspaceId: string;
+  busy: boolean;
+  onDecide: (approvalId: string, behavior: "allow" | "deny") => void;
+  workspaceId: string;
 }): ReactNode {
-	// `true`, not a prop. The caller only renders this once the workspace is ready, so a `ready`
-	// prop here looked like a gate and gated nothing -- the second argument could never be false,
-	// and unmounting is what actually stops the stream. A prop that cannot change is worse than
-	// no prop: the next person passes `false` and is surprised.
-	const agent = useAgentStream(workspaceId, true);
+  // `true`, not a prop. The caller only renders this once the workspace is ready, so a `ready`
+  // prop here looked like a gate and gated nothing -- the second argument could never be false,
+  // and unmounting is what actually stops the stream. A prop that cannot change is worse than
+  // no prop: the next person passes `false` and is surprised.
+  const agent = useAgentStream(workspaceId, true);
 
-	return (
-		<AgentChat
-			approvals={agent.approvals}
-			busy={busy}
-			harness={agent.harness}
-			link={agent.link}
-			messages={agent.messages}
-			onDecide={onDecide}
-			permissionMode={agent.permissionMode}
-			tail={agent.tail}
-		/>
-	);
+  return (
+    <AgentChat
+      approvals={agent.approvals}
+      busy={busy}
+      harness={agent.harness}
+      link={agent.link}
+      messages={agent.messages}
+      onDecide={onDecide}
+      permissionMode={agent.permissionMode}
+      tail={agent.tail}
+    />
+  );
 }

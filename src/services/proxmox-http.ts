@@ -6,10 +6,10 @@ export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 // Passed as one object because the three token fields were previously splatted positionally at
 // every call site, where transposing two strings would have type-checked cleanly.
 export type ProxmoxCredentials = {
-	apiURL: string;
-	node: string;
-	tokenID: string;
-	tokenSecret: string;
+  apiURL: string;
+  node: string;
+  tokenID: string;
+  tokenSecret: string;
 };
 
 // PROXMOX_REQUEST_TIMEOUT_MS bounds every call to Proxmox.
@@ -25,32 +25,32 @@ export const PROXMOX_REQUEST_TIMEOUT_MS = 30_000;
 // A timeout surfaces as a rejected fetch, which every adapter already treats as transient, so a
 // slow Proxmox retries rather than failing a workspace.
 export function proxmoxTimeout(): AbortSignal {
-	return AbortSignal.timeout(PROXMOX_REQUEST_TIMEOUT_MS);
+  return AbortSignal.timeout(PROXMOX_REQUEST_TIMEOUT_MS);
 }
 
 // proxmoxHeaders returns the read headers for one token-authenticated Proxmox request.
 export function proxmoxHeaders(
-	tokenID: string,
-	tokenSecret: string,
+  tokenID: string,
+  tokenSecret: string,
 ): Record<string, string> {
-	return {
-		Accept: "application/json",
-		Authorization: `PVEAPIToken=${tokenID}=${tokenSecret}`,
-	};
+  return {
+    Accept: "application/json",
+    Authorization: `PVEAPIToken=${tokenID}=${tokenSecret}`,
+  };
 }
 
 // proxmoxURL joins an API base with a path without producing a duplicate separator.
 export function proxmoxURL(apiURL: string, path: string): string {
-	if (apiURL.endsWith("/")) {
-		return `${apiURL.slice(0, -1)}${path}`;
-	}
+  if (apiURL.endsWith("/")) {
+    return `${apiURL.slice(0, -1)}${path}`;
+  }
 
-	return `${apiURL}${path}`;
+  return `${apiURL}${path}`;
 }
 
 export type ProxmoxRead =
-	| { data: unknown; kind: "read" }
-	| { kind: "failed"; message: string };
+  | { data: unknown; kind: "read" }
+  | { kind: "failed"; message: string };
 
 // proxmoxRead performs one request and gets as far as its `data` field.
 //
@@ -61,35 +61,35 @@ export type ProxmoxRead =
 // request" -- and is the whole of the error message, so the wording lives here rather than being
 // reassembled per call site.
 export async function proxmoxRead(
-	url: string,
-	init: RequestInit,
-	label: string,
-	fetcher: Fetcher,
+  url: string,
+  init: RequestInit,
+  label: string,
+  fetcher: Fetcher,
 ): Promise<ProxmoxRead> {
-	let response: Response;
-	try {
-		response = await fetcher(url, { ...init, signal: proxmoxTimeout() });
-	} catch {
-		return { kind: "failed", message: `proxmox ${label} failed` };
-	}
+  let response: Response;
+  try {
+    response = await fetcher(url, { ...init, signal: proxmoxTimeout() });
+  } catch {
+    return { kind: "failed", message: `proxmox ${label} failed` };
+  }
 
-	if (!response.ok) {
-		return {
-			kind: "failed",
-			message: `proxmox ${label} returned HTTP ${response.status}`,
-		};
-	}
+  if (!response.ok) {
+    return {
+      kind: "failed",
+      message: `proxmox ${label} returned HTTP ${response.status}`,
+    };
+  }
 
-	const result = (await response.json().catch(() => undefined)) as
-		| { data?: unknown }
-		| undefined;
-	if (result === undefined) {
-		return proxmoxUnreadable(label);
-	}
+  const result = (await response.json().catch(() => undefined)) as
+    | { data?: unknown }
+    | undefined;
+  if (result === undefined) {
+    return proxmoxUnreadable(label);
+  }
 
-	// `data` may be absent. A missing UPID and a missing pool listing are different failures with
-	// different wording, so the caller decides.
-	return { data: result.data, kind: "read" };
+  // `data` may be absent. A missing UPID and a missing pool listing are different failures with
+  // different wording, so the caller decides.
+  return { data: result.data, kind: "read" };
 }
 
 // proxmoxUnreadable is the answer that arrived but did not hold what was asked for.
@@ -97,41 +97,41 @@ export async function proxmoxRead(
 // The shape check belongs to the caller -- only it knows whether it wanted an array, a string or a
 // number -- while the wording belongs here, so one bad body does not read as three problems.
 export function proxmoxUnreadable(label: string): {
-	kind: "failed";
-	message: string;
+  kind: "failed";
+  message: string;
 } {
-	return {
-		kind: "failed",
-		message: `proxmox ${label} returned invalid JSON`,
-	};
+  return {
+    kind: "failed",
+    message: `proxmox ${label} returned invalid JSON`,
+  };
 }
 
 // ProxmoxTaskRequest is the result of submitting one asynchronous Proxmox action.
 export type ProxmoxTaskRequest =
-	| { kind: "accepted"; upid: string }
-	| { kind: "failed"; message: string };
+  | { kind: "accepted"; upid: string }
+  | { kind: "failed"; message: string };
 
 // submitProxmoxTask performs a request whose response body is a bare UPID string.
 //
 // Clone, shutdown, stop, and delete all answer this way, and every one of them must surface a
 // missing UPID as a failure rather than silently reporting success for work nobody can poll.
 export async function submitProxmoxTask(
-	url: string,
-	init: RequestInit,
-	label: string,
-	fetcher: Fetcher,
+  url: string,
+  init: RequestInit,
+  label: string,
+  fetcher: Fetcher,
 ): Promise<ProxmoxTaskRequest> {
-	const read = await proxmoxRead(url, init, `${label} request`, fetcher);
-	if (read.kind === "failed") {
-		return read;
-	}
+  const read = await proxmoxRead(url, init, `${label} request`, fetcher);
+  if (read.kind === "failed") {
+    return read;
+  }
 
-	if (typeof read.data !== "string") {
-		return {
-			kind: "failed",
-			message: `proxmox ${label} request returned no UPID`,
-		};
-	}
+  if (typeof read.data !== "string") {
+    return {
+      kind: "failed",
+      message: `proxmox ${label} request returned no UPID`,
+    };
+  }
 
-	return { kind: "accepted", upid: read.data };
+  return { kind: "accepted", upid: read.data };
 }

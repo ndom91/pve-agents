@@ -2,23 +2,23 @@ import { elapsedBetween } from "../lib/clock";
 
 // TimelineEvent is one row of a workspace's history.
 export type TimelineEvent = {
-	createdAt: string;
-	eventType: string;
-	id: number;
-	message: string;
+  createdAt: string;
+  eventType: string;
+  id: number;
+  message: string;
 };
 
 // TimelineItem is one moment on the rail: a lead event, whatever else happened in the same second,
 // and how long it was since the previous moment.
 export type TimelineItem = {
-	lead: TimelineEvent;
-	// Events sharing the lead's second. Rendered as a nested strip under it rather than as rows of
-	// their own, because four entries repeating one timestamp is four copies of the same fact.
-	nested: TimelineEvent[];
-	// Milliseconds since the previous lead, or undefined for the first. This is what somebody
-	// actually wants from a timeline: not when each thing happened, but how long it took after the
-	// last one.
-	sincePrevious?: number;
+  lead: TimelineEvent;
+  // Events sharing the lead's second. Rendered as a nested strip under it rather than as rows of
+  // their own, because four entries repeating one timestamp is four copies of the same fact.
+  nested: TimelineEvent[];
+  // Milliseconds since the previous lead, or undefined for the first. This is what somebody
+  // actually wants from a timeline: not when each thing happened, but how long it took after the
+  // last one.
+  sincePrevious?: number;
 };
 
 // groupTimeline turns a flat list of events into the moments the rail draws.
@@ -34,26 +34,26 @@ export type TimelineItem = {
 // the resolution the row actually prints, so grouping any finer would nest events that display an
 // identical time.
 export function groupTimeline(events: TimelineEvent[]): TimelineItem[] {
-	const items: TimelineItem[] = [];
+  const items: TimelineItem[] = [];
 
-	for (const event of events) {
-		const previous = items.at(-1);
-		if (previous !== undefined && sameSecond(previous.lead, event)) {
-			previous.nested.push(event);
-			continue;
-		}
+  for (const event of events) {
+    const previous = items.at(-1);
+    if (previous !== undefined && sameSecond(previous.lead, event)) {
+      previous.nested.push(event);
+      continue;
+    }
 
-		items.push({
-			lead: event,
-			nested: [],
-			sincePrevious:
-				previous === undefined
-					? undefined
-					: elapsedBetween(previous.lead.createdAt, event.createdAt),
-		});
-	}
+    items.push({
+      lead: event,
+      nested: [],
+      sincePrevious:
+        previous === undefined
+          ? undefined
+          : elapsedBetween(previous.lead.createdAt, event.createdAt),
+    });
+  }
 
-	return items;
+  return items;
 }
 
 // sameSecond reports whether two events would print the same time.
@@ -61,14 +61,14 @@ export function groupTimeline(events: TimelineEvent[]): TimelineItem[] {
 // Unparseable stamps are never the same as anything, including each other. Grouping on a value
 // neither of them could read would nest two events for no reason a reader could see.
 function sameSecond(a: TimelineEvent, b: TimelineEvent): boolean {
-	const left = second(a.createdAt);
-	const right = second(b.createdAt);
+  const left = second(a.createdAt);
+  const right = second(b.createdAt);
 
-	return left !== undefined && left === right;
+  return left !== undefined && left === right;
 }
 
 function second(iso: string): number | undefined {
-	const at = Date.parse(iso);
+  const at = Date.parse(iso);
 
-	return Number.isNaN(at) ? undefined : Math.floor(at / 1000);
+  return Number.isNaN(at) ? undefined : Math.floor(at / 1000);
 }

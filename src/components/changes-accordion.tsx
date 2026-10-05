@@ -1,8 +1,8 @@
 import {
-	useIsFetching,
-	useMutation,
-	useQuery,
-	useQueryClient,
+  useIsFetching,
+  useMutation,
+  useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 import { RefreshCw, Trash2, TriangleAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
@@ -25,166 +25,166 @@ import { IconButton } from "./icon-button";
 // the full path already says where each one lives. Nesting bought grouping at the cost of a
 // virtualising tree that could not host anything underneath a row, which is the whole feature.
 export function ChangesAccordion({
-	against,
-	files,
-	workspaceId,
+  against,
+  files,
+  workspaceId,
 }: {
-	// What the changes are measured against, for the header. The branch the workspace was cut
-	// from, not the one it would push to. Not called `ref`: that is React's own prop name, and a
-	// component taking one by accident is a bug nobody reads twice.
-	against?: string;
-	files: ChangedFile[];
-	workspaceId: string;
+  // What the changes are measured against, for the header. The branch the workspace was cut
+  // from, not the one it would push to. Not called `ref`: that is React's own prop name, and a
+  // component taking one by accident is a bug nobody reads twice.
+  against?: string;
+  files: ChangedFile[];
+  workspaceId: string;
 }): ReactNode {
-	// Held here rather than by the page, and it survives switching to another tab and back, because
-	// the rail keeps an opened panel mounted rather than unmounting it.
-	const { isOpen, toggle } = useOpenRows();
-	const queryClient = useQueryClient();
-	// By key, not from the query: this component is handed its files as a prop and the page above
-	// owns the fetch.
-	const isFetching =
-		useIsFetching({ queryKey: workspaceKeys.changes(workspaceId) }) > 0;
-	// Which row's discard is armed, by path.
-	//
-	// Recorded against the path rather than as a flag, which is what makes it stop being armed the
-	// moment the tree underneath it changes: the list is re-read every fifteen seconds, and an
-	// arming left standing over a file that has since been pushed or removed is a button pointing at
-	// something nobody looked at. The same shape the tree-level discard uses for the same reason.
-	const [armedFor, setArmedFor] = useState<string | undefined>(undefined);
-	const armed = files.some((file) => file.path === armedFor)
-		? armedFor
-		: undefined;
+  // Held here rather than by the page, and it survives switching to another tab and back, because
+  // the rail keeps an opened panel mounted rather than unmounting it.
+  const { isOpen, toggle } = useOpenRows();
+  const queryClient = useQueryClient();
+  // By key, not from the query: this component is handed its files as a prop and the page above
+  // owns the fetch.
+  const isFetching =
+    useIsFetching({ queryKey: workspaceKeys.changes(workspaceId) }) > 0;
+  // Which row's discard is armed, by path.
+  //
+  // Recorded against the path rather than as a flag, which is what makes it stop being armed the
+  // moment the tree underneath it changes: the list is re-read every fifteen seconds, and an
+  // arming left standing over a file that has since been pushed or removed is a button pointing at
+  // something nobody looked at. The same shape the tree-level discard uses for the same reason.
+  const [armedFor, setArmedFor] = useState<string | undefined>(undefined);
+  const armed = files.some((file) => file.path === armedFor)
+    ? armedFor
+    : undefined;
 
-	const discard = useMutation({
-		mutationFn: (path: string) =>
-			discardWorkspaceFile({ data: { id: workspaceId, path } }),
-		onSettled: async () => {
-			setArmedFor(undefined);
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: workspaceKeys.changes(workspaceId),
-				}),
-				// The unsaved-work flag behind the notice lives on the detail, and discarding the
-				// last changed file is exactly when it stops being true.
-				queryClient.invalidateQueries({
-					queryKey: workspaceKeys.detail(workspaceId),
-				}),
-			]);
-		},
-	});
+  const discard = useMutation({
+    mutationFn: (path: string) =>
+      discardWorkspaceFile({ data: { id: workspaceId, path } }),
+    onSettled: async () => {
+      setArmedFor(undefined);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: workspaceKeys.changes(workspaceId),
+        }),
+        // The unsaved-work flag behind the notice lives on the detail, and discarding the
+        // last changed file is exactly when it stops being true.
+        queryClient.invalidateQueries({
+          queryKey: workspaceKeys.detail(workspaceId),
+        }),
+      ]);
+    },
+  });
 
-	return (
-		<div className="changes">
-			<div className="panel-bar">
-				<span className="changes-count">
-					{files.length === 1 ? "1 file" : `${files.length} files`}
-				</span>
-				{/* Summed from the rows rather than sent separately, so the total and the
+  return (
+    <div className="changes">
+      <div className="panel-bar">
+        <span className="changes-count">
+          {files.length === 1 ? "1 file" : `${files.length} files`}
+        </span>
+        {/* Summed from the rows rather than sent separately, so the total and the
 				    numbers under it cannot disagree. */}
-				<Stat added={total(files, "added")} removed={total(files, "removed")} />
-				<span className="spacer" />
-				{against === undefined ? null : (
-					<span className="changes-against">vs {against}</span>
-				)}
-				{/* The query polls on a fifteen-second interval, which is slower than somebody
+        <Stat added={total(files, "added")} removed={total(files, "removed")} />
+        <span className="spacer" />
+        {against === undefined ? null : (
+          <span className="changes-against">vs {against}</span>
+        )}
+        {/* The query polls on a fifteen-second interval, which is slower than somebody
 				    asking whether a change landed. */}
-				<IconButton
-					className="changes-reload"
-					disabled={isFetching}
-					icon={RefreshCw}
-					label="Re-read the checkout"
-					onClick={() => {
-						void queryClient.invalidateQueries({
-							queryKey: workspaceKeys.changes(workspaceId),
-						});
-					}}
-					size={12}
-					strokeWidth={1.3}
-					variant="tertiary"
-				/>
-			</div>
+        <IconButton
+          className="changes-reload"
+          disabled={isFetching}
+          icon={RefreshCw}
+          label="Re-read the checkout"
+          onClick={() => {
+            void queryClient.invalidateQueries({
+              queryKey: workspaceKeys.changes(workspaceId),
+            });
+          }}
+          size={12}
+          strokeWidth={1.3}
+          variant="tertiary"
+        />
+      </div>
 
-			<ol className="changes-accordion">
-				{files.map((file) => {
-					const expanded = isOpen(file.path);
+      <ol className="changes-accordion">
+        {files.map((file) => {
+          const expanded = isOpen(file.path);
 
-					return (
-						<li className="change-entry" key={file.path}>
-							{/* Four siblings, because `.change-row` is itself a button and a button
+          return (
+            <li className="change-entry" key={file.path}>
+              {/* Four siblings, because `.change-row` is itself a button and a button
 							    inside one is invalid and never gets the click. The toggle ends at
 							    the file name so the discard can sit against it; the counts are
 							    pushed to the far end. The wrapper carries the fills and the hover
 							    reveal, so all of it still lights as one row. */}
-							<div className="change-head reveals">
-								<button
-									aria-expanded={expanded}
-									// Stated, because the path is split across two spans to dim the
-									// directory and the accessible name computation joins them with a
-									// space -- "src/b/ config.ts" is not a path anybody can search for.
-									// It carries the status too, which the letter alone does not.
-									aria-label={`${file.path}, ${file.status}`}
-									className={`change-row is-${file.status}`}
-									onClick={() => toggle(file.path)}
-									type="button"
-								>
-									{/* One letter, coloured. The word it replaces spent a quarter of a
+              <div className="change-head reveals">
+                <button
+                  aria-expanded={expanded}
+                  // Stated, because the path is split across two spans to dim the
+                  // directory and the accessible name computation joins them with a
+                  // space -- "src/b/ config.ts" is not a path anybody can search for.
+                  // It carries the status too, which the letter alone does not.
+                  aria-label={`${file.path}, ${file.status}`}
+                  className={`change-row is-${file.status}`}
+                  onClick={() => toggle(file.path)}
+                  type="button"
+                >
+                  {/* One letter, coloured. The word it replaces spent a quarter of a
 							    392px row saying "modified" on every line of a list where most
 							    things are modified. The status is still the accessible name of the
 							    row, so nothing is lost to a reader who cannot see the colour. */}
-									<span aria-hidden="true" className="change-mark">
-										{MARKS[file.status]}
-									</span>
-									{/* The whole path, not the file name. Two files called config.ts are told
+                  <span aria-hidden="true" className="change-mark">
+                    {MARKS[file.status]}
+                  </span>
+                  {/* The whole path, not the file name. Two files called config.ts are told
 							    apart by reading rather than by hovering, which is what a tab needed.
 							    The directory is dimmed so the eye lands on the name without losing
 							    the rest of it. */}
-									<span className="change-path">
-										<span className="change-dir">{directory(file.path)}</span>
-										<span className="change-name">{basename(file.path)}</span>
-									</span>
-								</button>
-								{/* Arms rather than firing, the same as the discard under the tabs.
+                  <span className="change-path">
+                    <span className="change-dir">{directory(file.path)}</span>
+                    <span className="change-name">{basename(file.path)}</span>
+                  </span>
+                </button>
+                {/* Arms rather than firing, the same as the discard under the tabs.
 								    git cannot undo either branch of this -- a tracked file is
 								    restored from HEAD and an untracked one is deleted outright --
 								    so a hover-revealed control that acts on one click is a
 								    mis-click away from losing work. */}
-								<IconButton
-									className="change-discard on-hover"
-									// The row being discarded, not every row. `isPending` alone is
-									// true for the whole list while one file is in flight, so all
-									// of them greyed out and appeared to be going at once.
-									disabled={
-										discard.isPending && discard.variables === file.path
-									}
-									icon={Trash2}
-									label={
-										armed === file.path
-											? `Discard ${basename(file.path)}?`
-											: "Discard changes"
-									}
-									onClick={() =>
-										armed === file.path
-											? discard.mutate(file.path)
-											: setArmedFor(file.path)
-									}
-									size={12}
-									strokeWidth={1.4}
-									swapIcon={TriangleAlert}
-									swapped={armed === file.path}
-									variant="danger"
-								/>
-								<span className="spacer" />
-								<Stat added={file.added} removed={file.removed} />
-							</div>
-							{expanded ? (
-								<ChangeDiff path={file.path} workspaceId={workspaceId} />
-							) : null}
-						</li>
-					);
-				})}
-			</ol>
-		</div>
-	);
+                <IconButton
+                  className="change-discard on-hover"
+                  // The row being discarded, not every row. `isPending` alone is
+                  // true for the whole list while one file is in flight, so all
+                  // of them greyed out and appeared to be going at once.
+                  disabled={
+                    discard.isPending && discard.variables === file.path
+                  }
+                  icon={Trash2}
+                  label={
+                    armed === file.path
+                      ? `Discard ${basename(file.path)}?`
+                      : "Discard changes"
+                  }
+                  onClick={() =>
+                    armed === file.path
+                      ? discard.mutate(file.path)
+                      : setArmedFor(file.path)
+                  }
+                  size={12}
+                  strokeWidth={1.4}
+                  swapIcon={TriangleAlert}
+                  swapped={armed === file.path}
+                  variant="danger"
+                />
+                <span className="spacer" />
+                <Stat added={file.added} removed={file.removed} />
+              </div>
+              {expanded ? (
+                <ChangeDiff path={file.path} workspaceId={workspaceId} />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }
 
 // Stat is a pair of line counts, or nothing.
@@ -192,60 +192,60 @@ export function ChangesAccordion({
 // Both halves are drawn when either is known, zero included: the pair is read as a shape, and a
 // lone "+96" looks like less information than "+96 −0". Nothing at all means git could not count.
 function Stat({
-	added,
-	removed,
+  added,
+  removed,
 }: {
-	added?: number;
-	removed?: number;
+  added?: number;
+  removed?: number;
 }): ReactNode {
-	if (added === undefined && removed === undefined) {
-		return null;
-	}
+  if (added === undefined && removed === undefined) {
+    return null;
+  }
 
-	return (
-		<span className="change-stat">
-			<span className="is-added">+{added ?? 0}</span>
-			{/* A minus sign, not a hyphen. It sits beside a plus and has to weigh the same. */}
-			<span className="is-removed">&minus;{removed ?? 0}</span>
-		</span>
-	);
+  return (
+    <span className="change-stat">
+      <span className="is-added">+{added ?? 0}</span>
+      {/* A minus sign, not a hyphen. It sits beside a plus and has to weigh the same. */}
+      <span className="is-removed">&minus;{removed ?? 0}</span>
+    </span>
+  );
 }
 
 // total adds one side across every file, and is undefined when nothing could be counted -- a list
 // of nothing but binaries has no total to print.
 function total(
-	files: ChangedFile[],
-	side: "added" | "removed",
+  files: ChangedFile[],
+  side: "added" | "removed",
 ): number | undefined {
-	const known = files
-		.map((file) => file[side])
-		.filter((count) => count !== undefined);
+  const known = files
+    .map((file) => file[side])
+    .filter((count) => count !== undefined);
 
-	return known.length === 0
-		? undefined
-		: known.reduce((sum, count) => sum + count, 0);
+  return known.length === 0
+    ? undefined
+    : known.reduce((sum, count) => sum + count, 0);
 }
 
 // MARKS is git's own letter for each status. Renamed is R and untracked is A: an untracked file is
 // one git has not been told about yet, and to a reader it is a file that was not there before.
 const MARKS: Record<string, string> = {
-	added: "A",
-	deleted: "D",
-	modified: "M",
-	renamed: "R",
-	untracked: "A",
+  added: "A",
+  deleted: "D",
+  modified: "M",
+  renamed: "R",
+  untracked: "A",
 };
 
 // directory is everything up to and including the last slash, or nothing for a file at the root.
 function directory(path: string): string {
-	const cut = path.lastIndexOf("/");
+  const cut = path.lastIndexOf("/");
 
-	return cut === -1 ? "" : path.slice(0, cut + 1);
+  return cut === -1 ? "" : path.slice(0, cut + 1);
 }
 
 // basename is the part somebody is actually looking for.
 function basename(path: string): string {
-	return path.slice(path.lastIndexOf("/") + 1);
+  return path.slice(path.lastIndexOf("/") + 1);
 }
 
 // ChangeDiff reads one file and renders its two sides.
@@ -258,17 +258,17 @@ function basename(path: string): string {
 // several left mounted and hidden is several highlight passes' worth of DOM behind rows nobody has
 // open.
 function ChangeDiff({
-	path,
-	workspaceId,
+  path,
+  workspaceId,
 }: {
-	path: string;
-	workspaceId: string;
+  path: string;
+  workspaceId: string;
 }) {
-	const { data: sides } = useQuery(fileDiffQuery(workspaceId, path));
+  const { data: sides } = useQuery(fileDiffQuery(workspaceId, path));
 
-	return (
-		<div className="change-diff">
-			<FileDiff path={path} sides={sides} />
-		</div>
-	);
+  return (
+    <div className="change-diff">
+      <FileDiff path={path} sides={sides} />
+    </div>
+  );
 }

@@ -5,239 +5,239 @@ import { readTranscript } from "./transcript";
 // The shapes below are taken from a real session on agent-aabd rather than invented: the agent was
 // asked to read a README, and the messages it produced are what the UI has to survive.
 function assistant(...content: unknown[]) {
-	return { message: { content, role: "assistant" }, type: "assistant" };
+  return { message: { content, role: "assistant" }, type: "assistant" };
 }
 
 function user(content: unknown) {
-	return { message: { content, role: "user" }, type: "user" };
+  return { message: { content, role: "user" }, type: "user" };
 }
 
 describe("readTranscript", () => {
-	it("puts a tool result on the row that asked for it", () => {
-		// The failure this exists to prevent. A call and its result arrive in two messages, so
-		// rendering each as a row gives a page of requests followed by a page of answers, which is
-		// not the order anything happened in.
-		const entries = readTranscript([
-			assistant({
-				id: "toolu_1",
-				input: { file_path: "/workspace/repo/README.md" },
-				name: "Read",
-				type: "tool_use",
-			}),
-			user([
-				{ content: "1\t# hello", tool_use_id: "toolu_1", type: "tool_result" },
-			]),
-		]);
+  it("puts a tool result on the row that asked for it", () => {
+    // The failure this exists to prevent. A call and its result arrive in two messages, so
+    // rendering each as a row gives a page of requests followed by a page of answers, which is
+    // not the order anything happened in.
+    const entries = readTranscript([
+      assistant({
+        id: "toolu_1",
+        input: { file_path: "/workspace/repo/README.md" },
+        name: "Read",
+        type: "tool_use",
+      }),
+      user([
+        { content: "1\t# hello", tool_use_id: "toolu_1", type: "tool_result" },
+      ]),
+    ]);
 
-		expect(entries).toEqual([
-			{
-				id: "toolu_1",
-				input: { file_path: "/workspace/repo/README.md" },
-				kind: "tool",
-				name: "Read",
-				result: "1\t# hello",
-				state: "ok",
-			},
-		]);
-	});
+    expect(entries).toEqual([
+      {
+        id: "toolu_1",
+        input: { file_path: "/workspace/repo/README.md" },
+        kind: "tool",
+        name: "Read",
+        result: "1\t# hello",
+        state: "ok",
+      },
+    ]);
+  });
 
-	it("does not read the agent's own tool results as something a person said", () => {
-		// Tool results come back as *user* messages. Treating them as prompts puts a wall of JSON
-		// on screen attributed to the operator.
-		const entries = readTranscript([
-			user([
-				{ content: "output", tool_use_id: "toolu_1", type: "tool_result" },
-			]),
-		]);
+  it("does not read the agent's own tool results as something a person said", () => {
+    // Tool results come back as *user* messages. Treating them as prompts puts a wall of JSON
+    // on screen attributed to the operator.
+    const entries = readTranscript([
+      user([
+        { content: "output", tool_use_id: "toolu_1", type: "tool_result" },
+      ]),
+    ]);
 
-		expect(entries).toEqual([]);
-	});
+    expect(entries).toEqual([]);
+  });
 
-	it("keeps a real prompt, whether it arrived as a string or as blocks", () => {
-		expect(readTranscript([user("do the thing")])).toEqual([
-			{ kind: "prompt", text: "do the thing" },
-		]);
-		expect(
-			readTranscript([user([{ text: "do the thing", type: "text" }])]),
-		).toEqual([{ kind: "prompt", text: "do the thing" }]);
-	});
+  it("keeps a real prompt, whether it arrived as a string or as blocks", () => {
+    expect(readTranscript([user("do the thing")])).toEqual([
+      { kind: "prompt", text: "do the thing" },
+    ]);
+    expect(
+      readTranscript([user([{ text: "do the thing", type: "text" }])]),
+    ).toEqual([{ kind: "prompt", text: "do the thing" }]);
+  });
 
-	it("marks a failed tool call as an error rather than a result", () => {
-		const entries = readTranscript([
-			assistant({ id: "t1", input: {}, name: "Bash", type: "tool_use" }),
-			user([
-				{
-					content: "command not found",
-					is_error: true,
-					tool_use_id: "t1",
-					type: "tool_result",
-				},
-			]),
-		]);
+  it("marks a failed tool call as an error rather than a result", () => {
+    const entries = readTranscript([
+      assistant({ id: "t1", input: {}, name: "Bash", type: "tool_use" }),
+      user([
+        {
+          content: "command not found",
+          is_error: true,
+          tool_use_id: "t1",
+          type: "tool_result",
+        },
+      ]),
+    ]);
 
-		expect(entries[0]).toMatchObject({ state: "error" });
-	});
+    expect(entries[0]).toMatchObject({ state: "error" });
+  });
 
-	it("reads a result made of blocks rather than printing an object", () => {
-		// An image result has no text at all, and the naive version rendered "[object Object]".
-		const entries = readTranscript([
-			assistant({ id: "t1", input: {}, name: "Read", type: "tool_use" }),
-			user([
-				{
-					content: [
-						{ text: "line one", type: "text" },
-						{ source: {}, type: "image" },
-						{ text: "line two", type: "text" },
-					],
-					tool_use_id: "t1",
-					type: "tool_result",
-				},
-			]),
-		]);
+  it("reads a result made of blocks rather than printing an object", () => {
+    // An image result has no text at all, and the naive version rendered "[object Object]".
+    const entries = readTranscript([
+      assistant({ id: "t1", input: {}, name: "Read", type: "tool_use" }),
+      user([
+        {
+          content: [
+            { text: "line one", type: "text" },
+            { source: {}, type: "image" },
+            { text: "line two", type: "text" },
+          ],
+          tool_use_id: "t1",
+          type: "tool_result",
+        },
+      ]),
+    ]);
 
-		expect(entries[0]).toMatchObject({ result: "line one\nline two" });
-	});
+    expect(entries[0]).toMatchObject({ result: "line one\nline two" });
+  });
 
-	it("separates thinking from what the agent actually said", () => {
-		const entries = readTranscript([
-			assistant(
-				{ thinking: "weighing it up", type: "thinking" },
-				{ text: "here is the answer", type: "text" },
-			),
-		]);
+  it("separates thinking from what the agent actually said", () => {
+    const entries = readTranscript([
+      assistant(
+        { thinking: "weighing it up", type: "thinking" },
+        { text: "here is the answer", type: "text" },
+      ),
+    ]);
 
-		expect(entries).toEqual([
-			{ kind: "thought", text: "weighing it up" },
-			{ kind: "say", text: "here is the answer" },
-		]);
-	});
+    expect(entries).toEqual([
+      { kind: "thought", text: "weighing it up" },
+      { kind: "say", text: "here is the answer" },
+    ]);
+  });
 
-	it("says nothing about a turn that ended well", () => {
-		// "success" under every single turn is noise. The last thing the agent said is the answer.
-		expect(readTranscript([{ subtype: "success", type: "result" }])).toEqual(
-			[],
-		);
-	});
+  it("says nothing about a turn that ended well", () => {
+    // "success" under every single turn is noise. The last thing the agent said is the answer.
+    expect(readTranscript([{ subtype: "success", type: "result" }])).toEqual(
+      [],
+    );
+  });
 
-	it("reports a turn that ended badly, because silence would look like an answer", () => {
-		expect(
-			readTranscript([{ subtype: "error_max_turns", type: "result" }]),
-		).toEqual([{ kind: "ended", reason: "error_max_turns" }]);
-	});
+  it("reports a turn that ended badly, because silence would look like an answer", () => {
+    expect(
+      readTranscript([{ subtype: "error_max_turns", type: "result" }]),
+    ).toEqual([{ kind: "ended", reason: "error_max_turns" }]);
+  });
 
-	it("marks the call a parked approval is waiting on", () => {
-		// So the question reads as being about a specific call rather than as a banner about the
-		// workspace, which is the whole reason the old answer-key row was hard to act on.
-		const entries = readTranscript(
-			[assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
-			[{ toolUseId: "t1" }],
-		);
+  it("marks the call a parked approval is waiting on", () => {
+    // So the question reads as being about a specific call rather than as a banner about the
+    // workspace, which is the whole reason the old answer-key row was hard to act on.
+    const entries = readTranscript(
+      [assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
+      [{ toolUseId: "t1" }],
+    );
 
-		expect(entries[0]).toMatchObject({ state: "awaiting-approval" });
-	});
+    expect(entries[0]).toMatchObject({ state: "awaiting-approval" });
+  });
 
-	it("marks the call that is waiting, not the newest one with the same name", () => {
-		// The failure name matching produced. An agent running two Bash calls at once has two
-		// rows with the same name, and marking the most recent one points the reader at a call
-		// that is running fine while the one actually suspended looks busy.
-		const entries = readTranscript(
-			[
-				assistant({ id: "first", input: {}, name: "Bash", type: "tool_use" }),
-				assistant({ id: "second", input: {}, name: "Bash", type: "tool_use" }),
-			],
-			[{ toolUseId: "first" }],
-		);
+  it("marks the call that is waiting, not the newest one with the same name", () => {
+    // The failure name matching produced. An agent running two Bash calls at once has two
+    // rows with the same name, and marking the most recent one points the reader at a call
+    // that is running fine while the one actually suspended looks busy.
+    const entries = readTranscript(
+      [
+        assistant({ id: "first", input: {}, name: "Bash", type: "tool_use" }),
+        assistant({ id: "second", input: {}, name: "Bash", type: "tool_use" }),
+      ],
+      [{ toolUseId: "first" }],
+    );
 
-		expect(entries[0]).toMatchObject({
-			id: "first",
-			state: "awaiting-approval",
-		});
-		expect(entries[1]).toMatchObject({ id: "second", state: "running" });
-	});
+    expect(entries[0]).toMatchObject({
+      id: "first",
+      state: "awaiting-approval",
+    });
+    expect(entries[1]).toMatchObject({ id: "second", state: "running" });
+  });
 
-	it("marks nothing when an approval names a call it cannot find", () => {
-		// A wrong row is worse than none: it says "this is waiting on you" about something that
-		// is not.
-		const entries = readTranscript(
-			[assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
-			[{ toolUseId: "gone" }],
-		);
+  it("marks nothing when an approval names a call it cannot find", () => {
+    // A wrong row is worse than none: it says "this is waiting on you" about something that
+    // is not.
+    const entries = readTranscript(
+      [assistant({ id: "t1", input: {}, name: "Write", type: "tool_use" })],
+      [{ toolUseId: "gone" }],
+    );
 
-		expect(entries[0]).toMatchObject({ state: "running" });
-	});
+    expect(entries[0]).toMatchObject({ state: "running" });
+  });
 
-	it("ignores message types it has no opinion about", () => {
-		// The SDK union has thirty-eight members and grows every release. A page full of
-		// "unsupported message" boxes is worse than one that shows what it understands.
-		expect(
-			readTranscript([
-				{ subtype: "init", type: "system" },
-				{ event: {}, type: "stream_event" },
-				{ type: "something_added_next_release" },
-			]),
-		).toEqual([]);
-	});
+  it("ignores message types it has no opinion about", () => {
+    // The SDK union has thirty-eight members and grows every release. A page full of
+    // "unsupported message" boxes is worse than one that shows what it understands.
+    expect(
+      readTranscript([
+        { subtype: "init", type: "system" },
+        { event: {}, type: "stream_event" },
+        { type: "something_added_next_release" },
+      ]),
+    ).toEqual([]);
+  });
 });
 
 describe("tool call timings", () => {
-	it("carries the stamp from each half of the call", () => {
-		// Both endpoints are recorded by the runner and were being read and thrown away: the
-		// request's time came off the assistant message, the result's off the user message that
-		// answered it, and neither reached the row. The feed printed a hardcoded em dash instead.
-		const entries = readTranscript([
-			{
-				controller_at: "2026-09-21T10:00:00.000Z",
-				message: {
-					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
-				},
-				type: "assistant",
-			},
-			{
-				controller_at: "2026-09-21T10:00:02.500Z",
-				message: {
-					content: [{ content: "ok", tool_use_id: "t1", type: "tool_result" }],
-				},
-				type: "user",
-			},
-		]);
+  it("carries the stamp from each half of the call", () => {
+    // Both endpoints are recorded by the runner and were being read and thrown away: the
+    // request's time came off the assistant message, the result's off the user message that
+    // answered it, and neither reached the row. The feed printed a hardcoded em dash instead.
+    const entries = readTranscript([
+      {
+        controller_at: "2026-09-21T10:00:00.000Z",
+        message: {
+          content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+        },
+        type: "assistant",
+      },
+      {
+        controller_at: "2026-09-21T10:00:02.500Z",
+        message: {
+          content: [{ content: "ok", tool_use_id: "t1", type: "tool_result" }],
+        },
+        type: "user",
+      },
+    ]);
 
-		expect(entries).toHaveLength(1);
-		expect(entries[0]).toMatchObject({
-			at: "2026-09-21T10:00:00.000Z",
-			endedAt: "2026-09-21T10:00:02.500Z",
-			kind: "tool",
-			state: "ok",
-		});
-	});
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      at: "2026-09-21T10:00:00.000Z",
+      endedAt: "2026-09-21T10:00:02.500Z",
+      kind: "tool",
+      state: "ok",
+    });
+  });
 
-	it("leaves a call still running with no end", () => {
-		const entries = readTranscript([
-			{
-				controller_at: "2026-09-21T10:00:00.000Z",
-				message: {
-					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
-				},
-				type: "assistant",
-			},
-		]);
+  it("leaves a call still running with no end", () => {
+    const entries = readTranscript([
+      {
+        controller_at: "2026-09-21T10:00:00.000Z",
+        message: {
+          content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+        },
+        type: "assistant",
+      },
+    ]);
 
-		expect(entries[0]).toMatchObject({ state: "running" });
-		// Absent, not set-to-undefined: the end is only written when the result arrives.
-		expect(entries[0]).not.toHaveProperty("endedAt");
-	});
+    expect(entries[0]).toMatchObject({ state: "running" });
+    // Absent, not set-to-undefined: the end is only written when the result arrives.
+    expect(entries[0]).not.toHaveProperty("endedAt");
+  });
 
-	it("records nothing when the runner stamps nothing", () => {
-		// A runner installed before controller_at shipped. The column renders empty rather than
-		// claiming a duration of zero.
-		const entries = readTranscript([
-			{
-				message: {
-					content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
-				},
-				type: "assistant",
-			},
-		]);
+  it("records nothing when the runner stamps nothing", () => {
+    // A runner installed before controller_at shipped. The column renders empty rather than
+    // claiming a duration of zero.
+    const entries = readTranscript([
+      {
+        message: {
+          content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+        },
+        type: "assistant",
+      },
+    ]);
 
-		expect(entries[0]).toMatchObject({ at: undefined });
-	});
+    expect(entries[0]).toMatchObject({ at: undefined });
+  });
 });

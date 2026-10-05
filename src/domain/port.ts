@@ -6,14 +6,14 @@ export type Reach = "direct" | "loopback";
 
 // ListeningPort is one row of the Ports tab.
 export type ListeningPort = {
-	// Absent when /proc/<pid>/cwd could not be read, rather than guessed.
-	cwd?: string;
-	// "node", "python3". Absent for a listener another user owns.
-	process?: string;
-	address: string;
-	pid?: number;
-	port: number;
-	reach: Reach;
+  // Absent when /proc/<pid>/cwd could not be read, rather than guessed.
+  cwd?: string;
+  // "node", "python3". Absent for a listener another user owns.
+  process?: string;
+  address: string;
+  pid?: number;
+  port: number;
+  reach: Reach;
 };
 
 // OWN_INFRASTRUCTURE is what the controller itself runs as the agent user: opencode's server.
@@ -32,7 +32,7 @@ const OWN_INFRASTRUCTURE = new Set([39917]);
 // The address is anything up to the last colon, because IPv6 is full of them and `%lo` scoping
 // appears in the middle. The users field is optional.
 const LISTEN_PATTERN =
-	/^LISTEN\s+\d+\s+\d+\s+(?<address>\S+):(?<port>\d+)\s+\S+(?:\s+users:\(\("(?<process>[^"]+)",pid=(?<pid>\d+))?/;
+  /^LISTEN\s+\d+\s+\d+\s+(?<address>\S+):(?<port>\d+)\s+\S+(?:\s+users:\(\("(?<process>[^"]+)",pid=(?<pid>\d+))?/;
 
 // readListeningPorts turns `ss -tlnpH` into the rows worth showing.
 //
@@ -41,45 +41,45 @@ const LISTEN_PATTERN =
 // agent did not start: sshd, postfix, systemd-resolved. A list of ports to hide would go stale
 // every time the base image gained a service.
 export function readListeningPorts(
-	output: string,
-	cwds: Record<number, string> = {},
+  output: string,
+  cwds: Record<number, string> = {},
 ): ListeningPort[] {
-	const seen = new Set<number>();
-	const ports: ListeningPort[] = [];
+  const seen = new Set<number>();
+  const ports: ListeningPort[] = [];
 
-	for (const line of output.split("\n")) {
-		const found = LISTEN_PATTERN.exec(line.trim());
-		if (found?.groups === undefined || found.groups.process === undefined) {
-			continue;
-		}
+  for (const line of output.split("\n")) {
+    const found = LISTEN_PATTERN.exec(line.trim());
+    if (found?.groups === undefined || found.groups.process === undefined) {
+      continue;
+    }
 
-		const port = Number(found.groups.port);
-		if (OWN_INFRASTRUCTURE.has(port)) {
-			continue;
-		}
+    const port = Number(found.groups.port);
+    if (OWN_INFRASTRUCTURE.has(port)) {
+      continue;
+    }
 
-		// 127.0.0.53%lo is still loopback; the scope suffix helps nobody.
-		const address = (found.groups.address ?? "").replace(/%.*$/, "");
-		const pid =
-			found.groups.pid === undefined ? undefined : Number(found.groups.pid);
+    // 127.0.0.53%lo is still loopback; the scope suffix helps nobody.
+    const address = (found.groups.address ?? "").replace(/%.*$/, "");
+    const pid =
+      found.groups.pid === undefined ? undefined : Number(found.groups.pid);
 
-		// One row per port: a server on both stacks appears as 0.0.0.0:3000 and [::]:3000.
-		if (seen.has(port)) {
-			continue;
-		}
-		seen.add(port);
+    // One row per port: a server on both stacks appears as 0.0.0.0:3000 and [::]:3000.
+    if (seen.has(port)) {
+      continue;
+    }
+    seen.add(port);
 
-		ports.push({
-			address,
-			cwd: pid === undefined ? undefined : cwds[pid],
-			pid,
-			port,
-			process: found.groups.process,
-			reach: reachOf(address),
-		});
-	}
+    ports.push({
+      address,
+      cwd: pid === undefined ? undefined : cwds[pid],
+      pid,
+      port,
+      process: found.groups.process,
+      reach: reachOf(address),
+    });
+  }
 
-	return ports.sort((a, b) => a.port - b.port);
+  return ports.sort((a, b) => a.port - b.port);
 }
 
 // reachOf decides whether a bind address can be opened from outside the container.
@@ -87,9 +87,9 @@ export function readListeningPorts(
 // Everything that is not loopback counts as reachable. That is a fact about this deployment, where
 // the workspace subnet routes from the operator's machine, not about containers in general.
 export function reachOf(address: string): Reach {
-	const bare = address.replace(/^\[|\]$/g, "");
+  const bare = address.replace(/^\[|\]$/g, "");
 
-	return bare === "::1" || bare.startsWith("127.") ? "loopback" : "direct";
+  return bare === "::1" || bare.startsWith("127.") ? "loopback" : "direct";
 }
 
 // shortCwd is the working directory with the checkout's own path taken off the front.
@@ -97,15 +97,15 @@ export function reachOf(address: string): Reach {
 // That prefix is on every row and tells none apart. Clipping it from the left with CSS
 // `direction: rtl` was tried and moves the leading slash to the end.
 export function shortCwd(cwd: string, root: string): string | undefined {
-	if (cwd === "") {
-		return undefined;
-	}
-	if (cwd === root) {
-		// Named, because a blank cell reads as "unknown".
-		return "repo root";
-	}
+  if (cwd === "") {
+    return undefined;
+  }
+  if (cwd === root) {
+    // Named, because a blank cell reads as "unknown".
+    return "repo root";
+  }
 
-	return cwd.startsWith(`${root}/`) ? cwd.slice(root.length + 1) : cwd;
+  return cwd.startsWith(`${root}/`) ? cwd.slice(root.length + 1) : cwd;
 }
 
 // portUrl is where a directly reachable listener can be opened.
@@ -113,5 +113,5 @@ export function shortCwd(cwd: string, root: string): string | undefined {
 // The container's address rather than its bind address: a process on 0.0.0.0 answers on every
 // interface, and "0.0.0.0:5173" is not somewhere a browser can go.
 export function portUrl(ip: string, port: number): string {
-	return `http://${ip}:${port}`;
+  return `http://${ip}:${port}`;
 }

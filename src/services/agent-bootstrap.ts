@@ -3,8 +3,8 @@ import type { SshRunner, SshTarget } from "./ssh";
 
 // AgentBootstrap is whether a workspace is ready for an agent to be started in it.
 export type AgentBootstrap =
-	| { kind: "failed"; message: string }
-	| { kind: "prepared" };
+  | { kind: "failed"; message: string }
+  | { kind: "prepared" };
 
 // AGENT_ENV is the file every pane's shell sources to find its credentials.
 const AGENT_ENV = "$HOME/.config/agent-env";
@@ -25,17 +25,17 @@ const AGENT_ENV = "$HOME/.config/agent-env";
 // shell, which reads one and not the other. The guard makes a repeated bootstrap idempotent rather
 // than appending the same line forever.
 const SEED_SCRIPT = [
-	"umask 077",
-	'mkdir -p "$HOME/.config" "$1"',
-	"shift",
-	'while [ "$#" -ge 2 ]; do',
-	'  mkdir -p "$(dirname "$1")"',
-	'  printf %s "$2" > "$1"',
-	"  shift 2",
-	"done",
-	`cat > "${AGENT_ENV}"`,
-	`chmod 600 "${AGENT_ENV}"`,
-	`grep -qF 'agent-env' "$HOME/.bashrc" 2>/dev/null || printf '%s\\n' '. "${AGENT_ENV}"' >> "$HOME/.bashrc"`,
+  "umask 077",
+  'mkdir -p "$HOME/.config" "$1"',
+  "shift",
+  'while [ "$#" -ge 2 ]; do',
+  '  mkdir -p "$(dirname "$1")"',
+  '  printf %s "$2" > "$1"',
+  "  shift 2",
+  "done",
+  `cat > "${AGENT_ENV}"`,
+  `chmod 600 "${AGENT_ENV}"`,
+  `grep -qF 'agent-env' "$HOME/.bashrc" 2>/dev/null || printf '%s\\n' '. "${AGENT_ENV}"' >> "$HOME/.bashrc"`,
 ].join("\n");
 
 // agentEnvironment builds the line a pane's shell sources to find its credentials.
@@ -43,9 +43,9 @@ const SEED_SCRIPT = [
 // Single-quoted with embedded quotes escaped, because this text is read by a shell: a credential
 // containing a quote would otherwise end the string and have its remainder executed.
 export function agentEnvironment(variable: string, token: string): string {
-	const quoted = token.split("'").join(`'\\''`);
+  const quoted = token.split("'").join(`'\\''`);
 
-	return `export ${variable}='${quoted}'\n`;
+  return `export ${variable}='${quoted}'\n`;
 }
 
 // prepareAgentWorkspace seeds first-run state, credentials, and the directory to work in.
@@ -53,39 +53,39 @@ export function agentEnvironment(variable: string, token: string): string {
 // All in one step because they are one idempotent write with nothing worth resuming between them.
 // Rerunning repairs a partial result rather than compounding one.
 export async function prepareAgentWorkspace(
-	target: SshTarget,
-	harness: Harness,
-	input: { cwd: string; token: string },
-	ssh: SshRunner,
+  target: SshTarget,
+  harness: Harness,
+  input: { cwd: string; token: string },
+  ssh: SshRunner,
 ): Promise<AgentBootstrap> {
-	const files = harness
-		.bootstrap(input.cwd)
-		.flatMap((file) => [file.path, file.contents]);
+  const files = harness
+    .bootstrap(input.cwd)
+    .flatMap((file) => [file.path, file.contents]);
 
-	const result = await ssh(
-		target,
-		["sh", "-c", SEED_SCRIPT, "sh", input.cwd, ...files],
-		agentEnvironment(harness.credential.env, input.token),
-	);
-	if (result.kind === "refused") {
-		return { kind: "failed", message: "workspace refused the connection" };
-	}
-	if (result.kind === "rejected") {
-		return { kind: "failed", message: redact(result.message, input.token) };
-	}
-	if (result.code !== 0) {
-		return {
-			kind: "failed",
-			message: redact(
-				result.stderr.trim() || "workspace bootstrap failed",
-				input.token,
-			),
-		};
-	}
+  const result = await ssh(
+    target,
+    ["sh", "-c", SEED_SCRIPT, "sh", input.cwd, ...files],
+    agentEnvironment(harness.credential.env, input.token),
+  );
+  if (result.kind === "refused") {
+    return { kind: "failed", message: "workspace refused the connection" };
+  }
+  if (result.kind === "rejected") {
+    return { kind: "failed", message: redact(result.message, input.token) };
+  }
+  if (result.code !== 0) {
+    return {
+      kind: "failed",
+      message: redact(
+        result.stderr.trim() || "workspace bootstrap failed",
+        input.token,
+      ),
+    };
+  }
 
-	return { kind: "prepared" };
+  return { kind: "prepared" };
 }
 
 function redact(value: string, token: string): string {
-	return token === "" ? value : value.split(token).join("[redacted]");
+  return token === "" ? value : value.split(token).join("[redacted]");
 }

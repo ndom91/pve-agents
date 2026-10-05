@@ -14,62 +14,62 @@ export type AgentTail = { kind: "say" | "thought"; text: string };
 // still in a test: too late and a paragraph appears twice, too early and text flickers out and
 // back as it is being read.
 export function readTail(
-	tail: AgentTail | undefined,
-	event: RunnerEvent,
+  tail: AgentTail | undefined,
+  event: RunnerEvent,
 ): AgentTail | undefined {
-	// The whole truth, and it has no half-written block in it.
-	if (event.type === "snapshot") {
-		return undefined;
-	}
-	if (event.type !== "message") {
-		return tail;
-	}
+  // The whole truth, and it has no half-written block in it.
+  if (event.type === "snapshot") {
+    return undefined;
+  }
+  if (event.type !== "message") {
+    return tail;
+  }
 
-	const delta = deltaOf(event.message);
-	if (delta !== undefined) {
-		// The change of kind is the boundary between one block and the next. An agent that stops
-		// thinking and starts writing has ended one and begun another, and running the two
-		// together would put its reasoning and its answer in the same paragraph.
-		return tail?.kind === delta.kind
-			? { kind: tail.kind, text: tail.text + delta.text }
-			: delta;
-	}
+  const delta = deltaOf(event.message);
+  if (delta !== undefined) {
+    // The change of kind is the boundary between one block and the next. An agent that stops
+    // thinking and starts writing has ended one and begun another, and running the two
+    // together would put its reasoning and its answer in the same paragraph.
+    return tail?.kind === delta.kind
+      ? { kind: tail.kind, text: tail.text + delta.text }
+      : delta;
+  }
 
-	// A partial carrying something else — a tool call's arguments assembling character by
-	// character, a signature. Neither reads as anything at this size, and neither ends the block
-	// being written.
-	if (isPartial(event.message)) {
-		return tail;
-	}
+  // A partial carrying something else — a tool call's arguments assembling character by
+  // character, a signature. Neither reads as anything at this size, and neither ends the block
+  // being written.
+  if (isPartial(event.message)) {
+    return tail;
+  }
 
-	// A completed message. Whatever the tail was showing has either just arrived in the transcript
-	// or been superseded by it.
-	return undefined;
+  // A completed message. Whatever the tail was showing has either just arrived in the transcript
+  // or been superseded by it.
+  return undefined;
 }
 
 // isPartial reports a token delta, as opposed to a message that completed.
 export function isPartial(message: unknown): boolean {
-	return (
-		typeof message === "object" &&
-		message !== null &&
-		(message as { type?: unknown }).type === "stream_event"
-	);
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    (message as { type?: unknown }).type === "stream_event"
+  );
 }
 
 // deltaOf pulls the text of a streamed token out of a partial message, if it carries one.
 function deltaOf(message: unknown): AgentTail | undefined {
-	if (!isPartial(message)) {
-		return undefined;
-	}
+  if (!isPartial(message)) {
+    return undefined;
+  }
 
-	const delta = (message as { event?: { delta?: Record<string, unknown> } })
-		.event?.delta;
-	if (delta?.type === "text_delta" && typeof delta.text === "string") {
-		return { kind: "say", text: delta.text };
-	}
-	if (delta?.type === "thinking_delta" && typeof delta.thinking === "string") {
-		return { kind: "thought", text: delta.thinking };
-	}
+  const delta = (message as { event?: { delta?: Record<string, unknown> } })
+    .event?.delta;
+  if (delta?.type === "text_delta" && typeof delta.text === "string") {
+    return { kind: "say", text: delta.text };
+  }
+  if (delta?.type === "thinking_delta" && typeof delta.thinking === "string") {
+    return { kind: "thought", text: delta.thinking };
+  }
 
-	return undefined;
+  return undefined;
 }

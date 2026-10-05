@@ -16,27 +16,27 @@ import type { ReactNode } from "react";
 // remaining `title` attributes elsewhere in the app have one thing to adopt, and so the delay and
 // the offset are decided once.
 export function Tooltip({
-	children,
-	label,
-	side = "top",
+  children,
+  label,
+  side = "top",
 }: {
-	// The control being labelled. Must forward a ref and spread props -- a DOM element or a
-	// component that passes them on -- because Radix attaches its listeners to it directly rather
-	// than to a wrapper, so the trigger stays the same element the layout already positions.
-	children: ReactNode;
-	label: string;
-	side?: "bottom" | "left" | "right" | "top";
+  // The control being labelled. Must forward a ref and spread props -- a DOM element or a
+  // component that passes them on -- because Radix attaches its listeners to it directly rather
+  // than to a wrapper, so the trigger stays the same element the layout already positions.
+  children: ReactNode;
+  label: string;
+  side?: "bottom" | "left" | "right" | "top";
 }): ReactNode {
-	return (
-		<Radix.Root>
-			<Radix.Trigger asChild>{children}</Radix.Trigger>
-			<Radix.Portal>
-				<Radix.Content className="tooltip" side={side} sideOffset={6}>
-					{label}
-				</Radix.Content>
-			</Radix.Portal>
-		</Radix.Root>
-	);
+  return (
+    <Radix.Root>
+      <Radix.Trigger asChild>{children}</Radix.Trigger>
+      <Radix.Portal>
+        <Radix.Content className="tooltip" side={side} sideOffset={6}>
+          {label}
+        </Radix.Content>
+      </Radix.Portal>
+    </Radix.Root>
+  );
 }
 
 // TooltipProvider carries the timings every tooltip in the app shares.
@@ -51,13 +51,13 @@ export function Tooltip({
 // The sidebar footer is four icon buttons in a row, and without it reading along them means four
 // separate waits.
 export function TooltipProvider({
-	children,
+  children,
 }: {
-	children: ReactNode;
+  children: ReactNode;
 }): ReactNode {
-	return (
-		<Radix.Provider delayDuration={500} skipDelayDuration={300}>
-			{children}
-		</Radix.Provider>
-	);
+  return (
+    <Radix.Provider delayDuration={500} skipDelayDuration={300}>
+      {children}
+    </Radix.Provider>
+  );
 }

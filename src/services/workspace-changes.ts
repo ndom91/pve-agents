@@ -5,21 +5,21 @@ import type { SshRunner, SshTarget } from "./ssh";
 // Deliberately git's own six minus "ignored", which git status does not report and nothing here
 // would do with.
 export type FileStatus =
-	| "added"
-	| "deleted"
-	| "modified"
-	| "renamed"
-	| "untracked";
+  | "added"
+  | "deleted"
+  | "modified"
+  | "renamed"
+  | "untracked";
 
 // ChangedFile is one entry in what the agent has done to the checkout.
 //
 // The counts are optional and mean "not knowable", never zero -- "+0 −0" would claim the file
 // changed in no way, which is a different thing from git being unable to count it.
 export type ChangedFile = {
-	added?: number;
-	path: string;
-	removed?: number;
-	status: FileStatus;
+  added?: number;
+  path: string;
+  removed?: number;
+  status: FileStatus;
 };
 
 // ChangedFiles is what the agent has done, in both the places it can live.
@@ -29,8 +29,8 @@ export type ChangedFile = {
 // said "the agent has not changed anything" about a workspace whose work was sitting one commit
 // deep, with no control offered to do anything about it.
 export type ChangedFiles =
-	| { files: ChangedFile[]; kind: "changes"; unpushed: number }
-	| { kind: "failed"; message: string };
+  | { files: ChangedFile[]; kind: "changes"; unpushed: number }
+  | { kind: "failed"; message: string };
 
 // FileSides is a file before and after, either side absent when it did not exist then.
 //
@@ -38,16 +38,16 @@ export type ChangedFiles =
 // agent creating a new file is both the commonest change and the one that most often holds a
 // workspace back from being reaped. A patch-shaped answer would show that case as nothing.
 export type FileSides =
-	| { after?: string; before?: string; kind: "contents" }
-	| { kind: "binary" }
-	| { kind: "failed"; message: string }
-	| { kind: "too-large" };
+  | { after?: string; before?: string; kind: "contents" }
+  | { kind: "binary" }
+  | { kind: "failed"; message: string }
+  | { kind: "too-large" };
 
 // ChangeAction is the outcome of doing something irreversible to the tree.
 export type ChangeAction =
-	| { branch?: string; kind: "done" }
-	| { kind: "failed"; message: string }
-	| { kind: "nothing" };
+  | { branch?: string; kind: "done" }
+  | { kind: "failed"; message: string }
+  | { kind: "nothing" };
 
 // Exit statuses the scripts use to say which thing went wrong, rather than printing it. Anything
 // else non-zero is git failing on its own terms and its stderr is the better message.
@@ -68,57 +68,57 @@ const MAX_FILE_BYTES = 1_048_576;
 // The porcelain format quotes paths containing spaces or non-ASCII when it has to separate them by
 // newline. -z removes the need, so every path arrives exactly as it is on disk.
 const STATUS = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
-	// The count first, on its own line, because it is the only part that can be read that way: a
-	// path may contain a newline, which is the reason the file list is NUL-separated below.
-	//
-	// `HEAD --not --remotes` is "commits reachable from here and from no remote branch", which
-	// answers the question whether or not this branch has an upstream. A freshly created workspace
-	// branch has none.
-	//
-	// HEAD is named explicitly and that is not decoration: `--not --remotes` on its own leaves no
-	// positive ref to walk, so it counts zero however much is unpushed. It reported exactly that
-	// against a workspace holding a commit.
-	"git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0",
-	// Lines added and removed per file, staged into a throwaway index.
-	//
-	// `add -A` is the only one of these that sees every kind of change at once: plain
-	// `git diff --numstat HEAD` cannot see an untracked file, and `add -N` picks those up but
-	// silently drops deletions. GIT_INDEX_FILE is what makes it safe -- the operator's index is
-	// untouched. It does write loose objects, which gc collects.
-	//
-	// --no-renames keeps every record the same shape: with detection on, -z emits an empty path
-	// field and two more after it.
-	'IDX="$(mktemp -u)"',
-	'GIT_INDEX_FILE="$IDX" git read-tree HEAD 2>/dev/null',
-	'GIT_INDEX_FILE="$IDX" git add -A 2>/dev/null',
-	'GIT_INDEX_FILE="$IDX" git diff --cached --numstat -z --no-renames HEAD 2>/dev/null',
-	'rm -f "$IDX"',
-	// The boundary between the two NUL-separated blocks. A numstat record always carries two tabs
-	// before its path, so a file named END still arrives as "1\t0\tEND" and cannot be mistaken
-	// for this.
-	"printf 'END\\0'",
-	// -uall, not the default. Without it an untracked directory collapses to "sub/", which the
-	// panel renders as a file and then offers a diff of. It is also what lines these paths up
-	// with numstat's.
-	"git status --porcelain -z -uall",
+  `cd "$1" || exit ${NO_DIR}`,
+  `git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+  // The count first, on its own line, because it is the only part that can be read that way: a
+  // path may contain a newline, which is the reason the file list is NUL-separated below.
+  //
+  // `HEAD --not --remotes` is "commits reachable from here and from no remote branch", which
+  // answers the question whether or not this branch has an upstream. A freshly created workspace
+  // branch has none.
+  //
+  // HEAD is named explicitly and that is not decoration: `--not --remotes` on its own leaves no
+  // positive ref to walk, so it counts zero however much is unpushed. It reported exactly that
+  // against a workspace holding a commit.
+  "git rev-list --count HEAD --not --remotes 2>/dev/null || echo 0",
+  // Lines added and removed per file, staged into a throwaway index.
+  //
+  // `add -A` is the only one of these that sees every kind of change at once: plain
+  // `git diff --numstat HEAD` cannot see an untracked file, and `add -N` picks those up but
+  // silently drops deletions. GIT_INDEX_FILE is what makes it safe -- the operator's index is
+  // untouched. It does write loose objects, which gc collects.
+  //
+  // --no-renames keeps every record the same shape: with detection on, -z emits an empty path
+  // field and two more after it.
+  'IDX="$(mktemp -u)"',
+  'GIT_INDEX_FILE="$IDX" git read-tree HEAD 2>/dev/null',
+  'GIT_INDEX_FILE="$IDX" git add -A 2>/dev/null',
+  'GIT_INDEX_FILE="$IDX" git diff --cached --numstat -z --no-renames HEAD 2>/dev/null',
+  'rm -f "$IDX"',
+  // The boundary between the two NUL-separated blocks. A numstat record always carries two tabs
+  // before its path, so a file named END still arrives as "1\t0\tEND" and cannot be mistaken
+  // for this.
+  "printf 'END\\0'",
+  // -uall, not the default. Without it an untracked directory collapses to "sub/", which the
+  // panel renders as a file and then offers a diff of. It is also what lines these paths up
+  // with numstat's.
+  "git status --porcelain -z -uall",
 ].join("\n");
 
 // BEFORE reads a file as it was at the last commit.
 const BEFORE = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`git cat-file -e "HEAD:$2" 2>/dev/null || exit ${ABSENT}`,
-	`[ "$(git cat-file -s "HEAD:$2")" -gt ${MAX_FILE_BYTES} ] && exit ${TOO_LARGE}`,
-	'git show "HEAD:$2"',
+  `cd "$1" || exit ${NO_DIR}`,
+  `git cat-file -e "HEAD:$2" 2>/dev/null || exit ${ABSENT}`,
+  `[ "$(git cat-file -s "HEAD:$2")" -gt ${MAX_FILE_BYTES} ] && exit ${TOO_LARGE}`,
+  'git show "HEAD:$2"',
 ].join("\n");
 
 // AFTER reads a file as it is now.
 const AFTER = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`[ -f "$2" ] || exit ${ABSENT}`,
-	`[ "$(wc -c < "$2")" -gt ${MAX_FILE_BYTES} ] && exit ${TOO_LARGE}`,
-	'cat "$2"',
+  `cd "$1" || exit ${NO_DIR}`,
+  `[ -f "$2" ] || exit ${ABSENT}`,
+  `[ "$(wc -c < "$2")" -gt ${MAX_FILE_BYTES} ] && exit ${TOO_LARGE}`,
+  'cat "$2"',
 ].join("\n");
 
 // PUSH puts everything on a branch of its own and sends it.
@@ -134,14 +134,14 @@ const AFTER = [
 // Commit hooks are left to run. They can fail and block a rescue, which is annoying, but silently
 // bypassing a repository's own checks to push code somewhere is the worse of the two.
 const PUSH = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
-	// Clean tree and HEAD already on a remote means there is nothing here to rescue.
-	`if [ -z "$(git status --porcelain)" ] && [ -n "$(git branch -r --contains HEAD 2>/dev/null)" ]; then exit ${NOTHING}; fi`,
-	"git add -A",
-	'if ! git diff --cached --quiet; then git commit -m "$3" || exit 1; fi',
-	'git switch -C "$2" || exit 1',
-	'git push -u origin "$2" || exit 1',
+  `cd "$1" || exit ${NO_DIR}`,
+  `git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+  // Clean tree and HEAD already on a remote means there is nothing here to rescue.
+  `if [ -z "$(git status --porcelain)" ] && [ -n "$(git branch -r --contains HEAD 2>/dev/null)" ]; then exit ${NOTHING}; fi`,
+  "git add -A",
+  'if ! git diff --cached --quiet; then git commit -m "$3" || exit 1; fi',
+  'git switch -C "$2" || exit 1',
+  'git push -u origin "$2" || exit 1',
 ].join("\n");
 
 // DISCARD_FILE throws one file away and leaves every other one alone.
@@ -158,14 +158,14 @@ const PUSH = [
 // untracked directory arrive as its files -- and a recursive delete taking a path from a browser
 // is a different class of thing from removing one file.
 const DISCARD_FILE = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
-	'if git cat-file -e "HEAD:$2" 2>/dev/null; then',
-	'  git checkout HEAD -- "$2" || exit 1',
-	"else",
-	'  git rm --cached --force -- "$2" >/dev/null 2>&1',
-	'  rm -f -- "$2" || exit 1',
-	"fi",
+  `cd "$1" || exit ${NO_DIR}`,
+  `git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+  'if git cat-file -e "HEAD:$2" 2>/dev/null; then',
+  '  git checkout HEAD -- "$2" || exit 1',
+  "else",
+  '  git rm --cached --force -- "$2" >/dev/null 2>&1',
+  '  rm -f -- "$2" || exit 1',
+  "fi",
 ].join("\n");
 
 // DISCARD throws the working tree away and leaves the history alone.
@@ -178,45 +178,45 @@ const DISCARD_FILE = [
 //
 // `clean -fd` without -x, so ignored files are left: a discard should not also delete node_modules.
 const DISCARD = [
-	`cd "$1" || exit ${NO_DIR}`,
-	`git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
-	"git reset --hard HEAD",
-	"git clean -fd",
+  `cd "$1" || exit ${NO_DIR}`,
+  `git rev-parse --git-dir >/dev/null 2>&1 || exit ${NOT_REPO}`,
+  "git reset --hard HEAD",
+  "git clean -fd",
 ].join("\n");
 
 // changedFiles lists what the agent has done to the checkout.
 export async function changedFiles(
-	target: SshTarget,
-	cwd: string,
-	ssh: SshRunner,
+  target: SshTarget,
+  cwd: string,
+  ssh: SshRunner,
 ): Promise<ChangedFiles> {
-	const result = await ssh(target, ["sh", "-c", STATUS, "sh", cwd]);
-	if (result.kind !== "ran" || result.code !== 0) {
-		return failure(result, cwd);
-	}
+  const result = await ssh(target, ["sh", "-c", STATUS, "sh", cwd]);
+  if (result.kind !== "ran" || result.code !== 0) {
+    return failure(result, cwd);
+  }
 
-	const newline = result.stdout.indexOf("\n");
-	// Two NUL-separated blocks with a sentinel between them. Split once here, so neither parser
-	// below has to know the other exists.
-	const fields = result.stdout
-		.slice(newline + 1)
-		.split("\0")
-		.filter((field) => field !== "");
-	const boundary = fields.indexOf(SENTINEL);
-	const counted = parseNumstat(
-		boundary === -1 ? [] : fields.slice(0, boundary),
-	);
+  const newline = result.stdout.indexOf("\n");
+  // Two NUL-separated blocks with a sentinel between them. Split once here, so neither parser
+  // below has to know the other exists.
+  const fields = result.stdout
+    .slice(newline + 1)
+    .split("\0")
+    .filter((field) => field !== "");
+  const boundary = fields.indexOf(SENTINEL);
+  const counted = parseNumstat(
+    boundary === -1 ? [] : fields.slice(0, boundary),
+  );
 
-	return {
-		// Porcelain decides which files exist; numstat only supplies numbers. A path in one and
-		// not the other keeps its row and loses its counts, rather than disappearing.
-		files: parseStatus(fields.slice(boundary + 1)).map((file) => ({
-			...file,
-			...counted.get(file.path),
-		})),
-		kind: "changes",
-		unpushed: Number.parseInt(result.stdout.slice(0, newline).trim(), 10) || 0,
-	};
+  return {
+    // Porcelain decides which files exist; numstat only supplies numbers. A path in one and
+    // not the other keeps its row and loses its counts, rather than disappearing.
+    files: parseStatus(fields.slice(boundary + 1)).map((file) => ({
+      ...file,
+      ...counted.get(file.path),
+    })),
+    kind: "changes",
+    unpushed: Number.parseInt(result.stdout.slice(0, newline).trim(), 10) || 0,
+  };
 }
 
 const SENTINEL = "END";
@@ -226,120 +226,120 @@ const SENTINEL = "END";
 // Each record is "added\tremoved\tpath". A binary has dashes where the numbers go and gets no
 // entry: git is saying it cannot count, not that there was nothing to count.
 function parseNumstat(
-	fields: string[],
+  fields: string[],
 ): Map<string, { added: number; removed: number }> {
-	const counts = new Map<string, { added: number; removed: number }>();
+  const counts = new Map<string, { added: number; removed: number }>();
 
-	for (const record of fields) {
-		const first = record.indexOf("\t");
-		const second = record.indexOf("\t", first + 1);
-		if (first === -1 || second === -1) {
-			continue;
-		}
+  for (const record of fields) {
+    const first = record.indexOf("\t");
+    const second = record.indexOf("\t", first + 1);
+    if (first === -1 || second === -1) {
+      continue;
+    }
 
-		const added = Number.parseInt(record.slice(0, first), 10);
-		const removed = Number.parseInt(record.slice(first + 1, second), 10);
-		if (Number.isNaN(added) || Number.isNaN(removed)) {
-			continue;
-		}
+    const added = Number.parseInt(record.slice(0, first), 10);
+    const removed = Number.parseInt(record.slice(first + 1, second), 10);
+    if (Number.isNaN(added) || Number.isNaN(removed)) {
+      continue;
+    }
 
-		counts.set(record.slice(second + 1), { added, removed });
-	}
+    counts.set(record.slice(second + 1), { added, removed });
+  }
 
-	return counts;
+  return counts;
 }
 
 // fileSides reads one file as it was and as it is.
 export async function fileSides(
-	target: SshTarget,
-	cwd: string,
-	path: string,
-	ssh: SshRunner,
+  target: SshTarget,
+  cwd: string,
+  path: string,
+  ssh: SshRunner,
 ): Promise<FileSides> {
-	// The path arrives from the browser. Everything the UI offers came out of git status and is
-	// inside the checkout, but nothing about the request guarantees that, and both scripts would
-	// happily read whatever a traversal pointed them at.
-	if (!withinCheckout(path)) {
-		return { kind: "failed", message: "path is outside the checkout" };
-	}
+  // The path arrives from the browser. Everything the UI offers came out of git status and is
+  // inside the checkout, but nothing about the request guarantees that, and both scripts would
+  // happily read whatever a traversal pointed them at.
+  if (!withinCheckout(path)) {
+    return { kind: "failed", message: "path is outside the checkout" };
+  }
 
-	const [before, after] = await Promise.all([
-		side(target, BEFORE, cwd, path, ssh),
-		side(target, AFTER, cwd, path, ssh),
-	]);
+  const [before, after] = await Promise.all([
+    side(target, BEFORE, cwd, path, ssh),
+    side(target, AFTER, cwd, path, ssh),
+  ]);
 
-	for (const read of [before, after]) {
-		if (read.kind === "failed" || read.kind === "too-large") {
-			return read;
-		}
-	}
-	if (before.kind === "binary" || after.kind === "binary") {
-		return { kind: "binary" };
-	}
+  for (const read of [before, after]) {
+    if (read.kind === "failed" || read.kind === "too-large") {
+      return read;
+    }
+  }
+  if (before.kind === "binary" || after.kind === "binary") {
+    return { kind: "binary" };
+  }
 
-	return {
-		after: after.kind === "text" ? after.text : undefined,
-		before: before.kind === "text" ? before.text : undefined,
-		kind: "contents",
-	};
+  return {
+    after: after.kind === "text" ? after.text : undefined,
+    before: before.kind === "text" ? before.text : undefined,
+    kind: "contents",
+  };
 }
 
 // commitAndPush saves everything in the workspace onto a branch of its own.
 export async function commitAndPush(
-	target: SshTarget,
-	input: { branch: string; cwd: string; message: string },
-	ssh: SshRunner,
+  target: SshTarget,
+  input: { branch: string; cwd: string; message: string },
+  ssh: SshRunner,
 ): Promise<ChangeAction> {
-	const result = await ssh(target, [
-		"sh",
-		"-c",
-		PUSH,
-		"sh",
-		input.cwd,
-		input.branch,
-		input.message,
-	]);
-	if (result.kind !== "ran" || result.code !== 0) {
-		return result.kind === "ran" && result.code === NOTHING
-			? { kind: "nothing" }
-			: failure(result, input.cwd);
-	}
+  const result = await ssh(target, [
+    "sh",
+    "-c",
+    PUSH,
+    "sh",
+    input.cwd,
+    input.branch,
+    input.message,
+  ]);
+  if (result.kind !== "ran" || result.code !== 0) {
+    return result.kind === "ran" && result.code === NOTHING
+      ? { kind: "nothing" }
+      : failure(result, input.cwd);
+  }
 
-	return { branch: input.branch, kind: "done" };
+  return { branch: input.branch, kind: "done" };
 }
 
 // discardChanges throws the working tree away.
 export async function discardChanges(
-	target: SshTarget,
-	cwd: string,
-	ssh: SshRunner,
+  target: SshTarget,
+  cwd: string,
+  ssh: SshRunner,
 ): Promise<ChangeAction> {
-	const result = await ssh(target, ["sh", "-c", DISCARD, "sh", cwd]);
+  const result = await ssh(target, ["sh", "-c", DISCARD, "sh", cwd]);
 
-	return result.kind !== "ran" || result.code !== 0
-		? failure(result, cwd)
-		: { kind: "done" };
+  return result.kind !== "ran" || result.code !== 0
+    ? failure(result, cwd)
+    : { kind: "done" };
 }
 
 // discardFile throws one file's changes away.
 export async function discardFile(
-	target: SshTarget,
-	cwd: string,
-	path: string,
-	ssh: SshRunner,
+  target: SshTarget,
+  cwd: string,
+  path: string,
+  ssh: SshRunner,
 ): Promise<ChangeAction> {
-	// The same guard `fileSides` applies, for the same reason: everything the UI offers came out of
-	// git status and is inside the checkout, and nothing about the request guarantees that. This one
-	// deletes rather than reads, so the guard matters more here than there.
-	if (!withinCheckout(path)) {
-		return { kind: "failed", message: "path is outside the checkout" };
-	}
+  // The same guard `fileSides` applies, for the same reason: everything the UI offers came out of
+  // git status and is inside the checkout, and nothing about the request guarantees that. This one
+  // deletes rather than reads, so the guard matters more here than there.
+  if (!withinCheckout(path)) {
+    return { kind: "failed", message: "path is outside the checkout" };
+  }
 
-	const result = await ssh(target, ["sh", "-c", DISCARD_FILE, "sh", cwd, path]);
+  const result = await ssh(target, ["sh", "-c", DISCARD_FILE, "sh", cwd, path]);
 
-	return result.kind !== "ran" || result.code !== 0
-		? failure(result, cwd)
-		: { kind: "done" };
+  return result.kind !== "ran" || result.code !== 0
+    ? failure(result, cwd)
+    : { kind: "done" };
 }
 
 // workspaceBranch is where a workspace's work goes, one branch per workspace.
@@ -347,49 +347,49 @@ export async function discardFile(
 // Derived from the hostname rather than chosen per push, so pushing twice updates one branch
 // instead of littering the repository with a branch per click.
 export function workspaceBranch(hostname: string): string {
-	return `pve-agents/${hostname}`;
+  return `pve-agents/${hostname}`;
 }
 
 // SideRead is one half of a file, or the reason there is no usable half.
 type SideRead =
-	| { kind: "absent" }
-	| { kind: "binary" }
-	| { kind: "failed"; message: string }
-	| { kind: "text"; text: string }
-	| { kind: "too-large" };
+  | { kind: "absent" }
+  | { kind: "binary" }
+  | { kind: "failed"; message: string }
+  | { kind: "text"; text: string }
+  | { kind: "too-large" };
 
 async function side(
-	target: SshTarget,
-	script: string,
-	cwd: string,
-	path: string,
-	ssh: SshRunner,
+  target: SshTarget,
+  script: string,
+  cwd: string,
+  path: string,
+  ssh: SshRunner,
 ): Promise<SideRead> {
-	const result = await ssh(target, ["sh", "-c", script, "sh", cwd, path]);
-	if (result.kind === "refused") {
-		return { kind: "failed", message: "workspace refused the connection" };
-	}
-	if (result.kind === "rejected") {
-		return { kind: "failed", message: result.message };
-	}
-	if (result.code === ABSENT) {
-		return { kind: "absent" };
-	}
-	if (result.code === TOO_LARGE) {
-		return { kind: "too-large" };
-	}
-	if (result.code !== 0) {
-		return {
-			kind: "failed",
-			message: result.stderr.trim() || `git exited ${result.code}`,
-		};
-	}
+  const result = await ssh(target, ["sh", "-c", script, "sh", cwd, path]);
+  if (result.kind === "refused") {
+    return { kind: "failed", message: "workspace refused the connection" };
+  }
+  if (result.kind === "rejected") {
+    return { kind: "failed", message: result.message };
+  }
+  if (result.code === ABSENT) {
+    return { kind: "absent" };
+  }
+  if (result.code === TOO_LARGE) {
+    return { kind: "too-large" };
+  }
+  if (result.code !== 0) {
+    return {
+      kind: "failed",
+      message: result.stderr.trim() || `git exited ${result.code}`,
+    };
+  }
 
-	// A NUL byte is the same test git itself uses. Rendering a binary as source would be noise at
-	// best, and the diff library has no more idea what to do with it than a person would.
-	return result.stdout.includes("\0")
-		? { kind: "binary" }
-		: { kind: "text", text: result.stdout };
+  // A NUL byte is the same test git itself uses. Rendering a binary as source would be noise at
+  // best, and the diff library has no more idea what to do with it than a person would.
+  return result.stdout.includes("\0")
+    ? { kind: "binary" }
+    : { kind: "text", text: result.stdout };
 }
 
 // parseStatus turns porcelain output into the tree's vocabulary.
@@ -398,23 +398,23 @@ async function side(
 // path as the next record, which is consumed and dropped: the tree shows where a file is now, and
 // showing both would list a rename twice.
 function parseStatus(fields: string[]): ChangedFile[] {
-	const files: ChangedFile[] = [];
+  const files: ChangedFile[] = [];
 
-	for (let index = 0; index < fields.length; index += 1) {
-		const record = fields[index] ?? "";
-		if (record.length < 4) {
-			continue;
-		}
+  for (let index = 0; index < fields.length; index += 1) {
+    const record = fields[index] ?? "";
+    if (record.length < 4) {
+      continue;
+    }
 
-		const code = record.slice(0, 2);
-		if (code[0] === "R" || code[0] === "C") {
-			index += 1;
-		}
+    const code = record.slice(0, 2);
+    if (code[0] === "R" || code[0] === "C") {
+      index += 1;
+    }
 
-		files.push({ path: record.slice(3), status: statusOf(code) });
-	}
+    files.push({ path: record.slice(3), status: statusOf(code) });
+  }
 
-	return files;
+  return files;
 }
 
 // statusOf picks the one word that best describes a two-letter code.
@@ -423,20 +423,20 @@ function parseStatus(fields: string[]): ChangedFile[] {
 // tree, and calling that added would offer a diff of something no longer there, so deletion is
 // checked before addition.
 function statusOf(code: string): FileStatus {
-	if (code === "??") {
-		return "untracked";
-	}
-	if (code.includes("D")) {
-		return "deleted";
-	}
-	if (code[0] === "R" || code[0] === "C") {
-		return "renamed";
-	}
-	if (code.includes("A")) {
-		return "added";
-	}
+  if (code === "??") {
+    return "untracked";
+  }
+  if (code.includes("D")) {
+    return "deleted";
+  }
+  if (code[0] === "R" || code[0] === "C") {
+    return "renamed";
+  }
+  if (code.includes("A")) {
+    return "added";
+  }
 
-	return "modified";
+  return "modified";
 }
 
 // withinCheckout rejects a path that could reach outside the repository.
@@ -444,31 +444,31 @@ function statusOf(code: string): FileStatus {
 // Spaces and other awkward characters are allowed: the path reaches the workspace as a positional
 // argument and is never parsed as shell, so only the traversal is worth refusing.
 function withinCheckout(path: string): boolean {
-	return (
-		path !== "" &&
-		!path.startsWith("/") &&
-		!path.split("/").includes("..") &&
-		!path.includes("\0")
-	);
+  return (
+    path !== "" &&
+    !path.startsWith("/") &&
+    !path.split("/").includes("..") &&
+    !path.includes("\0")
+  );
 }
 
 // failure turns a result that is not a success into the one message an operator will read.
 function failure(
-	result: Awaited<ReturnType<SshRunner>>,
-	cwd: string,
+  result: Awaited<ReturnType<SshRunner>>,
+  cwd: string,
 ): { kind: "failed"; message: string } {
-	if (result.kind === "refused") {
-		return { kind: "failed", message: "workspace refused the connection" };
-	}
-	if (result.kind === "rejected") {
-		return { kind: "failed", message: result.message };
-	}
+  if (result.kind === "refused") {
+    return { kind: "failed", message: "workspace refused the connection" };
+  }
+  if (result.kind === "rejected") {
+    return { kind: "failed", message: result.message };
+  }
 
-	return {
-		kind: "failed",
-		message:
-			result.code === NO_DIR || result.code === NOT_REPO
-				? `${cwd} is not a readable git repository`
-				: result.stderr.trim() || `git exited ${result.code}`,
-	};
+  return {
+    kind: "failed",
+    message:
+      result.code === NO_DIR || result.code === NOT_REPO
+        ? `${cwd} is not a readable git repository`
+        : result.stderr.trim() || `git exited ${result.code}`,
+  };
 }

@@ -12,20 +12,20 @@ import { useMounted } from "../lib/use-mounted";
 // `dateTime` carries the untouched ISO value either way, so the machine-readable answer is never
 // the zone-shifted one.
 export function Timestamp({
-	iso,
-	of = "stamp",
+  iso,
+  of = "stamp",
 }: {
-	iso?: string;
-	// "time" for a list where every row is the same day; "stamp" where the date matters.
-	of?: "stamp" | "time";
+  iso?: string;
+  // "time" for a list where every row is the same day; "stamp" where the date matters.
+  of?: "stamp" | "time";
 }): ReactNode {
-	const mounted = useMounted();
-	const zone = mounted ? undefined : UTC;
-	const shown = of === "time" ? formatTime(iso, zone) : formatStamp(iso, zone);
+  const mounted = useMounted();
+  const zone = mounted ? undefined : UTC;
+  const shown = of === "time" ? formatTime(iso, zone) : formatStamp(iso, zone);
 
-	if (iso === undefined || shown === undefined) {
-		return null;
-	}
+  if (iso === undefined || shown === undefined) {
+    return null;
+  }
 
-	return <time dateTime={iso}>{shown}</time>;
+  return <time dateTime={iso}>{shown}</time>;
 }

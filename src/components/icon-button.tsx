@@ -12,21 +12,21 @@ import { Tooltip } from "./tooltip";
 export type IconVariant = "danger" | "secondary" | "tertiary";
 
 type IconStyle = {
-	// Layout only: where the control sits, never how it looks.
-	className?: string;
-	icon: LucideIcon;
-	// Always required. An icon on its own is unlabelled to a screen reader and ambiguous to anyone
-	// who has not learned it, so the name is not optional the way a visible caption would be.
-	label: string;
-	size?: number;
-	strokeWidth?: number;
-	variant?: IconVariant;
+  // Layout only: where the control sits, never how it looks.
+  className?: string;
+  icon: LucideIcon;
+  // Always required. An icon on its own is unlabelled to a screen reader and ambiguous to anyone
+  // who has not learned it, so the name is not optional the way a visible caption would be.
+  label: string;
+  size?: number;
+  strokeWidth?: number;
+  variant?: IconVariant;
 };
 
 function classes({ className, variant = "secondary" }: IconStyle): string {
-	return ["icon-button", `is-${variant}`, className ?? ""]
-		.filter((part) => part !== "")
-		.join(" ");
+  return ["icon-button", `is-${variant}`, className ?? ""]
+    .filter((part) => part !== "")
+    .join(" ");
 }
 
 // IconButton is a square control carrying an icon and nothing else.
@@ -44,49 +44,49 @@ function classes({ className, variant = "secondary" }: IconStyle): string {
 // swapping one element's `icon` prop cannot give. Callers that never change icon pass neither and
 // get a single glyph, as before.
 export function IconButton({
-	disabled,
-	onClick,
-	swapIcon: SwapIcon,
-	swapStrokeWidth,
-	swapped = false,
-	...style
+  disabled,
+  onClick,
+  swapIcon: SwapIcon,
+  swapStrokeWidth,
+  swapped = false,
+  ...style
 }: IconStyle & {
-	disabled?: boolean;
-	onClick?: () => void;
-	swapIcon?: LucideIcon;
-	swapStrokeWidth?: number;
-	swapped?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  swapIcon?: LucideIcon;
+  swapStrokeWidth?: number;
+  swapped?: boolean;
 }): ReactNode {
-	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
+  const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
-	return (
-		<Tooltip label={label}>
-			<button
-				aria-label={label}
-				className={classes(style)}
-				disabled={disabled}
-				onClick={onClick}
-				type="button"
-			>
-				{SwapIcon === undefined ? (
-					<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-				) : (
-					<span className="t-icon-swap" data-state={swapped ? "b" : "a"}>
-						<span className="t-icon" data-icon="a">
-							<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-						</span>
-						<span className="t-icon" data-icon="b">
-							<SwapIcon
-								aria-hidden
-								size={size}
-								strokeWidth={swapStrokeWidth ?? strokeWidth}
-							/>
-						</span>
-					</span>
-				)}
-			</button>
-		</Tooltip>
-	);
+  return (
+    <Tooltip label={label}>
+      <button
+        aria-label={label}
+        className={classes(style)}
+        disabled={disabled}
+        onClick={onClick}
+        type="button"
+      >
+        {SwapIcon === undefined ? (
+          <Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+        ) : (
+          <span className="t-icon-swap" data-state={swapped ? "b" : "a"}>
+            <span className="t-icon" data-icon="a">
+              <Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+            </span>
+            <span className="t-icon" data-icon="b">
+              <SwapIcon
+                aria-hidden
+                size={size}
+                strokeWidth={swapStrokeWidth ?? strokeWidth}
+              />
+            </span>
+          </span>
+        )}
+      </button>
+    </Tooltip>
+  );
 }
 
 // IconLink is the same control for somewhere to go rather than something to do.
@@ -95,18 +95,18 @@ export function IconButton({
 // the button reached every icon except that one. Still a `<Link>`, because middle-click, the
 // status bar and the keyboard all depend on it being one.
 export function IconLink({
-	to,
-	...style
+  to,
+  ...style
 }: IconStyle & { to: string }): ReactNode {
-	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
+  const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
-	return (
-		<Tooltip label={label}>
-			<Link aria-label={label} className={classes(style)} to={to}>
-				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-			</Link>
-		</Tooltip>
-	);
+  return (
+    <Tooltip label={label}>
+      <Link aria-label={label} className={classes(style)} to={to}>
+        <Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+      </Link>
+    </Tooltip>
+  );
 }
 
 // IconOutLink goes somewhere this application does not own.
@@ -118,22 +118,22 @@ export function IconLink({
 // the first is the one doing work. Without it the destination is told which workspace page the
 // operator came from, which names an internal host in somebody else's logs.
 export function IconOutLink({
-	href,
-	...style
+  href,
+  ...style
 }: IconStyle & { href: string }): ReactNode {
-	const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
+  const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
-	return (
-		<Tooltip label={label}>
-			<a
-				aria-label={label}
-				className={classes(style)}
-				href={href}
-				rel="noreferrer noopener"
-				target="_blank"
-			>
-				<Icon aria-hidden size={size} strokeWidth={strokeWidth} />
-			</a>
-		</Tooltip>
-	);
+  return (
+    <Tooltip label={label}>
+      <a
+        aria-label={label}
+        className={classes(style)}
+        href={href}
+        rel="noreferrer noopener"
+        target="_blank"
+      >
+        <Icon aria-hidden size={size} strokeWidth={strokeWidth} />
+      </a>
+    </Tooltip>
+  );
 }

@@ -1,23 +1,23 @@
 import {
-	type Fetcher,
-	type ProxmoxCredentials,
-	type ProxmoxTaskRequest,
-	proxmoxHeaders,
-	proxmoxRead,
-	proxmoxTimeout,
-	proxmoxUnreadable,
-	proxmoxURL,
-	submitProxmoxTask,
+  type Fetcher,
+  type ProxmoxCredentials,
+  type ProxmoxTaskRequest,
+  proxmoxHeaders,
+  proxmoxRead,
+  proxmoxTimeout,
+  proxmoxUnreadable,
+  proxmoxURL,
+  submitProxmoxTask,
 } from "./proxmox-http";
 import { ownershipMarker, type WorkspaceOwnership } from "./proxmox-ownership";
 
 // CloneWorkspaceInput is the controller-owned data required for one linked clone request.
 export type CloneWorkspaceInput = WorkspaceOwnership & {
-	hostname: string;
-	node: string;
-	pool: string;
-	templateVMID: number;
-	vmid: number;
+  hostname: string;
+  node: string;
+  pool: string;
+  templateVMID: number;
+  vmid: number;
 };
 
 // CloneWorkspaceResult is the result of submitting a clone request to Proxmox.
@@ -25,8 +25,8 @@ export type CloneWorkspaceResult = ProxmoxTaskRequest;
 
 // ProxmoxVMID is a candidate VMID for a new workspace.
 export type ProxmoxVMID =
-	| { kind: "allocated"; vmid: number }
-	| { kind: "failed"; message: string };
+  | { kind: "allocated"; vmid: number }
+  | { kind: "failed"; message: string };
 
 // VMID_SCAN_LIMIT bounds how far past the floor a search will look.
 //
@@ -45,110 +45,110 @@ const VMID_SCAN_LIMIT = 128;
 // know about those until a clone actually starts, so two provisions running seconds apart would
 // otherwise choose the same id.
 export async function allocateProxmoxVMID(
-	api: ProxmoxCredentials,
-	fetcher: Fetcher,
-	floor: number,
-	reserved: ReadonlySet<number> = new Set(),
+  api: ProxmoxCredentials,
+  fetcher: Fetcher,
+  floor: number,
+  reserved: ReadonlySet<number> = new Set(),
 ): Promise<ProxmoxVMID> {
-	for (let vmid = floor; vmid < floor + VMID_SCAN_LIMIT; vmid += 1) {
-		if (reserved.has(vmid)) {
-			continue;
-		}
+  for (let vmid = floor; vmid < floor + VMID_SCAN_LIMIT; vmid += 1) {
+    if (reserved.has(vmid)) {
+      continue;
+    }
 
-		// Not `proxmoxRead`: this one never reads a body, and HTTP 400 is an answer rather than a
-		// failure -- it is Proxmox saying "that id is taken". Routing it through the shared read
-		// would turn the scan's ordinary case into an error.
-		let response: Response;
-		try {
-			response = await fetcher(
-				proxmoxURL(api.apiURL, `/cluster/nextid?vmid=${vmid}`),
-				{
-					headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
-					method: "GET",
-					signal: proxmoxTimeout(),
-				},
-			);
-		} catch {
-			return { kind: "failed", message: "proxmox next VMID request failed" };
-		}
-		if (response.ok) {
-			return { kind: "allocated", vmid };
-		}
-		// 400 is the answer "that one is taken", not a fault. Anything else is.
-		if (response.status !== 400) {
-			return {
-				kind: "failed",
-				message: `proxmox next VMID request returned HTTP ${response.status}`,
-			};
-		}
-	}
+    // Not `proxmoxRead`: this one never reads a body, and HTTP 400 is an answer rather than a
+    // failure -- it is Proxmox saying "that id is taken". Routing it through the shared read
+    // would turn the scan's ordinary case into an error.
+    let response: Response;
+    try {
+      response = await fetcher(
+        proxmoxURL(api.apiURL, `/cluster/nextid?vmid=${vmid}`),
+        {
+          headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
+          method: "GET",
+          signal: proxmoxTimeout(),
+        },
+      );
+    } catch {
+      return { kind: "failed", message: "proxmox next VMID request failed" };
+    }
+    if (response.ok) {
+      return { kind: "allocated", vmid };
+    }
+    // 400 is the answer "that one is taken", not a fault. Anything else is.
+    if (response.status !== 400) {
+      return {
+        kind: "failed",
+        message: `proxmox next VMID request returned HTTP ${response.status}`,
+      };
+    }
+  }
 
-	return {
-		kind: "failed",
-		message: `no free VMID between ${floor} and ${floor + VMID_SCAN_LIMIT - 1}`,
-	};
+  return {
+    kind: "failed",
+    message: `no free VMID between ${floor} and ${floor + VMID_SCAN_LIMIT - 1}`,
+  };
 }
 
 // nextProxmoxVMID returns an unreserved candidate VMID from Proxmox.
 export async function nextProxmoxVMID(
-	api: ProxmoxCredentials,
-	fetcher: Fetcher,
+  api: ProxmoxCredentials,
+  fetcher: Fetcher,
 ): Promise<ProxmoxVMID> {
-	const label = "next VMID request";
-	const read = await proxmoxRead(
-		proxmoxURL(api.apiURL, "/cluster/nextid"),
-		{
-			headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
-			method: "GET",
-		},
-		label,
-		fetcher,
-	);
-	if (read.kind === "failed") {
-		return read;
-	}
-	if (read.data === undefined) {
-		return proxmoxUnreadable(label);
-	}
+  const label = "next VMID request";
+  const read = await proxmoxRead(
+    proxmoxURL(api.apiURL, "/cluster/nextid"),
+    {
+      headers: proxmoxHeaders(api.tokenID, api.tokenSecret),
+      method: "GET",
+    },
+    label,
+    fetcher,
+  );
+  if (read.kind === "failed") {
+    return read;
+  }
+  if (read.data === undefined) {
+    return proxmoxUnreadable(label);
+  }
 
-	const vmid = Number(read.data);
-	if (!Number.isSafeInteger(vmid) || vmid < 100) {
-		return {
-			kind: "failed",
-			message: "proxmox next VMID request returned invalid VMID",
-		};
-	}
+  const vmid = Number(read.data);
+  if (!Number.isSafeInteger(vmid) || vmid < 100) {
+    return {
+      kind: "failed",
+      message: "proxmox next VMID request returned invalid VMID",
+    };
+  }
 
-	return { kind: "allocated", vmid };
+  return { kind: "allocated", vmid };
 }
 
 // cloneWorkspace submits one linked LXC clone request and returns its Proxmox task identifier.
 export async function cloneWorkspace(
-	api: ProxmoxCredentials,
-	input: CloneWorkspaceInput,
-	fetcher: Fetcher,
+  api: ProxmoxCredentials,
+  input: CloneWorkspaceInput,
+  fetcher: Fetcher,
 ): Promise<CloneWorkspaceResult> {
-	const body = new URLSearchParams({
-		description: ownershipMarker(input),
-		full: "0",
-		hostname: input.hostname,
-		newid: input.vmid.toString(),
-		pool: input.pool,
-	});
-	return submitProxmoxTask(
-		proxmoxURL(
-			api.apiURL,
-			`/nodes/${encodeURIComponent(input.node)}/lxc/${input.templateVMID}/clone`,
-		),
-		{
-			body,
-			headers: {
-				...proxmoxHeaders(api.tokenID, api.tokenSecret),
-				"Content-Type": "application/x-www-form-urlencoded",
-			},
-			method: "POST",
-		},
-		"clone",
-		fetcher,
-	);
+  const body = new URLSearchParams({
+    description: ownershipMarker(input),
+    full: "0",
+    hostname: input.hostname,
+    newid: input.vmid.toString(),
+    pool: input.pool,
+  });
+  return submitProxmoxTask(
+    proxmoxURL(
+      api.apiURL,
+      `/nodes/${encodeURIComponent(input.node)}/lxc/${input.templateVMID}/clone`,
+    ),
+    {
+      body,
+      headers: {
+        ...proxmoxHeaders(api.tokenID, api.tokenSecret),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    "clone",
+    fetcher,
+  );
 }

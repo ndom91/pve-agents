@@ -10,35 +10,35 @@
 // had already worked out the states, and inventing a fifth vocabulary for the same six facts would
 // help nobody.
 export type ToolState =
-	| "awaiting-approval"
-	| "denied"
-	| "error"
-	| "ok"
-	| "running";
+  | "awaiting-approval"
+  | "denied"
+  | "error"
+  | "ok"
+  | "running";
 
 // TranscriptEntry is one row.
 export type TranscriptEntry =
-	| { at?: string; kind: "prompt"; text: string }
-	| { at?: string; kind: "say"; text: string }
-	| { at?: string; kind: "thought"; text: string }
-	| { kind: "ended"; reason: string }
-	| {
-			// When the agent asked for the call, and when its result came back. Both are the
-			// runner's own `controller_at`, read off the message that carried each half.
-			//
-			// The gap between them is not the tool's execution time to the millisecond -- it is
-			// the time from the request being recorded to the result being recorded, which
-			// includes whatever the runner was doing in between. It is what "how long did this
-			// step take" means in a transcript, and it is the only answer this side has.
-			//
-			// Both optional: a runner installed before controller_at shipped stamps nothing, and a
-			// call still running has no end yet.
-			at?: string;
-			endedAt?: string;
-			id: string;
-			input: Record<string, unknown>;
-			kind: "tool";
-			name: string;
-			result?: string;
-			state: ToolState;
-	  };
+  | { at?: string; kind: "prompt"; text: string }
+  | { at?: string; kind: "say"; text: string }
+  | { at?: string; kind: "thought"; text: string }
+  | { kind: "ended"; reason: string }
+  | {
+      // When the agent asked for the call, and when its result came back. Both are the
+      // runner's own `controller_at`, read off the message that carried each half.
+      //
+      // The gap between them is not the tool's execution time to the millisecond -- it is
+      // the time from the request being recorded to the result being recorded, which
+      // includes whatever the runner was doing in between. It is what "how long did this
+      // step take" means in a transcript, and it is the only answer this side has.
+      //
+      // Both optional: a runner installed before controller_at shipped stamps nothing, and a
+      // call still running has no end yet.
+      at?: string;
+      endedAt?: string;
+      id: string;
+      input: Record<string, unknown>;
+      kind: "tool";
+      name: string;
+      result?: string;
+      state: ToolState;
+    };

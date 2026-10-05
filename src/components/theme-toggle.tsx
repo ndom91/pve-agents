@@ -10,16 +10,16 @@ import { IconButton } from "./icon-button";
 // give you, and the label says so. A segmented pair would spend twice the width to let somebody
 // press the option that is already active.
 export function ThemeToggle(): ReactNode {
-	const { setTheme, theme } = useTheme();
-	const next = theme === "dark" ? "light" : "dark";
+  const { setTheme, theme } = useTheme();
+  const next = theme === "dark" ? "light" : "dark";
 
-	return (
-		<IconButton
-			icon={theme === "dark" ? Sun : Moon}
-			label={`Switch to ${next} theme`}
-			onClick={() => setTheme(next)}
-			size={13}
-			strokeWidth={1.2}
-		/>
-	);
+  return (
+    <IconButton
+      icon={theme === "dark" ? Sun : Moon}
+      label={`Switch to ${next} theme`}
+      onClick={() => setTheme(next)}
+      size={13}
+      strokeWidth={1.2}
+    />
+  );
 }

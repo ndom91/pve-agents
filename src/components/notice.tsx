@@ -1,10 +1,10 @@
 import {
-	CircleCheck,
-	CircleX,
-	Info,
-	type LucideIcon,
-	TriangleAlert,
-	X,
+  CircleCheck,
+  CircleX,
+  Info,
+  type LucideIcon,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
@@ -25,10 +25,10 @@ export type NoticeSeverity = "neutral" | "green" | "amber" | "red";
 export type NoticePlacement = "block" | "strip";
 
 const ICONS: Record<NoticeSeverity, LucideIcon> = {
-	amber: TriangleAlert,
-	green: CircleCheck,
-	neutral: Info,
-	red: CircleX,
+  amber: TriangleAlert,
+  green: CircleCheck,
+  neutral: Info,
+  red: CircleX,
 };
 
 // Loudest first. The order `NoticeStack` shows them in, and the order it collapses them by.
@@ -38,65 +38,65 @@ const ORDER: NoticeSeverity[] = ["red", "amber", "green", "neutral"];
 export type NoticeAction = { label: string; onClick: () => void };
 
 export type NoticeProps = {
-	// Never more than one in a strip: a 34px line with two controls on it is a toolbar.
-	action?: NoticeAction;
-	// The sentence. `lead` is the state, `rest` is the consequence -- rendered primary and muted
-	// respectively, and never coloured. The icon and the fill carry the severity, which is what
-	// keeps one red notice from being three different reds.
-	lead: string;
-	onDismiss?: () => void;
-	placement?: NoticePlacement;
-	rest?: ReactNode;
-	severity: NoticeSeverity;
+  // Never more than one in a strip: a 34px line with two controls on it is a toolbar.
+  action?: NoticeAction;
+  // The sentence. `lead` is the state, `rest` is the consequence -- rendered primary and muted
+  // respectively, and never coloured. The icon and the fill carry the severity, which is what
+  // keeps one red notice from being three different reds.
+  lead: string;
+  onDismiss?: () => void;
+  placement?: NoticePlacement;
+  rest?: ReactNode;
+  severity: NoticeSeverity;
 };
 
 // Notice is one thing that is true about a workspace.
 export function Notice({
-	action,
-	lead,
-	onDismiss,
-	placement = "strip",
-	rest,
-	severity,
+  action,
+  lead,
+  onDismiss,
+  placement = "strip",
+  rest,
+  severity,
 }: NoticeProps): ReactNode {
-	const Icon = ICONS[severity];
+  const Icon = ICONS[severity];
 
-	// <output> rather than a div with role="status": it carries that role already, and a notice
-	// appearing is exactly the kind of change a screen reader should be told about.
-	return (
-		<output className={`notice is-${severity} is-${placement}`}>
-			<Icon aria-hidden className="notice-icon" size={13} strokeWidth={1.5} />
-			<div className="notice-text">
-				{placement === "block" ? (
-					<strong className="notice-lead">{lead}</strong>
-				) : (
-					<span className="notice-lead">{lead}</span>
-				)}
-				{rest === undefined ? null : (
-					<span className="notice-rest">{rest}</span>
-				)}
-			</div>
-			{action === undefined ? null : (
-				<button
-					className="notice-action"
-					onClick={action.onClick}
-					type="button"
-				>
-					{action.label}
-				</button>
-			)}
-			{onDismiss === undefined ? null : (
-				<button
-					aria-label="Dismiss"
-					className="notice-dismiss"
-					onClick={onDismiss}
-					type="button"
-				>
-					<X aria-hidden size={13} strokeWidth={1.5} />
-				</button>
-			)}
-		</output>
-	);
+  // <output> rather than a div with role="status": it carries that role already, and a notice
+  // appearing is exactly the kind of change a screen reader should be told about.
+  return (
+    <output className={`notice is-${severity} is-${placement}`}>
+      <Icon aria-hidden className="notice-icon" size={13} strokeWidth={1.5} />
+      <div className="notice-text">
+        {placement === "block" ? (
+          <strong className="notice-lead">{lead}</strong>
+        ) : (
+          <span className="notice-lead">{lead}</span>
+        )}
+        {rest === undefined ? null : (
+          <span className="notice-rest">{rest}</span>
+        )}
+      </div>
+      {action === undefined ? null : (
+        <button
+          className="notice-action"
+          onClick={action.onClick}
+          type="button"
+        >
+          {action.label}
+        </button>
+      )}
+      {onDismiss === undefined ? null : (
+        <button
+          aria-label="Dismiss"
+          className="notice-dismiss"
+          onClick={onDismiss}
+          type="button"
+        >
+          <X aria-hidden size={13} strokeWidth={1.5} />
+        </button>
+      )}
+    </output>
+  );
 }
 
 // NoticeStack shows the loudest notice and hides the rest behind a count.
@@ -107,48 +107,48 @@ export function Notice({
 //
 // Callers pass whichever notices are currently true, in any order.
 export function NoticeStack({
-	notices,
+  notices,
 }: {
-	notices: NoticeProps[];
+  notices: NoticeProps[];
 }): ReactNode {
-	const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-	if (notices.length === 0) {
-		return null;
-	}
+  if (notices.length === 0) {
+    return null;
+  }
 
-	const ranked = [...notices].sort(
-		(a, b) => ORDER.indexOf(a.severity) - ORDER.indexOf(b.severity),
-	);
-	const [loudest, ...rest] = ranked;
-	if (loudest === undefined) {
-		return null;
-	}
+  const ranked = [...notices].sort(
+    (a, b) => ORDER.indexOf(a.severity) - ORDER.indexOf(b.severity),
+  );
+  const [loudest, ...rest] = ranked;
+  if (loudest === undefined) {
+    return null;
+  }
 
-	return (
-		<>
-			<Notice {...loudest} />
-			{rest.length === 0 ? null : (
-				<>
-					{open
-						? rest.map((notice) => <Notice key={notice.lead} {...notice} />)
-						: null}
-					<button
-						aria-expanded={open}
-						className="notice-more"
-						onClick={() => setOpen(!open)}
-						type="button"
-					>
-						<span
-							aria-hidden
-							className={`notice-more-dot is-${rest[0]?.severity ?? "neutral"}`}
-						/>
-						{rest.length === 1
-							? "1 more notice"
-							: `${rest.length} more notices`}
-					</button>
-				</>
-			)}
-		</>
-	);
+  return (
+    <>
+      <Notice {...loudest} />
+      {rest.length === 0 ? null : (
+        <>
+          {open
+            ? rest.map((notice) => <Notice key={notice.lead} {...notice} />)
+            : null}
+          <button
+            aria-expanded={open}
+            className="notice-more"
+            onClick={() => setOpen(!open)}
+            type="button"
+          >
+            <span
+              aria-hidden
+              className={`notice-more-dot is-${rest[0]?.severity ?? "neutral"}`}
+            />
+            {rest.length === 1
+              ? "1 more notice"
+              : `${rest.length} more notices`}
+          </button>
+        </>
+      )}
+    </>
+  );
 }

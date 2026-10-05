@@ -16,20 +16,20 @@ export type OutcomeItem = { label: string; severity: NoticeSeverity };
 // Its own module rather than a helper in the route, because a route cannot be imported by a test
 // without building a router, and the mapping from outcome to severity is the part worth asserting.
 export function outcomeItem(
-	workspace: Parameters<typeof workspaceOutcome>[0],
+  workspace: Parameters<typeof workspaceOutcome>[0],
 ): OutcomeItem[] {
-	const outcome = workspaceOutcome(workspace);
+  const outcome = workspaceOutcome(workspace);
 
-	if (outcome.kind === "pushed") {
-		return [{ label: "work pushed", severity: "green" }];
-	}
-	if (outcome.kind === "discarded") {
-		return [{ label: "changes discarded", severity: "neutral" }];
-	}
-	if (outcome.kind === "lost") {
-		// The only outcome where something is gone and nobody can get it back.
-		return [{ label: "unsaved work lost", severity: "red" }];
-	}
+  if (outcome.kind === "pushed") {
+    return [{ label: "work pushed", severity: "green" }];
+  }
+  if (outcome.kind === "discarded") {
+    return [{ label: "changes discarded", severity: "neutral" }];
+  }
+  if (outcome.kind === "lost") {
+    // The only outcome where something is gone and nobody can get it back.
+    return [{ label: "unsaved work lost", severity: "red" }];
+  }
 
-	return [];
+  return [];
 }

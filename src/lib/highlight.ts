@@ -33,29 +33,29 @@ import { yaml } from "@tanstack/highlight/languages/yaml";
 // Alpha, at 0.1.0, and pinned exactly like everything else here for the reason AGENTS.md records.
 // The surface used is two calls wide, so the cost of it moving is small and visible.
 const highlighter = createHighlighter({
-	// Anything unrecognised comes out as one unstyled run rather than throwing. Agent output is
-	// full of formats nobody registered, and a tool result must never be able to break the page it
-	// is rendered into.
-	fallbackLanguage: "plaintext",
-	languages: [
-		css,
-		diff,
-		dockerfile,
-		go,
-		html,
-		js,
-		json,
-		jsx,
-		markdown,
-		plaintext,
-		python,
-		shell,
-		sql,
-		toml,
-		ts,
-		tsx,
-		yaml,
-	],
+  // Anything unrecognised comes out as one unstyled run rather than throwing. Agent output is
+  // full of formats nobody registered, and a tool result must never be able to break the page it
+  // is rendered into.
+  fallbackLanguage: "plaintext",
+  languages: [
+    css,
+    diff,
+    dockerfile,
+    go,
+    html,
+    js,
+    json,
+    jsx,
+    markdown,
+    plaintext,
+    python,
+    shell,
+    sql,
+    toml,
+    ts,
+    tsx,
+    yaml,
+  ],
 });
 
 // HighlightToken is one run of text and the semantic class it belongs to.
@@ -68,7 +68,7 @@ export type HighlightToken = { className?: string; value: string };
 // escape correctly — verified against `<img src=x onerror=...>` — but not needing to trust that is
 // better than trusting it.
 export function tokenise(code: string, lang?: string): HighlightToken[] {
-	return highlighter.highlight(code, { lang: language(lang) }).tokens;
+  return highlighter.highlight(code, { lang: language(lang) }).tokens;
 }
 
 // EXTENSIONS maps a file suffix to a registered language.
@@ -76,44 +76,44 @@ export function tokenise(code: string, lang?: string): HighlightToken[] {
 // Only the ones that differ from the suffix itself; `.ts`, `.json`, `.css` and friends already
 // name their language, and listing them again would be a second place to keep correct.
 const EXTENSIONS: Record<string, string> = {
-	bash: "shell",
-	cjs: "js",
-	htm: "html",
-	markdown: "markdown",
-	md: "markdown",
-	mjs: "js",
-	mts: "ts",
-	patch: "diff",
-	py: "python",
-	sh: "shell",
-	yml: "yaml",
-	zsh: "shell",
+  bash: "shell",
+  cjs: "js",
+  htm: "html",
+  markdown: "markdown",
+  md: "markdown",
+  mjs: "js",
+  mts: "ts",
+  patch: "diff",
+  py: "python",
+  sh: "shell",
+  yml: "yaml",
+  zsh: "shell",
 };
 
 // language resolves whatever a caller has to a language the highlighter knows.
 export function language(name?: string): string {
-	if (name === undefined || name === "") {
-		return "plaintext";
-	}
+  if (name === undefined || name === "") {
+    return "plaintext";
+  }
 
-	const lower = name.toLowerCase();
-	const mapped = EXTENSIONS[lower] ?? lower;
+  const lower = name.toLowerCase();
+  const mapped = EXTENSIONS[lower] ?? lower;
 
-	return highlighter.listLanguages().includes(mapped) ? mapped : "plaintext";
+  return highlighter.listLanguages().includes(mapped) ? mapped : "plaintext";
 }
 
 // languageOfPath reads a language off a file path.
 export function languageOfPath(path: string): string {
-	const name = path.slice(path.lastIndexOf("/") + 1);
-	// Dockerfile and Makefile carry their language in the name rather than a suffix, and a bare
-	// "Dockerfile" has no dot at all.
-	if (name.toLowerCase().startsWith("dockerfile")) {
-		return "dockerfile";
-	}
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  // Dockerfile and Makefile carry their language in the name rather than a suffix, and a bare
+  // "Dockerfile" has no dot at all.
+  if (name.toLowerCase().startsWith("dockerfile")) {
+    return "dockerfile";
+  }
 
-	const dot = name.lastIndexOf(".");
+  const dot = name.lastIndexOf(".");
 
-	return dot === -1 ? "plaintext" : language(name.slice(dot + 1));
+  return dot === -1 ? "plaintext" : language(name.slice(dot + 1));
 }
 
 // languageOfOutput guesses a language for a tool's output, which carries no label at all.
@@ -123,16 +123,16 @@ export function languageOfPath(path: string): string {
 // it, and guessing a language for that produces confetti rather than meaning. So: JSON when it
 // really is JSON, plaintext otherwise.
 export function languageOfOutput(output: string): string {
-	const trimmed = output.trim();
-	if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-		return "plaintext";
-	}
+  const trimmed = output.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    return "plaintext";
+  }
 
-	try {
-		JSON.parse(trimmed);
+  try {
+    JSON.parse(trimmed);
 
-		return "json";
-	} catch {
-		return "plaintext";
-	}
+    return "json";
+  } catch {
+    return "plaintext";
+  }
 }

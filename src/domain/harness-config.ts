@@ -14,27 +14,27 @@ export const MAX_CREDENTIAL_BYTES = 16 * 1024;
 
 // harnessConfigSchema is one harness as it arrives from the browser.
 export const harnessConfigSchema = z.object({
-	// Absent when the field was left blank on an edit, which means "keep the stored one". A
-	// credential is the one field where blank cannot mean empty: an operator renaming a harness
-	// would otherwise blank its token and find out at the next provision.
-	credential: z
-		.string()
-		.max(
-			MAX_CREDENTIAL_BYTES,
-			`a credential cannot exceed ${MAX_CREDENTIAL_BYTES} bytes`,
-		)
-		.optional(),
-	enabled: z.boolean().default(true),
-	// Present when editing, absent when adding.
-	id: z.string().optional(),
-	// Validated against the registry by the caller rather than as an enum here, so adding a harness
-	// stays a matter of adding a directory.
-	kind: z.string().min(1).max(64),
-	// Optional, and its absence means "whatever that agent thinks is current". claude-code's SDK
-	// chooses for itself; opencode asks its own server for a default. A name pinned here is a name
-	// that goes stale without anything noticing.
-	model: z.string().trim().max(255).optional(),
-	name: z.string().trim().min(1).max(64),
+  // Absent when the field was left blank on an edit, which means "keep the stored one". A
+  // credential is the one field where blank cannot mean empty: an operator renaming a harness
+  // would otherwise blank its token and find out at the next provision.
+  credential: z
+    .string()
+    .max(
+      MAX_CREDENTIAL_BYTES,
+      `a credential cannot exceed ${MAX_CREDENTIAL_BYTES} bytes`,
+    )
+    .optional(),
+  enabled: z.boolean().default(true),
+  // Present when editing, absent when adding.
+  id: z.string().optional(),
+  // Validated against the registry by the caller rather than as an enum here, so adding a harness
+  // stays a matter of adding a directory.
+  kind: z.string().min(1).max(64),
+  // Optional, and its absence means "whatever that agent thinks is current". claude-code's SDK
+  // chooses for itself; opencode asks its own server for a default. A name pinned here is a name
+  // that goes stale without anything noticing.
+  model: z.string().trim().max(255).optional(),
+  name: z.string().trim().min(1).max(64),
 });
 
 export type HarnessConfigInput = z.output<typeof harnessConfigSchema>;
@@ -45,12 +45,12 @@ export type HarnessConfigInput = z.output<typeof harnessConfigSchema>;
 // what the list endpoint returns, so a credential cannot reach the browser by someone forgetting to
 // strip it.
 export type HarnessConfig = {
-	enabled: boolean;
-	id: string;
-	kind: string;
-	model?: string;
-	name: string;
-	updatedAt: string;
+  enabled: boolean;
+  id: string;
+  kind: string;
+  model?: string;
+  name: string;
+  updatedAt: string;
 };
 
 // HarnessSecret is a stored harness including what it is for.

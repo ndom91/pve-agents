@@ -2,106 +2,106 @@ import { describe, expect, it } from "vitest";
 
 import type { ProvisionPhase } from "./workspace";
 import {
-	isArchived,
-	isConversing,
-	LIFECYCLE_STEPS,
-	lifecycleReached,
+  isArchived,
+  isConversing,
+  LIFECYCLE_STEPS,
+  lifecycleReached,
 } from "./workspace-lifecycle";
 
 describe("isArchived", () => {
-	it("shows the kept conversation only once the container is gone", () => {
-		expect(isArchived("destroyed")).toBe(true);
-		// Still destroying: the live stream is up, and nothing has been kept yet.
-		expect(isArchived("destroying")).toBe(false);
-		// A failed workspace's conversation is kept when it is destroyed, not when it fails.
-		expect(isArchived("failed")).toBe(false);
-	});
+  it("shows the kept conversation only once the container is gone", () => {
+    expect(isArchived("destroyed")).toBe(true);
+    // Still destroying: the live stream is up, and nothing has been kept yet.
+    expect(isArchived("destroying")).toBe(false);
+    // A failed workspace's conversation is kept when it is destroyed, not when it fails.
+    expect(isArchived("failed")).toBe(false);
+  });
 });
 
 describe("isConversing", () => {
-	it("keeps the transcript up while a destroy is in flight", () => {
-		// The bug this exists for. Destroy predicts "destroying" on the click, so a feed gated on
-		// "ready" unmounted before the request was answered and took the stream with it. The
-		// messages are component state, so a destroy that then failed had nothing to restore.
-		expect(isConversing("destroying")).toBe(true);
-	});
+  it("keeps the transcript up while a destroy is in flight", () => {
+    // The bug this exists for. Destroy predicts "destroying" on the click, so a feed gated on
+    // "ready" unmounted before the request was answered and took the stream with it. The
+    // messages are component state, so a destroy that then failed had nothing to restore.
+    expect(isConversing("destroying")).toBe(true);
+  });
 
-	it("shows it for a workspace that can be talked to", () => {
-		expect(isConversing("ready")).toBe(true);
-	});
+  it("shows it for a workspace that can be talked to", () => {
+    expect(isConversing("ready")).toBe(true);
+  });
 
-	it("drops it once there is no container behind it", () => {
-		// Nothing to stream from, and `Outcome` takes the space instead.
-		expect(isConversing("destroyed")).toBe(false);
-		expect(isConversing("failed")).toBe(false);
-	});
+  it("drops it once there is no container behind it", () => {
+    // Nothing to stream from, and `Outcome` takes the space instead.
+    expect(isConversing("destroyed")).toBe(false);
+    expect(isConversing("failed")).toBe(false);
+  });
 
-	it("does not open a stream to a workspace still being built", () => {
-		// The runner is not up yet. This is the lifecycle strip's half of the screen.
-		expect(isConversing("provisioning")).toBe(false);
-		expect(isConversing("booting")).toBe(false);
-		expect(isConversing(undefined)).toBe(false);
-	});
+  it("does not open a stream to a workspace still being built", () => {
+    // The runner is not up yet. This is the lifecycle strip's half of the screen.
+    expect(isConversing("provisioning")).toBe(false);
+    expect(isConversing("booting")).toBe(false);
+    expect(isConversing(undefined)).toBe(false);
+  });
 });
 
 describe("lifecycleReached", () => {
-	it("fills the strip for a ready workspace whatever its phase says", () => {
-		// Rows written before provision_phase existed carry none at all, and they are as ready as
-		// any other.
-		expect(lifecycleReached("briefed", "ready")).toBe(6);
-		expect(lifecycleReached(undefined, "ready")).toBe(6);
-	});
+  it("fills the strip for a ready workspace whatever its phase says", () => {
+    // Rows written before provision_phase existed carry none at all, and they are as ready as
+    // any other.
+    expect(lifecycleReached("briefed", "ready")).toBe(6);
+    expect(lifecycleReached(undefined, "ready")).toBe(6);
+  });
 
-	it("empties it once the container is gone", () => {
-		// Not mid-provision. Over.
-		expect(lifecycleReached("briefed", "destroyed")).toBe(0);
-		expect(lifecycleReached("briefed", "destroying")).toBe(0);
-	});
+  it("empties it once the container is gone", () => {
+    // Not mid-provision. Over.
+    expect(lifecycleReached("briefed", "destroyed")).toBe(0);
+    expect(lifecycleReached("briefed", "destroying")).toBe(0);
+  });
 
-	it("counts a phase as the segment it completed", () => {
-		expect(lifecycleReached("clone-submitted", "provisioning")).toBe(1);
-		expect(lifecycleReached("clone-confirmed", "provisioning")).toBe(2);
-		expect(lifecycleReached("booted", "provisioning")).toBe(3);
-		expect(lifecycleReached("reachable", "provisioning")).toBe(4);
-		expect(lifecycleReached("seeded", "provisioning")).toBe(5);
-		expect(lifecycleReached("briefed", "provisioning")).toBe(6);
-	});
+  it("counts a phase as the segment it completed", () => {
+    expect(lifecycleReached("clone-submitted", "provisioning")).toBe(1);
+    expect(lifecycleReached("clone-confirmed", "provisioning")).toBe(2);
+    expect(lifecycleReached("booted", "provisioning")).toBe(3);
+    expect(lifecycleReached("reachable", "provisioning")).toBe(4);
+    expect(lifecycleReached("seeded", "provisioning")).toBe(5);
+    expect(lifecycleReached("briefed", "provisioning")).toBe(6);
+  });
 
-	it("never goes backwards along the executor's own order", () => {
-		// The one property worth asserting: the bar is read as progress, so a later phase must not
-		// fill fewer segments than an earlier one. The order here is the switch in
-		// workspace-provision-executor.ts, copied deliberately -- if that changes, this fails.
-		const order: ProvisionPhase[] = [
-			"clone-submitted",
-			"clone-confirmed",
-			"start-submitted",
-			"booted",
-			"addressed",
-			"reachable",
-			"bootstrapped",
-			"checked-out",
-			"seeded",
-			"runner-started",
-			"briefed",
-		];
+  it("never goes backwards along the executor's own order", () => {
+    // The one property worth asserting: the bar is read as progress, so a later phase must not
+    // fill fewer segments than an earlier one. The order here is the switch in
+    // workspace-provision-executor.ts, copied deliberately -- if that changes, this fails.
+    const order: ProvisionPhase[] = [
+      "clone-submitted",
+      "clone-confirmed",
+      "start-submitted",
+      "booted",
+      "addressed",
+      "reachable",
+      "bootstrapped",
+      "checked-out",
+      "seeded",
+      "runner-started",
+      "briefed",
+    ];
 
-		const reached = order.map((phase) =>
-			lifecycleReached(phase, "provisioning"),
-		);
+    const reached = order.map((phase) =>
+      lifecycleReached(phase, "provisioning"),
+    );
 
-		expect(reached).toEqual([...reached].sort((a, b) => a - b));
-		expect(reached.at(-1)).toBe(LIFECYCLE_STEPS.length);
-	});
+    expect(reached).toEqual([...reached].sort((a, b) => a - b));
+    expect(reached.at(-1)).toBe(LIFECYCLE_STEPS.length);
+  });
 
-	it("treats a workspace with no phase, or an unknown one, as requested", () => {
-		// It exists, which is the first segment. Zero would read as nothing having happened.
-		expect(lifecycleReached(undefined, "requested")).toBe(1);
-		// Cast, because the point of the case is a value the union does not contain: a row written
-		// by a newer controller and read by an older one. The typing cannot prevent that -- it
-		// describes what this build writes, not what is in the database -- which is why the
-		// fallback survives despite looking unreachable.
-		expect(
-			lifecycleReached("something-new" as ProvisionPhase, "provisioning"),
-		).toBe(1);
-	});
+  it("treats a workspace with no phase, or an unknown one, as requested", () => {
+    // It exists, which is the first segment. Zero would read as nothing having happened.
+    expect(lifecycleReached(undefined, "requested")).toBe(1);
+    // Cast, because the point of the case is a value the union does not contain: a row written
+    // by a newer controller and read by an older one. The typing cannot prevent that -- it
+    // describes what this build writes, not what is in the database -- which is why the
+    // fallback survives despite looking unreachable.
+    expect(
+      lifecycleReached("something-new" as ProvisionPhase, "provisioning"),
+    ).toBe(1);
+  });
 });

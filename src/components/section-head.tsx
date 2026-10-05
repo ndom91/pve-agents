@@ -10,25 +10,25 @@ import type { ReactNode } from "react";
 // The rule is a plain element rather than a border on the label, because it has to start after the
 // text and stop at whatever is on the right -- a border would run under both.
 export function SectionHead({
-	count,
-	label,
-	trailing,
+  count,
+  label,
+  trailing,
 }: {
-	// A number on the far right. Zero is rendered; absent is not, which is the difference between
-	// "none of these" and "this group does not count things".
-	count?: number;
-	label: string;
-	// Anything other than a count on the right: a status, a duration. Wins over `count`.
-	trailing?: ReactNode;
+  // A number on the far right. Zero is rendered; absent is not, which is the difference between
+  // "none of these" and "this group does not count things".
+  count?: number;
+  label: string;
+  // Anything other than a count on the right: a status, a duration. Wins over `count`.
+  trailing?: ReactNode;
 }): ReactNode {
-	return (
-		<div className="section-head">
-			<span className="section-head-label">{label}</span>
-			<span className="section-head-rule" />
-			{trailing ??
-				(count === undefined ? null : (
-					<span className="section-head-count">{count}</span>
-				))}
-		</div>
-	);
+  return (
+    <div className="section-head">
+      <span className="section-head-label">{label}</span>
+      <span className="section-head-rule" />
+      {trailing ??
+        (count === undefined ? null : (
+          <span className="section-head-count">{count}</span>
+        ))}
+    </div>
+  );
 }

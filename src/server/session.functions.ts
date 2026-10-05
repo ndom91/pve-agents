@@ -9,18 +9,18 @@ import { currentSession } from "./session";
 // It deliberately carries no user detail. A route only has to know whether sign-in is required on
 // this controller and whether the caller has satisfied it.
 export type SessionState = {
-	required: boolean;
-	signedIn: boolean;
+  required: boolean;
+  signedIn: boolean;
 };
 
 // sessionState reports whether the current request is signed in.
 export const sessionState = createServerFn({ method: "GET" }).handler(
-	async (): Promise<SessionState> => {
-		const required = authConfigured(controllerRuntimeConfig());
-		if (!required) {
-			return { required: false, signedIn: false };
-		}
+  async (): Promise<SessionState> => {
+    const required = authConfigured(controllerRuntimeConfig());
+    if (!required) {
+      return { required: false, signedIn: false };
+    }
 
-		return { required: true, signedIn: (await currentSession()) !== null };
-	},
+    return { required: true, signedIn: (await currentSession()) !== null };
+  },
 );

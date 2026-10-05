@@ -11,10 +11,10 @@ import { TooltipProvider } from "./tooltip";
 afterEach(cleanup);
 
 function assistant(text: string) {
-	return {
-		message: { content: [{ text, type: "text" }], role: "assistant" },
-		type: "assistant",
-	};
+  return {
+    message: { content: [{ text, type: "text" }], role: "assistant" },
+    type: "assistant",
+  };
 }
 
 // happy-dom lays nothing out, so every box is zero and nothing clamps. These give the list a
@@ -25,253 +25,253 @@ function assistant(text: string) {
 // which in a browser means "as far down as this goes"; without clamping the test would assert on
 // a scroll position no real browser can hold.
 function measure(
-	list: HTMLElement,
-	{ height, scrollHeight }: { height: number; scrollHeight: number },
+  list: HTMLElement,
+  { height, scrollHeight }: { height: number; scrollHeight: number },
 ): void {
-	const at = Math.min(list.scrollTop, Math.max(0, scrollHeight - height));
+  const at = Math.min(list.scrollTop, Math.max(0, scrollHeight - height));
 
-	Object.defineProperty(list, "clientHeight", {
-		configurable: true,
-		value: height,
-	});
-	Object.defineProperty(list, "scrollHeight", {
-		configurable: true,
-		value: scrollHeight,
-	});
+  Object.defineProperty(list, "clientHeight", {
+    configurable: true,
+    value: height,
+  });
+  Object.defineProperty(list, "scrollHeight", {
+    configurable: true,
+    value: scrollHeight,
+  });
 
-	let position = at;
-	Object.defineProperty(list, "scrollTop", {
-		configurable: true,
-		get: () => position,
-		set: (next: number) => {
-			position = Math.min(
-				Math.max(0, next),
-				Math.max(0, scrollHeight - height),
-			);
-		},
-	});
+  let position = at;
+  Object.defineProperty(list, "scrollTop", {
+    configurable: true,
+    get: () => position,
+    set: (next: number) => {
+      position = Math.min(
+        Math.max(0, next),
+        Math.max(0, scrollHeight - height),
+      );
+    },
+  });
 }
 
 // bottom is the furthest down a list of this shape can be scrolled.
 function bottom({
-	height,
-	scrollHeight,
+  height,
+  scrollHeight,
 }: {
-	height: number;
-	scrollHeight: number;
+  height: number;
+  scrollHeight: number;
 }): number {
-	return scrollHeight - height;
+  return scrollHeight - height;
 }
 
 // Wrapped because the fold's copy buttons are IconButtons, which carry a Radix tooltip and throw
 // without a provider. The application has one at the document root.
 function chat(messages: unknown[]) {
-	return (
-		<TooltipProvider>
-			<AgentChat
-				approvals={[]}
-				busy={false}
-				link="attached"
-				messages={messages}
-				onDecide={() => {}}
-			/>
-		</TooltipProvider>
-	);
+  return (
+    <TooltipProvider>
+      <AgentChat
+        approvals={[]}
+        busy={false}
+        link="attached"
+        messages={messages}
+        onDecide={() => {}}
+      />
+    </TooltipProvider>
+  );
 }
 
 describe("AgentChat transcript scrolling", () => {
-	it("shows a start prompt only while an attached transcript is empty", () => {
-		const { container, rerender } = render(chat([]));
+  it("shows a start prompt only while an attached transcript is empty", () => {
+    const { container, rerender } = render(chat([]));
 
-		expect(container.querySelector(".chat-empty-state")).not.toBeNull();
-		expect(container.textContent).toContain(
-			"Enter a query in the prompt below to get started.",
-		);
+    expect(container.querySelector(".chat-empty-state")).not.toBeNull();
+    expect(container.textContent).toContain(
+      "Enter a query in the prompt below to get started.",
+    );
 
-		rerender(
-			<TooltipProvider>
-				<AgentChat
-					approvals={[]}
-					busy={false}
-					link="opening"
-					messages={[]}
-					onDecide={() => {}}
-				/>
-			</TooltipProvider>,
-		);
+    rerender(
+      <TooltipProvider>
+        <AgentChat
+          approvals={[]}
+          busy={false}
+          link="opening"
+          messages={[]}
+          onDecide={() => {}}
+        />
+      </TooltipProvider>,
+    );
 
-		expect(container.querySelector(".chat-empty-state")).toBeNull();
+    expect(container.querySelector(".chat-empty-state")).toBeNull();
 
-		rerender(chat([assistant("I am ready.")]));
+    rerender(chat([assistant("I am ready.")]));
 
-		expect(container.querySelector(".chat-empty-state")).toBeNull();
-	});
+    expect(container.querySelector(".chat-empty-state")).toBeNull();
+  });
 
-	it("follows the end while the reader is already at it", () => {
-		const { container, rerender } = render(chat([assistant("one")]));
-		const list = container.querySelector("ol");
-		if (list === null) {
-			throw new Error("no transcript");
-		}
+  it("follows the end while the reader is already at it", () => {
+    const { container, rerender } = render(chat([assistant("one")]));
+    const list = container.querySelector("ol");
+    if (list === null) {
+      throw new Error("no transcript");
+    }
 
-		// At the bottom of a 300px transcript in a 200px window.
-		const before = { height: 200, scrollHeight: 300 };
-		measure(list, before);
-		list.scrollTop = bottom(before);
+    // At the bottom of a 300px transcript in a 200px window.
+    const before = { height: 200, scrollHeight: 300 };
+    measure(list, before);
+    list.scrollTop = bottom(before);
 
-		const after = { height: 200, scrollHeight: 460 };
-		measure(list, after);
-		rerender(chat([assistant("one"), assistant("two")]));
+    const after = { height: 200, scrollHeight: 460 };
+    measure(list, after);
+    rerender(chat([assistant("one"), assistant("two")]));
 
-		expect(list.scrollTop).toBe(bottom(after));
-	});
+    expect(list.scrollTop).toBe(bottom(after));
+  });
 
-	it("leaves a reader who has scrolled up where they are", () => {
-		const { container, rerender } = render(chat([assistant("one")]));
-		const list = container.querySelector("ol");
-		if (list === null) {
-			throw new Error("no transcript");
-		}
+  it("leaves a reader who has scrolled up where they are", () => {
+    const { container, rerender } = render(chat([assistant("one")]));
+    const list = container.querySelector("ol");
+    if (list === null) {
+      throw new Error("no transcript");
+    }
 
-		// Settle the stored height at 300 with the reader at the end of it.
-		const settled = { height: 200, scrollHeight: 300 };
-		measure(list, settled);
-		list.scrollTop = bottom(settled);
-		rerender(chat([assistant("one"), assistant("two")]));
+    // Settle the stored height at 300 with the reader at the end of it.
+    const settled = { height: 200, scrollHeight: 300 };
+    measure(list, settled);
+    list.scrollTop = bottom(settled);
+    rerender(chat([assistant("one"), assistant("two")]));
 
-		// Now scrolled well up, reading something older.
-		list.scrollTop = 10;
-		measure(list, { height: 200, scrollHeight: 500 });
-		rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
+    // Now scrolled well up, reading something older.
+    list.scrollTop = 10;
+    measure(list, { height: 200, scrollHeight: 500 });
+    rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
 
-		expect(list.scrollTop).toBe(10);
-	});
+    expect(list.scrollTop).toBe(10);
+  });
 
-	it("does not need a scroll event to notice the reader has left the end", () => {
-		// The bug this replaced. Following used to be decided by a ref that a scroll handler
-		// wrote, and scroll events are delivered asynchronously: during a stream the next token
-		// arrived before the handler ran, the effect read a stale "at the bottom", and the reader
-		// was dragged back down by the thing they had just scrolled away from.
-		//
-		// No scroll event is dispatched anywhere in this test, which is the whole point.
-		const { container, rerender } = render(chat([assistant("one")]));
-		const list = container.querySelector("ol");
-		if (list === null) {
-			throw new Error("no transcript");
-		}
+  it("does not need a scroll event to notice the reader has left the end", () => {
+    // The bug this replaced. Following used to be decided by a ref that a scroll handler
+    // wrote, and scroll events are delivered asynchronously: during a stream the next token
+    // arrived before the handler ran, the effect read a stale "at the bottom", and the reader
+    // was dragged back down by the thing they had just scrolled away from.
+    //
+    // No scroll event is dispatched anywhere in this test, which is the whole point.
+    const { container, rerender } = render(chat([assistant("one")]));
+    const list = container.querySelector("ol");
+    if (list === null) {
+      throw new Error("no transcript");
+    }
 
-		const settled = { height: 200, scrollHeight: 300 };
-		measure(list, settled);
-		list.scrollTop = bottom(settled);
-		rerender(chat([assistant("one"), assistant("two")]));
+    const settled = { height: 200, scrollHeight: 300 };
+    measure(list, settled);
+    list.scrollTop = bottom(settled);
+    rerender(chat([assistant("one"), assistant("two")]));
 
-		list.scrollTop = 0;
-		measure(list, { height: 200, scrollHeight: 340 });
-		rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
+    list.scrollTop = 0;
+    measure(list, { height: 200, scrollHeight: 340 });
+    rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
 
-		expect(list.scrollTop).toBe(0);
-	});
+    expect(list.scrollTop).toBe(0);
+  });
 
-	it("resumes following once the reader returns to the end", () => {
-		const { container, rerender } = render(chat([assistant("one")]));
-		const list = container.querySelector("ol");
-		if (list === null) {
-			throw new Error("no transcript");
-		}
+  it("resumes following once the reader returns to the end", () => {
+    const { container, rerender } = render(chat([assistant("one")]));
+    const list = container.querySelector("ol");
+    if (list === null) {
+      throw new Error("no transcript");
+    }
 
-		const settled = { height: 200, scrollHeight: 300 };
-		measure(list, settled);
-		list.scrollTop = bottom(settled);
-		rerender(chat([assistant("one"), assistant("two")]));
+    const settled = { height: 200, scrollHeight: 300 };
+    measure(list, settled);
+    list.scrollTop = bottom(settled);
+    rerender(chat([assistant("one"), assistant("two")]));
 
-		// Away from the end, and left there by the next append.
-		list.scrollTop = 0;
-		measure(list, settled);
-		rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
-		expect(list.scrollTop).toBe(0);
+    // Away from the end, and left there by the next append.
+    list.scrollTop = 0;
+    measure(list, settled);
+    rerender(chat([assistant("one"), assistant("two"), assistant("three")]));
+    expect(list.scrollTop).toBe(0);
 
-		// Back to the end by hand, and following again. A fourth entry rather than a changed
-		// third: an append is what the transcript does, and it is the append this reacts to.
-		list.scrollTop = bottom(settled);
-		const grown = { height: 200, scrollHeight: 380 };
-		measure(list, grown);
-		rerender(
-			chat([
-				assistant("one"),
-				assistant("two"),
-				assistant("three"),
-				assistant("four"),
-			]),
-		);
+    // Back to the end by hand, and following again. A fourth entry rather than a changed
+    // third: an append is what the transcript does, and it is the append this reacts to.
+    list.scrollTop = bottom(settled);
+    const grown = { height: 200, scrollHeight: 380 };
+    measure(list, grown);
+    rerender(
+      chat([
+        assistant("one"),
+        assistant("two"),
+        assistant("three"),
+        assistant("four"),
+      ]),
+    );
 
-		expect(list.scrollTop).toBe(bottom(grown));
-	});
+    expect(list.scrollTop).toBe(bottom(grown));
+  });
 });
 
 describe("AgentChat tool rows", () => {
-	it("opens a tool call that fails after it first rendered", () => {
-		// The case the "failures open on their own" rule was written for, and the one it could not
-		// reach: a call streams in as running and only becomes an error when it finishes, so its
-		// fold is always mounted closed and was then never told otherwise.
-		const call = {
-			message: {
-				content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
-				role: "assistant",
-			},
-			type: "assistant",
-		};
-		const { container, rerender } = render(chat([call]));
+  it("opens a tool call that fails after it first rendered", () => {
+    // The case the "failures open on their own" rule was written for, and the one it could not
+    // reach: a call streams in as running and only becomes an error when it finishes, so its
+    // fold is always mounted closed and was then never told otherwise.
+    const call = {
+      message: {
+        content: [{ id: "t1", input: {}, name: "Bash", type: "tool_use" }],
+        role: "assistant",
+      },
+      type: "assistant",
+    };
+    const { container, rerender } = render(chat([call]));
 
-		expect(container.querySelector("[aria-expanded='true']")).toBeNull();
+    expect(container.querySelector("[aria-expanded='true']")).toBeNull();
 
-		rerender(
-			chat([
-				call,
-				{
-					message: {
-						content: [
-							{
-								content: "command not found",
-								is_error: true,
-								tool_use_id: "t1",
-								type: "tool_result",
-							},
-						],
-						role: "user",
-					},
-					type: "user",
-				},
-			]),
-		);
+    rerender(
+      chat([
+        call,
+        {
+          message: {
+            content: [
+              {
+                content: "command not found",
+                is_error: true,
+                tool_use_id: "t1",
+                type: "tool_result",
+              },
+            ],
+            role: "user",
+          },
+          type: "user",
+        },
+      ]),
+    );
 
-		expect(container.querySelector("[aria-expanded='true']")).not.toBeNull();
-	});
+    expect(container.querySelector("[aria-expanded='true']")).not.toBeNull();
+  });
 
-	it("leaves a successful call closed", () => {
-		// Most of a transcript is these. Opening them all is a page of file contents with the
-		// reasoning lost between them.
-		const call = {
-			message: {
-				content: [{ id: "t2", input: {}, name: "Read", type: "tool_use" }],
-				role: "assistant",
-			},
-			type: "assistant",
-		};
-		const { container } = render(
-			chat([
-				call,
-				{
-					message: {
-						content: [
-							{ content: "ok", tool_use_id: "t2", type: "tool_result" },
-						],
-						role: "user",
-					},
-					type: "user",
-				},
-			]),
-		);
+  it("leaves a successful call closed", () => {
+    // Most of a transcript is these. Opening them all is a page of file contents with the
+    // reasoning lost between them.
+    const call = {
+      message: {
+        content: [{ id: "t2", input: {}, name: "Read", type: "tool_use" }],
+        role: "assistant",
+      },
+      type: "assistant",
+    };
+    const { container } = render(
+      chat([
+        call,
+        {
+          message: {
+            content: [
+              { content: "ok", tool_use_id: "t2", type: "tool_result" },
+            ],
+            role: "user",
+          },
+          type: "user",
+        },
+      ]),
+    );
 
-		expect(container.querySelector("[aria-expanded='true']")).toBeNull();
-	});
+    expect(container.querySelector("[aria-expanded='true']")).toBeNull();
+  });
 });
