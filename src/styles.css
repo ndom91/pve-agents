@@ -2651,8 +2651,10 @@ button.workspace-title:hover {
 
 /* The panel's own 48px bar, matching the screen bar across the column from it. Scoped to the rail
    because the settings page uses the same strip in a place that wants neither the fixed height nor
-   the flush bottom edge. */
-.dashboard-rail > .tabs {
+   the flush bottom edge. Through `.rail-head`, which wraps the strip so the drawer can put a close
+   button beside it; `.dashboard-rail > .tabs` stopped matching the day it did, and the tabs lost
+   this bar on every screen size. */
+.rail-head > .tabs {
 	align-items: flex-end;
 	flex-shrink: 0;
 	gap: 18px;
@@ -2661,7 +2663,7 @@ button.workspace-title:hover {
 	padding: 0 16px;
 }
 
-.dashboard-rail > .tabs .tab {
+.rail-head > .tabs .tab {
 	padding: 0 0 12px;
 }
 
@@ -2956,15 +2958,14 @@ button.workspace-title:hover {
 		align-items: center;
 		border-bottom: 1px solid var(--line-hairline);
 		display: flex;
-		margin-bottom: 16px;
-		min-height: 44px;
-		padding-right: 6px;
+		flex-shrink: 0;
+		min-height: var(--topbar-h);
+		padding-right: 8px;
 	}
 
-	.rail-head .tabs {
+	.rail-head > .tabs {
 		border-bottom: none;
 		flex: 1 1 auto;
-		margin-bottom: 0;
 		min-width: 0;
 	}
 
