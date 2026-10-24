@@ -171,35 +171,7 @@ export function WorkspaceRail({
         )}
         <RailClose onClose={onClose} />
       </div>
-      {panels ? (
-        <>
-          <div className="rail-body">
-            <Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
-              {changes}
-            </Panel>
-            <Panel
-              open={tab.kind === "timeline"}
-              seen={opened.includes("timeline")}
-            >
-              {timeline}
-            </Panel>
-            <Panel open={tab.kind === "ports"} seen={opened.includes("ports")}>
-              {ports}
-            </Panel>
-            <Panel
-              open={tab.kind === "terminal"}
-              seen={opened.includes("terminal")}
-            >
-              {terminal}
-            </Panel>
-          </div>
-          {/* Only where they make sense. They act on the whole change list rather than on
-				    one file, which is why they sit outside the tabs — but under a timeline or a
-				    shell they are a control with no visible subject, and they take height the
-				    terminal wants. */}
-          {tab.kind === "diff" ? actions : null}
-        </>
-      ) : (
+      {panels ? null : (
         <div className="rail-facts">
           {/* Only on a phone, where the bar has no room for it. Above that it is in the bar, and a
 				    second copy here would be the first thing you read twice. */}
@@ -324,6 +296,36 @@ export function WorkspaceRail({
           </Group>
         </div>
       )}
+      {/* Mounted whenever there are tabs, and only hidden on Details. Unmounting a panel ends
+			    what is in it, and the terminal is a shell: going to Details to check the address
+			    and coming back used to land you in a new session with your work gone. */}
+      {tabbed === undefined ? null : (
+        <div className="rail-body" hidden={!panels}>
+          <Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
+            {changes}
+          </Panel>
+          <Panel
+            open={tab.kind === "timeline"}
+            seen={opened.includes("timeline")}
+          >
+            {timeline}
+          </Panel>
+          <Panel open={tab.kind === "ports"} seen={opened.includes("ports")}>
+            {ports}
+          </Panel>
+          <Panel
+            open={tab.kind === "terminal"}
+            seen={opened.includes("terminal")}
+          >
+            {terminal}
+          </Panel>
+        </div>
+      )}
+      {/* Only where they make sense. They act on the whole change list rather than on
+				    one file, which is why they sit outside the tabs — but under a timeline or a
+				    shell they are a control with no visible subject, and they take height the
+				    terminal wants. */}
+      {panels && tab.kind === "diff" ? actions : null}
     </aside>
   );
 }

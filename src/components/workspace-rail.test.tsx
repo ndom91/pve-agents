@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
 import { cleanup, render as renderBare, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { TooltipProvider } from "./tooltip";
-import { WorkspaceRail } from "./workspace-rail";
+import { type RailTab, WorkspaceRail } from "./workspace-rail";
 
 // Explicit cleanup. Testing Library only registers its own afterEach when vitest globals are
 // enabled, and they are not here. Without this, renders accumulate in the document and a query
@@ -252,5 +253,32 @@ describe("WorkspaceRail", () => {
 
     expect(screen.getByText("the history")).toBeDefined();
     expect(screen.queryByText("the list")).toBeNull();
+  });
+
+  it("keeps an opened terminal mounted on Details, so its shell survives the visit", () => {
+    // A component that counts its own mounts stands in for the terminal: what matters is that it is
+    // never unmounted, because unmounting the real one closes its socket and ends the shell.
+    let mounts = 0;
+    function Shell() {
+      const [id] = useState(() => ++mounts);
+      return <p>shell {id}</p>;
+    }
+    const rail = (tab: RailTab) => (
+      <TooltipProvider>
+        <WorkspaceRail
+          tab={tab}
+          terminal={<Shell />}
+          timeline={<p>the history</p>}
+          workspace={{}}
+        />
+      </TooltipProvider>
+    );
+
+    const { rerender } = renderBare(rail({ kind: "terminal" }));
+    rerender(rail({ kind: "details" }));
+    rerender(rail({ kind: "terminal" }));
+
+    expect(screen.getByText("shell 1")).toBeDefined();
+    expect(mounts).toBe(1);
   });
 });

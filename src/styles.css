@@ -4344,6 +4344,7 @@ diffs-container {
 	min-height: 0;
 }
 
+.rail-body[hidden],
 .rail-panel[hidden] {
 	display: none;
 }
