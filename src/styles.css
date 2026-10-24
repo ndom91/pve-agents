@@ -5165,3 +5165,81 @@ diffs-container {
 		opacity: 1 !important;
 	}
 }
+
+/* ── Touch targets ───────────────────────────────────────────────────────────
+   Sized for a pointer, the controls here run 21 to 36px tall, and a fingertip is about 44. Under a
+   coarse pointer they grow to 40-44px. Last in the file so it outweighs the per-control heights
+   above it without raising their specificity.
+ *
+ * Two ways in, depending on what the control sits among. Controls in a bar or a list grow for
+ * real, because there is room. The inline icons -- copy, open-in-GitHub -- sit inside lines of
+ * text, where growing them would push every row apart, so they keep their size and get a larger
+ * invisible hit area instead. */
+@media (pointer: coarse) {
+	/* The shared row height, so a select, a field and a button beside each other still match. */
+	:root {
+		--field-height: 44px;
+	}
+
+	.icon-button:not(.is-inline) {
+		height: 40px;
+		width: 40px;
+	}
+
+	.icon-button.is-inline {
+		position: relative;
+	}
+
+	.icon-button.is-inline::after {
+		content: "";
+		inset: -9px;
+		position: absolute;
+	}
+
+	.button.launch-send,
+	.sidebar-new {
+		height: var(--field-height);
+	}
+
+	.sidebar-link,
+	.sidebar-archive-toggle {
+		min-height: 44px;
+	}
+
+	/* The underline stays on the strip's bottom edge; the tab grows upward into the bar. */
+	.tab {
+		align-items: flex-end;
+		display: inline-flex;
+		min-height: 44px;
+	}
+
+	/* The rail's tabs are spaced by a gap, which no finger can hit. Part of it moves inside each
+	   tab, so the words sit exactly where they did and a short one like "Ports" is still 40 wide. */
+	.rail-head > .tabs {
+		gap: 10px;
+		padding-left: 12px;
+	}
+
+	.rail-head > .tabs .tab {
+		padding-inline: 4px;
+	}
+
+	/* The tool-call rows, which stack in dozens. 36 rather than 44: they are full-width, so width
+	   already does half the work, and at 44 a long run of tool calls would be most of the chat. */
+	.chat-fold {
+		min-height: 36px;
+	}
+
+	/* The link is the row's only target, so it takes the row's height rather than its text's. */
+	.gone-row {
+		padding-block: 0;
+	}
+
+	.gone-title {
+		padding-block: 13px;
+	}
+
+	button.workspace-title {
+		padding-block: 9px;
+	}
+}
