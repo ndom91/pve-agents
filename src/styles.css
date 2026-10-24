@@ -156,7 +156,7 @@ input {
 .shell {
 	margin: 0 auto;
 	max-width: 1120px;
-	min-height: 100vh;
+	min-height: 100dvh;
 	padding: 40px 24px 80px;
 }
 
@@ -1177,10 +1177,12 @@ button {
 	width: 1px;
 }
 
+/* `dvh`, not `vh`. On a phone `vh` is the height with the browser's toolbars hidden, so a column
+   locked to it ran under them and put the bottom of the page -- the composer -- out of reach. */
 .dashboard {
 	display: grid;
 	grid-template-columns: var(--sidebar-w) minmax(0, 1fr) auto;
-	height: 100vh;
+	height: 100dvh;
 	overflow: hidden;
 }
 
@@ -1204,7 +1206,7 @@ button {
 	   its own padding instead. */
 	position: sticky;
 	top: 0;
-	height: 100vh;
+	height: 100dvh;
 	overflow-y: auto;
 }
 
@@ -2855,7 +2857,7 @@ button.workspace-title:hover {
 	.dashboard {
 		grid-template-columns: 220px minmax(0, 1fr);
 		height: auto;
-		min-height: 100vh;
+		min-height: 100dvh;
 		overflow: visible;
 	}
 
