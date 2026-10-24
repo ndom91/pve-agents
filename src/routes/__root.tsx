@@ -19,7 +19,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
         {
           name: "viewport",
-          content: "width=device-width, initial-scale=1",
+          // `maximum-scale=1` stops iOS zooming the page into a field under 16px when it takes
+          // focus, and every field here is 12-13px. It replaced a 16px floor on fields under a
+          // coarse pointer, which stopped the zoom but set the launch form in type a size too
+          // large for it. iOS ignores the cap for pinch-zoom, so the reader keeps that there;
+          // Android Chrome honours it and loses pinch-zoom, which was the price accepted.
+          content: "width=device-width, initial-scale=1, maximum-scale=1",
         },
         {
           title: "Proxmox Agents",

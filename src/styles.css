@@ -138,21 +138,6 @@ input {
 	font: inherit;
 }
 
-/* iOS zooms the page into any field under 16px when it takes focus, and every field here is
-   12-13px, so tapping into the prompt threw the layout sideways. A floor rather than a new type
-   scale, and `!important` because each field sets its size with a class selector that an element
-   rule cannot outweigh. The code editor is raised as a whole: its textarea sits over a highlighted
-   copy that inherits the editor's size, and the two must stay the same or the caret drifts off
-   the text. Not `maximum-scale=1`, which would also take pinch-zoom away. */
-@media (pointer: coarse) {
-	input,
-	select,
-	textarea,
-	.code-editor {
-		font-size: 16px !important;
-	}
-}
-
 .shell {
 	margin: 0 auto;
 	max-width: 1120px;
