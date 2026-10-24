@@ -99,14 +99,20 @@ export function IconButton({
 // the button reached every icon except that one. Still a `<Link>`, because middle-click, the
 // status bar and the keyboard all depend on it being one.
 export function IconLink({
+  replace,
   to,
   ...style
-}: IconStyle & { to: string }): ReactNode {
+}: IconStyle & { replace?: boolean; to: string }): ReactNode {
   const { icon: Icon, label, size = 16, strokeWidth = 1.75 } = style;
 
   return (
     <Tooltip label={label}>
-      <Link aria-label={label} className={classes(style)} to={to}>
+      <Link
+        aria-label={label}
+        className={classes(style)}
+        replace={replace}
+        to={to}
+      >
         <Icon aria-hidden size={size} strokeWidth={strokeWidth} />
       </Link>
     </Tooltip>

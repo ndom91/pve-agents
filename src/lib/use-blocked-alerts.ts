@@ -22,6 +22,12 @@ const BASE_TITLE = "Proxmox Agents";
 // container indefinitely. That is the right trade for not losing work, but it means the only thing
 // standing between a question and a container running for a week is somebody noticing. The tab
 // title carries the count with no permission needed; a notification is offered on top of it.
+// isWaiting is a workspace whose agent has asked something and will not go on until it is answered.
+// Exported for the phone's menu button, which has to say so while the sidebar is folded away.
+export function isWaiting(workspace: Watched): boolean {
+  return workspace.status === "ready" && workspace.activity === "blocked";
+}
+
 export function useBlockedAlerts(workspaces: Watched[]): {
   blocked: Watched[];
   permission: AlertPermission;
@@ -36,10 +42,7 @@ export function useBlockedAlerts(workspaces: Watched[]): {
     setPermission(currentPermission());
   }, []);
 
-  const blocked = workspaces.filter(
-    (workspace) =>
-      workspace.status === "ready" && workspace.activity === "blocked",
-  );
+  const blocked = workspaces.filter(isWaiting);
 
   useEffect(() => {
     if (typeof document === "undefined") {

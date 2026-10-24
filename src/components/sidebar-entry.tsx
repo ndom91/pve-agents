@@ -25,9 +25,12 @@ type SidebarWorkspace = {
 // describes. `showState` is off for the destroyed group: every entry there says destroyed, so the
 // dot would be a column of identical grey rather than information.
 export function SidebarEntry({
+  replace,
   showState = true,
   workspace,
 }: {
+  // While the sidebar is an open drawer: see `replace` in the dashboard layout.
+  replace?: boolean;
   showState?: boolean;
   workspace: SidebarWorkspace;
 }): ReactNode {
@@ -42,6 +45,7 @@ export function SidebarEntry({
         activeProps={{ className: "sidebar-entry is-active" }}
         className="sidebar-entry"
         params={{ workspaceId: workspace.id }}
+        replace={replace}
         to="/workspaces/$workspaceId"
       >
         <span className="sidebar-entry-head">

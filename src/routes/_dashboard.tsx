@@ -4,19 +4,17 @@ import {
   Link,
   Outlet,
   redirect,
-  useRouterState,
 } from "@tanstack/react-router";
 import {
   Bell,
   ChevronRight,
   Home,
   LogOut,
-  Menu,
   Plus,
   Settings,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { IconButton, IconLink } from "../components/icon-button";
 import { SectionHead } from "../components/section-head";
@@ -25,7 +23,7 @@ import { ThemeToggle } from "../components/theme-toggle";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
 import { useBlockedAlerts } from "../lib/use-blocked-alerts";
-import { type DrawerPanel, parsePanel } from "../lib/use-drawer";
+import { type DrawerPanel, parsePanel, useDrawer } from "../lib/use-drawer";
 import { sessionState } from "../server/session.functions";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -64,14 +62,13 @@ function Dashboard() {
     useBlockedAlerts(workspaces);
   const [signingOut, setSigningOut] = useState(false);
   const { panel } = Route.useSearch();
-  // Only means anything below 760px, where the sidebar folds to its head row. Remembers the page it
-  // was opened on rather than a boolean, so any navigation closes it: picking a workspace from the
-  // menu would otherwise leave the menu covering the workspace.
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null);
-  const menuOpen = menuOpenOn === pathname;
+  // Below 760px the sidebar is a drawer. Opened from the menu button in each page's bar.
+  const sidebar = useRef<HTMLElement>(null);
+  const nav = useDrawer("nav", sidebar);
+  // Every link out of an open drawer replaces the entry that opened it. Pushed, back from the page
+  // you picked would land on the drawer you picked it from, open; replaced, back goes to where you
+  // were before you opened the menu. The new URL carries no `panel`, which is what closes it.
+  const replace = nav.open;
 
   async function signOut() {
     setSigningOut(true);
@@ -101,7 +98,12 @@ function Dashboard() {
     // `data-panel` is what slides a drawer in. The stylesheet only reads it below the breakpoints,
     // so on a wide screen a stray `?panel` in the URL changes nothing.
     <div className="dashboard" data-panel={panel}>
-      <aside className={`dashboard-sidebar${menuOpen ? " is-open" : ""}`}>
+      <aside
+        aria-label="Navigation"
+        className="dashboard-sidebar"
+        ref={sidebar}
+        tabIndex={-1}
+      >
         {/* The application's own name, on its own line, against the hairline that starts
 				    the column. It was an eyebrow floating above the first group, which read as a
 				    label belonging to that group rather than to the window. */}
@@ -113,13 +115,10 @@ function Dashboard() {
           <img alt="" className="sidebar-mark" src="/icon1.png" />
           <span className="sidebar-wordmark">PVE&middot;AGENTS</span>
           <IconButton
-            className="sidebar-menu"
-            expanded={menuOpen}
-            icon={Menu}
-            label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMenuOpenOn(menuOpen ? null : pathname)}
-            swapIcon={X}
-            swapped={menuOpen}
+            className="sidebar-close"
+            icon={X}
+            label="Close menu"
+            onClick={nav.hide}
             variant="tertiary"
           />
         </div>
@@ -140,6 +139,7 @@ function Dashboard() {
             activeOptions={{ exact: true }}
             activeProps={{ className: "sidebar-link is-active" }}
             className="sidebar-link"
+            replace={replace}
             to="/"
           >
             <Home aria-hidden="true" size={13} strokeWidth={1.6} />
@@ -153,7 +153,11 @@ function Dashboard() {
             ) : (
               <ul className="sidebar-list">
                 {live.map((workspace) => (
-                  <SidebarEntry key={workspace.id} workspace={workspace} />
+                  <SidebarEntry
+                    key={workspace.id}
+                    replace={replace}
+                    workspace={workspace}
+                  />
                 ))}
               </ul>
             )}
@@ -169,6 +173,7 @@ function Dashboard() {
                 {recentDestroyed.map((workspace) => (
                   <SidebarEntry
                     key={workspace.id}
+                    replace={replace}
                     showState={false}
                     workspace={workspace}
                   />
@@ -189,6 +194,7 @@ function Dashboard() {
                     {olderDestroyed.map((workspace) => (
                       <SidebarEntry
                         key={workspace.id}
+                        replace={replace}
                         showState={false}
                         workspace={workspace}
                       />
@@ -205,13 +211,18 @@ function Dashboard() {
 					    one was needed -- settings, notifications, sign out, now the theme -- and
 					    the label was the only thing left that could give up room. The plus says
 					    what the word no longer has space to. */}
-          <Link className="sidebar-new" to="/">
+          <Link className="sidebar-new" replace={replace} to="/">
             <Plus aria-hidden="true" size={12} strokeWidth={1.5} />
             <span>New</span>
           </Link>
           <div className="sidebar-tools">
             <ThemeToggle />
-            <IconLink icon={Settings} label="Settings" to="/settings" />
+            <IconLink
+              icon={Settings}
+              label="Settings"
+              replace={replace}
+              to="/settings"
+            />
             {/* Offered only while it would do something. Browsers require a gesture to
 						    ask, so this is a button rather than a prompt on load, and it disappears
 						    once answered either way. */}

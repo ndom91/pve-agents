@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useState } from "react";
 
+import { NavButton } from "../components/nav-button";
 import { PanelSpinner } from "../components/panel-state";
 import { SettingsHarnesses } from "../components/settings-harnesses";
 import { SettingsMaintenance } from "../components/settings-maintenance";
@@ -55,7 +56,10 @@ function Settings() {
   return (
     <main className="dashboard-main dashboard-main-wide">
       <header className="settings-head">
-        <h1>Settings</h1>
+        <div className="settings-title">
+          <NavButton />
+          <h1>Settings</h1>
+        </div>
         <p className="workspace-purpose">
           Saved to the controller database and read on every pass, so a change
           applies without a restart.

@@ -671,7 +671,10 @@ button {
 
 /* The title sits tight against its subtitle everywhere else, where the subtitle is a workspace's
    purpose and the pair reads as one block. Here it is a sentence about the page and wants air. */
-.settings-head h1 {
+.settings-title {
+	align-items: center;
+	display: flex;
+	gap: 8px;
 	margin-bottom: 7px;
 }
 
@@ -1240,10 +1243,29 @@ button {
 	letter-spacing: 0.14em;
 }
 
-/* Only on a phone, where the sidebar folds to this row. See the 760px block. Scoped to the head
-   so it outweighs `.icon-button`, which comes later and sets its own display. */
-.sidebar-head .sidebar-menu {
+/* Only where the sidebar is a drawer. See the 760px block. Scoped to the head so it outweighs
+   `.icon-button`, which comes later and sets its own display. */
+.sidebar-head .sidebar-close {
 	display: none;
+}
+
+/* The sidebar's opener, first in each page's bar where the sidebar is a drawer. */
+.nav-open {
+	display: none;
+	flex-shrink: 0;
+	position: relative;
+}
+
+/* An agent is waiting. The sidebar's banner says so in words, but the banner is in the drawer. */
+.nav-open-dot {
+	background: var(--warn);
+	border-radius: 50%;
+	height: 7px;
+	pointer-events: none;
+	position: absolute;
+	right: 5px;
+	top: 5px;
+	width: 7px;
 }
 
 .sidebar-nav {
@@ -2960,32 +2982,50 @@ button.workspace-title:hover {
 }
 
 @media (max-width: 760px) {
-	/* One column: the sidebar's head row, then the page in whatever height is left. */
+	/* One column, and the page has all of it. The sidebar and the rail are both drawers here,
+	   out of the flow, so the grid holds only the page. */
 	.dashboard {
 		grid-template-columns: 1fr;
-		grid-template-rows: auto minmax(0, 1fr);
+		grid-template-rows: minmax(0, 1fr);
 	}
 
+	/* The sidebar as a drawer from the left. The rail's from the right, in the 1100px block, works
+	   the same way and says why. Stacked above the page instead, the whole workspace list was the
+	   first screen of every page and the page you came for started below it. */
 	.dashboard-sidebar {
-		border-bottom: 1px solid var(--line-hairline);
 		border-right: none;
 		height: auto;
-		overflow-y: visible;
-		position: static;
+		inset: 0;
+		overscroll-behavior: contain;
+		position: fixed;
+		transform: translateX(-100%);
+		transition:
+			transform var(--dur-slow) var(--ease),
+			visibility 0s linear var(--dur-slow);
+		visibility: hidden;
+		z-index: 20;
 	}
 
-	/* Stacked above the page, the whole workspace list was the first screen of every page and
-	   the thing you came for started below it. It folds to its head row behind a menu button.
-	   The waiting banner stays out, because it is the one line here that asks for attention. */
-	.dashboard-sidebar:not(.is-open) .sidebar-nav,
-	.dashboard-sidebar:not(.is-open) .sidebar-foot {
-		display: none;
+	.dashboard[data-panel="nav"] .dashboard-sidebar {
+		transform: none;
+		transition: transform var(--dur-slow) var(--ease);
+		visibility: visible;
 	}
 
-	.sidebar-head .sidebar-menu {
+	.dashboard[data-panel="nav"] > :not(.dashboard-sidebar) {
+		transition: visibility 0s linear var(--dur-slow);
+		visibility: hidden;
+	}
+
+	.sidebar-head .sidebar-close {
 		display: inline-flex;
 		margin-left: auto;
 		margin-right: -8px;
+	}
+
+	.nav-open {
+		display: inline-flex;
+		margin-left: -8px;
 	}
 
 	.dashboard-main-wide {

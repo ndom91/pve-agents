@@ -9,6 +9,7 @@ import { ChangesActions } from "../components/changes-actions";
 import { ChangesPanel } from "../components/changes-panel";
 import { IconButton } from "../components/icon-button";
 import { MetaBand } from "../components/meta-band";
+import { NavButton } from "../components/nav-button";
 import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
 import { outcomeItem } from "../components/outcome-notice";
 import { PanelSpinner } from "../components/panel-state";
@@ -287,6 +288,7 @@ function WorkspaceDetail() {
 				    controls floating opposite, which spent two rows and left the purpose
 				    competing with the heading it explains. */}
         <header className="screen-bar">
+          <NavButton />
           <WorkspaceTitle
             hostname={workspace.hostname}
             onRename={(title) => rename.mutate(title)}

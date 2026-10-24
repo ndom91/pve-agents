@@ -6,6 +6,7 @@ import { Button } from "../components/button";
 import { Elapsed } from "../components/elapsed";
 import { FleetRow } from "../components/fleet-row";
 import { MetaBand } from "../components/meta-band";
+import { NavButton } from "../components/nav-button";
 import { SectionHead } from "../components/section-head";
 import { Select } from "../components/select";
 import { shortRepository } from "../domain/repository";
@@ -74,6 +75,7 @@ function Dashboard() {
     <main className="dashboard-main dashboard-main-wide dashboard-home">
       {/* The same 48px bar the workspace page has, so the two screens start on one line. */}
       <header className="screen-bar">
+        <NavButton />
         <span className="home-eyebrow">PVE / AGENTS</span>
         <span aria-hidden="true" className="home-bar-sep" />
         <h1 className="home-title">Agent compute</h1>
