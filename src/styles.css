@@ -2906,6 +2906,19 @@ button.workspace-title:hover {
 	.home-side {
 		width: auto;
 	}
+
+	/* The fixed columns add up to more than a phone is wide, and the title -- the one flexible
+	   column, and the one that says which workspace this is -- was the one that gave way. Repo and
+	   placement are both on the workspace page a tap away. Same rule for the header and the
+	   destroyed rows, or their columns stop lining up with the live ones. */
+	.fleet-col.is-repo,
+	.fleet-col.is-where {
+		display: none;
+	}
+
+	.fleet-col.is-state {
+		width: auto;
+	}
 }
 
 /* Square, quiet, and the same whether it is a button or a link that looks like one. Shape only,
