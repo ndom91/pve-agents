@@ -143,55 +143,9 @@ export function WorkspaceRail({
   // that is exactly when somebody goes looking for one.
   const tabbed = changes ?? timeline ?? terminal;
 
-  if (tabbed !== undefined && tab.kind !== "details") {
-    return (
-      <aside
-        aria-label="Workspace details"
-        className="dashboard-rail"
-        ref={drawerRef}
-        style={sized}
-        tabIndex={-1}
-      >
-        <RailResizer onResize={setWidth} width={width} />
-        <div className="rail-head">
-          <Tabs
-            changes={changes}
-            onTab={onTab}
-            ports={ports}
-            tab={tab}
-            terminal={terminal}
-            timeline={timeline}
-          />
-          <RailClose onClose={onClose} />
-        </div>
-        <div className="rail-body">
-          <Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
-            {changes}
-          </Panel>
-          <Panel
-            open={tab.kind === "timeline"}
-            seen={opened.includes("timeline")}
-          >
-            {timeline}
-          </Panel>
-          <Panel open={tab.kind === "ports"} seen={opened.includes("ports")}>
-            {ports}
-          </Panel>
-          <Panel
-            open={tab.kind === "terminal"}
-            seen={opened.includes("terminal")}
-          >
-            {terminal}
-          </Panel>
-        </div>
-        {/* Only where they make sense. They act on the whole change list rather than on
-				    one file, which is why they sit outside the tabs — but under a timeline or a
-				    shell they are a control with no visible subject, and they take height the
-				    terminal wants. */}
-        {tab.kind === "diff" ? actions : null}
-      </aside>
-    );
-  }
+  // Placement and the tabbed panels share everything down to the head: the label and ref the
+  // drawer needs, the resizer, the tab strip and its close button. Only what sits below differs.
+  const panels = tabbed !== undefined && tab.kind !== "details";
 
   return (
     <aside
@@ -217,125 +171,159 @@ export function WorkspaceRail({
         )}
         <RailClose onClose={onClose} />
       </div>
-      <div className="rail-facts">
-        {/* Only on a phone, where the bar has no room for it. Above that it is in the bar, and a
+      {panels ? (
+        <>
+          <div className="rail-body">
+            <Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
+              {changes}
+            </Panel>
+            <Panel
+              open={tab.kind === "timeline"}
+              seen={opened.includes("timeline")}
+            >
+              {timeline}
+            </Panel>
+            <Panel open={tab.kind === "ports"} seen={opened.includes("ports")}>
+              {ports}
+            </Panel>
+            <Panel
+              open={tab.kind === "terminal"}
+              seen={opened.includes("terminal")}
+            >
+              {terminal}
+            </Panel>
+          </div>
+          {/* Only where they make sense. They act on the whole change list rather than on
+				    one file, which is why they sit outside the tabs — but under a timeline or a
+				    shell they are a control with no visible subject, and they take height the
+				    terminal wants. */}
+          {tab.kind === "diff" ? actions : null}
+        </>
+      ) : (
+        <div className="rail-facts">
+          {/* Only on a phone, where the bar has no room for it. Above that it is in the bar, and a
 				    second copy here would be the first thing you read twice. */}
-        {workspace.purpose === undefined || workspace.purpose === "" ? null : (
-          <p className="rail-purpose">{workspace.purpose}</p>
-        )}
-        {/* What the container is doing, before any of the reference material. It answers the
+          {workspace.purpose === undefined ||
+          workspace.purpose === "" ? null : (
+            <p className="rail-purpose">{workspace.purpose}</p>
+          )}
+          {/* What the container is doing, before any of the reference material. It answers the
 				    question somebody opens this tab with; the sections below answer the ones they
 				    have after that. */}
-        <div className="rail-state">
-          {/* Silent: the word is printed beside it. */}
-          <StatusDot
-            activity={workspace.activity}
-            silent
-            status={status ?? "unknown"}
-          />
-          <span className="rail-state-word">{status ?? "unknown"}</span>
-          {status === "ready" && workspace.activity !== undefined ? (
-            <span className="rail-state-sub">
-              &middot; {workspace.activity}
+          <div className="rail-state">
+            {/* Silent: the word is printed beside it. */}
+            <StatusDot
+              activity={workspace.activity}
+              silent
+              status={status ?? "unknown"}
+            />
+            <span className="rail-state-word">{status ?? "unknown"}</span>
+            {status === "ready" && workspace.activity !== undefined ? (
+              <span className="rail-state-sub">
+                &middot; {workspace.activity}
+              </span>
+            ) : null}
+            <span className="spacer" />
+            <span className="rail-state-up">
+              <Uptime workspace={workspace} />
             </span>
-          ) : null}
-          <span className="spacer" />
-          <span className="rail-state-up">
-            <Uptime workspace={workspace} />
-          </span>
-        </div>
+          </div>
 
-        {/* A link per row rather than one on the header. The header's link could only ever
+          {/* A link per row rather than one on the header. The header's link could only ever
 				    mean the repository, which left the branch -- the thing you actually go and
 				    look at -- with no way out at all, and put the one affordance furthest from
 				    either value it might belong to. Each now sits after the value it opens and
 				    appears on hover, like the copy buttons elsewhere in this panel. */}
-        <Group title="Source">
-          <Fact
-            href={source?.repository}
-            label="Repository"
-            linkLabel="Open repository on GitHub"
-            value={workspace.repository}
-          />
-          <Fact label="Ref" value={workspace.ref} />
-          <Fact
-            href={source?.branch}
-            label="Branch"
-            linkLabel="Open branch on GitHub"
-            value={branch}
-          />
-        </Group>
+          <Group title="Source">
+            <Fact
+              href={source?.repository}
+              label="Repository"
+              linkLabel="Open repository on GitHub"
+              value={workspace.repository}
+            />
+            <Fact label="Ref" value={workspace.ref} />
+            <Fact
+              href={source?.branch}
+              label="Branch"
+              linkLabel="Open branch on GitHub"
+              value={branch}
+            />
+          </Group>
 
-        {/* Node, vmid and address are in the meta band as well. That is deliberate and it is
+          {/* Node, vmid and address are in the meta band as well. That is deliberate and it is
 				    what the design draws: the band is the glance you get without opening anything,
 				    and this tab is the full record you come to when the glance was not enough. */}
-        <Group title="Agent">
-          <Fact label="Harness" value={workspace.harness} />
-          {/* Whatever the runner reported (see RunnerSnapshot.model), never read from the
+          <Group title="Agent">
+            <Fact label="Harness" value={workspace.harness} />
+            {/* Whatever the runner reported (see RunnerSnapshot.model), never read from the
 					    harness here. "not reported" only once the runner has been up. */}
-          <Fact
-            label="Model"
-            value={
-              workspace.model ??
-              (workspace.readyAt === undefined ? undefined : "not reported")
+            <Fact
+              label="Model"
+              value={
+                workspace.model ??
+                (workspace.readyAt === undefined ? undefined : "not reported")
+              }
+            />
+          </Group>
+
+          <Group title="Placement">
+            <div className="rail-grid is-3up">
+              <Stack label="Node" value={workspace.node} />
+              <Stack label="VMID" value={workspace.vmid?.toString()} />
+              <Stack label="Address" value={workspace.ip} />
+            </div>
+          </Group>
+
+          <Group
+            title="Progress"
+            trailing={
+              readyIn === undefined ? undefined : (
+                <span className="rail-took">ready in {readyIn}</span>
+              )
             }
-          />
-        </Group>
-
-        <Group title="Placement">
-          <div className="rail-grid is-3up">
-            <Stack label="Node" value={workspace.node} />
-            <Stack label="VMID" value={workspace.vmid?.toString()} />
-            <Stack label="Address" value={workspace.ip} />
-          </div>
-        </Group>
-
-        <Group
-          title="Progress"
-          trailing={
-            readyIn === undefined ? undefined : (
-              <span className="rail-took">ready in {readyIn}</span>
-            )
-          }
-        >
-          {/* Only while there is a climb to draw. The strip was unconditional, so the
+          >
+            {/* Only while there is a climb to draw. The strip was unconditional, so the
 					    details tab of a destroyed workspace showed six empty segments. */}
-          {!isProvisioning(status) ? null : (
-            <LifecycleStrip phase={workspace.provisionPhase} status={status} />
-          )}
-          <div className="rail-grid is-2up">
-            <Stack label="Phase" value={workspace.provisionPhase} />
-            <Stack label="Step" value={workspace.currentStep} />
-            <Stack
-              label="Created"
-              value={stamp(workspace.createdAt, mounted)}
-            />
-            <Stack label="Ready" value={stamp(workspace.readyAt, mounted)} />
-            <Stack
-              label="Last active"
-              value={stamp(workspace.lastActivityAt, mounted)}
-            />
-            <Stack
-              label="Checked"
-              value={stamp(workspace.activityObservedAt, mounted)}
-            />
-            <Stack
-              label="Updated"
-              value={stamp(workspace.updatedAt, mounted)}
-            />
-          </div>
-        </Group>
+            {!isProvisioning(status) ? null : (
+              <LifecycleStrip
+                phase={workspace.provisionPhase}
+                status={status}
+              />
+            )}
+            <div className="rail-grid is-2up">
+              <Stack label="Phase" value={workspace.provisionPhase} />
+              <Stack label="Step" value={workspace.currentStep} />
+              <Stack
+                label="Created"
+                value={stamp(workspace.createdAt, mounted)}
+              />
+              <Stack label="Ready" value={stamp(workspace.readyAt, mounted)} />
+              <Stack
+                label="Last active"
+                value={stamp(workspace.lastActivityAt, mounted)}
+              />
+              <Stack
+                label="Checked"
+                value={stamp(workspace.activityObservedAt, mounted)}
+              />
+              <Stack
+                label="Updated"
+                value={stamp(workspace.updatedAt, mounted)}
+              />
+            </div>
+          </Group>
 
-        <Group title="Identity">
-          {/* The container's name. It led the page until the agent started naming its own
+          <Group title="Identity">
+            {/* The container's name. It led the page until the agent started naming its own
 					    work; it is still what the push branch is built from, so it belongs
 					    somewhere readable rather than nowhere. */}
-          <Fact label="Name" value={workspace.hostname} />
-          <Fact copy label="Workspace" value={workspace.id} />
-          <Fact label="Wanted" value={workspace.desiredState} />
-          <Fact copy label="Task" value={workspace.taskUPID} />
-        </Group>
-      </div>
+            <Fact label="Name" value={workspace.hostname} />
+            <Fact copy label="Workspace" value={workspace.id} />
+            <Fact label="Wanted" value={workspace.desiredState} />
+            <Fact copy label="Task" value={workspace.taskUPID} />
+          </Group>
+        </div>
+      )}
     </aside>
   );
 }
