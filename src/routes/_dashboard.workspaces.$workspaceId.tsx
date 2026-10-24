@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CircleAlert, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { CircleAlert, PanelRight, Trash2, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { AgentConversation } from "../components/agent-conversation";
 import { ArchivedConversation } from "../components/archived-conversation";
 import { Button } from "../components/button";
@@ -23,6 +23,7 @@ import { WorkspaceTitle } from "../components/workspace-title";
 import { isArchived, isConversing } from "../domain/workspace-lifecycle";
 import { provisionTook } from "../lib/clock";
 import { changesQuery, workspaceKeys, workspaceQuery } from "../lib/queries";
+import { useDrawer } from "../lib/use-drawer";
 import { useOptimisticWorkspace } from "../lib/use-optimistic-workspace";
 import {
   answerWorkspaceApproval,
@@ -53,6 +54,10 @@ function WorkspaceDetail() {
   const [agentNote, setAgentNote] = useState("");
   const [changesNote, setChangesNote] = useState("");
   const [tab, setTab] = useState<RailTab>({ kind: "details" });
+  // The rail is a drawer over the chat on a narrow screen. Opened from the bar here, closed from
+  // inside it.
+  const railElement = useRef<HTMLElement>(null);
+  const rail = useDrawer("rail", railElement);
   // Bumped when work is discarded, and used as the change list's key so it remounts collapsed.
   // A row left unfolded over a file that has just been thrown away is showing a diff of nothing.
   const [discarded, setDiscarded] = useState(0);
@@ -240,7 +245,12 @@ function WorkspaceDetail() {
           {
             action: {
               label: "Open diff",
-              onClick: () => setTab({ kind: "diff" }),
+              // The drawer as well, or on a phone the tab changes somewhere off-screen and the
+              // button appears to do nothing. `show` does nothing where the rail is a column.
+              onClick: () => {
+                setTab({ kind: "diff" });
+                rail.show();
+              },
             },
             lead: "Holding unsaved work",
             // The one notice here worth dismissing. It is true for as long as the work
@@ -290,6 +300,15 @@ function WorkspaceDetail() {
             activity={workspace.activity}
             status={workspace.status}
             variant="group"
+          />
+          {/* Only where the rail is a drawer; above that it is already on screen. */}
+          <IconButton
+            className="screen-bar-rail"
+            expanded={rail.open}
+            icon={PanelRight}
+            label="Workspace details"
+            onClick={rail.show}
+            variant="tertiary"
           />
           {/* Outlined in red, never the accent fill. It was the brightest thing on the
 					    page, which made the one irreversible action the most attractive. */}
@@ -457,6 +476,8 @@ function WorkspaceDetail() {
       </main>
 
       <WorkspaceRail
+        drawerRef={railElement}
+        onClose={rail.hide}
         ports={<PortsTab workspaceId={workspaceId} />}
         actions={
           !ready || changes?.kind !== "changes" ? undefined : (

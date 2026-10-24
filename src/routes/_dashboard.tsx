@@ -63,6 +63,7 @@ function Dashboard() {
   const { blocked, permission, requestPermission } =
     useBlockedAlerts(workspaces);
   const [signingOut, setSigningOut] = useState(false);
+  const { panel } = Route.useSearch();
   // Only means anything below 760px, where the sidebar folds to its head row. Remembers the page it
   // was opened on rather than a boolean, so any navigation closes it: picking a workspace from the
   // menu would otherwise leave the menu covering the workspace.
@@ -97,7 +98,9 @@ function Dashboard() {
   const olderDestroyed = destroyed.slice(RECENT_DESTROYED_SHOWN);
 
   return (
-    <div className="dashboard">
+    // `data-panel` is what slides a drawer in. The stylesheet only reads it below the breakpoints,
+    // so on a wide screen a stray `?panel` in the URL changes nothing.
+    <div className="dashboard" data-panel={panel}>
       <aside className={`dashboard-sidebar${menuOpen ? " is-open" : ""}`}>
         {/* The application's own name, on its own line, against the hairline that starts
 				    the column. It was an eyebrow floating above the first group, which read as a

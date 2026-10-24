@@ -1,5 +1,11 @@
-import { ExternalLink } from "lucide-react";
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import { ExternalLink, X } from "lucide-react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useState,
+} from "react";
 
 import {
   branchPage,
@@ -16,7 +22,7 @@ import { useRailWidth } from "../lib/use-rail-width";
 // that has to stay true, and the one the pushes actually use is that one.
 import { workspaceBranch } from "../services/workspace-changes";
 import { CopyButton } from "./copy-button";
-import { IconOutLink } from "./icon-button";
+import { IconButton, IconOutLink } from "./icon-button";
 import { LifecycleStrip } from "./lifecycle-strip";
 import { RailResizer } from "./rail-resizer";
 import { SectionHead } from "./section-head";
@@ -74,6 +80,8 @@ export type RailTab =
 export function WorkspaceRail({
   actions,
   changes,
+  drawerRef,
+  onClose,
   onTab,
   ports,
   tab = { kind: "details" },
@@ -83,6 +91,10 @@ export function WorkspaceRail({
 }: {
   actions?: ReactNode;
   changes?: ReactNode;
+  // The rail is a drawer over the chat on a narrow screen. These are its element, for focus, and
+  // its close button's action; the drawer itself is the route's, by way of `useDrawer`.
+  drawerRef?: RefObject<HTMLElement | null>;
+  onClose?: () => void;
   ports?: ReactNode;
   onTab?: (tab: RailTab) => void;
   tab?: RailTab;
@@ -132,16 +144,25 @@ export function WorkspaceRail({
 
   if (tabbed !== undefined && tab.kind !== "details") {
     return (
-      <aside className="dashboard-rail" style={sized}>
+      <aside
+        aria-label="Workspace details"
+        className="dashboard-rail"
+        ref={drawerRef}
+        style={sized}
+        tabIndex={-1}
+      >
         <RailResizer onResize={setWidth} width={width} />
-        <Tabs
-          changes={changes}
-          onTab={onTab}
-          ports={ports}
-          tab={tab}
-          terminal={terminal}
-          timeline={timeline}
-        />
+        <div className="rail-head">
+          <Tabs
+            changes={changes}
+            onTab={onTab}
+            ports={ports}
+            tab={tab}
+            terminal={terminal}
+            timeline={timeline}
+          />
+          <RailClose onClose={onClose} />
+        </div>
         <div className="rail-body">
           <Panel open={tab.kind === "diff"} seen={opened.includes("diff")}>
             {changes}
@@ -172,20 +193,29 @@ export function WorkspaceRail({
   }
 
   return (
-    <aside className="dashboard-rail" style={sized}>
+    <aside
+      aria-label="Workspace details"
+      className="dashboard-rail"
+      ref={drawerRef}
+      style={sized}
+      tabIndex={-1}
+    >
       <RailResizer onResize={setWidth} width={width} />
       {/* A workspace with nothing but placement to show gets no tab strip -- a row of one tab
 			    is a label pretending to be a control, and the panel gets the height back. */}
-      {tabbed === undefined ? null : (
-        <Tabs
-          changes={changes}
-          onTab={onTab}
-          ports={ports}
-          tab={tab}
-          terminal={terminal}
-          timeline={timeline}
-        />
-      )}
+      <div className="rail-head">
+        {tabbed === undefined ? null : (
+          <Tabs
+            changes={changes}
+            onTab={onTab}
+            ports={ports}
+            tab={tab}
+            terminal={terminal}
+            timeline={timeline}
+          />
+        )}
+        <RailClose onClose={onClose} />
+      </div>
       <div className="rail-facts">
         {/* What the container is doing, before any of the reference material. It answers the
 				    question somebody opens this tab with; the sections below answer the ones they
@@ -329,6 +359,20 @@ function Panel({
 }
 
 // Tabs switches the rail between placement, the change list, the timeline, the ports and the shell.
+// RailClose is the drawer's way out. Rendered everywhere and shown only where the rail is a drawer,
+// so there is one markup for both layouts and the stylesheet alone decides.
+function RailClose({ onClose }: { onClose?: () => void }) {
+  return onClose === undefined ? null : (
+    <IconButton
+      className="rail-close"
+      icon={X}
+      label="Close details"
+      onClick={onClose}
+      variant="tertiary"
+    />
+  );
+}
+
 function Tabs({
   changes,
   onTab,

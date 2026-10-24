@@ -366,6 +366,8 @@
   /* Motion — three durations, always ease-in-out */
   --dur-fast: 75ms;
   --dur-base: 150ms;
+  /* Something crossing the whole screen, like a mobile drawer. At --dur-base it read as a jump. */
+  --dur-slow: 220ms;
   --ease: ease-in-out;
 }
 
@@ -373,6 +375,7 @@
   :root {
     --dur-fast: 1ms;
     --dur-base: 1ms;
+    --dur-slow: 1ms;
   }
 }
 

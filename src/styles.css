@@ -2645,6 +2645,22 @@ button.workspace-title:hover {
 
 /* Sits on the border itself, wider than the line so it can be grabbed. Reaching a one-pixel target
    with a mouse is a test, not an interface. */
+/* On a wide screen the head is not a box at all: the tab strip lays out as the rail's own child,
+   exactly as before the drawer existed, and the close button is not there. */
+.rail-head {
+	display: contents;
+}
+
+/* The rail's opener, for where the rail is a drawer. Scoped to the bar so it outweighs
+   `.icon-button`'s own display, which comes later. */
+.screen-bar .screen-bar-rail {
+	display: none;
+}
+
+.rail-head .rail-close {
+	display: none;
+}
+
 .rail-resizer {
 	bottom: 0;
 	cursor: col-resize;
@@ -2851,45 +2867,79 @@ button.workspace-title:hover {
 	flex: none;
 }
 
-/* Below this the rail drops under the centre, so a locked viewport height would clip it. The
-   whole shell goes back to growing with its content and scrolling normally. */
+/* Below this the rail stops being a column and becomes a drawer over the chat, opened from the
+   page's own bar. It was stacked under the chat, which put it a long scroll away and made the page
+   scroll at all; the chat is what you are here for, and the rail is somewhere you visit.
+ *
+ * Hidden by transform and visibility rather than unmounted or `display: none`. The terminal lives
+ * in here, and unmounting it ends the shell. `visibility` is what takes a closed drawer out of the
+ * tab order and the accessibility tree; it flips at the end of the slide out and at the start of
+ * the slide in, so the drawer is never hidden while it is still moving. */
 @media (max-width: 1100px) {
 	.dashboard {
 		grid-template-columns: 220px minmax(0, 1fr);
-		height: auto;
-		min-height: 100dvh;
-		overflow: visible;
-	}
-
-	.dashboard-main,
-	.dashboard-main-fixed .centre-screen,
-	.dashboard-rail {
-		overflow-y: visible;
-	}
-
-	/* The chat still needs a definite height once the page scrolls instead of the columns.
-	   `.centre-screen` is a size container, so it ignores its content and collapses to 0px tall
-	   without one -- which is how the conversation vanished entirely on a phone. One screen tall,
-	   with the rail scrolling underneath it. */
-	.dashboard-main-fixed {
-		height: 100dvh;
-		overflow: hidden;
-	}
-
-	.dashboard-rail {
-		border-left: none;
-		border-top: 1px solid var(--line-hairline);
-		grid-column: 2;
-		width: auto;
-	}
-
-	/* The rail sits under the centre here, so there is no width left to drag. */
-	.rail-resizer {
-		display: none;
 	}
 
 	.dashboard-main-wide {
 		grid-column: 2;
+	}
+
+	.dashboard-rail {
+		border-left: none;
+		inset: 0;
+		overscroll-behavior: contain;
+		position: fixed;
+		transform: translateX(100%);
+		transition:
+			transform var(--dur-slow) var(--ease),
+			visibility 0s linear var(--dur-slow);
+		visibility: hidden;
+		width: auto;
+		z-index: 20;
+	}
+
+	.dashboard[data-panel="rail"] .dashboard-rail {
+		transform: none;
+		transition: transform var(--dur-slow) var(--ease);
+		visibility: visible;
+	}
+
+	/* Everything under an open drawer leaves the tab order too, once the drawer has covered it. */
+	.dashboard[data-panel="rail"] > :not(.dashboard-rail) {
+		transition: visibility 0s linear var(--dur-slow);
+		visibility: hidden;
+	}
+
+	/* A drawer fills the screen; there is no width to drag. */
+	.rail-resizer {
+		display: none;
+	}
+
+	/* The tab strip and the close button share a row, and the row takes the strip's rule and
+	   spacing so the button sits on it rather than floating above. */
+	.rail-head {
+		align-items: center;
+		border-bottom: 1px solid var(--line-hairline);
+		display: flex;
+		margin-bottom: 16px;
+		min-height: 44px;
+		padding-right: 6px;
+	}
+
+	.rail-head .tabs {
+		border-bottom: none;
+		flex: 1 1 auto;
+		margin-bottom: 0;
+		min-width: 0;
+	}
+
+	.rail-head .rail-close,
+	.screen-bar .screen-bar-rail {
+		display: inline-flex;
+	}
+
+	.rail-head .rail-close {
+		margin-left: auto;
 	}
 
 	/* Stacks for the same reason the rail does, and the divider turns with it. */
@@ -2910,8 +2960,10 @@ button.workspace-title:hover {
 }
 
 @media (max-width: 760px) {
+	/* One column: the sidebar's head row, then the page in whatever height is left. */
 	.dashboard {
 		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax(0, 1fr);
 	}
 
 	.dashboard-sidebar {
@@ -2936,7 +2988,6 @@ button.workspace-title:hover {
 		margin-right: -8px;
 	}
 
-	.dashboard-rail,
 	.dashboard-main-wide {
 		grid-column: 1;
 	}

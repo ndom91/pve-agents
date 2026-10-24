@@ -14,11 +14,19 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { useRef } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { parsePanel, useDrawer } from "./use-drawer";
 
 afterEach(cleanup);
+
+// A phone, so both panels are drawers. `show` asks the viewport first.
+beforeEach(() => {
+  window.matchMedia = ((query: string) => ({
+    matches: true,
+    media: query,
+  })) as unknown as typeof window.matchMedia;
+});
 
 function Harness() {
   const drawer = useRef<HTMLDivElement>(null);
@@ -97,6 +105,19 @@ describe("useDrawer", () => {
     await screen.findByText("closed");
     expect(history.length).toBe(1);
     expect(history.location.pathname).toBe("/");
+  });
+
+  it("does not open where the panel is a column, so a wide screen gains no history entry", async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+    })) as unknown as typeof window.matchMedia;
+    const history = renderAt("/");
+
+    fireEvent.click(await screen.findByText("open"));
+
+    expect(screen.getByText("closed")).toBeTruthy();
+    expect(history.length).toBe(1);
   });
 
   it("leaves Escape to the shell when the terminal has focus", async () => {

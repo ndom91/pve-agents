@@ -13,6 +13,13 @@ declare module "@tanstack/react-router" {
   }
 }
 
+// Where each one is a drawer. Must match the breakpoints in styles.css: the nav folds at 760px, the
+// rail at 1100px, because a tablet has room for a sidebar but not for a third column.
+const DRAWER_BELOW: Record<DrawerPanel, string> = {
+  nav: "(max-width: 760px)",
+  rail: "(max-width: 1100px)",
+};
+
 // parsePanel is the `panel` search param's validator. Anything else in the URL means no drawer.
 export function parsePanel(value: unknown): DrawerPanel | undefined {
   return value === "nav" || value === "rail" ? value : undefined;
@@ -42,7 +49,12 @@ export function useDrawer(
     strict: false,
   });
 
+  // A no-op where the panel is a column rather than a drawer. Otherwise a wide screen would gain a
+  // history entry for a drawer it never shows, and the back button would spend a press on it.
   const show = useCallback(() => {
+    if (!window.matchMedia(DRAWER_BELOW[panel]).matches) {
+      return;
+    }
     void navigate({
       search: (prev) => ({ ...prev, panel }),
       state: { drawer: panel },
