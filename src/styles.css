@@ -2843,8 +2843,13 @@ button.workspace-title:hover {
 		overflow-y: visible;
 	}
 
+	/* The chat still needs a definite height once the page scrolls instead of the columns.
+	   `.centre-screen` is a size container, so it ignores its content and collapses to 0px tall
+	   without one -- which is how the conversation vanished entirely on a phone. One screen tall,
+	   with the rail scrolling underneath it. */
 	.dashboard-main-fixed {
-		overflow: visible;
+		height: 100dvh;
+		overflow: hidden;
 	}
 
 	.dashboard-rail {
