@@ -4129,6 +4129,34 @@ diffs-container {
 	background: var(--green-mark);
 }
 
+/* Touch only. See the media query below. */
+.terminal-keys {
+	border-top: 1px solid var(--line-hairline);
+	display: none;
+	flex-shrink: 0;
+	gap: 4px;
+	overflow-x: auto;
+	padding: 6px 8px;
+}
+
+.terminal-keys .button {
+	flex: 1 0 auto;
+	min-height: 40px;
+}
+
+/* A toggle that is on: the terminal's Ctrl, lit until the key it modifies is typed. On the
+   component's own attribute rather than a class, so it cannot drift from what is announced. */
+.button[aria-pressed="true"] {
+	background: var(--surface-hover);
+	color: var(--text-primary);
+}
+
+@media (pointer: coarse) {
+	.terminal-keys {
+		display: flex;
+	}
+}
+
 .terminal-foot {
 	align-items: center;
 	background: var(--surface-sunk);

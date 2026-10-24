@@ -15,6 +15,8 @@ type ButtonProps = {
   className?: string;
   disabled?: boolean;
   onClick?: () => void;
+  // For a toggle, so the state is announced rather than only drawn.
+  pressed?: boolean;
   // What the label does not have room to say. Rendered as the application's tooltip, not as the
   // browser's `title`, which waits about a second, cannot be themed, draws in the operating
   // system's chrome and never appears on a touch device at all.
@@ -37,6 +39,7 @@ export function Button({
   className,
   disabled,
   onClick,
+  pressed,
   tooltip,
   type = "button",
   variant = "primary",
@@ -47,6 +50,7 @@ export function Button({
 
   const button = (
     <button
+      aria-pressed={pressed}
       className={classes}
       disabled={disabled}
       onClick={onClick}

@@ -2,6 +2,7 @@ import { FitAddon, init, Terminal } from "ghostty-web";
 import { Eraser } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "./button";
 import { IconButton } from "./icon-button";
 import { PanelNote, PanelSpinner } from "./panel-state";
 
@@ -24,6 +25,29 @@ import { PanelNote, PanelSpinner } from "./panel-state";
 // while a shell is open these will not follow -- and they should not: the terminal is deliberately
 // theme-invariant, so the only thing that could change here is a token edit, which needs a reload
 // anyway.
+// The keys a phone's keyboard does not have, which a shell cannot do without. ghostty already
+// raises the soft keyboard on a tap, so letters and Enter arrive; these are the rest. Arrows are
+// letters here and become sequences at the moment of sending, because which sequence depends on
+// the cursor-key mode the program in the shell has asked for.
+const EXTRA_KEYS = [
+  { label: "esc", name: "Escape", send: "\x1b" },
+  { label: "tab", name: "Tab", send: "\t" },
+  { arrow: "D", label: "\u2190", name: "Left" },
+  { arrow: "A", label: "\u2191", name: "Up" },
+  { arrow: "B", label: "\u2193", name: "Down" },
+  { arrow: "C", label: "\u2192", name: "Right" },
+] as const;
+
+// withCtrl turns one typed key into its control character: c to ^C, [ to ESC. Anything that has no
+// control form -- a digit, a pasted string -- goes through as typed.
+export function withCtrl(data: string): string {
+  if (data.length !== 1) {
+    return data;
+  }
+  const code = data.toUpperCase().charCodeAt(0);
+  return code >= 64 && code <= 95 ? String.fromCharCode(code - 64) : data;
+}
+
 function terminalTheme(element: Element) {
   const style = getComputedStyle(element);
   const token = (name: string, fallback: string) =>
@@ -55,6 +79,14 @@ export default function TerminalView({
   // fit rather than computed here: the fit addon owns that arithmetic and a second copy of it
   // would be a number that disagrees with the one the remote tty was told.
   const [size, setSize] = useState<{ cols: number; rows: number } | null>(null);
+  // Ctrl from the key row: held for exactly one key. A ref beside the state, because the data
+  // handler is registered once and would otherwise only ever see the first render's value.
+  const [ctrl, setCtrl] = useState(false);
+  const ctrlHeld = useRef(false);
+  const holdCtrl = (held: boolean) => {
+    ctrlHeld.current = held;
+    setCtrl(held);
+  };
 
   // Disposed once, when the page is finished with this terminal entirely.
   //
@@ -111,9 +143,15 @@ export default function TerminalView({
         // would stack a listener for every workspace visited, and each would send the same
         // keystroke again.
         terminal.onData((data: string) => {
+          let typed = data;
+          if (ctrlHeld.current) {
+            typed = withCtrl(data);
+            ctrlHeld.current = false;
+            setCtrl(false);
+          }
           const live = wire.current;
           if (live?.readyState === WebSocket.OPEN) {
-            live.send(new TextEncoder().encode(data));
+            live.send(new TextEncoder().encode(typed));
           }
         });
 
@@ -203,6 +241,21 @@ export default function TerminalView({
     };
   }, [workspaceId]);
 
+  // Through the terminal rather than straight to the socket, so a held Ctrl applies to these too
+  // and there is one path a keystroke takes, whoever pressed it.
+  function press(key: (typeof EXTRA_KEYS)[number]) {
+    const terminal = screen.current?.terminal;
+    if (terminal === undefined) {
+      return;
+    }
+    // DECCKM, mode 1: full-screen programs ask for the application form of the arrows.
+    const sequence =
+      "arrow" in key
+        ? `\x1b${terminal.getMode(1) ? "O" : "["}${key.arrow}`
+        : key.send;
+    terminal.input(sequence, true);
+  }
+
   return (
     <div className="terminal-view">
       {/* Who, and the one control that acts on the screen rather than on the shell. Where it
@@ -243,6 +296,36 @@ export default function TerminalView({
           )}
         </div>
       )}
+
+      {/* Touch only; a keyboard with these keys has no use for them. The mousedown is
+			    swallowed so that tapping a key does not move focus off the terminal, which on a
+			    phone would close the keyboard after every press. */}
+      <div
+        aria-label="Extra keys"
+        className="terminal-keys"
+        onMouseDown={(event) => event.preventDefault()}
+        role="toolbar"
+      >
+        <Button
+          disabled={state !== "live"}
+          onClick={() => holdCtrl(!ctrl)}
+          pressed={ctrl}
+          variant="tertiary"
+        >
+          ctrl
+        </Button>
+        {EXTRA_KEYS.map((key) => (
+          <Button
+            disabled={state !== "live"}
+            key={key.name}
+            onClick={() => press(key)}
+            variant="tertiary"
+          >
+            <span aria-hidden="true">{key.label}</span>
+            <span className="visually-hidden">{key.name}</span>
+          </Button>
+        ))}
+      </div>
 
       {/* Whether there is a shell on the other end, where it is, and how to leave it. */}
       <div className="terminal-foot">
