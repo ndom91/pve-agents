@@ -1826,6 +1826,11 @@ button {
 
 .workspace-title h1 {
 	margin: 0;
+	/* Here and not only on the button. `text-overflow` acts on a box's own line of text, and the
+	   button's text is inside this block, so the button clipped the title mid-letter with no
+	   ellipsis -- which only showed once a phone made the title shrink. */
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
