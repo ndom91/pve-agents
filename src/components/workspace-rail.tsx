@@ -34,6 +34,7 @@ import { Uptime } from "./uptime";
 // this does not have to move every time the workspace type grows a field it does not show.
 type RailWorkspace = {
   activity?: string;
+  purpose?: string;
   activityObservedAt?: string;
   createdAt?: string;
   currentStep?: string;
@@ -217,6 +218,11 @@ export function WorkspaceRail({
         <RailClose onClose={onClose} />
       </div>
       <div className="rail-facts">
+        {/* Only on a phone, where the bar has no room for it. Above that it is in the bar, and a
+				    second copy here would be the first thing you read twice. */}
+        {workspace.purpose === undefined || workspace.purpose === "" ? null : (
+          <p className="rail-purpose">{workspace.purpose}</p>
+        )}
         {/* What the container is doing, before any of the reference material. It answers the
 				    question somebody opens this tab with; the sections below answer the ones they
 				    have after that. */}

@@ -14,6 +14,7 @@ import { Notice, type NoticeProps, NoticeStack } from "../components/notice";
 import { outcomeItem } from "../components/outcome-notice";
 import { PanelSpinner } from "../components/panel-state";
 import { PortsTab } from "../components/ports-tab";
+import { StatusDot } from "../components/status-dot";
 import { Uptime } from "../components/uptime";
 import { WorkspaceBadges } from "../components/workspace-badges";
 import type { RailTab } from "../components/workspace-rail";
@@ -303,6 +304,13 @@ function WorkspaceDetail() {
             status={workspace.status}
             variant="group"
           />
+          {/* The badges' place on a phone, where the words do not fit beside the title. */}
+          <span className="screen-bar-dot">
+            <StatusDot
+              activity={workspace.activity}
+              status={workspace.status}
+            />
+          </span>
           {/* Only where the rail is a drawer; above that it is already on screen. */}
           <IconButton
             className="screen-bar-rail"

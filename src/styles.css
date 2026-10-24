@@ -2679,6 +2679,19 @@ button.workspace-title:hover {
 	display: none;
 }
 
+/* The phone's stand-in for the badges. See the 760px block. */
+.screen-bar .screen-bar-dot {
+	display: none;
+}
+
+/* The purpose, at the top of the details tab, on a phone only; elsewhere it is in the bar. */
+.rail-facts .rail-purpose {
+	color: var(--text-secondary);
+	display: none;
+	margin: 0 0 16px;
+	overflow-wrap: anywhere;
+}
+
 .rail-head .rail-close {
 	display: none;
 }
@@ -3055,15 +3068,11 @@ button.workspace-title:hover {
 		width: auto;
 	}
 
-	/* The title is sized for a desktop bar and never shrank, so the badges and the destroy button
-	   beside it were pushed off the right edge. It shrinks now, and the purpose -- the other
-	   flexible thing in the row -- drops to a line of its own rather than to zero. */
+	/* One row: menu, title, state, details, destroy. The title is the one thing that gives way,
+	   and it was sized for a desktop bar and never shrank, which pushed everything after it off the
+	   right edge. The purpose is in the details drawer instead, and the badges become a dot. */
 	.screen-bar {
-		flex-wrap: wrap;
-		height: auto;
-		min-height: var(--topbar-h);
-		padding-block: 8px;
-		row-gap: 2px;
+		gap: 8px;
 	}
 
 	button.workspace-title,
@@ -3077,19 +3086,31 @@ button.workspace-title:hover {
 		width: 100%;
 	}
 
-	.screen-bar-tick {
+	.screen-bar-tick,
+	.screen-bar-purpose,
+	.screen-bar .state-group {
 		display: none;
 	}
 
-	.screen-bar-purpose {
-		flex-basis: 100%;
-		order: 1;
+	.screen-bar .screen-bar-dot {
+		display: inline-flex;
+		margin-left: auto;
 	}
 
-	/* Clipped, the facts at the end -- the address and the branch -- were simply not there, with
-	   nothing to say so. A row you can swipe keeps every one of them reachable. */
-	.meta-band {
-		overflow-x: auto;
+	.rail-facts .rail-purpose {
+		display: block;
+	}
+
+	/* Every fact here is in the details drawer too. What is not is an outcome notice -- what became
+	   of the work once the container went -- so the band stays for those and drops the rest. */
+	.meta-band:not(:has(.meta-band-notice)) {
+		display: none;
+	}
+
+	.meta-band-item,
+	.meta-band-sep,
+	.meta-band-tail {
+		display: none;
 	}
 }
 
