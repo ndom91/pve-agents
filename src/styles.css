@@ -3021,6 +3021,14 @@ button.workspace-title:hover {
 	opacity: 1;
 }
 
+/* Without a hover there is nothing to reveal these, and focus-within needs a tap on a control
+   nobody can see. A touch screen shows them all the time, discard included. */
+@media (hover: none) {
+	.on-hover {
+		opacity: 1;
+	}
+}
+
 /* Sized to sit inside a line of text rather than beside a paragraph, so a row keeps its height
    whether it is showing controls or not. Shared, because the copy button and the open-in-GitHub
    link sit side by side and two of these at different sizes read as one of them being broken. */
