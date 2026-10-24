@@ -4244,7 +4244,6 @@ diffs-container {
 
 .terminal-keys .button {
 	flex: 1 0 auto;
-	min-height: 40px;
 }
 
 /* A toggle that is on: the terminal's Ctrl, lit until the key it modifies is typed. On the
