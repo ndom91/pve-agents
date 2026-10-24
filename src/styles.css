@@ -2896,6 +2896,16 @@ button.workspace-title:hover {
 	.dashboard-main-wide {
 		grid-column: 1;
 	}
+
+	/* The launch form keeps its fixed width and the row never wraps, so beside it the fleet got
+	   whatever was left -- nothing, at phone width, and the intro set one word per line. */
+	.home-body {
+		flex-direction: column;
+	}
+
+	.home-side {
+		width: auto;
+	}
 }
 
 /* Square, quiet, and the same whether it is a button or a link that looks like one. Shape only,
