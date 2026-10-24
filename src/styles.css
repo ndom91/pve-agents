@@ -2946,6 +2946,43 @@ button.workspace-title:hover {
 	.fleet-col.is-state {
 		width: auto;
 	}
+
+	/* The title is sized for a desktop bar and never shrank, so the badges and the destroy button
+	   beside it were pushed off the right edge. It shrinks now, and the purpose -- the other
+	   flexible thing in the row -- drops to a line of its own rather than to zero. */
+	.screen-bar {
+		flex-wrap: wrap;
+		height: auto;
+		min-height: var(--topbar-h);
+		padding-block: 8px;
+		row-gap: 2px;
+	}
+
+	button.workspace-title,
+	.workspace-title.is-editing {
+		flex-shrink: 1;
+		min-width: 0;
+	}
+
+	.workspace-title input {
+		min-width: 0;
+		width: 100%;
+	}
+
+	.screen-bar-tick {
+		display: none;
+	}
+
+	.screen-bar-purpose {
+		flex-basis: 100%;
+		order: 1;
+	}
+
+	/* Clipped, the facts at the end -- the address and the branch -- were simply not there, with
+	   nothing to say so. A row you can swipe keeps every one of them reachable. */
+	.meta-band {
+		overflow-x: auto;
+	}
 }
 
 /* Square, quiet, and the same whether it is a button or a link that looks like one. Shape only,
