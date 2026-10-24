@@ -1223,6 +1223,12 @@ button {
 	letter-spacing: 0.14em;
 }
 
+/* Only on a phone, where the sidebar folds to this row. See the 760px block. Scoped to the head
+   so it outweighs `.icon-button`, which comes later and sets its own display. */
+.sidebar-head .sidebar-menu {
+	display: none;
+}
+
 .sidebar-nav {
 	display: flex;
 	flex-direction: column;
@@ -2890,6 +2896,20 @@ button.workspace-title:hover {
 		height: auto;
 		overflow-y: visible;
 		position: static;
+	}
+
+	/* Stacked above the page, the whole workspace list was the first screen of every page and
+	   the thing you came for started below it. It folds to its head row behind a menu button.
+	   The waiting banner stays out, because it is the one line here that asks for attention. */
+	.dashboard-sidebar:not(.is-open) .sidebar-nav,
+	.dashboard-sidebar:not(.is-open) .sidebar-foot {
+		display: none;
+	}
+
+	.sidebar-head .sidebar-menu {
+		display: inline-flex;
+		margin-left: auto;
+		margin-right: -8px;
 	}
 
 	.dashboard-rail,

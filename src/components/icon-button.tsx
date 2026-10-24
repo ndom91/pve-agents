@@ -45,6 +45,7 @@ function classes({ className, variant = "secondary" }: IconStyle): string {
 // get a single glyph, as before.
 export function IconButton({
   disabled,
+  expanded,
   onClick,
   swapIcon: SwapIcon,
   swapStrokeWidth,
@@ -52,6 +53,8 @@ export function IconButton({
   ...style
 }: IconStyle & {
   disabled?: boolean;
+  // For a button that opens and closes something, so a screen reader hears which it will do.
+  expanded?: boolean;
   onClick?: () => void;
   swapIcon?: LucideIcon;
   swapStrokeWidth?: number;
@@ -62,6 +65,7 @@ export function IconButton({
   return (
     <Tooltip label={label}>
       <button
+        aria-expanded={expanded}
         aria-label={label}
         className={classes(style)}
         disabled={disabled}

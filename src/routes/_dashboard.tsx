@@ -4,8 +4,18 @@ import {
   Link,
   Outlet,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
-import { Bell, ChevronRight, Home, LogOut, Plus, Settings } from "lucide-react";
+import {
+  Bell,
+  ChevronRight,
+  Home,
+  LogOut,
+  Menu,
+  Plus,
+  Settings,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 import { IconButton, IconLink } from "../components/icon-button";
@@ -47,6 +57,14 @@ function Dashboard() {
   const { blocked, permission, requestPermission } =
     useBlockedAlerts(workspaces);
   const [signingOut, setSigningOut] = useState(false);
+  // Only means anything below 760px, where the sidebar folds to its head row. Remembers the page it
+  // was opened on rather than a boolean, so any navigation closes it: picking a workspace from the
+  // menu would otherwise leave the menu covering the workspace.
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null);
+  const menuOpen = menuOpenOn === pathname;
 
   async function signOut() {
     setSigningOut(true);
@@ -74,7 +92,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      <aside className="dashboard-sidebar">
+      <aside className={`dashboard-sidebar${menuOpen ? " is-open" : ""}`}>
         {/* The application's own name, on its own line, against the hairline that starts
 				    the column. It was an eyebrow floating above the first group, which read as a
 				    label belonging to that group rather than to the window. */}
@@ -85,6 +103,16 @@ function Dashboard() {
 					    tree rather than given alt text that would be read twice. */}
           <img alt="" className="sidebar-mark" src="/icon1.png" />
           <span className="sidebar-wordmark">PVE&middot;AGENTS</span>
+          <IconButton
+            className="sidebar-menu"
+            expanded={menuOpen}
+            icon={Menu}
+            label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMenuOpenOn(menuOpen ? null : pathname)}
+            swapIcon={X}
+            swapped={menuOpen}
+            variant="tertiary"
+          />
         </div>
 
         {blocked.length === 0 ? null : (
