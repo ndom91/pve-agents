@@ -25,6 +25,7 @@ import { ThemeToggle } from "../components/theme-toggle";
 import { authClient } from "../lib/auth-client";
 import { fleetQuery } from "../lib/queries";
 import { useBlockedAlerts } from "../lib/use-blocked-alerts";
+import { type DrawerPanel, parsePanel } from "../lib/use-drawer";
 import { sessionState } from "../server/session.functions";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -37,6 +38,11 @@ export const Route = createFileRoute("/_dashboard")({
     }
   },
   component: Dashboard,
+  // Which drawer is open on a narrow screen. On the layout so every page under it has one; see
+  // `useDrawer` for why it is in the URL at all.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { panel?: DrawerPanel } => ({ panel: parsePanel(search.panel) }),
   // Primed rather than fetched: the component reads the same key, so the first paint has data
   // and hydration does not refetch it.
   loader: ({ context }) => context.queryClient.ensureQueryData(fleetQuery()),
