@@ -14,21 +14,14 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { useRef } from "react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { parsePanel, useDrawer } from "./use-drawer";
 
 afterEach(cleanup);
 
-// A phone, so both panels are drawers. `show` asks the viewport first.
-beforeEach(() => {
-  window.matchMedia = ((query: string) => ({
-    matches: true,
-    media: query,
-  })) as unknown as typeof window.matchMedia;
-});
-
-function Harness() {
+// `fixed` is what the stylesheet gives a drawer below its breakpoint, and what `show` reads.
+function Harness({ fixed }: { fixed: boolean }) {
   const drawer = useRef<HTMLDivElement>(null);
   const { hide, open, show } = useDrawer("nav", drawer);
 
@@ -37,7 +30,12 @@ function Harness() {
       <button onClick={show} type="button">
         open
       </button>
-      <div data-testid="drawer" ref={drawer} tabIndex={-1}>
+      <div
+        data-testid="drawer"
+        ref={drawer}
+        style={{ position: fixed ? "fixed" : "static" }}
+        tabIndex={-1}
+      >
         <button onClick={hide} type="button">
           close
         </button>
@@ -52,10 +50,10 @@ function Harness() {
 
 // A real memory router rather than a mock, because the rules under test are about what the
 // history does: an entry pushed on open, popped on close, replaced when there is none to pop.
-function renderAt(url: string) {
+function renderAt(url: string, fixed = true) {
   const history = createMemoryHistory({ initialEntries: [url] });
   const rootRoute = createRootRoute({
-    component: Harness,
+    component: () => <Harness fixed={fixed} />,
     validateSearch: (search: Record<string, unknown>) => ({
       panel: parsePanel(search.panel),
     }),
@@ -108,11 +106,7 @@ describe("useDrawer", () => {
   });
 
   it("does not open where the panel is a column, so a wide screen gains no history entry", async () => {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-    })) as unknown as typeof window.matchMedia;
-    const history = renderAt("/");
+    const history = renderAt("/", false);
 
     fireEvent.click(await screen.findByText("open"));
 
