@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 
 import {
   branchPage,
@@ -121,7 +121,9 @@ export function WorkspaceRail({
 
   // The rail sets its own width rather than the grid setting it, so the handle does not have to
   // reach across routes to the layout that owns the columns. The grid's last column is `auto`.
-  const sized = { width: `${width}px` };
+  // A variable rather than `width` itself: once the layout stacks the rail is full width, and an
+  // inline width would beat the stylesheet and leave it at its desktop size beside a dead strip.
+  const sized = { "--rail-w": `${width}px` } as CSSProperties;
 
   // Tabs appear once there is anything beyond placement to show. The timeline alone is enough:
   // a workspace that failed before it ever had a diff still has a history worth reading, and

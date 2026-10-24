@@ -2606,7 +2606,8 @@ button.workspace-title:hover {
 	   the column's. The body below it pads itself. */
 	/* The resizer is positioned against this. */
 	position: relative;
-	width: 260px;
+	/* Set inline by the rail from the width it was dragged to. */
+	width: var(--rail-w, 260px);
 }
 
 /* The panel's own 48px bar, matching the screen bar across the column from it. Scoped to the rail
@@ -2862,6 +2863,12 @@ button.workspace-title:hover {
 		border-left: none;
 		border-top: 1px solid var(--line-hairline);
 		grid-column: 2;
+		width: auto;
+	}
+
+	/* The rail sits under the centre here, so there is no width left to drag. */
+	.rail-resizer {
+		display: none;
 	}
 
 	.dashboard-main-wide {
